@@ -1,0 +1,705 @@
+## TELEGRAM BOT + MINI APP INTEGRATION
+
+Experiences.fun should not function only as a Mini App embedded inside Telegram.
+
+The Telegram bot should act as a lightweight command and notification layer around the application.
+
+Use the Mini App for rich interfaces and the Telegram bot for quick actions, status checks, social interactions and notifications.
+
+The goal is:
+
+**Mini App = full product**
+
+**Telegram Bot = quick command interface + notifications**
+
+---
+
+# TELEGRAM COMMANDS
+
+Implement a basic Telegram bot command system.
+
+Commands should be simple, memorable and useful.
+
+## /start
+
+When a user first interacts with the bot:
+
+Display:
+
+**Welcome to Experiences.fun 🌍**
+
+Discover real-world experiences, volunteer with your community and earn XP and rewards.
+
+Buttons:
+
+**Open Experiences.fun**
+
+**My Progress**
+
+**Explore Experiences**
+
+If the user has not completed onboarding, `/start` should open the onboarding flow in the Mini App.
+
+---
+
+## /help
+
+Display the available commands:
+
+**Experiences.fun commands**
+
+`/start` — Open Experiences.fun
+
+`/progress` — View your XP and progress
+
+`/experiences` — Discover current experiences
+
+`/friends` — View your friends
+
+`/requests` — View pending friend requests
+
+`/profile` — View your profile
+
+`/help` — View available commands
+
+Use Telegram inline buttons wherever possible.
+
+---
+
+# /progress
+
+Allow users to quickly view their current progress without opening the full application.
+
+Example Telegram response:
+
+**Your Experiences.fun Progress 🌱**
+
+**Level**
+Contributor
+
+**XP**
+850 XP
+
+**Next level**
+1,500 XP
+
+**Progress**
+████████░░ 57%
+
+**Experiences completed**
+8
+
+**Experiences hosted**
+2
+
+**Rewards earned**
+£120
+
+Button:
+
+**View full profile →**
+
+This button should open the user's profile inside the Mini App.
+
+---
+
+# /experiences
+
+Return currently available volunteering experiences.
+
+Prioritise experiences based on:
+
+1. User's city
+2. User's selected interests
+3. Upcoming date
+4. Available capacity
+
+Example:
+
+**Experiences near you 🌍**
+
+🌿 **Community Park Cleanup**
+
+📍 Chingford
+📅 Saturday
+👥 8 places left
+⭐ +150 XP
+💰 £20
+
+[View experience]
+
+---
+
+📚 **Digital Skills Workshop**
+
+📍 Walthamstow
+📅 Sunday
+👥 5 places left
+⭐ +200 XP
+
+[View experience]
+
+Use inline Telegram buttons to allow users to open the specific experience in the Mini App.
+
+---
+
+# /profile
+
+Return a compact version of the user's profile.
+
+Example:
+
+**NALI**
+
+@username
+
+🌍 London
+
+⭐ Contributor
+
+**850 XP**
+
+**8 experiences completed**
+
+**2 experiences hosted**
+
+Buttons:
+
+**View profile**
+
+**Edit profile**
+
+---
+
+# FRIEND SYSTEM
+
+Introduce a lightweight social graph between users.
+
+Users should be able to send, receive and accept friend requests through Telegram.
+
+The actual friend relationship should be stored in the Experiences.fun backend.
+
+## Friend request flow
+
+User A:
+
+`/friends`
+
+Then:
+
+**Your friends**
+
+* @alex
+* @sarah
+* @jordan
+
+Buttons:
+
+**Add friend**
+
+**Friend requests**
+
+**View friends**
+
+---
+
+## Adding a friend
+
+Allow users to enter a Telegram username.
+
+Example:
+
+User:
+
+`/addfriend @alex`
+
+Bot:
+
+**Send friend request to @alex?**
+
+[Send request]
+
+[Cancel]
+
+After sending:
+
+**Friend request sent to @alex ✓**
+
+---
+
+# FRIEND REQUEST NOTIFICATION
+
+When User A sends a request to User B:
+
+Send User B a Telegram notification.
+
+Example:
+
+**New friend request 🤝**
+
+@alex wants to connect with you on Experiences.fun.
+
+[Accept]
+
+[Decline]
+
+[View profile]
+
+---
+
+# ACCEPTING A FRIEND REQUEST
+
+When the recipient presses:
+
+**Accept**
+
+Update the backend relationship.
+
+Then notify both users.
+
+Recipient:
+
+**You're now connected with @alex 🤝**
+
+Sender:
+
+**@username accepted your friend request 🤝**
+
+Both users should now appear in each other's `/friends` lists.
+
+---
+
+# /requests
+
+Show pending friend requests.
+
+Example:
+
+**Friend Requests**
+
+🤝 @alex
+
+Wants to connect with you.
+
+[Accept] [Decline]
+
+If there are no requests:
+
+**No pending requests.**
+
+---
+
+# FRIEND DISCOVERY
+
+Allow users to discover other participants through:
+
+* Telegram username
+* shared experiences
+* shared volunteering activities
+* organisation events
+
+Do not expose private personal information.
+
+Only display information that the user has chosen to make publicly visible.
+
+---
+
+# SOCIAL EXPERIENCE SHARING
+
+Users should be able to share experiences with friends directly through Telegram.
+
+On every experience:
+
+**Share**
+
+This should generate a Telegram share action containing:
+
+**🌱 Community Park Cleanup**
+
+Join me at this volunteering experience on Experiences.fun.
+
+📍 Chingford
+📅 Saturday
+⭐ +150 XP
+💰 £20 reward
+
+[Join experience]
+
+The existing application already contains Telegram sharing functionality for experiences. Preserve and adapt this behaviour rather than creating an unrelated sharing implementation.
+
+---
+
+# EXPERIENCE NOTIFICATIONS
+
+The Telegram bot should notify participants about important changes.
+
+Examples:
+
+### Experience joined
+
+**You're in! 🎉**
+
+You've joined:
+
+**Community Park Cleanup**
+
+📅 Saturday
+📍 Chingford
+⭐ +150 XP
+
+We'll remind you before the experience.
+
+---
+
+### Experience reminder
+
+Send a reminder before the event.
+
+**Your experience is tomorrow 🌱**
+
+Community Park Cleanup
+
+📍 Chingford
+🕐 10:00
+
+[View experience]
+
+---
+
+### Experience completed
+
+When the host marks the participant as attended/completed:
+
+**Experience completed! 🎉**
+
+Your participation in:
+
+**Community Park Cleanup**
+
+has been submitted for verification.
+
+**Reward pending**
+
+---
+
+### Verification
+
+When the organisation verifies the contribution:
+
+**Contribution verified ✓**
+
+Community Park Cleanup
+
+**+150 XP**
+
+**£20 reward**
+
+Your progress has been updated.
+
+[View progress]
+
+---
+
+# HOST TELEGRAM COMMANDS
+
+Organisations should also be able to perform lightweight management through Telegram.
+
+## /host
+
+Display:
+
+**Organisation Dashboard**
+
+**Upcoming experiences**
+3
+
+**Participants**
+42
+
+**Pending verifications**
+7
+
+**Total participants**
+126
+
+Buttons:
+
+**Manage experiences**
+
+**Verify participants**
+
+**Create experience**
+
+**View impact**
+
+These buttons should open the relevant Mini App screens.
+
+---
+
+# /verify
+
+Hosts should be able to quickly access pending participant verifications.
+
+Example:
+
+**Pending verifications**
+
+🌱 Community Park Cleanup
+
+**@alex**
+
+Submitted completion.
+
+[Verify ✓]
+
+[Reject]
+
+When verification occurs, update the backend and issue the configured XP/reward.
+
+---
+
+# /create
+
+The bot should provide a shortcut into the experience creation flow.
+
+Response:
+
+**Create a new experience**
+
+Use the Mini App to publish your volunteering opportunity.
+
+[Create experience →]
+
+The actual creation workflow should remain inside the Mini App because it requires multiple fields.
+
+---
+
+# TELEGRAM NOTIFICATION EVENTS
+
+The backend should support Telegram notifications for important events.
+
+At minimum:
+
+### Participant events
+
+* Friend request received
+* Friend request accepted
+* Experience joined
+* Experience reminder
+* Experience cancelled
+* Experience completed
+* Completion verified
+* Reward issued
+
+### Host events
+
+* New participant joined
+* Experience approaching capacity
+* Participant submitted completion
+* Verification required
+* Experience completed
+* Experience summary available
+
+Avoid excessive notifications.
+
+Notifications should only be sent when they represent a meaningful action or state change.
+
+---
+
+# MINI APP ↔ BOT DEEP LINKING
+
+Every Telegram interaction should be capable of opening a specific Mini App destination.
+
+Examples:
+
+`/progress`
+
+→ Profile / progress page
+
+`/experiences`
+
+→ Experience discovery
+
+`View experience`
+
+→ Specific experience detail
+
+`View profile`
+
+→ Specific user profile
+
+`Verify`
+
+→ Host verification interface
+
+`Create experience`
+
+→ Experience creation flow
+
+Use Telegram Mini App deep links wherever appropriate.
+
+---
+
+# SHARED USER IDENTITY
+
+The Telegram account should be the primary identity layer for the MVP.
+
+Use the Telegram user ID as the stable identifier.
+
+The backend user model should associate:
+
+* Telegram ID
+* Telegram username
+* Experiences.fun profile
+* participation history
+* XP
+* friendships
+* organisation relationships
+
+Do not create unnecessary duplicate authentication flows.
+
+---
+
+# SOCIAL GRAPH DATA MODEL
+
+Add a friendship model.
+
+### Friendship
+
+* id
+* requester_user_id
+* recipient_user_id
+* status
+* created_at
+* accepted_at
+
+Possible statuses:
+
+**pending**
+
+**accepted**
+
+**declined**
+
+**blocked**
+
+A friendship should only become active after the recipient accepts.
+
+Prevent:
+
+* duplicate requests
+* self-friend requests
+* repeated requests while one is pending
+* friendship duplication
+
+---
+
+# TELEGRAM BOT SECURITY
+
+Do not trust Telegram usernames alone as authentication.
+
+Verify Telegram user identity using Telegram's Mini App authentication/init data.
+
+The backend should associate commands and actions with the authenticated Telegram user ID.
+
+Never allow a user to manipulate another user's:
+
+* XP
+* rewards
+* experience participation
+* friendships
+* verification status
+
+Only authorised organisation hosts can verify participant completion.
+
+---
+
+# BOT DESIGN PRINCIPLE
+
+The Telegram bot should remain lightweight.
+
+Do not attempt to recreate the entire Mini App through chat commands.
+
+Use Telegram for:
+
+**Check → Notify → Act → Open**
+
+Use the Mini App for:
+
+**Discover → Explore → Create → Manage → Review**
+
+This keeps the bot useful without turning it into a horrible text-based ERP system.
+
+---
+
+# MVP TELEGRAM COMMAND SET
+
+Implement these first:
+
+`/start`
+
+`/help`
+
+`/progress`
+
+`/experiences`
+
+`/profile`
+
+`/friends`
+
+`/requests`
+
+`/addfriend`
+
+`/host`
+
+For MVP launch, prioritise these interactions:
+
+### Participant
+
+**/experiences**
+→ discover volunteering
+
+**/progress**
+→ see XP and contribution
+
+**/friends**
+→ social graph
+
+**/addfriend**
+→ send connection
+
+**/requests**
+→ accept connections
+
+### Organisation
+
+**/host**
+→ manage organisation activity
+
+**Verify button**
+→ verify participants
+
+**Create experience button**
+→ open Mini App creation flow
+
+---
+
+# SUCCESS CRITERIA FOR TELEGRAM INTEGRATION
+
+A participant should be able to:
+
+**Open Telegram → discover an experience → join → receive reminders → complete → get verified → receive XP/reward**
+
+without needing to leave Telegram.
+
+A participant should also be able to:
+
+**send a friend request → receive acceptance → discover experiences together**
+
+An organisation should be able to:
+
+**receive participant notifications → review completions → verify contribution → trigger rewards**
+
+The Telegram bot and Mini App should feel like one unified Experiences.fun product rather than two separate systems.

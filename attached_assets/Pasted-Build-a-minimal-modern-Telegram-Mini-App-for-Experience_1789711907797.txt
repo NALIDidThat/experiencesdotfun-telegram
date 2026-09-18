@@ -1,0 +1,785 @@
+Build a minimal, modern Telegram Mini App for **Experiences.fun**.
+
+Experiences.fun is a platform for discovering and participating in real-world educational, environmental and community volunteering experiences.
+
+The MVP should focus specifically on one core loop:
+
+**Organisations publish experiences → participants discover them → participants join → participants complete the experience → the organisation verifies completion → the participant receives XP and/or a monetary reward.**
+
+## PRODUCT PRINCIPLES
+
+Build this as a **Telegram-native experience**, not as a conventional web dashboard squeezed inside Telegram.
+
+The interface should be:
+
+* Minimal
+* Modern
+* Mobile-first
+* Fast
+* Extremely easy to understand
+* Clean and spacious
+* Friendly without feeling childish
+* Community-oriented
+* Designed primarily for Telegram Mini App dimensions
+
+Avoid unnecessary complexity.
+
+Do not introduce crypto terminology unless required by the functionality.
+
+Do not make users connect a wallet during initial onboarding.
+
+The product should feel like a modern combination of:
+
+* local volunteering marketplace
+* community discovery platform
+* lightweight rewards system
+
+## EXISTING PRODUCT FOUNDATION
+
+There is an existing Experiences.fun prototype and codebase.
+
+Preserve and reuse the existing design language, components, routes, API patterns and interaction patterns wherever practical instead of rebuilding everything from scratch.
+
+Existing concepts include:
+
+* onboarding
+* user profiles
+* experience discovery
+* experience detail pages
+* experience creation
+* XP rewards
+* location-based discovery
+* environmental, education and community categories
+* host/join participation types
+
+The existing onboarding already captures:
+
+* city
+* country
+* interests
+* participation preference
+* name
+* username
+* bio
+
+The existing experience creation flow already captures:
+
+* title
+* description
+* category
+* date
+* city
+* country
+* maximum participants
+* XP reward
+
+The new MVP should adapt these concepts specifically for volunteering.
+
+## USER TYPES
+
+There are two primary user types.
+
+### 1. PARTICIPANT
+
+A participant can:
+
+* create a profile
+* select interests
+* set their location
+* discover volunteering experiences
+* view experience details
+* join an experience
+* see instructions
+* attend/complete the activity
+* submit completion/proof
+* wait for host verification
+* receive XP
+* receive a monetary reward where applicable
+* view their completed experiences
+* view their earned rewards
+
+### 2. ORGANISATION / HOST
+
+An organisation can:
+
+* create an organisation profile
+* provide organisation information
+* request/receive verification
+* publish volunteering experiences
+* define requirements
+* define capacity
+* define date/time/location
+* define XP reward
+* optionally define monetary reward
+* manage participants
+* mark participants as attended/completed
+* verify submitted completion
+* trigger participant rewards
+* view basic impact statistics
+
+## CORE INFORMATION ARCHITECTURE
+
+Use a simple bottom navigation:
+
+**Home**
+**Explore**
+**My Experiences**
+**Profile**
+
+For hosts, surface a contextual:
+
+**Host**
+or
+**Manage**
+
+section rather than creating a completely separate application.
+
+## PARTICIPANT ONBOARDING
+
+The participant onboarding should be extremely short.
+
+### Screen 1: Welcome
+
+Headline:
+
+**Turn experiences into impact.**
+
+Supporting text:
+
+Discover volunteering opportunities near you, contribute to your community and earn XP and rewards for your participation.
+
+CTA:
+
+**Get started**
+
+### Screen 2: Interests
+
+Headline:
+
+**What do you want to get involved in?**
+
+Allow multiple selections.
+
+Initial categories:
+
+🌱 Environmental
+📚 Education
+🤝 Community
+
+These are the MVP's primary categories.
+
+Additional categories can exist later but should not clutter the initial experience.
+
+CTA:
+
+**Continue**
+
+### Screen 3: Location
+
+Headline:
+
+**Where do you want to make an impact?**
+
+Show the user's Telegram/location information where available.
+
+Allow:
+
+**Use my location**
+
+or:
+
+**Choose location manually**
+
+Explain:
+
+We'll use your location to show relevant volunteering opportunities nearby.
+
+CTA:
+
+**Continue**
+
+### Screen 4: Participation
+
+Headline:
+
+**How do you want to participate?**
+
+Cards:
+
+**Join experiences**
+Participate in volunteering opportunities.
+
+**Host experiences**
+Organise opportunities for your community.
+
+**Both**
+Participate and host.
+
+CTA:
+
+**Continue**
+
+### Screen 5: Profile
+
+Use Telegram information wherever possible.
+
+Collect only information that is actually required.
+
+Fields:
+
+* Name
+* Username
+* Short bio, optional
+
+Do not ask for:
+
+* phone number
+* wallet address
+* unnecessary personal information
+
+CTA:
+
+**Create profile**
+
+### Screen 6: Completion
+
+Headline:
+
+**You're ready.**
+
+Show:
+
+**Discover**
+Find volunteering opportunities.
+
+**Contribute**
+Take part in real-world experiences.
+
+**Earn**
+Get XP and rewards for verified participation.
+
+CTA:
+
+**Explore experiences**
+
+## IMPORTANT PRODUCT LOOP
+
+The most important interaction in the application is:
+
+**Discover → Join → Participate → Verify → Reward**
+
+Every screen should ultimately support this loop.
+
+Do not optimise for feature count.
+
+Optimise for:
+
+* time to first experience
+* number of experiences joined
+* completion rate
+* verification rate
+* reward distribution
+* repeat participation
+
+## EXPERIENCE TYPES
+
+For the MVP, focus on:
+
+### Environmental
+
+Examples:
+
+* Community clean-up
+* Tree planting
+* Recycling initiative
+* Park restoration
+* Beach cleanup
+
+### Educational
+
+Examples:
+
+* Student mentoring
+* Tutoring
+* Digital literacy workshop
+* Career workshop
+* Educational support
+
+### Community
+
+Examples:
+
+* Food distribution
+* Community centre support
+* Youth activities
+* Local events
+* Neighbourhood projects
+
+## EXPERIENCE CARD
+
+Each experience card should clearly display:
+
+* Experience title
+* Organisation
+* Category
+* Location
+* Date
+* Number of available places
+* XP reward
+* Monetary reward if applicable
+
+Example:
+
+**Community Park Cleanup**
+
+🌿 Environmental
+
+📍 Chingford
+📅 Saturday, 21 September
+👥 12 / 20 participants
+
+**+150 XP**
+**£20 reward**
+
+CTA:
+
+**View experience**
+
+## EXPERIENCE DETAIL
+
+The experience detail page should contain:
+
+* Organisation
+* Verification badge if verified
+* Experience title
+* Description
+* Date
+* Time
+* Location
+* Participant capacity
+* What participants need to bring
+* What participants will do
+* XP reward
+* Monetary reward
+* Host information
+
+Primary CTA:
+
+**Join experience**
+
+After joining:
+
+**You're participating**
+
+Display:
+
+* event information
+* instructions
+* attendance status
+* completion status
+
+## HOST EXPERIENCE CREATION
+
+Hosts should be able to publish an experience through a simple multi-step flow.
+
+### Step 1
+
+Experience title
+
+### Step 2
+
+What is the experience?
+
+Description.
+
+### Step 3
+
+Category
+
+* Environmental
+* Education
+* Community
+
+### Step 4
+
+When?
+
+* Date
+* Start time
+* End time
+
+### Step 5
+
+Where?
+
+* Location
+* City
+
+### Step 6
+
+Participants
+
+* Maximum participants
+
+### Step 7
+
+Rewards
+
+Allow:
+
+**XP reward**
+
+and optionally:
+
+**Monetary reward**
+
+### Step 8
+
+Review
+
+Show the complete experience before publishing.
+
+CTA:
+
+**Publish experience**
+
+## PARTICIPANT MANAGEMENT
+
+Hosts should have a participant management screen.
+
+Each participant should display:
+
+* Name
+* Username
+* Join status
+* Attendance status
+* Completion status
+
+Possible states:
+
+**Joined**
+**Attended**
+**Submitted**
+**Verified**
+**Rejected**
+
+The host can open a participant and verify their completion.
+
+## VERIFICATION
+
+Verification is one of the most important features in this MVP.
+
+Participants should not automatically receive rewards simply because they clicked "Complete".
+
+The host must verify completion.
+
+Participant flow:
+
+**Join → Attend → Submit completion → Await verification**
+
+Host flow:
+
+**Participant submits → Host reviews → Host verifies/rejects**
+
+Once verified:
+
+**Completion verified ✓**
+
+Then automatically trigger the configured reward.
+
+## REWARDS
+
+Support two reward types:
+
+### XP
+
+XP is the default reward mechanism.
+
+Example:
+
+**+150 XP**
+
+XP contributes to the participant's profile and progression.
+
+### Money
+
+Hosts can optionally attach a monetary reward.
+
+Example:
+
+**£20**
+
+The MVP should model this reward clearly even if actual payment processing is initially handled manually.
+
+Do not build a complicated financial infrastructure unless required.
+
+## PROFILE
+
+Participant profile should display:
+
+* Name
+* Username
+* Location
+* XP
+* Level
+* Completed experiences
+* Hosted experiences
+* Rewards earned
+* Basic contribution history
+
+Use the existing progression concept:
+
+Explorer
+Contributor
+Champion
+Leader
+Legend
+
+The existing prototype already uses XP-based progression and these level names. Preserve this concept.
+
+## HOST PROFILE
+
+Organisation profiles should display:
+
+* Organisation name
+* Logo/avatar
+* Description
+* Location
+* Categories
+* Verification status
+* Experiences hosted
+* Participants
+* Impact statistics
+
+Verified organisations should receive a visible:
+
+**✓ Verified Organisation**
+
+badge.
+
+## HOME
+
+The participant home screen should prioritise discovery.
+
+Example structure:
+
+**Good morning, [Name]**
+
+**Make an impact near you.**
+
+Then:
+
+**Recommended for you**
+
+Experience cards.
+
+Then:
+
+**Near you**
+
+Experience cards.
+
+Then:
+
+**Your progress**
+
+XP progress toward the next level.
+
+## EXPLORE
+
+Allow users to discover experiences.
+
+Filters:
+
+* Environmental
+* Education
+* Community
+
+Optional filters:
+
+* Nearby
+* This week
+* Reward
+* Available places
+
+Keep filtering simple.
+
+## MY EXPERIENCES
+
+Separate:
+
+**Upcoming**
+**Completed**
+
+Upcoming experiences should show:
+
+* event date
+* location
+* status
+
+Completed experiences should show:
+
+* completion status
+* XP earned
+* money earned
+* verification status
+
+## DESIGN SYSTEM
+
+Use the existing Experiences.fun visual identity.
+
+Primary brand colour:
+
+#F20789
+
+Secondary:
+
+#6805F2
+
+Tertiary:
+
+#04ADBF
+
+Use these sparingly.
+
+The UI should primarily use:
+
+* white
+* black
+* neutral greys
+* subtle borders
+* soft shadows
+* rounded cards
+
+Avoid excessive gradients.
+
+Use large typography and generous spacing.
+
+Use Framer Motion for subtle transitions where already present in the existing codebase.
+
+Do not over-animate the application.
+
+## TELEGRAM INTEGRATION
+
+The application must work as a Telegram Mini App.
+
+Use Telegram user information where available.
+
+The onboarding should recognise the Telegram user automatically.
+
+Do not force unnecessary authentication flows.
+
+The application should be usable inside Telegram on mobile.
+
+Design around Telegram's compact viewport.
+
+Use Telegram-native interactions where practical.
+
+## MVP DATA MODEL
+
+At minimum, support:
+
+### User
+
+* id
+* telegram_id
+* name
+* username
+* bio
+* city
+* country
+* interests
+* participation_type
+* xp
+* level
+
+### Organisation
+
+* id
+* name
+* description
+* logo
+* city
+* country
+* categories
+* verified
+* created_at
+
+### Experience
+
+* id
+* organisation_id
+* title
+* description
+* category
+* date
+* start_time
+* end_time
+* location
+* city
+* capacity
+* xp_reward
+* monetary_reward
+* status
+
+### Participation
+
+* id
+* experience_id
+* user_id
+* status
+* joined_at
+* attended_at
+* submitted_at
+* verified_at
+* reward_status
+
+## STATUS SYSTEM
+
+Experience:
+
+**Draft → Published → Full → Completed → Archived**
+
+Participation:
+
+**Joined → Attended → Submitted → Verified**
+
+or:
+
+**Joined → Attended → Submitted → Rejected**
+
+Reward:
+
+**Pending → Issued**
+
+## WHAT NOT TO BUILD YET
+
+Do not prioritise:
+
+* token launch
+* token trading
+* complex wallet management
+* DAO functionality
+* sophisticated AI
+* social feeds
+* complex leaderboards
+* NFT systems
+* advanced analytics
+* complicated payment infrastructure
+* enterprise permissions
+
+The goal is to prove that organisations will create real volunteering opportunities and that people will actually participate in them.
+
+## SUCCESS CRITERIA
+
+The MVP is successful if a new participant can:
+
+**Open Telegram → onboard → discover an experience → join it**
+
+and an organisation can:
+
+**sign up → create an experience → manage participants → verify completion → issue a reward**
+
+without needing human intervention from the Experiences.fun team for every individual action.
+
+Build the product around this loop first.
