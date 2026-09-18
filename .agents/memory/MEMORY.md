@@ -1,0 +1,1 @@
+- [Expo DevTools warning](expo-devtools-warning.md) — missing libglib can affect DevTools installation without preventing Metro or the app preview from running.

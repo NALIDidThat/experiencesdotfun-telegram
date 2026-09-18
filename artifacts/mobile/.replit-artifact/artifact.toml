@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/"
+title = "Experiences.fun"
+description = "A Telegram-native volunteering app where participants discover real-world community experiences, join them, earn verified XP and rewards, and hosts manage participation and completion verification."
+version = "1.0.0"
+id = "artifacts/mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 18115
+
+[services.development]
+run = "pnpm --filter @workspace/mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/mobile", "run", "serve" ]
+
+[services.env]
+PORT = "18115"
+BASE_PATH = "/"
