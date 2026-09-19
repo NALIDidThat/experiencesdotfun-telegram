@@ -7,6 +7,7 @@ type AuthContextValue = {
   initData: string | null;
   loading: boolean;
   telegramAvailable: boolean;
+  inTelegram: boolean;
   refresh: () => Promise<void>;
 };
 
@@ -15,6 +16,7 @@ const AuthContext = createContext<AuthContextValue>({
   initData: null,
   loading: true,
   telegramAvailable: false,
+  inTelegram: false,
   refresh: async () => undefined,
 });
 
@@ -61,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       initData,
       loading,
       telegramAvailable: Boolean(getTelegramInitData() || initData),
+      inTelegram: Boolean(getTelegramInitData()),
       refresh: async () => {
         const latest = getTelegramInitData() ?? initData;
         await authenticateWith(latest);

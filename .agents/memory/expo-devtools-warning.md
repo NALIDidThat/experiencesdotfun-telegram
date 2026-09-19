@@ -7,4 +7,4 @@ The Expo workflow may print an error while installing React Native DevTools beca
 
 **Why:** This warning appeared during a successful Experiences.fun startup and did not affect the preview or application runtime.
 
-**How to apply:** Check whether Metro is serving and the preview renders before treating this specific DevTools message as a blocking app error.
+**How to apply:** Check whether Metro is serving and the preview renders before treating this specific DevTools message as a blocking app error. For browser-only Expo workflows in the container, keep `CI=1` set so Expo does not try to launch a local desktop browser with `xdg-open`.
