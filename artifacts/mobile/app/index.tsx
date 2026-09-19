@@ -23,7 +23,6 @@ import {
   useGetExperience,
   useGetHostOverview,
   useGetMe,
-  useGetBotInfo,
   useJoinExperience,
   useListExperienceParticipants,
   useListExperiences,
@@ -48,7 +47,6 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
-import { openTelegramBot } from '@/lib/telegram';
 import { useColors } from '@/hooks/useColors';
 
 type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'experience' | 'host' | 'create';
@@ -178,36 +176,6 @@ function LoadingState() {
   return <View style={styles.loading}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading experiences…</Text></View>;
 }
 
-function TelegramGate() {
-  const colors = useColors();
-  const botInfo = useGetBotInfo();
-  return (
-    <View style={[styles.gate, { backgroundColor: colors.background }]}>
-      <View style={[styles.gateMark, { backgroundColor: colors.primary }]}><Feather name="compass" size={34} color={colors.primaryForeground} /></View>
-      <Text style={[styles.gateTitle, { color: colors.foreground }]}>Turn experiences{'\n'}into impact.</Text>
-      <Text style={[styles.gateBody, { color: colors.mutedForeground }]}>Discover volunteering near you, contribute to your community and earn XP for showing up.</Text>
-      <View style={styles.gatePoints}>
-        {['Real local opportunities', 'Verified participation', 'Rewards that recognise your time'].map((point) => <View key={point} style={styles.point}><Feather name="check-circle" size={17} color={colors.teal} /><Text style={[styles.pointText, { color: colors.foreground }]}>{point}</Text></View>)}
-      </View>
-      <Button label="Open in Telegram" icon="send" disabled={!botInfo.data?.username} onPress={() => openTelegramBot(botInfo.data?.username)} />
-      <Text style={[styles.gateHint, { color: colors.mutedForeground }]}>This app uses your Telegram identity. No extra account or wallet needed.</Text>
-    </View>
-  );
-}
-
-function TelegramAuthError({ onRetry }: { onRetry: () => void }) {
-  const colors = useColors();
-  return (
-    <View style={[styles.gate, { backgroundColor: colors.background }]}>
-      <View style={[styles.gateMark, { backgroundColor: colors.primary }]}><Feather name="refresh-cw" size={31} color={colors.primaryForeground} /></View>
-      <Text style={[styles.gateTitle, { color: colors.foreground }]}>We couldn’t connect{'\n'}to Telegram.</Text>
-      <Text style={[styles.gateBody, { color: colors.mutedForeground }]}>Reopen the Mini App from Telegram and try again. Your Telegram identity is never replaced with a guest account.</Text>
-      <View style={styles.spacer} />
-      <Button label="Try again" icon="refresh-cw" onPress={onRetry} />
-    </View>
-  );
-}
-
 function OnboardingArtwork({ variant }: { variant: 'welcome' | 'complete' }) {
   const colors = useColors();
   return (
@@ -225,7 +193,7 @@ function OnboardingArtwork({ variant }: { variant: 'welcome' | 'complete' }) {
   );
 }
 
-function Onboarding({ user, onDone }: { user: User; onDone: () => void }) {
+function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boolean; onDone: () => void }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const update = useUpdateMe();
@@ -241,6 +209,10 @@ function Onboarding({ user, onDone }: { user: User; onDone: () => void }) {
     if (step === 2 && interests.length === 0) return;
     if (step === 3 && !city.trim()) return;
     if (step === totalSteps - 1) {
+      if (guest) {
+        onDone();
+        return;
+      }
       await update.mutateAsync({ data: { name: name.trim(), bio: bio.trim() || null, city: city.trim(), interests, participationType } });
       onDone();
       return;
@@ -361,28 +333,44 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
   return <View style={[styles.bottomNav, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: Platform.OS === 'web' ? 34 : 12 }]}>{items.map((item) => { const selected = active === item.key; return <Pressable key={item.key} onPress={() => go(item.key)} style={styles.navItem}><Feather name={item.icon} size={20} color={selected ? colors.primary : colors.mutedForeground} /><Text style={[styles.navLabel, { color: selected ? colors.primary : colors.mutedForeground }]}>{item.label}</Text></Pressable>; })}</View>;
 }
 
+const guestUser: User = {
+  id: 0,
+  telegramId: 0,
+  name: 'Friend',
+  username: null,
+  bio: null,
+  city: null,
+  country: null,
+  interests: [],
+  participationType: null,
+  xp: 0,
+  level: 'Newcomer',
+  completedCount: 0,
+  hostedCount: 0,
+  rewardsPence: 0,
+};
+
 export default function App() {
   const params = useLocalSearchParams<{ screen?: string; id?: string }>();
   const router = useRouter();
-  const { user, loading, inTelegram, refresh } = useAuth();
+  const { user, loading } = useAuth();
   const colors = useColors();
   const [onboarded, setOnboarded] = useState(false);
+  const displayUser = user ?? guestUser;
   const screen = (params.screen as Screen) || 'home';
   const go = (next: Screen, nextParams?: Record<string, string>) => router.replace({ pathname: '/', params: { screen: next, ...nextParams } });
-  const needsOnboarding = Boolean(user && (!user.city || !user.interests?.length || !user.participationType) && !onboarded);
+  const needsOnboarding = Boolean((!user || !user.city || !user.interests?.length || !user.participationType) && !onboarded);
   const content = useMemo(() => {
-    if (!user) return null;
     if (screen === 'experience') return <Detail id={Number(params.id)} go={go} />;
     if (screen === 'explore') return <Explore go={go} />;
     if (screen === 'experiences') return <Experiences go={go} />;
-    if (screen === 'profile') return <Profile user={user} go={go} />;
+    if (screen === 'profile') return <Profile user={displayUser} go={go} />;
     if (screen === 'host') return <Host go={go} />;
     if (screen === 'create') return <Create go={go} />;
-    return <Home user={user} go={go} />;
-  }, [user, screen, params.id]);
+    return <Home user={displayUser} go={go} />;
+  }, [displayUser, screen, params.id]);
   if (loading) return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Connecting to Telegram…</Text></View>;
-  if (!user) return inTelegram ? <TelegramAuthError onRetry={() => void refresh()} /> : <TelegramGate />;
-  if (needsOnboarding) return <Onboarding user={user} onDone={() => setOnboarded(true)} />;
+  if (needsOnboarding) return <Onboarding user={displayUser} guest={!user} onDone={() => setOnboarded(true)} />;
   const noNav = ['experience', 'create', 'host'].includes(screen);
   return <View style={[styles.app, { backgroundColor: colors.background }]}>{content}{!noNav ? <BottomNav active={screen} go={go} /> : null}</View>;
 }
