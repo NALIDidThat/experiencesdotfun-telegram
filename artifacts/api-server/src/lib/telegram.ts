@@ -166,30 +166,30 @@ function hasCompletedOnboarding(user: {
 
 function onboardingKeyboard(): TelegramButton[][] {
   return [
-    [openButton("Open Experiences.fun", "/?screen=home")],
+    [openButton("🚀 Open Experiences.fun", "/?screen=home")],
     [
-      callbackButton("How it works", "onboarding:how"),
-      callbackButton("I want to join", "onboarding:join"),
+      callbackButton("✨ How it works", "onboarding:how"),
+      callbackButton("🌱 I want to join", "onboarding:join"),
     ],
     [
-      callbackButton("I want to host", "onboarding:host"),
-      callbackButton("More options", "menu:open"),
+      callbackButton("🎤 I want to host", "onboarding:host"),
+      callbackButton("🧭 More options", "menu:open"),
     ],
   ];
 }
 
 function menuKeyboard(): TelegramButton[][] {
   return [
-    [openButton("Open Experiences.fun", "/?screen=home")],
+    [openButton("🚀 Open Experiences.fun", "/?screen=home")],
     [
-      openButton("Explore", "/?screen=explore"),
-      openButton("My profile", "/?screen=profile"),
+      openButton("🔎 Explore", "/?screen=explore"),
+      openButton("🪪 My profile", "/?screen=profile"),
     ],
     [
-      openButton("Create experience", "/?screen=create"),
-      openButton("Host tools", "/?screen=host"),
+      openButton("➕ Create experience", "/?screen=create"),
+      openButton("🎤 Host tools", "/?screen=host"),
     ],
-    [callbackButton("How it works", "onboarding:how")],
+    [callbackButton("✨ How it works", "onboarding:how")],
   ];
 }
 
@@ -200,18 +200,18 @@ async function sendOnboarding(
 ) {
   const name = displayName(identity);
   const message = complete
-    ? `<b>Welcome back, ${name}.</b>\n\nYour profile is ready. Use the buttons below to find an experience, host one, or review your progress.`
-    : `<b>Welcome to Experiences.fun, ${name}.</b>\n\nFind small ways to make a real difference near you. Set up your profile in the Mini App, then discover experiences, join a team, and earn verified XP.\n\n<b>Start here</b>\n1. Open the Mini App\n2. Add your interests and city\n3. Choose whether you want to join, host, or do both`;
+    ? `<b>👋 Welcome back, ${name}.</b>\n\n<i>Your passport is ready for its next adventure.</i>\n\n<b>What would you like to do?</b>\n🔎 <b>Discover</b> a local experience\n🎤 <b>Host</b> something useful for your community\n⚡ <b>Track</b> your XP, progress, and rewards\n\nPick a route below and let’s get moving.`
+    : `<b>🌈 Welcome to Experiences.fun, ${name}.</b>\n\n<i>Real people. Real things. Real local impact.</i>\n\nTurn a little time into something meaningful:\n\n🌱 <b>Join</b> community, education, and environmental experiences\n🤝 <b>Meet</b> people who care about the same things\n⚡ <b>Earn</b> verified XP and available rewards\n🎤 <b>Host</b> an opportunity others can take part in\n\n<b>Your first three steps</b>\n① Open the Mini App\n② Add your interests and city\n③ Choose whether you want to join, host, or do both\n\n<i>Your next good thing is probably closer than you think.</i>`;
   return sendTelegramMessage(chatId, message, onboardingKeyboard());
 }
 
 async function sendHowItWorks(chatId: number) {
   return sendTelegramMessage(
     chatId,
-    `<b>How Experiences.fun works</b>\n\n<b>1 · Set up your passport</b>\nTell us what you care about and where you are.\n\n<b>2 · Find your next good thing</b>\nBrowse local community, education, and environmental experiences.\n\n<b>3 · Show up and contribute</b>\nJoin an experience and take part with other people nearby.\n\n<b>4 · Get verified</b>\nHosts verify your contribution so you earn XP and any available reward.\n\nYou can also host an experience if you have something useful for the community.`,
+    `<b>✨ How Experiences.fun works</b>\n\n<b>① Build your passport</b>\n📍 Tell us where you are\n💚 Pick the causes you care about\n🧭 Choose how you want to take part\n\n<b>② Find your next good thing</b>\nBrowse nearby community, education, and environmental experiences that fit your interests.\n\n<b>③ Show up with good people</b>\nJoin an experience, contribute together, and make a visible difference.\n\n<b>④ Get your impact recognised</b>\nHosts verify your contribution so you can build XP and collect any available reward.\n\n<b>Have something to share?</b>\nCreate an experience and invite your community to join you.`,
     [
-      [openButton("Start setup", "/?screen=home")],
-      [callbackButton("Back to menu", "menu:open")],
+      [openButton("🚀 Start setup", "/?screen=home")],
+      [callbackButton("🧭 Back to menu", "menu:open")],
     ],
   );
 }
@@ -219,7 +219,7 @@ async function sendHowItWorks(chatId: number) {
 async function sendCommandMenu(chatId: number) {
   return sendTelegramMessage(
     chatId,
-    `<b>Experiences.fun menu</b>\n\nChoose a quick action below, or use one of these commands:\n\n<code>/onboarding</code> Set up your profile\n<code>/experiences</code> Browse upcoming experiences\n<code>/xp</code> Review your XP\n<code>/add @username</code> Send a friend request\n<code>/profile</code> View your profile\n<code>/friends</code> View your friends\n<code>/requests</code> Review friend requests\n<code>/host</code> Open host tools`,
+    `<b>🧭 Experiences.fun menu</b>\n\nChoose your next move:\n\n<b>DISCOVER</b>\n🔎 Find upcoming experiences\n⚡ Check your XP and impact\n\n<b>CONNECT</b>\n👥 See your friends\n📨 Review friend requests\n➕ Add someone by username\n\n<b>CREATE</b>\n🎤 Host an experience\n🛠️ Open your host tools\n\n<i>You can also use the commands below any time:</i>\n<code>/onboarding</code> <code>/experiences</code> <code>/xp</code> <code>/add @username</code> <code>/profile</code> <code>/friends</code> <code>/requests</code> <code>/host</code>`,
     menuKeyboard(),
   );
 }
@@ -241,11 +241,11 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
       await sendTelegramMessage(
         chatId,
         hasCompletedOnboarding(user)
-          ? `<b>Your profile is set up.</b>\n\nYou can update your details any time in the Mini App, or jump straight into exploring experiences.`
-          : `<b>Finish your profile</b>\n\nAdd your name, interests, city, and participation preference so we can show you more relevant experiences.`,
+          ? `<b>✅ Your passport is ready</b>\n\nYou can update your details any time in the Mini App, or jump straight into exploring experiences.`
+          : `<b>🧩 Finish your passport</b>\n\nAdd your name, interests, city, and participation preference so we can show you experiences that feel relevant to you.`,
         [
-          [openButton(hasCompletedOnboarding(user) ? "Update profile" : "Complete setup", "/?screen=home")],
-          [callbackButton("How it works", "onboarding:how"), callbackButton("Open menu", "menu:open")],
+          [openButton(hasCompletedOnboarding(user) ? "🪪 Update profile" : "🚀 Complete setup", "/?screen=home")],
+          [callbackButton("✨ How it works", "onboarding:how"), callbackButton("🧭 Open menu", "menu:open")],
         ],
       );
       break;
@@ -255,8 +255,8 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
     case "/help":
       await sendTelegramMessage(
         chatId,
-        `<b>Experiences.fun commands</b>\n\n<code>/start</code> Open the welcome flow\n<code>/onboarding</code> Finish or update your profile\n<code>/menu</code> Open quick actions\n<code>/create</code> Create an experience\n<code>/experiences</code> Find upcoming experiences\n<code>/xp</code> Review XP and where it came from\n<code>/add @username</code> Send a friend request\n<code>/friends</code> View your friends\n<code>/requests</code> View pending requests\n<code>/profile</code> View your profile\n<code>/host</code> Open host tools`,
-        [[callbackButton("Open menu", "menu:open"), callbackButton("How it works", "onboarding:how")]],
+        `<b>💬 Experiences.fun commands</b>\n\n<b>GET STARTED</b>\n<code>/start</code> Open the welcome flow\n<code>/onboarding</code> Finish or update your profile\n<code>/menu</code> Open quick actions\n\n<b>FIND YOUR THING</b>\n<code>/experiences</code> Find upcoming experiences\n<code>/xp</code> Review XP and where it came from\n\n<b>YOUR PEOPLE</b>\n<code>/add @username</code> Send a friend request\n<code>/friends</code> View your friends\n<code>/requests</code> View pending requests\n\n<b>HOST</b>\n<code>/profile</code> View your profile\n<code>/host</code> Open host tools`,
+        [[callbackButton("🧭 Open menu", "menu:open"), callbackButton("✨ How it works", "onboarding:how")]],
       );
       break;
     case "/create":
