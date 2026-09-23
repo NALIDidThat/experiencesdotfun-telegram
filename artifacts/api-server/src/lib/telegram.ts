@@ -7,7 +7,7 @@ import {
   participationsTable,
   usersTable,
 } from "@workspace/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import {
   findUserByTelegramId,
   findUserByUsername,
@@ -40,6 +40,8 @@ type TelegramUpdate = {
 
 const botCommands = [
   { command: "start", description: "Open Experiences.fun" },
+  { command: "onboarding", description: "Finish setting up your profile" },
+  { command: "menu", description: "Open the Experiences.fun menu" },
   { command: "create", description: "Create an experience" },
   { command: "experiences", description: "Find experiences" },
   { command: "xp", description: "Review XP and its sources" },
@@ -146,27 +148,115 @@ function openButton(text: string, path: string): TelegramButton {
   return { text, web_app: { url: miniAppUrl(path) } };
 }
 
+function callbackButton(text: string, data: string): TelegramButton {
+  return { text, callback_data: data };
+}
+
+function displayName(identity: TelegramIdentity): string {
+  return escapeTelegramHtml(identity.first_name || identity.username || "there");
+}
+
+function hasCompletedOnboarding(user: {
+  city: string | null;
+  interests: string[];
+  participationType: string | null;
+}): boolean {
+  return Boolean(user.city?.trim() && user.interests.length > 0 && user.participationType);
+}
+
+function onboardingKeyboard(): TelegramButton[][] {
+  return [
+    [openButton("Open Experiences.fun", "/?screen=home")],
+    [
+      callbackButton("How it works", "onboarding:how"),
+      callbackButton("I want to join", "onboarding:join"),
+    ],
+    [
+      callbackButton("I want to host", "onboarding:host"),
+      callbackButton("More options", "menu:open"),
+    ],
+  ];
+}
+
+function menuKeyboard(): TelegramButton[][] {
+  return [
+    [openButton("Open Experiences.fun", "/?screen=home")],
+    [
+      openButton("Explore", "/?screen=explore"),
+      openButton("My profile", "/?screen=profile"),
+    ],
+    [
+      openButton("Create experience", "/?screen=create"),
+      openButton("Host tools", "/?screen=host"),
+    ],
+    [callbackButton("How it works", "onboarding:how")],
+  ];
+}
+
+async function sendOnboarding(
+  chatId: number,
+  identity: TelegramIdentity,
+  complete: boolean,
+) {
+  const name = displayName(identity);
+  const message = complete
+    ? `<b>Welcome back, ${name}.</b>\n\nYour profile is ready. Use the buttons below to find an experience, host one, or review your progress.`
+    : `<b>Welcome to Experiences.fun, ${name}.</b>\n\nFind small ways to make a real difference near you. Set up your profile in the Mini App, then discover experiences, join a team, and earn verified XP.\n\n<b>Start here</b>\n1. Open the Mini App\n2. Add your interests and city\n3. Choose whether you want to join, host, or do both`;
+  return sendTelegramMessage(chatId, message, onboardingKeyboard());
+}
+
+async function sendHowItWorks(chatId: number) {
+  return sendTelegramMessage(
+    chatId,
+    `<b>How Experiences.fun works</b>\n\n<b>1 · Set up your passport</b>\nTell us what you care about and where you are.\n\n<b>2 · Find your next good thing</b>\nBrowse local community, education, and environmental experiences.\n\n<b>3 · Show up and contribute</b>\nJoin an experience and take part with other people nearby.\n\n<b>4 · Get verified</b>\nHosts verify your contribution so you earn XP and any available reward.\n\nYou can also host an experience if you have something useful for the community.`,
+    [
+      [openButton("Start setup", "/?screen=home")],
+      [callbackButton("Back to menu", "menu:open")],
+    ],
+  );
+}
+
+async function sendCommandMenu(chatId: number) {
+  return sendTelegramMessage(
+    chatId,
+    `<b>Experiences.fun menu</b>\n\nChoose a quick action below, or use one of these commands:\n\n<code>/onboarding</code> Set up your profile\n<code>/experiences</code> Browse upcoming experiences\n<code>/xp</code> Review your XP\n<code>/add @username</code> Send a friend request\n<code>/profile</code> View your profile\n<code>/friends</code> View your friends\n<code>/requests</code> Review friend requests\n<code>/host</code> Open host tools`,
+    menuKeyboard(),
+  );
+}
+
 async function handleCommand(chatId: number, chatType: string | undefined, identity: TelegramIdentity, text: string) {
   const user = await upsertTelegramUser(identity);
   const [rawCommand, ...args] = text.trim().split(/\s+/);
   const command = rawCommand.toLowerCase().split("@")[0];
-  const privateCommands = new Set(["/create", "/xp", "/progress", "/profile", "/friends", "/requests", "/add", "/addfriend", "/host"]);
+  const privateCommands = new Set(["/onboarding", "/create", "/xp", "/progress", "/profile", "/friends", "/requests", "/add", "/addfriend", "/host"]);
   if (chatType !== "private" && privateCommands.has(command)) {
     await sendTelegramMessage(chatId, "For your privacy, use this command in a private chat with the Experiences.fun bot.");
     return;
   }
   switch (command) {
     case "/start":
+      await sendOnboarding(chatId, identity, hasCompletedOnboarding(user));
+      break;
+    case "/onboarding":
       await sendTelegramMessage(
         chatId,
-        `<b>Welcome to Experiences.fun</b>\n\nDiscover real-world volunteering, contribute with your community and earn XP and rewards.`,
-        [[openButton("Open Experiences.fun", "/?screen=home")], [openButton("My Progress", "/?screen=profile"), openButton("Explore", "/?screen=explore")]],
+        hasCompletedOnboarding(user)
+          ? `<b>Your profile is set up.</b>\n\nYou can update your details any time in the Mini App, or jump straight into exploring experiences.`
+          : `<b>Finish your profile</b>\n\nAdd your name, interests, city, and participation preference so we can show you more relevant experiences.`,
+        [
+          [openButton(hasCompletedOnboarding(user) ? "Update profile" : "Complete setup", "/?screen=home")],
+          [callbackButton("How it works", "onboarding:how"), callbackButton("Open menu", "menu:open")],
+        ],
       );
+      break;
+    case "/menu":
+      await sendCommandMenu(chatId);
       break;
     case "/help":
       await sendTelegramMessage(
         chatId,
-        `<b>Experiences.fun commands</b>\n\n/start — Open Experiences.fun\n/create — Create an experience\n/experiences — Find experiences\n/xp — Review XP and where it came from\n/add @username — Send a friend request\n/friends — View your friends\n/requests — View pending requests\n/profile — View your profile\n/host — Open host tools`,
+        `<b>Experiences.fun commands</b>\n\n<code>/start</code> Open the welcome flow\n<code>/onboarding</code> Finish or update your profile\n<code>/menu</code> Open quick actions\n<code>/create</code> Create an experience\n<code>/experiences</code> Find upcoming experiences\n<code>/xp</code> Review XP and where it came from\n<code>/add @username</code> Send a friend request\n<code>/friends</code> View your friends\n<code>/requests</code> View pending requests\n<code>/profile</code> View your profile\n<code>/host</code> Open host tools`,
+        [[callbackButton("Open menu", "menu:open"), callbackButton("How it works", "onboarding:how")]],
       );
       break;
     case "/create":
@@ -209,7 +299,7 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
         .where(
           and(
             eq(experiencesTable.status, "published"),
-            eq(experiencesTable.date, today),
+            gte(experiencesTable.date, today),
           ),
         )
         .orderBy(experiencesTable.date)
@@ -345,7 +435,7 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
       await sendTelegramMessage(
         chatId,
         `<b>${escapeTelegramHtml(organisation?.name ?? "Organisation dashboard")}</b>\n\n<b>${experienceIds.length}</b> experiences hosted\n<b>${overview.filter((item) => item.participantId).length}</b> participant records\n\nUse the Mini App to manage your volunteering opportunities.`,
-        [[openButton("Manage experiences", "/?screen=host"), openButton("Create experience", "/?screen=create")], [openButton("Verify participants", "/?screen=verify")]],
+        [[openButton("Manage experiences", "/?screen=host"), openButton("Create experience", "/?screen=create")], [openButton("Review participants", "/?screen=host")]],
       );
       break;
     }
@@ -357,6 +447,38 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
 async function handleCallback(update: NonNullable<TelegramUpdate["callback_query"]>) {
   await answerCallback(update.id);
   if (update.message?.chat.type && update.message.chat.type !== "private") return;
+  const chatId = update.message?.chat.id ?? update.from.id;
+  const callback = update.data ?? "";
+  if (callback === "menu:open") {
+    await sendCommandMenu(chatId);
+    return;
+  }
+  if (callback === "onboarding:how") {
+    await sendHowItWorks(chatId);
+    return;
+  }
+  if (callback === "onboarding:join") {
+    await sendTelegramMessage(
+      chatId,
+      "<b>Great — let's find your next good thing.</b>\n\nComplete your profile first, then browse nearby experiences and choose one that fits your interests and time.",
+      [
+        [openButton("Complete profile", "/?screen=home")],
+        [openButton("Browse experiences", "/?screen=explore"), callbackButton("Back to menu", "menu:open")],
+      ],
+    );
+    return;
+  }
+  if (callback === "onboarding:host") {
+    await sendTelegramMessage(
+      chatId,
+      "<b>Want to host?</b>\n\nCreate an experience for people in your community. Add the details, choose the date, and manage participants from the Mini App.",
+      [
+        [openButton("Create an experience", "/?screen=create")],
+        [openButton("Host tools", "/?screen=host"), callbackButton("Back to menu", "menu:open")],
+      ],
+    );
+    return;
+  }
   const [kind, action, rawId] = update.data?.split(":") ?? [];
   const id = Number(rawId);
   if (kind !== "friend" || !["accept", "decline"].includes(action) || !Number.isSafeInteger(id)) return;
