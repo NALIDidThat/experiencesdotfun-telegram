@@ -1448,6 +1448,32 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
     </View>
   );
 
+  const sceneField = (
+    key: keyof ExperienceCreateInput,
+    label: string,
+    placeholder: string,
+    icon: IconName,
+    hint?: string,
+  ) => (
+    <View style={[styles.createSceneField, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 4 }]}>
+      <View style={[styles.createSceneIcon, { backgroundColor: colors.primary + '12' }]}>
+        <Feather name={icon} size={18} color={colors.primary} />
+      </View>
+      <View style={styles.createSceneFieldBody}>
+        <Text style={[styles.createSceneFieldLabel, { color: colors.foreground }]}>{label}</Text>
+        <TextInput
+          accessibilityLabel={label}
+          value={form[key] == null ? '' : String(form[key])}
+          onChangeText={(value) => set(key, value)}
+          placeholder={placeholder}
+          placeholderTextColor={colors.mutedForeground}
+          style={[styles.createSceneInput, { color: colors.foreground }]}
+        />
+        {hint ? <Text style={[styles.createSceneHint, { color: colors.mutedForeground }]}>{hint}</Text> : null}
+      </View>
+    </View>
+  );
+
   const stepTitles = ['Tell us about you', 'Shape the idea', 'Choose a feeling', 'Set the scene', 'Make joining easy', 'Make it yours'];
   const stepDescriptions = [
     'Every great gathering starts with a good host.',
@@ -1560,15 +1586,28 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
 
           {step === 4 && (
             <>
-              <View style={styles.createFieldRow}>
-                <View style={styles.createFieldHalf}>{field('date', 'Date', 'YYYY-MM-DD')}</View>
-                <View style={styles.createFieldHalf}>{field('city', 'City', 'London')}</View>
+              <View style={[styles.createSceneGuide, { backgroundColor: colors.teal + '12' }]}>
+                <View style={[styles.createSceneGuideIcon, { backgroundColor: colors.teal + '20' }]}>
+                  <Feather name="navigation" size={19} color={colors.teal} />
+                </View>
+                <View style={styles.createSceneGuideCopy}>
+                  <Text style={[styles.createSceneGuideTitle, { color: colors.foreground }]}>Make arrival easy</Text>
+                  <Text style={[styles.createSceneGuideBody, { color: colors.mutedForeground }]}>Clear details help people feel confident saying yes.</Text>
+                </View>
               </View>
-              <View style={styles.createFieldRow}>
-                <View style={styles.createFieldHalf}>{field('startTime', 'Starts', '10:00')}</View>
-                <View style={styles.createFieldHalf}>{field('endTime', 'Ends', '13:00')}</View>
+
+              <View style={styles.createSceneSection}>
+                <Text style={[styles.createSceneSectionLabel, { color: colors.mutedForeground }]}>WHEN IT HAPPENS</Text>
+                {sceneField('date', 'Date', 'YYYY-MM-DD', 'calendar', 'Use the format YYYY-MM-DD')}
+                {sceneField('startTime', 'Start time', '10:00', 'clock')}
+                {sceneField('endTime', 'End time', '13:00', 'clock')}
               </View>
-              {field('location', 'Meeting point', 'A clear place people can find')}
+
+              <View style={styles.createSceneSection}>
+                <Text style={[styles.createSceneSectionLabel, { color: colors.mutedForeground }]}>WHERE TO MEET</Text>
+                {sceneField('city', 'City', 'London', 'map-pin')}
+                {sceneField('location', 'Meeting point', 'A clear place people can find', 'navigation-2', 'Add a landmark, street, or venue')}
+              </View>
             </>
           )}
 
