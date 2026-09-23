@@ -1,1 +1,2 @@
 - [Expo DevTools warning](expo-devtools-warning.md) — missing libglib can affect DevTools installation without preventing Metro or the app preview from running.
+- [Telegram auth bootstrap](telegram-auth-bootstrap.md) — keep Telegram authentication initialization stable across React Query mutation rerenders.

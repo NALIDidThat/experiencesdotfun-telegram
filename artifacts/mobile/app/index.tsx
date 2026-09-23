@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -53,9 +54,12 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { openTelegramBot } from '@/lib/telegram';
 
 type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'experience' | 'host' | 'create';
 type IconName = keyof typeof Feather.glyphMap;
+const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'experience', 'host', 'create'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -209,6 +213,29 @@ function EmptyState({ title, body, icon = 'compass', onAction, actionLabel }: { 
   );
 }
 
+function TelegramConnectCard() {
+  const colors = useColors();
+  return (
+    <View style={[styles.telegramCard, { backgroundColor: colors.card, borderColor: colors.primary + '35', borderRadius: colors.radius }]}>
+      <View style={[styles.telegramIcon, { backgroundColor: colors.primary + '12' }]}>
+        <Feather name="send" size={20} color={colors.primary} />
+      </View>
+      <View style={styles.telegramCopy}>
+        <Text style={[styles.telegramTitle, { color: colors.foreground }]}>Connect your Telegram</Text>
+        <Text style={[styles.telegramBody, { color: colors.mutedForeground }]}>Open Experiences.fun from Telegram to sync your passport and publish experiences.</Text>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open Experiences.fun in Telegram"
+        onPress={() => { triggerHaptic(); openTelegramBot(); }}
+        style={({ pressed }) => [styles.telegramButton, { backgroundColor: colors.primary, borderRadius: colors.radius - 6, opacity: pressed ? 0.82 : 1 }]}
+      >
+        <Feather name="arrow-up-right" size={16} color={colors.primaryForeground} />
+      </Pressable>
+    </View>
+  );
+}
+
 function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => void }) {
   const colors = useColors();
   const icon = categoryIcon[item.category];
@@ -290,7 +317,7 @@ function OnboardingArtwork({ variant }: { variant: 'welcome' | 'complete' }) {
 function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  const [email, setEmail] = useState('lucia.bell@dka.io');
+  const { telegramAvailable } = useAuth();
 
   return (
     <KeyboardAvoidingView style={[styles.talentScreen, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -337,26 +364,20 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
 
         <View style={[styles.talentFormPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.talentSheetTitle, { color: colors.foreground }]}>Make room for good things.</Text>
-          <Text style={[styles.talentSheetBody, { color: colors.mutedForeground }]}>Create your experience passport and start showing up for what matters.</Text>
-          <View style={[styles.talentEmailRow, { borderColor: colors.input, backgroundColor: colors.background }]}>
-            <Feather name="mail" size={20} color={colors.mutedForeground} />
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              placeholder="Your email"
-              placeholderTextColor={colors.mutedForeground}
-              style={[styles.talentEmailInput, { color: colors.foreground, borderWidth: 0, borderColor: 'transparent', outlineStyle: 'none', outlineWidth: 0, appearance: 'none' } as any]}
-              accessibilityLabel="Email"
-            />
+          <Text style={[styles.talentSheetBody, { color: colors.mutedForeground }]}>
+            {telegramAvailable
+              ? 'Your Telegram identity is connected. Create your experience passport and start showing up for what matters.'
+              : 'Open Experiences.fun from Telegram so your passport, friends, and hosted experiences stay connected.'}
+          </Text>
+          <View style={[styles.talentTelegramNote, { backgroundColor: colors.primary + '10' }]}>
+            <Feather name="send" size={18} color={colors.primary} />
+            <Text style={[styles.talentTelegramNoteText, { color: colors.primary }]}>Connected through Telegram</Text>
           </View>
-          <Button label="Build my passport" onPress={() => { triggerHaptic(); onContinue(); }} />
-          <Text style={[styles.talentDividerText, { color: colors.mutedForeground }]}>or continue with</Text>
-          <View style={styles.talentSocialRow}>
-            <Button label="Google" variant="secondary" onPress={() => { triggerHaptic(); onContinue(); }} icon="chrome" style={styles.talentSocialButton} />
-            <Button label="LinkedIn" variant="secondary" onPress={() => { triggerHaptic(); onContinue(); }} icon="linkedin" style={styles.talentSocialButton} />
-          </View>
+          <Button
+            label={telegramAvailable ? 'Build my passport' : 'Open Telegram'}
+            onPress={() => { triggerHaptic(); telegramAvailable ? onContinue() : openTelegramBot(); }}
+            icon={telegramAvailable ? 'arrow-right' : 'external-link'}
+          />
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -376,6 +397,7 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
   const totalSteps = 5;
   const next = async () => {
     triggerHaptic();
+    Keyboard.dismiss();
     if (step === 1 && !name.trim()) return;
     if (step === 2 && interests.length === 0) return;
     if (step === 3 && !city.trim()) return;
@@ -390,7 +412,7 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
     }
     setStep((value) => value + 1);
   };
-  const previous = () => { triggerHaptic(); setStep((value) => Math.max(0, value - 1)); };
+  const previous = () => { triggerHaptic(); Keyboard.dismiss(); setStep((value) => Math.max(0, value - 1)); };
   const dots = Array.from({ length: totalSteps }, (_, index) => index);
 
   if (step === 0) {
@@ -398,28 +420,35 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
   }
 
   return (
-    <KeyboardAvoidingView style={[styles.onboarding, { backgroundColor: colors.background, paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 18) : insets.top + 12, paddingBottom: Math.max(insets.bottom, 24) }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAwareScrollViewCompat
+      style={[styles.onboarding, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.onboardingScreenContent, { paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 18) : insets.top + 12, paddingBottom: Math.max(insets.bottom, 24) }]}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.onboardingTopBar}>
         {step > 0 ? <Pressable accessibilityLabel="Back" onPress={previous} style={[styles.onboardingBack, { backgroundColor: colors.muted }]}><Feather name="arrow-left" size={22} color={colors.foreground} /></Pressable> : <View style={styles.onboardingBack} />}
         {step === 0 ? <Pressable onPress={() => setStep(1)}><Text style={[styles.skipText, { color: colors.mutedForeground }]}>Skip</Text></Pressable> : <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>0{step + 1} / 05</Text>}
       </View>
-      <ScrollView contentContainerStyle={styles.onboardingContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <View style={styles.onboardingContent}>
         {step === 1 ? <View style={styles.onboardingSlide}><View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}><Feather name="user" size={32} color={colors.primary} /></View><Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>STEP 01 · YOUR PASSPORT</Text><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Let’s make it yours.</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Tell us what people should call you when you show up. You can change this later.</Text><View style={styles.onboardingForm}><Text style={[styles.onboardingFieldLabel, { color: colors.foreground }]}>Display name</Text><View style={[styles.onboardingInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}><Feather name="smile" size={20} color={colors.mutedForeground} /><TextInput autoFocus value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, { color: colors.foreground }]} /></View><Text style={[styles.inputHint, { color: colors.mutedForeground }]}>Your Telegram username stays connected automatically.</Text></View></View> : null}
         {step === 2 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>What matters to you?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Pick the causes you'd like to see first.</Text><View style={styles.onboardingChoices}>{categories.slice(1).map((item) => { const selected = interests.includes(item.key as ExperienceCategory); return <Pressable key={item.key} onPress={() => { triggerHaptic(); setInterests((current) => selected ? current.filter((value) => value !== item.key) : [...current, item.key as ExperienceCategory]); }} style={[styles.choiceCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Feather name={item.icon} size={24} color={selected ? colors.primary : colors.mutedForeground} /><Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{item.label}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></View> : null}
         {step === 3 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Where will you show up?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>We'll use your city to find nearby opportunities.</Text><View style={styles.onboardingForm}><TextInput autoFocus value={city} onChangeText={setCity} placeholder="e.g. London" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, styles.cityInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]} /><Text style={[styles.formLabel, { color: colors.foreground }]}>I want to…</Text><View style={styles.onboardingChoices}>{(['join', 'host', 'both'] as ParticipationType[]).map((value) => { const selected = participationType === value; const labels = { join: 'Join experiences', host: 'Host experiences', both: 'Do both' }; return <Pressable key={value} onPress={() => { triggerHaptic(); setParticipationType(value); }} style={[styles.onboardingParticipationCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{labels[value]}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></View></View> : null}
         {step === 4 ? <View style={styles.onboardingSlide}><OnboardingArtwork variant="complete" /><Text style={[styles.onboardingSmallTitle, { color: colors.foreground, textAlign: 'center' }]}>We're all set!</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground, textAlign: 'center' }]}>You're ready to find your next good thing, {name.trim() || 'friend'}.</Text><TextInput value={bio} onChangeText={setBio} multiline placeholder="Add a short bio (optional)" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius, marginTop: 24 }]} /></View> : null}
-      </ScrollView>
+      </View>
       <View style={styles.onboardingFooter}>
         <View style={styles.onboardingDots}>{dots.map((index) => <View key={index} style={[styles.onboardingDot, { backgroundColor: index === step ? colors.primary : colors.border }]} />)}</View>
         <Button label={update.isPending ? 'Saving…' : step === totalSteps - 1 ? "Let's go!" : 'Continue'} disabled={update.isPending || (step === 1 && !name.trim()) || (step === 2 && interests.length === 0) || (step === 3 && !city.trim())} onPress={() => void next()} />
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
 function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { user: authenticatedUser } = useAuth();
   const query = useListExperiences({ availableOnly: true });
   const participations = useListMyParticipations({ status: 'upcoming' });
   const items = query.data ?? [];
@@ -450,6 +479,8 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
           <Text style={[styles.dashboardAvatarText, { color: colors.primary }]}>{firstName.charAt(0).toUpperCase()}</Text>
         </Pressable>
       </View>
+
+      {!authenticatedUser ? <TelegramConnectCard /> : null}
 
       <View style={[styles.dashboardHero, { borderRadius: 30, overflow: 'hidden' }]}>
         <LinearGradient colors={[colors.secondary, colors.primary, colors.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
@@ -966,7 +997,13 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const current = profile.data ?? user;
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      showsVerticalScrollIndicator={false}
+    >
       <Header title="Passport" subtitle="Your contribution identity." />
 
       <SocialProfileHeader user={current} friendsCount={friends.data?.length ?? 0} onEdit={() => setEditing((value) => !value)} />
@@ -1248,16 +1285,21 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
   ];
 
   return (
-    <KeyboardAvoidingView style={[styles.screen, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView
-        contentContainerStyle={[styles.createContent, { paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 60) : insets.top + 20, paddingBottom: insets.bottom + 40 }]}
-        keyboardShouldPersistTaps="handled"
-      >
+    <KeyboardAwareScrollViewCompat
+      style={[styles.screen, { backgroundColor: colors.background }]}
+      contentContainerStyle={[
+        styles.createContent,
+        { flexGrow: 1, paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 60) : insets.top + 20, paddingBottom: insets.bottom + 40 },
+      ]}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      showsVerticalScrollIndicator={false}
+    >
         <View style={styles.createTopBar}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={step === 1 ? 'Close create experience' : 'Previous step'}
-            onPress={() => { triggerHaptic(); step > 1 ? setStep((current) => current - 1) : go('host'); }}
+            onPress={() => { triggerHaptic(); Keyboard.dismiss(); step > 1 ? setStep((current) => current - 1) : go('host'); }}
             style={[styles.createRoundButton, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
           >
             <Feather name={step === 1 ? 'x' : 'arrow-left'} size={22} color={colors.foreground} />
@@ -1284,6 +1326,8 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
           <Text style={[styles.createTitle, { color: colors.foreground }]}>{stepTitles[step - 1]}</Text>
           <Text style={[styles.createDescription, { color: colors.mutedForeground }]}>{stepDescriptions[step - 1]}</Text>
         </View>
+
+        {!user ? <TelegramConnectCard /> : null}
 
         <View style={styles.createFields}>
           {step === 1 && (
@@ -1424,8 +1468,7 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
         <Text style={styles.createFooterNote}>
           {step === 4 ? 'You can edit the details after publishing.' : 'Nothing is published until you say so.'}
         </Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -1465,10 +1508,23 @@ export default function App() {
   const displayUser = user ?? guestUser;
   const guestOnboarded = onboarded || params.onboarded === '1';
 
+  useEffect(() => {
+    const routeScreen = params.screen;
+    if (routeScreen && screenNames.includes(routeScreen as Screen)) {
+      setScreen(routeScreen as Screen);
+    }
+    if (params.id) setExperienceId(params.id);
+  }, [params.screen, params.id]);
+
   const go = (next: Screen, nextParams?: Record<string, string>) => {
+    Keyboard.dismiss();
     setScreen(next);
     if (nextParams?.id) setExperienceId(nextParams.id);
-    router.setParams({ screen: next, onboarded: guestOnboarded ? '1' : undefined, ...nextParams });
+    router.setParams({
+      screen: next,
+      onboarded: guestOnboarded ? '1' : undefined,
+      id: next === 'experience' ? nextParams?.id : undefined,
+    });
   };
 
   const needsOnboarding = Boolean((!user || !user.city || !user.interests?.length || !user.participationType) && !guestOnboarded);
@@ -1530,6 +1586,12 @@ const styles = StyleSheet.create({
 
   loading: { padding: 40, alignItems: 'center', justifyContent: 'center' },
   loadingText: { marginTop: 16, fontSize: 15, fontFamily: 'Inter_500Medium' },
+  telegramCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderWidth: 1, marginBottom: 16 },
+  telegramIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  telegramCopy: { flex: 1, minWidth: 0 },
+  telegramTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 3 },
+  telegramBody: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
+  telegramButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   
   // Experience Card
   experienceCard: { borderWidth: 1, overflow: 'hidden' },
@@ -1574,13 +1636,11 @@ const styles = StyleSheet.create({
   talentFormPanel: { gap: 12, marginHorizontal: -8, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, borderWidth: 1, borderRadius: 28, shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: -4 }, elevation: 3 },
   talentSheetTitle: { fontSize: 24, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
   talentSheetBody: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20, marginBottom: 2 },
-  talentEmailRow: { height: 52, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 16 },
-  talentSocialRow: { flexDirection: 'row', gap: 10 },
-  talentSocialButton: { flex: 1, minHeight: 50, paddingHorizontal: 8 },
-  talentEmailInput: { flex: 1, height: 50, paddingHorizontal: 0, fontSize: 16, fontFamily: 'Inter_400Regular' },
-  talentDividerText: { textAlign: 'center', fontSize: 14, fontFamily: 'Inter_500Medium', marginVertical: 2 },
+  talentTelegramNote: { minHeight: 46, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14 },
+  talentTelegramNoteText: { flex: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   
   onboarding: { flex: 1 },
+  onboardingScreenContent: { flexGrow: 1 },
   onboardingTopBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 16 },
   onboardingBack: { width: 44, height: 44, justifyContent: 'center' },
   skipText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
@@ -1814,7 +1874,7 @@ const styles = StyleSheet.create({
   createTipStrong: { fontFamily: 'Inter_700Bold' },
   createField: { flex: 1 },
   createFieldLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 0.9, marginBottom: 8 },
-  createInput: { height: 52, borderWidth: 1, paddingHorizontal: 16, fontSize: 15, fontFamily: 'Inter_400Regular' },
+  createInput: { height: 52, borderWidth: 1, paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_400Regular' },
   createTextArea: { height: 96, paddingTop: 14, textAlignVertical: 'top' },
   createFieldRow: { flexDirection: 'row', gap: 12 },
   createFieldHalf: { flex: 1 },
