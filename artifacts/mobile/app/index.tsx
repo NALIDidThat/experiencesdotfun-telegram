@@ -1054,8 +1054,10 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
 function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const create = useCreateExperience();
   const [step, setStep] = useState(1);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<ExperienceCreateInput>>({
     category: 'community',
     city: 'London',
@@ -1100,26 +1102,36 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
   const publish = async () => {
     triggerHaptic();
     if (!valid || create.isPending) return;
-    await create.mutateAsync({
-      data: {
-        organisationName: form.organisationName!.trim(),
-        organisationDescription: form.organisationDescription?.trim() || null,
-        title: form.title!.trim(),
-        description: form.description!.trim(),
-        category: form.category!,
-        date: form.date!.trim(),
-        startTime: form.startTime!.trim(),
-        endTime: form.endTime!.trim(),
-        location: form.location!.trim(),
-        city: form.city!.trim(),
-        capacity: Number(form.capacity),
-        xpReward: Number(form.xpReward),
-        monetaryRewardPence: form.monetaryRewardPence == null ? null : Number(form.monetaryRewardPence),
-        whatToBring: form.whatToBring?.trim() || null,
-        whatYouWillDo: form.whatYouWillDo?.trim() || null,
-      },
-    });
-    go('host');
+    setPublishError(null);
+    if (!user) {
+      setPublishError('Open Experiences.fun from Telegram to publish an experience.');
+      return;
+    }
+    try {
+      await create.mutateAsync({
+        data: {
+          organisationName: form.organisationName!.trim(),
+          organisationDescription: form.organisationDescription?.trim() || null,
+          title: form.title!.trim(),
+          description: form.description!.trim(),
+          category: form.category!,
+          date: form.date!.trim(),
+          startTime: form.startTime!.trim(),
+          endTime: form.endTime!.trim(),
+          location: form.location!.trim(),
+          city: form.city!.trim(),
+          capacity: Number(form.capacity),
+          xpReward: Number(form.xpReward),
+          monetaryRewardPence: form.monetaryRewardPence == null ? null : Number(form.monetaryRewardPence),
+          whatToBring: form.whatToBring?.trim() || null,
+          whatYouWillDo: form.whatYouWillDo?.trim() || null,
+        },
+      });
+      go('host');
+    } catch (publishRequestError: unknown) {
+      const responseMessage = (publishRequestError as { data?: { message?: string } })?.data?.message;
+      setPublishError(responseMessage ?? 'We couldn’t publish this experience. Please try again.');
+    }
   };
 
   const field = (key: keyof ExperienceCreateInput, label: string, placeholder: string, multiline = false, keyboardType: 'default' | 'number-pad' = 'default') => (
@@ -1286,9 +1298,9 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
           )}
         </View>
 
-        {create.isError && (
+        {(publishError || create.isError) && (
           <Text accessibilityRole="alert" style={[styles.createError, { color: colors.destructive }]}>
-            We couldn’t publish this experience. Please try again.
+            {publishError ?? 'We couldn’t publish this experience. Please try again.'}
           </Text>
         )}
 

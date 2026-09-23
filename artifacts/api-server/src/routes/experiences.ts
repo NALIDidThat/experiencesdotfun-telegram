@@ -27,6 +27,7 @@ import {
   findUserByUsername,
   requireTelegramUser,
 } from "../lib/auth";
+import { logger } from "../lib/logger";
 import {
   currentOrganisation,
   experienceResponse,
@@ -120,45 +121,55 @@ router.post("/experiences", async (req, res) => {
   }
   const user = currentUser(req);
   const input = parsed.data;
-  let organisation = await currentOrganisation(user.id);
-  if (!organisation) {
-    const [created] = await db
-      .insert(organisationsTable)
-      .values({
-        ownerUserId: user.id,
-        name: input.organisationName,
-        description: input.organisationDescription,
-        city: input.city,
-        country: user.country,
-        categories: [input.category],
-      })
-      .returning();
-    organisation = created;
+  try {
+    const created = await db.transaction(async (transaction) => {
+      let organisation = await transaction.query.organisationsTable.findFirst({
+        where: eq(organisationsTable.ownerUserId, user.id),
+        orderBy: desc(organisationsTable.createdAt),
+      });
+      if (!organisation) {
+        const [createdOrganisation] = await transaction
+          .insert(organisationsTable)
+          .values({
+            ownerUserId: user.id,
+            name: input.organisationName,
+            description: input.organisationDescription,
+            city: input.city,
+            country: user.country,
+            categories: [input.category],
+          })
+          .returning();
+        organisation = createdOrganisation;
+      }
+      if (!organisation) throw new Error("Unable to create organisation.");
+
+      const [createdExperience] = await transaction
+        .insert(experiencesTable)
+        .values({
+          organisationId: organisation.id,
+          title: input.title,
+          description: input.description,
+          category: input.category,
+          date: input.date,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          location: input.location,
+          city: input.city,
+          capacity: input.capacity,
+          xpReward: input.xpReward,
+          monetaryRewardPence: input.monetaryRewardPence,
+          whatToBring: input.whatToBring,
+          whatYouWillDo: input.whatYouWillDo,
+        })
+        .returning();
+      if (!createdExperience) throw new Error("Unable to create experience.");
+      return createdExperience;
+    });
+    res.status(201).json(await experienceResponse(created));
+  } catch (publishError) {
+    logger.error({ err: publishError, userId: user.id }, "Experience publish failed");
+    error(res, 500, "We couldn't publish this experience. Please try again.");
   }
-  if (!organisation) {
-    error(res, 500, "Unable to create your organisation.");
-    return;
-  }
-  const [created] = await db
-    .insert(experiencesTable)
-    .values({
-      organisationId: organisation.id,
-      title: input.title,
-      description: input.description,
-      category: input.category,
-      date: input.date,
-      startTime: input.startTime,
-      endTime: input.endTime,
-      location: input.location,
-      city: input.city,
-      capacity: input.capacity,
-      xpReward: input.xpReward,
-      monetaryRewardPence: input.monetaryRewardPence,
-      whatToBring: input.whatToBring,
-      whatYouWillDo: input.whatYouWillDo,
-    })
-    .returning();
-  res.status(201).json(await experienceResponse(created));
 });
 
 router.get("/experiences/:experienceId", async (req, res) => {
