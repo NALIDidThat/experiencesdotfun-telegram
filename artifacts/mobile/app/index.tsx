@@ -859,65 +859,85 @@ function SocialProfileHeader({
 
   return (
     <View style={[styles.profileFeatureCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-      <View style={styles.profileFeatureHeader}>
-        <View style={[styles.profileAvatar, { backgroundColor: colors.primary + '15' }]}>
-          <Text style={[styles.profileAvatarText, { color: colors.primary }]}>{user.name.charAt(0).toUpperCase()}</Text>
-        </View>
-        <View style={styles.profileIdentity}>
-          <View style={styles.profileNameRow}>
-            <Text numberOfLines={1} style={[styles.profileName, { color: colors.foreground }]}>{user.name}</Text>
-            <Feather name="check-circle" size={16} color={colors.primary} />
+      <View style={[styles.profileAccent, { backgroundColor: colors.primary }]} />
+      <View style={styles.profileFeatureContent}>
+        <View style={styles.profileFeatureHeader}>
+          <View style={[styles.profileAvatarRing, { borderColor: colors.primary + '35' }]}>
+            <View style={[styles.profileAvatar, { backgroundColor: colors.primary + '15' }]}>
+              <Text style={[styles.profileAvatarText, { color: colors.primary }]}>{user.name.charAt(0).toUpperCase()}</Text>
+            </View>
           </View>
-          <Text style={[styles.profileHandle, { color: colors.mutedForeground }]}>
-            {user.username ? `@${user.username}` : 'Telegram member'}
-          </Text>
-          <View style={styles.profileActionRow}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Edit profile"
-              onPress={() => { triggerHaptic(); onEdit(); }}
-              style={[styles.profileAction, { backgroundColor: colors.primary, borderRadius: colors.radius - 4 }]}
+          <View style={styles.profileIdentity}>
+            <View style={styles.profileNameRow}>
+              <Text numberOfLines={1} style={[styles.profileName, { color: colors.foreground }]}>{user.name}</Text>
+              <Feather name="check-circle" size={16} color={colors.primary} />
+            </View>
+            <Text style={[styles.profileHandle, { color: colors.mutedForeground }]}>
+              {user.username ? `@${user.username}` : 'Telegram member'}
+            </Text>
+            <View style={styles.profileActionRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Edit profile"
+                onPress={() => { triggerHaptic(); onEdit(); }}
+                style={({ pressed }) => [
+                  styles.profileAction,
+                  { backgroundColor: colors.primary, borderRadius: colors.radius - 4, opacity: pressed ? 0.82 : 1 },
+                ]}
+              >
+                <Feather name="edit-2" size={14} color={colors.primaryForeground} />
+                <Text style={[styles.profileActionText, { color: colors.primaryForeground }]}>Edit profile</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.profileMetricGrid, { borderColor: colors.border }]}>
+          {[
+            { label: 'Completed', value: user.completedCount, tint: colors.primary },
+            { label: 'Hosted', value: user.hostedCount, tint: colors.secondary },
+            { label: 'Friends', value: friendsCount, tint: colors.accent },
+            { label: 'XP', value: user.xp, tint: colors.teal },
+          ].map((metric, index) => (
+            <View
+              key={metric.label}
+              style={[
+                styles.profileMetric,
+                index < 3 && { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.border },
+              ]}
             >
-              <Feather name="edit-2" size={14} color={colors.primaryForeground} />
-              <Text style={[styles.profileActionText, { color: colors.primaryForeground }]}>Edit profile</Text>
-            </Pressable>
-          </View>
+              <Text style={[styles.profileMetricValue, { color: metric.tint }]}>{metric.value}</Text>
+              <Text style={[styles.profileMetricLabel, { color: colors.mutedForeground }]}>{metric.label}</Text>
+            </View>
+          ))}
         </View>
-      </View>
 
-      <View style={styles.profileMetricGrid}>
-        {[
-          { label: 'Completed', value: user.completedCount },
-          { label: 'Hosted', value: user.hostedCount },
-          { label: 'Friends', value: friendsCount },
-          { label: 'XP', value: user.xp },
-        ].map((metric) => (
-          <View key={metric.label} style={styles.profileMetric}>
-            <Text style={[styles.profileMetricValue, { color: colors.foreground }]}>{metric.value}</Text>
-            <Text style={[styles.profileMetricLabel, { color: colors.mutedForeground }]}>{metric.label}</Text>
+        <View style={styles.profileDetails}>
+          {user.bio ? (
+            <Text style={[styles.profileBio, { color: colors.foreground }]}>{user.bio}</Text>
+          ) : null}
+          {user.city ? (
+            <View style={[styles.profileDetailRow, { backgroundColor: colors.muted }]}>
+              <View style={[styles.profileDetailIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name="map-pin" size={13} color={colors.primary} />
+              </View>
+              <Text style={[styles.profileDetailText, { color: colors.mutedForeground }]}>{user.city}</Text>
+            </View>
+          ) : null}
+          {interests ? (
+            <View style={[styles.profileDetailRow, { backgroundColor: colors.muted }]}>
+              <View style={[styles.profileDetailIcon, { backgroundColor: colors.secondary + '12' }]}>
+                <Feather name="heart" size={13} color={colors.secondary} />
+              </View>
+              <Text style={[styles.profileDetailText, { color: colors.mutedForeground }]}>{interests}</Text>
+            </View>
+          ) : null}
+          <View style={[styles.profileDetailRow, { backgroundColor: colors.muted }]}>
+            <View style={[styles.profileDetailIcon, { backgroundColor: colors.accent + '12' }]}>
+              <Feather name="award" size={13} color={colors.accent} />
+            </View>
+            <Text style={[styles.profileDetailText, { color: colors.mutedForeground }]}>{user.level}</Text>
           </View>
-        ))}
-      </View>
-
-      <View style={styles.profileDetails}>
-        {user.bio ? (
-          <Text style={[styles.profileBio, { color: colors.foreground }]}>{user.bio}</Text>
-        ) : null}
-        {user.city ? (
-          <View style={styles.profileDetailRow}>
-            <Feather name="map-pin" size={14} color={colors.mutedForeground} />
-            <Text style={[styles.profileDetailText, { color: colors.mutedForeground }]}>{user.city}</Text>
-          </View>
-        ) : null}
-        {interests ? (
-          <View style={styles.profileDetailRow}>
-            <Feather name="heart" size={14} color={colors.mutedForeground} />
-            <Text style={[styles.profileDetailText, { color: colors.mutedForeground }]}>{interests}</Text>
-          </View>
-        ) : null}
-        <View style={styles.profileDetailRow}>
-          <Feather name="award" size={14} color={colors.mutedForeground} />
-          <Text style={[styles.profileDetailText, { color: colors.mutedForeground }]}>{user.level}</Text>
         </View>
       </View>
     </View>
@@ -1687,10 +1707,13 @@ const styles = StyleSheet.create({
   contributionLegendText: { fontSize: 10, fontFamily: 'Inter_500Medium', marginHorizontal: 2 },
   contributionLegendCell: { width: 11, height: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 2 },
 
-  profileFeatureCard: { borderWidth: 1, padding: 16, marginBottom: 28 },
+  profileFeatureCard: { borderWidth: 1, marginBottom: 28, overflow: 'hidden' },
+  profileAccent: { height: 5 },
+  profileFeatureContent: { padding: 18 },
   profileFeatureHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 20 },
-  profileAvatar: { width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center' },
-  profileAvatarText: { fontSize: 32, fontFamily: 'Inter_700Bold' },
+  profileAvatarRing: { width: 82, height: 82, borderRadius: 41, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  profileAvatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
+  profileAvatarText: { fontSize: 31, fontFamily: 'Inter_700Bold' },
   profileIdentity: { flex: 1, minWidth: 0, paddingTop: 2 },
   profileNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   profileName: { flexShrink: 1, fontSize: 20, fontFamily: 'Inter_700Bold' },
@@ -1699,13 +1722,14 @@ const styles = StyleSheet.create({
   profileAction: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, paddingVertical: 9 },
   profileActionText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   profileMetricGrid: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 14, marginBottom: 16 },
-  profileMetric: { flex: 1, alignItems: 'center', gap: 3 },
-  profileMetricValue: { fontSize: 18, fontFamily: 'Inter_700Bold' },
+  profileMetric: { flex: 1, alignItems: 'center', gap: 4, minWidth: 0 },
+  profileMetricValue: { fontSize: 19, fontFamily: 'Inter_700Bold' },
   profileMetricLabel: { fontSize: 10, fontFamily: 'Inter_500Medium' },
-  profileDetails: { gap: 8 },
+  profileDetails: { gap: 7 },
   profileBio: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_500Medium' },
-  profileDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  profileDetailText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular' },
+  profileDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 34, paddingHorizontal: 9, borderRadius: 10 },
+  profileDetailIcon: { width: 23, height: 23, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+  profileDetailText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium' },
   
   historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   historyDot: { width: 12, height: 12, borderRadius: 6, marginRight: 16 },
