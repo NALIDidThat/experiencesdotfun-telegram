@@ -944,30 +944,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
       <Header title="Passport" subtitle="Your contribution identity." />
 
-      <View style={[styles.passportHero, { borderRadius: colors.radius, overflow: 'hidden' }]}>
-        <LinearGradient colors={['#FF107A', '#6E00FF']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-        <View style={styles.passportHeroContent}>
-          <View style={[styles.passportAvatar, { backgroundColor: '#ffffff' }]}>
-            <Text style={[styles.passportInitial, { color: colors.primary }]}>{current.name.charAt(0).toUpperCase()}</Text>
-          </View>
-          <View style={styles.passportIdentity}>
-            <Text style={styles.passportName}>{current.name}</Text>
-            <Text style={styles.passportHandle}>@{current.username ?? 'telegram'}</Text>
-            <View style={styles.passportLevelPill}>
-              <Text style={styles.passportLevelText}>{current.level.toUpperCase()}</Text>
-            </View>
-          </View>
-          <Pressable accessibilityRole="button" accessibilityLabel={editing ? 'Close profile editor' : 'Edit profile'} onPress={() => { triggerHaptic(); setEditing((value) => !value); }} style={[styles.iconButton, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
-            <Feather name={editing ? 'x' : 'edit-2'} size={20} color="#ffffff" />
-          </Pressable>
-        </View>
-        <View style={styles.passportProgressContainer}>
-          <View style={styles.passportProgressHeader}>
-            <Text style={styles.passportProgressLabel}>{current.xp} XP total</Text>
-            <Text style={styles.passportProgressLabel}>Contribution score</Text>
-          </View>
-        </View>
-      </View>
+      <MilestoneDashboard user={current} />
 
       {editing ? (
         <View style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
@@ -994,7 +971,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         </View>
       </View>
 
-      <MilestoneDashboard user={current} />
       <ContributionDashboard user={current} completed={completed.data} />
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent impact</Text>
@@ -1700,19 +1676,7 @@ const styles = StyleSheet.create({
   places: { fontSize: 13, fontFamily: 'Inter_500Medium' },
   
   // Profile
-  passportHero: { minHeight: 280, marginBottom: 24 },
-  passportHeroContent: { padding: 24, paddingBottom: 16, flexDirection: 'row', alignItems: 'flex-start' },
-  passportAvatar: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
-  passportInitial: { fontSize: 32, fontFamily: 'Inter_700Bold' },
-  passportIdentity: { flex: 1, justifyContent: 'center', paddingTop: 4 },
-  passportName: { color: '#ffffff', fontSize: 24, fontFamily: 'Inter_700Bold', marginBottom: 4 },
-  passportHandle: { color: 'rgba(255,255,255,0.8)', fontSize: 15, fontFamily: 'Inter_500Medium', marginBottom: 12 },
-  passportLevelPill: { backgroundColor: '#ffffff', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  passportLevelText: { color: '#FF107A', fontSize: 12, fontFamily: 'Inter_700Bold' },
   iconButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  passportProgressContainer: { backgroundColor: 'rgba(0,0,0,0.1)', padding: 20, marginTop: 'auto' },
-  passportProgressHeader: { flexDirection: 'row', justifyContent: 'space-between' },
-  passportProgressLabel: { color: '#ffffff', fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   
   editPanel: { padding: 20, borderWidth: 1, marginBottom: 24, gap: 16 },
   input: { height: 56, borderWidth: 1, paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_400Regular' },
