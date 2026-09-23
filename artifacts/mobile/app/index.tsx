@@ -120,9 +120,9 @@ function triggerHaptic() {
 }
 
 function Button({
-  label, onPress, variant = 'primary', disabled = false, icon, style,
+  label, onPress, variant = 'primary', disabled = false, icon, style, color, textColor,
 }: {
-  label: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'alternative'; disabled?: boolean; icon?: IconName; style?: any;
+  label: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'alternative'; disabled?: boolean; icon?: IconName; style?: any; color?: string; textColor?: string;
 }) {
   const colors = useColors();
   const scale = useRef(new Animated.Value(1)).current;
@@ -141,6 +141,8 @@ function Button({
     bg = colors.secondary;
     fg = colors.secondaryForeground;
   }
+  if (color) bg = color;
+  if (textColor) fg = textColor;
 
   const handlePressIn = () => {
     if (disabled) return;
@@ -342,93 +344,143 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
   };
 
   return (
-    <KeyboardAwareScrollViewCompat
-      style={[styles.emailAuthScreen, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 32 : 20), paddingBottom: Math.max(insets.bottom, 24) }]}
-      keyboardDismissMode="on-drag"
-    >
-      <Pressable accessibilityRole="button" accessibilityLabel="Back to Telegram login" onPress={onBack} style={styles.emailBack}>
-        <Feather name="arrow-left" size={20} color={colors.foreground} />
-        <Text style={[styles.emailBackText, { color: colors.foreground }]}>Back</Text>
-      </Pressable>
-      <View style={styles.emailAuthHeader}>
-        <Text style={[styles.talentEyebrow, { color: colors.primary }]}>WELCOME BACK</Text>
-        <Text style={[styles.emailAuthTitle, { color: colors.foreground }]}>{isSignup ? 'Create your account.' : 'Log in with email.'}</Text>
-        <Text style={[styles.emailAuthBody, { color: colors.mutedForeground }]}>
-          {isSignup ? 'Save your passport and contributions with an email account.' : 'Continue to your Experiences.fun passport from any device.'}
-        </Text>
-      </View>
-      <View style={[styles.emailAuthForm, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-        {isSignup ? (
-          <View style={styles.emailField}>
-            <Text style={[styles.emailLabel, { color: colors.foreground }]}>Name</Text>
-            <TextInput
-              accessibilityLabel="Name"
-              value={name}
-              onChangeText={setName}
-              placeholder="Your name"
-              placeholderTextColor={colors.mutedForeground}
-              autoCapitalize="words"
-              style={[styles.emailInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius - 4 }]}
-            />
+    <LinearGradient colors={['#04ADBF', '#087D8B']} style={styles.emailAuthScreen}>
+      <KeyboardAwareScrollViewCompat
+        style={styles.emailAuthScroll}
+        contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 26 : 16), paddingBottom: Math.max(insets.bottom, 24) }]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        bottomOffset={24}
+      >
+        <Pressable accessibilityRole="button" accessibilityLabel="Back to Telegram login" onPress={onBack} style={styles.emailBack}>
+          <View style={styles.emailBackIcon}>
+            <Feather name="arrow-left" size={18} color="#FFFFFF" />
           </View>
-        ) : null}
-        <View style={styles.emailField}>
-          <Text style={[styles.emailLabel, { color: colors.foreground }]}>Email</Text>
-          <TextInput
-            accessibilityLabel="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@example.com"
-            placeholderTextColor={colors.mutedForeground}
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            style={[styles.emailInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius - 4 }]}
-          />
-        </View>
-        <View style={styles.emailField}>
-          <Text style={[styles.emailLabel, { color: colors.foreground }]}>Password</Text>
-          <TextInput
-            accessibilityLabel="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder={isSignup ? 'At least 8 characters' : 'Your password'}
-            placeholderTextColor={colors.mutedForeground}
-            secureTextEntry
-            autoCapitalize="none"
-            style={[styles.emailInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius - 4 }]}
-          />
-        </View>
-        {isSignup ? (
-          <View style={styles.emailField}>
-            <Text style={[styles.emailLabel, { color: colors.foreground }]}>Confirm password</Text>
-            <TextInput
-              accessibilityLabel="Confirm password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              placeholder="Repeat your password"
-              placeholderTextColor={colors.mutedForeground}
-              secureTextEntry
-              autoCapitalize="none"
-              style={[styles.emailInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius - 4 }]}
-            />
-          </View>
-        ) : null}
-        {localError || authError ? <Text accessibilityRole="alert" style={[styles.emailError, { color: colors.destructive }]}>{localError ?? authError}</Text> : null}
-        <Button
-          label={loading ? (isSignup ? 'Creating account…' : 'Logging in…') : (isSignup ? 'Create account' : 'Log in')}
-          disabled={loading || !email.trim() || !password || (isSignup && (!name.trim() || !confirmPassword))}
-          onPress={() => { void submit(); }}
-          icon={isSignup ? 'user-plus' : 'log-in'}
-        />
-        <Pressable accessibilityRole="button" onPress={() => { setMode(isSignup ? 'login' : 'signup'); setLocalError(null); }}>
-          <Text style={[styles.emailSwitch, { color: colors.primary }]}>
-            {isSignup ? 'Already have an account? Log in' : 'Need an account? Sign up'}
-          </Text>
+          <Text style={styles.emailBackText}>Back</Text>
         </Pressable>
-      </View>
-    </KeyboardAwareScrollViewCompat>
+
+        <View style={styles.emailHero}>
+          <View style={styles.emailHeroCopy}>
+            <Text style={styles.emailHeroEyebrow}>EXPERIENCES.FUN</Text>
+            <Text style={styles.emailHeroTitle}>
+              {isSignup ? 'Make space for\ngood things.' : 'Log in to stay on\nyour passport.'}
+            </Text>
+            <Text style={styles.emailHeroBody}>
+              {isSignup ? 'Create an account and keep your impact connected wherever you go.' : 'Pick up where you left off and keep your impact connected.'}
+            </Text>
+          </View>
+          <View style={styles.emailHeroArt} accessible={false}>
+            <View style={styles.emailHeroOrbLarge} />
+            <View style={styles.emailHeroOrbSmall} />
+            <View style={styles.emailHeroMiniCard}>
+              <Feather name="heart" size={16} color="#087D8B" />
+              <Text style={styles.emailHeroMiniCardText}>your impact</Text>
+            </View>
+            <View style={styles.emailHeroSpark}>
+              <Feather name="plus" size={16} color="#FFFFFF" />
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.emailAuthForm, { borderColor: 'rgba(255,255,255,0.35)' }]}>
+          <Text style={styles.emailCardTitle}>{isSignup ? 'Create account' : 'Log in'}</Text>
+          <Text style={styles.emailCardBody}>
+            {isSignup ? 'Your passport starts with a few details.' : 'Welcome back. Enter your details below.'}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => { setMode(isSignup ? 'login' : 'signup'); setLocalError(null); }}
+            style={styles.emailSwitchRow}
+          >
+            <Text style={styles.emailSwitchPrompt}>{isSignup ? 'Already have an account?' : 'New to Experiences.fun?'}</Text>
+            <Text style={styles.emailSwitchLink}>{isSignup ? 'Log in' : 'Sign up'}</Text>
+            <Feather name="arrow-up-right" size={15} color={colors.teal} />
+          </Pressable>
+
+          {isSignup ? (
+            <View style={styles.emailField}>
+              <Text style={styles.emailLabel}>Name</Text>
+              <View style={styles.emailInputRow}>
+                <Feather name="user" size={17} color="#7A8A8C" style={styles.emailInputIcon} />
+                <TextInput
+                  accessibilityLabel="Name"
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Your name"
+                  placeholderTextColor="#8A989A"
+                  autoCapitalize="words"
+                  style={styles.emailInput}
+                />
+              </View>
+            </View>
+          ) : null}
+          <View style={styles.emailField}>
+            <Text style={styles.emailLabel}>Email</Text>
+            <View style={styles.emailInputRow}>
+              <Feather name="mail" size={17} color="#7A8A8C" style={styles.emailInputIcon} />
+              <TextInput
+                accessibilityLabel="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@example.com"
+                placeholderTextColor="#8A989A"
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                style={styles.emailInput}
+              />
+            </View>
+          </View>
+          <View style={styles.emailField}>
+            <Text style={styles.emailLabel}>Password</Text>
+            <View style={styles.emailInputRow}>
+              <Feather name="lock" size={17} color="#7A8A8C" style={styles.emailInputIcon} />
+              <TextInput
+                accessibilityLabel="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder={isSignup ? 'At least 8 characters' : 'Your password'}
+                placeholderTextColor="#8A989A"
+                secureTextEntry
+                autoCapitalize="none"
+                style={styles.emailInput}
+              />
+            </View>
+          </View>
+          {isSignup ? (
+            <View style={styles.emailField}>
+              <Text style={styles.emailLabel}>Confirm password</Text>
+              <View style={styles.emailInputRow}>
+                <Feather name="check-circle" size={17} color="#7A8A8C" style={styles.emailInputIcon} />
+                <TextInput
+                  accessibilityLabel="Confirm password"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="Repeat your password"
+                  placeholderTextColor="#8A989A"
+                  secureTextEntry
+                  autoCapitalize="none"
+                  style={styles.emailInput}
+                />
+              </View>
+            </View>
+          ) : null}
+          {localError || authError ? <Text accessibilityRole="alert" style={[styles.emailError, { color: colors.destructive }]}>{localError ?? authError}</Text> : null}
+          <Button
+            label={loading ? (isSignup ? 'Creating account…' : 'Logging in…') : (isSignup ? 'Create account' : 'Log in')}
+            disabled={loading || !email.trim() || !password || (isSignup && (!name.trim() || !confirmPassword))}
+            onPress={() => { void submit(); }}
+            icon={isSignup ? 'user-plus' : 'log-in'}
+            color={colors.teal}
+            style={styles.emailSubmitButton}
+          />
+          <View style={styles.emailSecureNote}>
+            <Feather name="shield" size={12} color="#7A8A8C" />
+            <Text style={styles.emailSecureNoteText}>Your details are kept secure</Text>
+          </View>
+        </View>
+      </KeyboardAwareScrollViewCompat>
+    </LinearGradient>
   );
 }
 
@@ -1764,18 +1816,37 @@ const styles = StyleSheet.create({
   emailLoginLink: { alignItems: 'center', paddingVertical: 2 },
   emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   emailAuthScreen: { flex: 1 },
-  emailAuthContent: { flexGrow: 1, paddingHorizontal: 24, justifyContent: 'center' },
-  emailBack: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, alignSelf: 'flex-start' },
-  emailBackText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
-  emailAuthHeader: { marginTop: 28, marginBottom: 24 },
-  emailAuthTitle: { fontSize: 34, lineHeight: 40, fontFamily: 'Inter_700Bold', letterSpacing: -1 },
-  emailAuthBody: { fontSize: 15, lineHeight: 22, fontFamily: 'Inter_400Regular', marginTop: 10, maxWidth: 340 },
-  emailAuthForm: { borderWidth: 1, padding: 20, gap: 16, shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  emailField: { gap: 8 },
-  emailLabel: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  emailInput: { height: 52, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontFamily: 'Inter_400Regular' },
+  emailAuthScroll: { flex: 1 },
+  emailAuthContent: { flexGrow: 1, paddingHorizontal: 20 },
+  emailBack: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, alignSelf: 'flex-start' },
+  emailBackIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' },
+  emailBackText: { color: '#FFFFFF', fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  emailHero: { minHeight: 220, flexDirection: 'row', alignItems: 'center', paddingTop: 8, paddingBottom: 22 },
+  emailHeroCopy: { flex: 1, zIndex: 2 },
+  emailHeroEyebrow: { color: 'rgba(255,255,255,0.78)', fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.7, marginBottom: 12 },
+  emailHeroTitle: { color: '#FFFFFF', fontSize: 31, lineHeight: 34, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, maxWidth: 230 },
+  emailHeroBody: { color: 'rgba(255,255,255,0.82)', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', marginTop: 12, maxWidth: 235 },
+  emailHeroArt: { width: 112, height: 158, marginLeft: 8, position: 'relative' },
+  emailHeroOrbLarge: { position: 'absolute', width: 126, height: 126, borderRadius: 63, backgroundColor: 'rgba(255,255,255,0.16)', right: -18, top: 7 },
+  emailHeroOrbSmall: { position: 'absolute', width: 54, height: 54, borderRadius: 27, backgroundColor: '#F4A9D2', left: 2, bottom: 19 },
+  emailHeroMiniCard: { position: 'absolute', width: 105, height: 78, right: 3, top: 42, borderRadius: 19, paddingHorizontal: 13, justifyContent: 'center', backgroundColor: '#FFFFFF', shadowColor: '#07535D', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4, transform: [{ rotate: '7deg' }] },
+  emailHeroMiniCardText: { color: '#0B4A52', fontSize: 12, fontFamily: 'Inter_700Bold', marginTop: 8 },
+  emailHeroSpark: { position: 'absolute', width: 30, height: 30, borderRadius: 15, right: 4, bottom: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F20789', transform: [{ rotate: '-12deg' }] },
+  emailAuthForm: { backgroundColor: '#FFFFFF', borderWidth: 1, borderRadius: 28, paddingHorizontal: 20, paddingTop: 23, paddingBottom: 18, gap: 14, shadowColor: '#064C55', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
+  emailCardTitle: { color: '#102023', fontSize: 29, lineHeight: 34, fontFamily: 'Inter_700Bold', letterSpacing: -0.7 },
+  emailCardBody: { color: '#708083', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', marginTop: -8 },
+  emailSwitchRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: -3, marginBottom: 3 },
+  emailSwitchPrompt: { color: '#708083', fontSize: 13, fontFamily: 'Inter_500Medium' },
+  emailSwitchLink: { color: '#087D8B', fontSize: 13, fontFamily: 'Inter_700Bold' },
+  emailField: { gap: 7 },
+  emailLabel: { color: '#25383B', fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 0.55 },
+  emailInputRow: { height: 53, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3EAEB', borderRadius: 14, backgroundColor: '#F4F7F7' },
+  emailInputIcon: { marginLeft: 14, marginRight: 10 },
+  emailInput: { flex: 1, height: 51, paddingHorizontal: 0, paddingRight: 13, color: '#162629', fontSize: 15, fontFamily: 'Inter_400Regular' },
   emailError: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
-  emailSwitch: { fontSize: 13, fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
+  emailSubmitButton: { marginTop: 2 },
+  emailSecureNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: -1 },
+  emailSecureNoteText: { color: '#7A8A8C', fontSize: 11, fontFamily: 'Inter_500Medium' },
   
   onboarding: { flex: 1 },
   onboardingScreenContent: { flexGrow: 1 },
