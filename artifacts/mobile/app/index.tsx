@@ -403,56 +403,141 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
 
 function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const query = useListExperiences({ availableOnly: true });
   const participations = useListMyParticipations({ status: 'upcoming' });
   const items = query.data ?? [];
   const firstName = user.name.split(' ')[0];
+  const upcomingCount = participations.data?.length ?? 0;
+  const quickActions: Array<{ label: string; icon: IconName; screen: Screen }> = [
+    { label: 'Explore', icon: 'compass', screen: 'explore' },
+    { label: 'My journey', icon: 'calendar', screen: 'experiences' },
+    { label: 'Passport', icon: 'award', screen: 'profile' },
+    { label: 'Host', icon: 'plus-circle', screen: 'host' },
+  ];
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={colors.primary} />}>
-      <Header title={`Good morning, ${firstName}`} subtitle="Make an impact near you." />
-      
-      <View style={[styles.impactBanner, { borderRadius: colors.radius, overflow: 'hidden' }]}>
-        <LinearGradient colors={['#F20789', '#6805F2']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-        <View style={styles.bannerCopy}>
-          <Text style={styles.bannerKicker}>YOUR NEXT GOOD THING</Text>
-          <Text style={styles.bannerTitle}>Small actions.{'\n'}Real impact.</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Explore experiences" onPress={() => go('explore')} style={styles.bannerLinkBox}>
-            <Text style={styles.bannerLinkText}>Explore experiences</Text>
-            <Feather name="arrow-right" size={16} color="#F20789" />
-          </Pressable>
+    <ScrollView
+      style={[styles.dashboardScreen, { backgroundColor: colors.muted }]}
+      contentContainerStyle={[styles.dashboardContent, { paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 67) : insets.top + 12 }]}
+      refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={colors.primary} />}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.dashboardTopBar}>
+        <View style={styles.dashboardBrand}>
+          <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.dashboardBrandIcon}>
+            <Feather name="star" size={16} color={colors.primaryForeground} />
+          </LinearGradient>
+          <Text style={[styles.dashboardBrandText, { color: colors.foreground }]}>experiences.fun</Text>
         </View>
-        <Feather name="feather" size={120} color="#ffffff" style={styles.bannerIcon} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Open passport" onPress={() => go('profile')} style={[styles.dashboardAvatar, { backgroundColor: colors.card }]}>
+          <Text style={[styles.dashboardAvatarText, { color: colors.primary }]}>{firstName.charAt(0).toUpperCase()}</Text>
+        </Pressable>
       </View>
 
-      <View style={styles.sectionHeader}>
-        <View>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recommended for you</Text>
-        </View>
-        <Pressable onPress={() => go('explore')}><Text style={[styles.seeAll, { color: colors.primary }]}>See all</Text></Pressable>
+      <View style={[styles.dashboardHero, { borderRadius: 30, overflow: 'hidden' }]}>
+        <LinearGradient colors={[colors.secondary, colors.primary, colors.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        <View style={[styles.dashboardGlow, styles.dashboardGlowOne]} />
+        <View style={[styles.dashboardGlow, styles.dashboardGlowTwo]} />
+        <Text style={styles.dashboardWelcome}>WELCOME BACK</Text>
+        <Text style={styles.dashboardName}>{firstName}</Text>
+        <Text style={styles.dashboardHeroBody}>Your next good thing is closer than you think.</Text>
+
+        <Pressable accessibilityRole="button" accessibilityLabel="Open your experience journey" onPress={() => go('experiences')} style={styles.dashboardStatusStrip}>
+          <View style={[styles.dashboardStatusIcon, { backgroundColor: colors.primary }]}>
+            <Text style={styles.dashboardStatusNumber}>{upcomingCount}</Text>
+            <Feather name="calendar" size={13} color={colors.primaryForeground} />
+          </View>
+          <View style={styles.dashboardStatusCopy}>
+            <Text style={[styles.dashboardStatusTitle, { color: colors.foreground }]}>
+              {upcomingCount ? `${upcomingCount} experience${upcomingCount === 1 ? '' : 's'} coming up` : 'Ready for your first experience?'}
+            </Text>
+            <Text style={[styles.dashboardStatusSub, { color: colors.mutedForeground }]}>{upcomingCount ? 'View your journey' : 'Find something meaningful nearby'}</Text>
+          </View>
+          <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+        </Pressable>
       </View>
 
-      {query.isLoading ? <LoadingState /> : items.length ? items.slice(0, 3).map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title="Your next experience is waiting" body="There are no published opportunities yet. Hosts can create the first one from Host tools." icon="feather" />}
-      
-      <View style={styles.sectionHeader}>
-        <View>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your progress</Text>
-        </View>
-        <Pressable onPress={() => go('profile')}><Text style={[styles.seeAll, { color: colors.primary }]}>Passport</Text></Pressable>
-      </View>
-
-        <Pressable accessibilityRole="button" accessibilityLabel="Open your experience passport" onPress={() => go('profile')} style={[styles.progressCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-        <View style={styles.progressTop}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open your experience passport" onPress={() => go('profile')} style={[styles.dashboardPassportCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.dashboardPassportTop}>
           <View>
-            <Text style={[styles.progressLevel, { color: colors.foreground }]}>{user.level}</Text>
-            <Text style={[styles.progressXp, { color: colors.mutedForeground }]}>{user.xp} XP earned</Text>
+            <Text style={[styles.dashboardCardEyebrow, { color: colors.primary }]}>EXPERIENCE PASSPORT</Text>
+            <Text style={[styles.dashboardPassportTitle, { color: colors.foreground }]}>{user.level}</Text>
+            <View style={styles.dashboardPassportMeta}>
+              <Feather name="zap" size={14} color={colors.primary} />
+              <Text style={[styles.dashboardPassportMetaText, { color: colors.mutedForeground }]}>{user.xp} XP earned</Text>
+            </View>
           </View>
-          <View style={[styles.xpBadgeLg, { backgroundColor: colors.primary + '15' }]}>
-            <Feather name="trending-up" size={24} color={colors.primary} />
+          <View style={[styles.dashboardPassportArt, { backgroundColor: colors.primary + '12' }]}>
+            <Feather name="award" size={44} color={colors.primary} />
           </View>
         </View>
-        <Text style={[styles.progressCaption, { color: colors.mutedForeground }]}>{participations.data?.length ?? 0} upcoming {participations.data?.length === 1 ? 'experience' : 'experiences'}</Text>
+        <View style={[styles.dashboardPassportFooter, { borderTopColor: colors.border }]}>
+          <Text style={[styles.dashboardPassportStat, { color: colors.foreground }]}>{user.completedCount} completed</Text>
+          <View style={[styles.dashboardPassportButton, { backgroundColor: colors.foreground }]}>
+            <Text style={[styles.dashboardPassportButtonText, { color: colors.card }]}>View passport</Text>
+          </View>
+        </View>
       </Pressable>
+
+      <View style={styles.dashboardSectionHeader}>
+        <Text style={[styles.dashboardSectionTitle, { color: colors.foreground }]}>Quick actions</Text>
+      </View>
+      <View style={styles.dashboardActionGrid}>
+        {quickActions.map((action) => (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={action.label}
+            key={action.label}
+            onPress={() => go(action.screen)}
+            style={({ pressed }) => [styles.dashboardAction, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.75 : 1 }]}
+          >
+            <View style={[styles.dashboardActionIcon, { backgroundColor: colors.primary + '12' }]}>
+              <Feather name={action.icon} size={18} color={colors.primary} />
+            </View>
+            <Text style={[styles.dashboardActionLabel, { color: colors.foreground }]}>{action.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <View style={styles.dashboardSectionHeader}>
+        <Text style={[styles.dashboardSectionTitle, { color: colors.foreground }]}>Upcoming near you</Text>
+        <Pressable accessibilityRole="button" onPress={() => go('explore')}>
+          <Text style={[styles.dashboardSeeAll, { color: colors.primary }]}>See all</Text>
+        </Pressable>
+      </View>
+
+      {query.isLoading ? <LoadingState /> : items.length ? items.slice(0, 2).map((item) => (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`View ${item.title}`}
+          key={item.id}
+          onPress={() => go('experience', { id: String(item.id) })}
+          style={[styles.dashboardEventCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <LinearGradient colors={categoryGradients[item.category]} style={styles.dashboardEventIcon}>
+            <Feather name={categoryIcon[item.category]} size={21} color={colors.primaryForeground} />
+          </LinearGradient>
+          <View style={styles.dashboardEventCopy}>
+            <Text style={[styles.dashboardEventTitle, { color: colors.foreground }]} numberOfLines={1}>{item.title}</Text>
+            <Text style={[styles.dashboardEventMeta, { color: colors.mutedForeground }]}>{dateLabel(item.date)} · {item.city}</Text>
+          </View>
+          <View style={[styles.dashboardXpPill, { backgroundColor: colors.primary + '12' }]}>
+            <Text style={[styles.dashboardXpText, { color: colors.primary }]}>+{item.xpReward} XP</Text>
+          </View>
+        </Pressable>
+      )) : (
+        <Pressable accessibilityRole="button" onPress={() => go('explore')} style={[styles.dashboardEmptyEvent, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.dashboardEventIcon, { backgroundColor: colors.primary + '12' }]}>
+            <Feather name="compass" size={22} color={colors.primary} />
+          </View>
+          <View style={styles.dashboardEventCopy}>
+            <Text style={[styles.dashboardEventTitle, { color: colors.foreground }]}>Find your next good thing</Text>
+            <Text style={[styles.dashboardEventMeta, { color: colors.mutedForeground }]}>Explore experiences happening near you</Text>
+          </View>
+          <Feather name="arrow-right" size={20} color={colors.primary} />
+        </Pressable>
+      )}
       <View style={{ height: 100 }} />
     </ScrollView>
   );
@@ -1085,6 +1170,53 @@ const styles = StyleSheet.create({
   onboardingDot: { width: 8, height: 8, borderRadius: 4 },
   
   // Home
+  dashboardScreen: { flex: 1 },
+  dashboardContent: { paddingHorizontal: 18, paddingBottom: 20 },
+  dashboardTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  dashboardBrand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  dashboardBrandIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  dashboardBrandText: { fontSize: 15, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 },
+  dashboardAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  dashboardAvatarText: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  dashboardHero: { minHeight: 276, paddingHorizontal: 24, paddingTop: 38, marginBottom: -34, position: 'relative' },
+  dashboardGlow: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 999 },
+  dashboardGlowOne: { width: 220, height: 220, right: -82, top: -82 },
+  dashboardGlowTwo: { width: 160, height: 160, left: -60, bottom: -76 },
+  dashboardWelcome: { color: 'rgba(255,255,255,0.78)', fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.4, textAlign: 'center', marginBottom: 5 },
+  dashboardName: { color: '#ffffff', fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', textAlign: 'center', letterSpacing: -0.8 },
+  dashboardHeroBody: { color: 'rgba(255,255,255,0.84)', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 6, paddingHorizontal: 20 },
+  dashboardStatusStrip: { minHeight: 72, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.92)', flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 22 },
+  dashboardStatusIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 3 },
+  dashboardStatusNumber: { color: '#ffffff', fontSize: 16, fontFamily: 'Inter_700Bold' },
+  dashboardStatusCopy: { flex: 1 },
+  dashboardStatusTitle: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_700Bold' },
+  dashboardStatusSub: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
+  dashboardPassportCard: { marginHorizontal: 8, borderWidth: 1, borderRadius: 24, overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 5, marginBottom: 28 },
+  dashboardPassportTop: { minHeight: 142, padding: 20, paddingTop: 54, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dashboardCardEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2, marginBottom: 7 },
+  dashboardPassportTitle: { fontSize: 23, fontFamily: 'Inter_700Bold', letterSpacing: -0.4, marginBottom: 8 },
+  dashboardPassportMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dashboardPassportMetaText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
+  dashboardPassportArt: { width: 72, height: 72, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  dashboardPassportFooter: { minHeight: 58, paddingHorizontal: 18, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dashboardPassportStat: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  dashboardPassportButton: { minHeight: 38, paddingHorizontal: 17, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  dashboardPassportButtonText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  dashboardSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 13, marginTop: 4 },
+  dashboardSectionTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
+  dashboardSeeAll: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  dashboardActionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 28 },
+  dashboardAction: { width: '48%', minHeight: 58, borderWidth: 1, borderRadius: 18, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dashboardActionIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  dashboardActionLabel: { flex: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  dashboardEventCard: { minHeight: 76, borderWidth: 1, borderRadius: 20, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+  dashboardEmptyEvent: { minHeight: 82, borderWidth: 1, borderRadius: 20, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  dashboardEventIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  dashboardEventCopy: { flex: 1 },
+  dashboardEventTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 4 },
+  dashboardEventMeta: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  dashboardXpPill: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 10 },
+  dashboardXpText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   impactBanner: { padding: 24, marginBottom: 32, minHeight: 180, justifyContent: 'center' },
   bannerCopy: { position: 'relative', zIndex: 10 },
   bannerKicker: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1, marginBottom: 8 },
