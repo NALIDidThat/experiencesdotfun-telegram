@@ -34,7 +34,8 @@ import {
   participationResponse,
   userResponse,
 } from "../lib/data";
-import { sendTelegramMessage } from "../lib/telegram";
+import { escapeTelegramHtml, sendFriendRequestNotification, sendTelegramMessage } from "../lib/telegram";
+import { createOrReopenFriendRequest } from "../lib/friends";
 
 const router: IRouter = Router();
 router.use(requireTelegramUser);
@@ -239,7 +240,7 @@ router.post("/experiences/:experienceId/join", async (req, res) => {
   });
   await sendTelegramMessage(
     user.telegramId,
-    `<b>You're in</b>\n\nYou've joined <b>${experience.title}</b>.\n${experience.date} · ${experience.city}\n+${experience.xpReward} XP${experience.monetaryRewardPence ? ` · £${(experience.monetaryRewardPence / 100).toFixed(2)}` : ""}`,
+    `<b>You're in</b>\n\nYou've joined <b>${escapeTelegramHtml(experience.title)}</b>.\n${escapeTelegramHtml(experience.date)} · ${escapeTelegramHtml(experience.city)}\n+${experience.xpReward} XP${experience.monetaryRewardPence ? ` · £${(experience.monetaryRewardPence / 100).toFixed(2)}` : ""}`,
     [[{ text: "View experience", web_app: { url: `https://${process.env.REPLIT_DOMAINS?.split(",")[0] ?? process.env.REPLIT_DEV_DOMAIN}/?screen=experience&id=${experience.id}` } }]],
   );
   if (organisation) {
@@ -247,7 +248,7 @@ router.post("/experiences/:experienceId/join", async (req, res) => {
       where: eq(usersTable.id, organisation.ownerUserId),
     });
     if (host && host.id !== user.id) {
-      await sendTelegramMessage(host.telegramId, `<b>New participant</b>\n${user.name} joined <b>${experience.title}</b>.`);
+      await sendTelegramMessage(host.telegramId, `<b>New participant</b>\n${escapeTelegramHtml(user.name)} joined <b>${escapeTelegramHtml(experience.title)}</b>.`);
     }
   }
   res.status(201).json(await participationResponse(created));
@@ -314,7 +315,7 @@ router.post("/participations/:participationId/submit", async (req, res) => {
     const host = organisation
       ? await db.query.usersTable.findFirst({ where: eq(usersTable.id, organisation.ownerUserId) })
       : undefined;
-    if (host) await sendTelegramMessage(host.telegramId, `<b>Verification required</b>\n${user.name} submitted completion for <b>${experience.title}</b>.`);
+    if (host) await sendTelegramMessage(host.telegramId, `<b>Verification required</b>\n${escapeTelegramHtml(user.name)} submitted completion for <b>${escapeTelegramHtml(experience.title)}</b>.`);
   }
   res.json(await participationResponse(updated));
 });
@@ -458,7 +459,7 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
     if (participant) {
       await sendTelegramMessage(
         participant.telegramId,
-        `<b>Contribution verified</b>\n\n${experience.title}\n+${experience.xpReward} XP${experience.monetaryRewardPence ? ` · £${(experience.monetaryRewardPence / 100).toFixed(2)}` : ""}\n\nYour progress has been updated.`,
+        `<b>Contribution verified</b>\n\n${escapeTelegramHtml(experience.title)}\n+${experience.xpReward} XP${experience.monetaryRewardPence ? ` · £${(experience.monetaryRewardPence / 100).toFixed(2)}` : ""}\n\nYour progress has been updated.`,
         [[{ text: "View progress", web_app: { url: `https://${process.env.REPLIT_DOMAINS?.split(",")[0] ?? process.env.REPLIT_DEV_DOMAIN}/?screen=profile` } }]],
       );
     }
@@ -534,21 +535,18 @@ router.post("/friends/requests", async (req, res) => {
     error(res, 409, "That participant could not be found.");
     return;
   }
-  const existing = await db.query.friendshipsTable.findFirst({
-    where: or(
-      and(eq(friendshipsTable.requesterUserId, requester.id), eq(friendshipsTable.recipientUserId, recipient.id)),
-      and(eq(friendshipsTable.requesterUserId, recipient.id), eq(friendshipsTable.recipientUserId, requester.id)),
-    ),
-  });
-  if (existing) {
+  const result = await createOrReopenFriendRequest(requester.id, recipient.id);
+  if (result.outcome === "exists") {
     error(res, 409, "A request or friendship already exists.");
     return;
   }
-  const [created] = await db
-    .insert(friendshipsTable)
-    .values({ requesterUserId: requester.id, recipientUserId: recipient.id })
-    .returning();
-  await sendTelegramMessage(recipient.telegramId, `<b>New friend request</b>\n${requester.name} wants to connect with you.`);
+  const created = result.request;
+  await sendFriendRequestNotification(
+    recipient.telegramId,
+    requester.name,
+    requester.username,
+    created.id,
+  );
   res.status(201).json({
     id: created.id,
     user: { id: recipient.id, name: recipient.name, username: recipient.username },
@@ -561,10 +559,11 @@ async function updateFriendRequest(req: Parameters<IRouter["post"]>[0] extends n
   const requestId = Number(req.params.requestId);
   const parsed = AcceptFriendRequestParams.safeParse({ requestId });
   if (!parsed.success) return undefined;
+  const recipient = currentUser(req);
   const request = await db.query.friendshipsTable.findFirst({
     where: and(
       eq(friendshipsTable.id, requestId),
-      eq(friendshipsTable.recipientUserId, currentUser(req).id),
+      eq(friendshipsTable.recipientUserId, recipient.id),
       eq(friendshipsTable.status, "pending"),
     ),
   });
@@ -572,7 +571,13 @@ async function updateFriendRequest(req: Parameters<IRouter["post"]>[0] extends n
   const [updated] = await db
     .update(friendshipsTable)
     .set({ status: accepted ? "accepted" : "declined", acceptedAt: accepted ? new Date() : null })
-    .where(eq(friendshipsTable.id, request.id))
+    .where(
+      and(
+        eq(friendshipsTable.id, request.id),
+        eq(friendshipsTable.recipientUserId, recipient.id),
+        eq(friendshipsTable.status, "pending"),
+      ),
+    )
     .returning();
   return updated;
 }
@@ -585,7 +590,7 @@ router.post("/friends/requests/:requestId/accept", async (req, res) => {
   }
   const requester = await db.query.usersTable.findFirst({ where: eq(usersTable.id, updated.requesterUserId) });
   const recipient = currentUser(req);
-  if (requester) await sendTelegramMessage(requester.telegramId, `${recipient.name} accepted your friend request.`);
+  if (requester) await sendTelegramMessage(requester.telegramId, `${escapeTelegramHtml(recipient.name)} accepted your friend request.`);
   res.json({
     id: updated.id,
     user: { id: requester?.id ?? updated.requesterUserId, name: requester?.name ?? "Participant", username: requester?.username ?? null },

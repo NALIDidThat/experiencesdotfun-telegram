@@ -7,14 +7,15 @@ import {
   participationsTable,
   usersTable,
 } from "@workspace/db/schema";
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import {
   findUserByTelegramId,
   findUserByUsername,
   upsertTelegramUser,
   type TelegramIdentity,
 } from "./auth";
-import { experienceResponse, levelForXp, userResponse } from "./data";
+import { experienceResponse, userResponse } from "./data";
+import { createOrReopenFriendRequest } from "./friends";
 
 type TelegramButton = {
   text: string;
@@ -25,7 +26,7 @@ type TelegramButton = {
 type TelegramUpdate = {
   update_id: number;
   message?: {
-    chat: { id: number };
+    chat: { id: number; type?: string };
     text?: string;
     from?: TelegramIdentity;
   };
@@ -33,12 +34,33 @@ type TelegramUpdate = {
     id: string;
     data?: string;
     from: TelegramIdentity;
-    message?: { chat: { id: number }; message_id: number };
+    message?: { chat: { id: number; type?: string }; message_id: number };
   };
 };
 
+const botCommands = [
+  { command: "start", description: "Open Experiences.fun" },
+  { command: "create", description: "Create an experience" },
+  { command: "experiences", description: "Find experiences" },
+  { command: "xp", description: "Review XP and its sources" },
+  { command: "add", description: "Add a friend by username" },
+  { command: "profile", description: "View your profile" },
+  { command: "friends", description: "View your friends" },
+  { command: "requests", description: "View friend requests" },
+  { command: "host", description: "Open host tools" },
+  { command: "help", description: "View commands" },
+];
+
 const token = () => process.env.TELEGRAM_BOT_TOKEN;
 let botUsername: string | null = null;
+let botRunning = false;
+
+export function escapeTelegramHtml(value: string | number | null | undefined): string {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
 
 function miniAppUrl(path = "/"): string {
   const configured = process.env.TELEGRAM_MINI_APP_URL;
@@ -82,6 +104,23 @@ export async function sendTelegramMessage(
   });
 }
 
+export async function sendFriendRequestNotification(
+  recipientTelegramId: number | string,
+  requesterName: string,
+  requesterUsername: string | null,
+  requestId: number,
+) {
+  const requesterLabel = escapeTelegramHtml(requesterUsername ? `@${requesterUsername}` : requesterName);
+  return sendTelegramMessage(
+    recipientTelegramId,
+    `<b>New friend request</b>\n${requesterLabel} wants to connect with you.`,
+    [[
+      { text: "Accept", callback_data: `friend:accept:${requestId}` },
+      { text: "Decline", callback_data: `friend:decline:${requestId}` },
+    ], [openButton("Open friends", "/?screen=profile")]],
+  );
+}
+
 export async function getTelegramBotUsername(): Promise<string | null> {
   if (botUsername) return botUsername;
   const me = await telegramCall<{ username?: string }>("getMe", {});
@@ -93,14 +132,28 @@ async function answerCallback(id: string) {
   await telegramCall("answerCallbackQuery", { callback_query_id: id });
 }
 
+async function registerTelegramCommands() {
+  const registered = await telegramCall<boolean>("setMyCommands", { commands: botCommands });
+  if (!registered && botRunning) {
+    logger.warn("Telegram command registration failed; retrying.");
+    setTimeout(() => void registerTelegramCommands(), 5_000);
+  }
+}
+
 function openButton(text: string, path: string): TelegramButton {
   return { text, web_app: { url: miniAppUrl(path) } };
 }
 
-async function handleCommand(chatId: number, identity: TelegramIdentity, text: string) {
+async function handleCommand(chatId: number, chatType: string | undefined, identity: TelegramIdentity, text: string) {
   const user = await upsertTelegramUser(identity);
-  const [command, ...args] = text.trim().split(/\s+/);
-  switch (command.toLowerCase()) {
+  const [rawCommand, ...args] = text.trim().split(/\s+/);
+  const command = rawCommand.toLowerCase().split("@")[0];
+  const privateCommands = new Set(["/create", "/xp", "/progress", "/profile", "/friends", "/requests", "/add", "/addfriend", "/host"]);
+  if (chatType !== "private" && privateCommands.has(command)) {
+    await sendTelegramMessage(chatId, "For your privacy, use this command in a private chat with the Experiences.fun bot.");
+    return;
+  }
+  switch (command) {
     case "/start":
       await sendTelegramMessage(
         chatId,
@@ -111,34 +164,67 @@ async function handleCommand(chatId: number, identity: TelegramIdentity, text: s
     case "/help":
       await sendTelegramMessage(
         chatId,
-        `<b>Experiences.fun commands</b>\n\n/start — Open Experiences.fun\n/progress — View XP and progress\n/experiences — Discover current experiences\n/friends — View your friends\n/requests — View pending requests\n/profile — View your profile\n/addfriend @username — Send a request\n/host — Open host tools`,
+        `<b>Experiences.fun commands</b>\n\n/start — Open Experiences.fun\n/create — Create an experience\n/experiences — Find experiences\n/xp — Review XP and where it came from\n/add @username — Send a friend request\n/friends — View your friends\n/requests — View pending requests\n/profile — View your profile\n/host — Open host tools`,
       );
       break;
-    case "/progress": {
-      const profile = await userResponse(user);
+    case "/create":
       await sendTelegramMessage(
         chatId,
-        `<b>Your Experiences.fun progress</b>\n\n<b>${profile.level}</b>\n${profile.xp} XP\n\n<b>${profile.completedCount}</b> experiences completed\n<b>${profile.hostedCount}</b> experiences hosted\n<b>£${(profile.rewardsPence / 100).toFixed(2)}</b> rewards earned`,
-        [[openButton("View full profile", "/?screen=profile")]],
+        `<b>✨ Create an experience</b>\n\nTurn something you're doing into an experience others can discover and join.`,
+        [[openButton("Create experience", "/?screen=create")], [openButton("Open host tools", "/?screen=host")]],
+      );
+      break;
+    case "/xp":
+    case "/progress": {
+      const profile = await userResponse(user);
+      const recent = await db
+        .select({ experience: experiencesTable })
+        .from(participationsTable)
+        .innerJoin(experiencesTable, eq(experiencesTable.id, participationsTable.experienceId))
+        .where(
+          and(
+            eq(participationsTable.userId, user.id),
+            eq(participationsTable.status, "verified"),
+          ),
+        )
+        .orderBy(desc(experiencesTable.date))
+        .limit(5);
+      const sources = recent.length
+        ? `\n\n<b>Recent XP</b>\n${recent.map(({ experience }) => `+${experience.xpReward} XP · ${escapeTelegramHtml(experience.title)}`).join("\n")}`
+        : "\n\nComplete and verify an experience to start earning XP.";
+      await sendTelegramMessage(
+        chatId,
+        `<b>⚡ Your XP</b>\n\n<b>${profile.xp} XP</b> · ${escapeTelegramHtml(profile.level)}\n${profile.completedCount} experiences completed\n${profile.hostedCount} experiences hosted\n£${(profile.rewardsPence / 100).toFixed(2)} rewards earned${sources}`,
+        [[openButton("View XP history", "/?screen=profile")]],
       );
       break;
     }
     case "/experiences": {
+      const today = new Date().toISOString().slice(0, 10);
       const rows = await db
         .select()
         .from(experiencesTable)
-        .where(inArray(experiencesTable.status, ["published", "full"]))
+        .where(
+          and(
+            eq(experiencesTable.status, "published"),
+            eq(experiencesTable.date, today),
+          ),
+        )
         .orderBy(experiencesTable.date)
         .limit(5);
       if (rows.length === 0) {
-        await sendTelegramMessage(chatId, "There are no published experiences yet. Check back soon.");
+        await sendTelegramMessage(
+          chatId,
+          "<b>No experiences are available today.</b>\n\nOpen Experiences.fun to browse upcoming opportunities.",
+          [[openButton("Browse upcoming", "/?screen=explore")]],
+        );
         break;
       }
       for (const row of rows) {
         const experience = await experienceResponse(row);
         await sendTelegramMessage(
           chatId,
-          `<b>${experience.title}</b>\n${experience.city} · ${experience.date}\n${experience.availablePlaces} places left · +${experience.xpReward} XP${experience.monetaryRewardPence ? ` · £${(experience.monetaryRewardPence / 100).toFixed(2)}` : ""}`,
+          `<b>${escapeTelegramHtml(experience.title)}</b>\n${escapeTelegramHtml(experience.city)} · ${escapeTelegramHtml(experience.date)}\n${experience.availablePlaces} places left · +${experience.xpReward} XP${experience.monetaryRewardPence ? ` · £${(experience.monetaryRewardPence / 100).toFixed(2)}` : ""}`,
           [[openButton("View experience", `/?screen=experience&id=${experience.id}`)]],
         );
       }
@@ -148,7 +234,7 @@ async function handleCommand(chatId: number, identity: TelegramIdentity, text: s
       const profile = await userResponse(user);
       await sendTelegramMessage(
         chatId,
-        `<b>${profile.name}</b>\n@${profile.username ?? "telegram"}\n\n${profile.city ?? "Location not set"}\n<b>${profile.level}</b> · ${profile.xp} XP\n${profile.completedCount} completed · ${profile.hostedCount} hosted`,
+        `<b>${escapeTelegramHtml(profile.name)}</b>\n@${escapeTelegramHtml(profile.username ?? "telegram")}\n\n${escapeTelegramHtml(profile.city ?? "Location not set")}\n<b>${escapeTelegramHtml(profile.level)}</b> · ${profile.xp} XP\n${profile.completedCount} completed · ${profile.hostedCount} hosted`,
         [[openButton("View profile", "/?screen=profile"), openButton("Edit profile", "/?screen=profile&edit=1")]],
       );
       break;
@@ -180,8 +266,8 @@ async function handleCommand(chatId: number, identity: TelegramIdentity, text: s
       await sendTelegramMessage(
         chatId,
         rows.length
-          ? `<b>Your friends</b>\n${rows.map(({ user: friend }) => `@${friend.username ?? friend.name}`).join("\n")}`
-          : "You have no friends yet. Use /addfriend @username to connect.",
+          ? `<b>Your friends</b>\n${rows.map(({ user: friend }) => `@${escapeTelegramHtml(friend.username ?? friend.name)}`).join("\n")}`
+          : "You have no friends yet. Use /add @username to connect.",
         [[openButton("Open friends", "/?screen=profile")]],
       );
       break;
@@ -203,7 +289,7 @@ async function handleCommand(chatId: number, identity: TelegramIdentity, text: s
         for (const row of rows) {
           await sendTelegramMessage(
             chatId,
-            `<b>Friend request</b>\n@${row.user.username ?? row.user.name} wants to connect with you.`,
+            `<b>Friend request</b>\n@${escapeTelegramHtml(row.user.username ?? row.user.name)} wants to connect with you.`,
             [[
               { text: "Accept", callback_data: `friend:accept:${row.friendship.id}` },
               { text: "Decline", callback_data: `friend:decline:${row.friendship.id}` },
@@ -213,35 +299,34 @@ async function handleCommand(chatId: number, identity: TelegramIdentity, text: s
       }
       break;
     }
+    case "/add":
     case "/addfriend": {
       const username = args[0]?.replace(/^@/, "");
+      if (!username) {
+        await sendTelegramMessage(
+          chatId,
+          "<b>👥 Add friends</b>\n\nSend <code>/add @username</code> or open your profile to search.",
+          [[openButton("Search in Experiences.fun", "/?screen=profile")]],
+        );
+        break;
+      }
       const friend = username ? await findUserByUsername(username) : undefined;
       if (!friend || friend.id === user.id) {
         await sendTelegramMessage(chatId, "I couldn't find that participant. Ask them to open Experiences.fun first.");
         break;
       }
-      const existing = await db.query.friendshipsTable.findFirst({
-        where: orFriendship(user.id, friend.id),
-      });
-      if (existing) {
+      const result = await createOrReopenFriendRequest(user.id, friend.id);
+      if (result.outcome === "exists") {
         await sendTelegramMessage(chatId, "A request or friendship already exists for this participant.");
         break;
       }
-      const [request] = await db
-        .insert(friendshipsTable)
-        .values({ requesterUserId: user.id, recipientUserId: friend.id })
-        .returning();
-      if (request) {
-        await sendTelegramMessage(chatId, `Friend request sent to @${friend.username ?? friend.name}.`);
-        await sendTelegramMessage(
-          friend.telegramId,
-          `<b>New friend request</b>\n@${user.username ?? user.name} wants to connect with you.`,
-          [[
-            { text: "Accept", callback_data: `friend:accept:${request.id}` },
-            { text: "Decline", callback_data: `friend:decline:${request.id}` },
-          ]],
-        );
-      }
+      await sendTelegramMessage(chatId, `Friend request sent to @${escapeTelegramHtml(friend.username ?? friend.name)}.`);
+      await sendFriendRequestNotification(
+        friend.telegramId,
+        user.name,
+        user.username,
+        result.request.id,
+      );
       break;
     }
     case "/host": {
@@ -257,7 +342,7 @@ async function handleCommand(chatId: number, identity: TelegramIdentity, text: s
       const experienceIds = [...new Set(overview.map((item) => item.experienceId).filter(Boolean))];
       await sendTelegramMessage(
         chatId,
-        `<b>${organisation?.name ?? "Organisation dashboard"}</b>\n\n<b>${experienceIds.length}</b> experiences hosted\n<b>${overview.filter((item) => item.participantId).length}</b> participant records\n\nUse the Mini App to manage your volunteering opportunities.`,
+        `<b>${escapeTelegramHtml(organisation?.name ?? "Organisation dashboard")}</b>\n\n<b>${experienceIds.length}</b> experiences hosted\n<b>${overview.filter((item) => item.participantId).length}</b> participant records\n\nUse the Mini App to manage your volunteering opportunities.`,
         [[openButton("Manage experiences", "/?screen=host"), openButton("Create experience", "/?screen=create")], [openButton("Verify participants", "/?screen=verify")]],
       );
       break;
@@ -267,18 +352,12 @@ async function handleCommand(chatId: number, identity: TelegramIdentity, text: s
   }
 }
 
-function orFriendship(a: number, b: number) {
-  return or(
-    and(eq(friendshipsTable.requesterUserId, a), eq(friendshipsTable.recipientUserId, b)),
-    and(eq(friendshipsTable.requesterUserId, b), eq(friendshipsTable.recipientUserId, a)),
-  );
-}
-
 async function handleCallback(update: NonNullable<TelegramUpdate["callback_query"]>) {
   await answerCallback(update.id);
+  if (update.message?.chat.type && update.message.chat.type !== "private") return;
   const [kind, action, rawId] = update.data?.split(":") ?? [];
   const id = Number(rawId);
-  if (kind !== "friend" || !Number.isSafeInteger(id)) return;
+  if (kind !== "friend" || !["accept", "decline"].includes(action) || !Number.isSafeInteger(id)) return;
   const user = await findUserByTelegramId(update.from.id);
   if (!user) return;
   const request = await db.query.friendshipsTable.findFirst({
@@ -286,61 +365,72 @@ async function handleCallback(update: NonNullable<TelegramUpdate["callback_query
   });
   if (!request || request.status !== "pending") return;
   const accepted = action === "accept";
-  await db
+  const [updated] = await db
     .update(friendshipsTable)
     .set({ status: accepted ? "accepted" : "declined", acceptedAt: accepted ? new Date() : null })
-    .where(eq(friendshipsTable.id, id));
+    .where(
+      and(
+        eq(friendshipsTable.id, id),
+        eq(friendshipsTable.recipientUserId, user.id),
+        eq(friendshipsTable.status, "pending"),
+      ),
+    )
+    .returning();
+  if (!updated) return;
   await sendTelegramMessage(update.message?.chat.id ?? user.telegramId, accepted ? "You're now connected." : "Friend request declined.");
   const requester = await db.query.usersTable.findFirst({
     where: eq(usersTable.id, request.requesterUserId),
   });
   if (accepted && requester) {
-    await sendTelegramMessage(requester.telegramId, `@${user.username ?? user.name} accepted your friend request.`);
+    await sendTelegramMessage(requester.telegramId, `@${escapeTelegramHtml(user.username ?? user.name)} accepted your friend request.`);
   }
 }
 
 async function poll(offset: number): Promise<void> {
-  const updates = await telegramCall<TelegramUpdate[]>("getUpdates", {
-    offset,
-    timeout: 25,
-    allowed_updates: ["message", "callback_query"],
-  });
   let nextOffset = offset;
-  for (const update of updates ?? []) {
-    nextOffset = Math.max(nextOffset, update.update_id + 1);
-    if (update.message?.text && update.message.from) {
-      await handleCommand(update.message.chat.id, update.message.from, update.message.text);
-    } else if (update.callback_query) {
-      await handleCallback(update.callback_query);
+  try {
+    const updates = await telegramCall<TelegramUpdate[]>("getUpdates", {
+      offset,
+      timeout: 25,
+      allowed_updates: ["message", "callback_query"],
+    });
+    for (const update of updates ?? []) {
+      nextOffset = Math.max(nextOffset, update.update_id + 1);
+      try {
+        if (update.message?.text && update.message.from) {
+          await handleCommand(update.message.chat.id, update.message.chat.type, update.message.from, update.message.text);
+        } else if (update.callback_query) {
+          await handleCallback(update.callback_query);
+        }
+      } catch (error) {
+        logger.error({ err: error, updateId: update.update_id }, "Telegram update handling failed");
+      }
     }
-  }
-  if (token()) {
-    setTimeout(() => void poll(nextOffset), 500);
+  } catch (error) {
+    logger.error({ err: error }, "Telegram polling iteration failed");
+  } finally {
+    if (token() && botRunning) {
+      setTimeout(() => void poll(nextOffset), 500);
+    }
   }
 }
 
 export async function startTelegramBot() {
+  if (botRunning) return;
   if (!token()) {
     logger.warn("TELEGRAM_BOT_TOKEN is not configured; bot polling is disabled.");
     return;
   }
+  botRunning = true;
   const me = await telegramCall<{ username?: string }>("getMe", {});
-  if (!me) return;
+  if (!me) {
+    botRunning = false;
+    setTimeout(() => void startTelegramBot(), 5_000);
+    return;
+  }
   botUsername = me.username ?? null;
   await telegramCall("deleteWebhook", { drop_pending_updates: false });
-  await telegramCall("setMyCommands", {
-    commands: [
-      { command: "start", description: "Open Experiences.fun" },
-      { command: "progress", description: "View XP and progress" },
-      { command: "experiences", description: "Discover volunteering" },
-      { command: "profile", description: "View your profile" },
-      { command: "friends", description: "View your friends" },
-      { command: "requests", description: "View friend requests" },
-      { command: "addfriend", description: "Add a friend" },
-      { command: "host", description: "Open host tools" },
-      { command: "help", description: "View commands" },
-    ],
-  });
+  await registerTelegramCommands();
   logger.info({ username: me.username }, "Telegram bot polling started");
   void poll(0);
 }

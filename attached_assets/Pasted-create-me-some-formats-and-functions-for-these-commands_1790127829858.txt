@@ -1,0 +1,374 @@
+create me some formats and functions for these commands:
+
+/create - create an experience
+
+/experiences - find experience you can try today.
+
+/add @username - add friends by username via the app or telegram
+
+/xp - reviewing any current XP earned and where from
+
+Absolutely. For these four, I’d design them as high-frequency product loops, not just Telegram commands. The command should be the entry point, then the Mini-App handles the richer interaction. Humanity has suffered enough from 19-step Telegram forms.
+
+1. /create → Create an Experience
+Purpose
+
+Allow participants, creators, and social organisations to create an experience with the minimum possible friction.
+
+Command
+/create
+Initial response
+✨ CREATE AN EXPERIENCE
+
+Turn something you're doing into an experience
+others can discover and participate in.
+
+What are you creating?
+
+[🎓 Learning]
+[🌱 Community]
+[💼 Employment]
+[🎨 Creative]
+[🏃 Sport & Fitness]
+[🌍 Environment]
+[🤝 Volunteering]
+[✨ Other]
+Step 2: Experience details
+📝 What's the experience called?
+
+Example:
+"Community Garden Day"
+
+User:
+
+Community Garden Day
+
+Bot:
+
+📍 WHERE IS IT HAPPENING?
+
+[📍 Use my location]
+[🔎 Search location]
+[🌐 Online]
+
+Then:
+
+📅 WHEN?
+
+[Today]
+[Tomorrow]
+[This weekend]
+[📅 Choose date]
+
+Then:
+
+⏰ WHAT TIME?
+
+[10:00]
+[12:00]
+[14:00]
+[Custom]
+
+Then:
+
+👥 WHO CAN JOIN?
+
+[Everyone]
+[Students]
+[Young people]
+[Volunteers]
+[Members only]
+[Custom]
+
+Then:
+
+⚡ XP REWARD
+
+How much XP should participants receive?
+
+[+25 XP]
+[+50 XP]
+[+100 XP]
+[Custom]
+
+Then:
+
+🔐 HOW WILL PARTICIPATION BE VERIFIED?
+
+[📍 Location]
+[📱 QR Check-in]
+[📸 Photo]
+[👤 Host verification]
+[🔗 Multiple methods]
+Final confirmation
+🚀 READY TO PUBLISH
+
+Community Garden Day
+
+🌱 Community
+📍 Enfield
+📅 Saturday, 27 September
+⏰ 12:00
+👥 Everyone
+⚡ +50 XP
+
+Hosted by @NALI
+
+[🚀 Publish]
+[✏️ Edit]
+[❌ Cancel]
+After publishing
+🎉 EXPERIENCE CREATED
+
+Your experience is now live.
+
+Share it with your community:
+
+[📤 Share]
+[👥 Invite friends]
+[📊 View participants]
+[🔗 Open Experience]
+Functionality behind /create
+
+The backend should create:
+
+Experience
+├── ID
+├── Creator
+├── Organisation / Node
+├── Title
+├── Description
+├── Category
+├── Location
+├── Date
+├── Time
+├── Capacity
+├── XP Reward
+├── Verification Method
+├── Participants
+├── Status
+├── Created At
+└── Impact Metrics
+
+Important: /create should eventually distinguish between:
+
+Community-created experiences
+Organisation-created experiences
+Sponsored experiences
+Recurring experiences
+
+That distinction becomes very important for trust and monetisation.
+
+2. /experiences → Find Experiences Today
+
+This should be one of your highest-frequency commands.
+
+Command
+/experiences
+Initial response
+🌍 EXPERIENCES FOR YOU
+
+Here are experiences happening today.
+
+📍 London
+🎯 Based on your interests
+
+━━━━━━━━━━━━━━
+
+🌱 Community Garden Day
+
+📍 Enfield
+🕐 12:00 PM
+⚡ +50 XP
+👥 18 participants
+
+[View Experience]
+
+━━━━━━━━━━━━━━
+
+💻 Web3 Portfolio Workshop
+
+📍 Hackney
+🕐 3:00 PM
+⚡ +100 XP
+👥 24 participants
+
+[View Experience]
+
+━━━━━━━━━━━━━━
+
+🎨 Creative Studio Session
+
+📍 Tottenham
+🕐 6:00 PM
+⚡ +75 XP
+
+[View Experience]
+
+[🔎 Search]
+[📍 Nearby]
+[🎯 For You]
+[📅 Upcoming]
+Experience card
+
+When they click one:
+
+🌱 COMMUNITY GARDEN DAY
+
+Help transform the local community
+garden with other volunteers.
+
+📍 Enfield Community Centre
+🕐 Today, 12:00 PM
+⏱ 2 hours
+👥 18 / 30 participants
+
+⚡ +50 XP
+
+Hosted by
+🌱 Green Enfield
+
+What you'll do:
+• Plant new crops
+• Clean the garden
+• Meet local volunteers
+
+[🙋 Join Experience]
+
+[📤 Share] [🔖 Save]
+Smart filters
+/experiences
+
+could immediately show:
+
+What are you looking for?
+
+📍 Nearby
+🔥 Trending
+🎯 Recommended
+⚡ Highest XP
+🆕 New
+🎓 Education
+💼 Employment
+🌱 Environment
+🤝 Volunteering
+🎨 Creative
+Key product principle
+
+Don't make users search unless they want to.
+
+The default /experiences experience should answer:
+
+"What can I actually do today?"
+
+That's much stronger than:
+
+"Here's a database of 4,000 events. Good luck, citizen."
+
+3. /add @username → Add Friends
+
+This should connect Telegram's existing social graph with the Experiences.fun identity graph.
+
+Command
+/add @username
+
+Example:
+
+/add @alex
+
+Bot:
+
+👤 ADD A FRIEND
+
+You found:
+
+Alex
+@alex
+
+Experiences.fun Level 8
+🔥 12 day streak
+⚡ 1,240 XP
+
+[➕ Add Friend]
+[👤 View Profile]
+[❌ Cancel]
+
+After confirmation:
+
+✅ FRIEND ADDED
+
+You and @alex are now connected on Experiences.fun.
+
+You can now:
+
+• Invite each other to experiences
+• See shared experiences
+• Compare community XP
+• Participate together
+
+[🎉 Invite to Experience]
+[👤 View Profile]
+If they don't have Experiences.fun
+👤 @alex isn't on Experiences.fun yet.
+
+Invite them to join your community.
+
+[📨 Invite on Telegram]
+[🔗 Copy Invite Link]
+
+The invite should generate something like:
+
+https://t.me/experiencesbot?start=friend_x7k29
+
+Then attribution becomes:
+
+NALI
+ ↓
+invites
+ ↓
+Alex
+ ↓
+Alex joins
+ ↓
+NALI receives referral XP
+Alternative UI
+
+I'd also support:
+
+/add
+
+which opens:
+
+👥 ADD FRIENDS
+
+[🔎 Search username]
+
+or
+
+[📱 Add from Telegram]
+
+or
+
+[🔗 Share invite link]
+
+Your invite link:
+experiences.fun/invite/NALI
+Important distinction
+
+I'd use "Friends" for bilateral relationships and "Followers" for one-way relationships.
+
+That gives you:
+
+Friend
+→ mutual relationship
+
+Follow
+→ one-way interest
+
+Community
+→ shared membership
+
+Organisation
+→ institutional relationship
+
+This becomes useful later for your recommendation engine.

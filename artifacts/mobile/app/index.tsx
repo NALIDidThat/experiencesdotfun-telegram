@@ -21,6 +21,7 @@ import {
   useAcceptFriendRequest,
   useCreateExperience,
   useCreateFriendRequest,
+  useDeclineFriendRequest,
   useGetExperience,
   useGetHostOverview,
   useGetMe,
@@ -38,6 +39,7 @@ import {
   useVerifyParticipation,
   getGetExperienceQueryKey,
   getListExperienceParticipantsQueryKey,
+  getListFriendRequestsQueryKey,
   type Experience,
   type ExperienceCategory,
   type ExperienceDetail,
@@ -849,14 +851,16 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const profile = useGetMe();
   const completed = useListMyParticipations({ status: 'completed' });
   const friends = useListFriends();
-  const requests = useListFriendRequests();
+  const requests = useListFriendRequests({ query: { queryKey: getListFriendRequestsQueryKey(), refetchInterval: 5_000 } });
   const update = useUpdateMe({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
   const createFriend = useCreateFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
   const accept = useAcceptFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const decline = useDeclineFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
   const [editing, setEditing] = useState(false);
   const [city, setCity] = useState(user.city ?? '');
   const [bio, setBio] = useState(user.bio ?? '');
   const [username, setUsername] = useState('');
+  const [friendFeedback, setFriendFeedback] = useState<string | null>(null);
   const current = profile.data ?? user;
 
   return (
@@ -933,18 +937,28 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Friends</Text>
       </View>
       <View style={[styles.friendAdd, { borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius }]}>
-        <TextInput accessibilityLabel="Friend username" value={username} onChangeText={setUsername} placeholder="@username" placeholderTextColor={colors.mutedForeground} style={[styles.friendInput, { color: colors.foreground }]} />
-        <Pressable accessibilityRole="button" accessibilityLabel="Add friend" accessibilityState={{ disabled: !username.trim() || createFriend.isPending }} disabled={!username.trim() || createFriend.isPending} onPress={() => void createFriend.mutateAsync({ data: { username: username.replace(/^@/, '') } }).then(() => setUsername(''))} style={[styles.addButton, { backgroundColor: colors.primary, borderRadius: colors.radius - 4 }]}>
+        <TextInput accessibilityLabel="Friend username" value={username} onChangeText={(value) => { setUsername(value); setFriendFeedback(null); }} placeholder="@username" placeholderTextColor={colors.mutedForeground} style={[styles.friendInput, { color: colors.foreground }]} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Add friend" accessibilityState={{ disabled: !username.trim() || createFriend.isPending }} disabled={!username.trim() || createFriend.isPending} onPress={() => void createFriend.mutateAsync({ data: { username: username.replace(/^@/, '') } }).then(() => { setUsername(''); setFriendFeedback('Friend request sent.'); }).catch((requestError: unknown) => { const message = (requestError as { data?: { message?: string } })?.data?.message; setFriendFeedback(message ?? 'Could not send that request. Check the username or try again.'); })} style={[styles.addButton, { backgroundColor: colors.primary, borderRadius: colors.radius - 4 }]}>
           <Feather name="user-plus" size={20} color={colors.primaryForeground} />
         </Pressable>
       </View>
+      {friendFeedback ? (
+        <Text accessibilityRole="alert" style={[styles.friendFeedback, { color: friendFeedback.startsWith('Friend request') ? colors.success : colors.destructive }]}>
+          {friendFeedback}
+        </Text>
+      ) : null}
 
       {requests.data?.map((request) => (
         <View key={request.id} style={[styles.requestRow, { backgroundColor: colors.secondary + '15', borderRadius: colors.radius }]}>
           <Text style={[styles.requestText, { color: colors.foreground }]}>{request.user.name} wants to connect</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Accept ${request.user.name}'s friend request`} onPress={() => void accept.mutateAsync({ requestId: request.id })}>
-            <Text style={[styles.requestAction, { color: colors.secondary }]}>Accept</Text>
-          </Pressable>
+          <View style={styles.requestActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Decline ${request.user.name}'s friend request`} disabled={decline.isPending || accept.isPending} onPress={() => void decline.mutateAsync({ requestId: request.id }).then(() => setFriendFeedback('Friend request declined.')).catch(() => { setFriendFeedback('That request was already handled.'); void requests.refetch(); })}>
+              <Text style={[styles.requestAction, { color: colors.mutedForeground }]}>Decline</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Accept ${request.user.name}'s friend request`} disabled={decline.isPending || accept.isPending} onPress={() => void accept.mutateAsync({ requestId: request.id }).then(() => setFriendFeedback('Friend request accepted.')).catch(() => { setFriendFeedback('That request was already handled.'); void requests.refetch(); })}>
+              <Text style={[styles.requestAction, { color: colors.secondary }]}>Accept</Text>
+            </Pressable>
+          </View>
         </View>
       ))}
 
@@ -1650,8 +1664,10 @@ const styles = StyleSheet.create({
   friendAdd: { flexDirection: 'row', alignItems: 'center', paddingLeft: 16, height: 56, borderWidth: 1, marginBottom: 16, overflow: 'hidden' },
   friendInput: { flex: 1, fontSize: 16, fontFamily: 'Inter_400Regular' },
   addButton: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
+  friendFeedback: { fontSize: 13, fontFamily: 'Inter_600SemiBold', marginTop: -6, marginBottom: 16 },
   requestRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, marginBottom: 12 },
-  requestText: { fontSize: 15, fontFamily: 'Inter_500Medium' },
+  requestText: { flex: 1, fontSize: 15, fontFamily: 'Inter_500Medium', marginRight: 12 },
+  requestActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   requestAction: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   friendList: { fontSize: 15, fontFamily: 'Inter_500Medium', lineHeight: 24, marginTop: 8 },
   

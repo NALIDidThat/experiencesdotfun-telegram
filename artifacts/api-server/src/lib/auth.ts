@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { NextFunction, Request, Response } from "express";
 import { db } from "@workspace/db";
 import { usersTable, type User } from "@workspace/db/schema";
@@ -127,7 +127,9 @@ export async function findUserByTelegramId(telegramId: number): Promise<User | u
 }
 
 export async function findUserByUsername(username: string): Promise<User | undefined> {
+  const normalized = username.trim().replace(/^@/, "");
+  if (!/^[A-Za-z0-9_]{5,32}$/.test(normalized)) return undefined;
   return db.query.usersTable.findFirst({
-    where: eq(usersTable.username, username.replace(/^@/, "")),
+    where: sql`lower(${usersTable.username}) = ${normalized.toLowerCase()}`,
   });
 }
