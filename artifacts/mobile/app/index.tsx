@@ -1337,6 +1337,7 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
   const { user } = useAuth();
   const create = useCreateExperience();
   const [step, setStep] = useState(1);
+  const totalSteps = 6;
   const [publishError, setPublishError] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<ExperienceCreateInput>>({
     category: 'community',
@@ -1351,6 +1352,10 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
     const nextValue = numeric ? (value === '' || value === null ? null : Number(value)) : value;
     setForm((current) => ({ ...current, [key]: nextValue }));
   };
+
+  useEffect(() => {
+    Keyboard.dismiss();
+  }, [step]);
 
   const valid = Boolean(
     form.organisationName?.trim()
@@ -1367,17 +1372,26 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
   );
   const canContinue =
     step === 1 ? Boolean(form.organisationName?.trim()) :
-    step === 2 ? Boolean(form.title?.trim() && form.description?.trim() && form.category) :
-    step === 3 ? Boolean(
+    step === 2 ? Boolean(form.title?.trim() && form.description?.trim()) :
+    step === 3 ? Boolean(form.category) :
+    step === 4 ? Boolean(
       form.date?.trim()
       && form.startTime?.trim()
       && form.endTime?.trim()
       && form.location?.trim()
       && form.city?.trim()
-      && Number(form.capacity) >= 1
+    ) :
+    step === 5 ? Boolean(
+      Number(form.capacity) >= 1
       && Number(form.xpReward) >= 0,
     ) :
     valid;
+
+  const goToStep = (nextStep: number) => {
+    Keyboard.dismiss();
+    triggerHaptic();
+    setStep(nextStep);
+  };
 
   const publish = async () => {
     triggerHaptic();
@@ -1434,11 +1448,13 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
     </View>
   );
 
-  const stepTitles = ['Tell us about you', 'Shape the idea', 'Set the scene', 'Make it yours'];
+  const stepTitles = ['Tell us about you', 'Shape the idea', 'Choose a feeling', 'Set the scene', 'Make joining easy', 'Make it yours'];
   const stepDescriptions = [
     'Every great gathering starts with a good host.',
     'Give your idea a little shape — you can change it later.',
+    'Choose the kind of difference this experience will make.',
     'A few details help the right people show up.',
+    'Set the places and recognition you want to offer.',
     'Add the magic, then take a look before you share it.',
   ];
 
@@ -1457,13 +1473,13 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={step === 1 ? 'Close create experience' : 'Previous step'}
-            onPress={() => { triggerHaptic(); Keyboard.dismiss(); step > 1 ? setStep((current) => current - 1) : go('host'); }}
+            onPress={() => { Keyboard.dismiss(); triggerHaptic(); step > 1 ? setStep((current) => current - 1) : go('host'); }}
             style={[styles.createRoundButton, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
           >
             <Feather name={step === 1 ? 'x' : 'arrow-left'} size={22} color={colors.foreground} />
           </Pressable>
-          <View accessibilityLabel={`Step ${step} of 4`} style={styles.createProgress}>
-            {[1, 2, 3, 4].map((item) => (
+          <View accessibilityLabel={`Step ${step} of ${totalSteps}`} style={styles.createProgress}>
+            {Array.from({ length: totalSteps }, (_, index) => index + 1).map((item) => (
               <View
                 key={item}
                 style={[
@@ -1476,7 +1492,7 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
               />
             ))}
           </View>
-          <Text style={[styles.createStepCount, { color: colors.mutedForeground }]}>{step}/4</Text>
+          <Text style={[styles.createStepCount, { color: colors.mutedForeground }]}>{step}/{totalSteps}</Text>
         </View>
 
         <View style={styles.createHeading}>
@@ -1503,6 +1519,11 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
             <>
               {field('title', 'Experience title', 'e.g. Make a river wild again')}
               {field('description', 'What is it about?', 'Give your experience a warm, inviting intro', true)}
+            </>
+          )}
+
+          {step === 3 && (
+            <>
               <View>
                 <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>CHOOSE A FEELING</Text>
                 <View style={styles.createCategoryGrid}>
@@ -1537,7 +1558,7 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
             </>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <>
               <View style={styles.createFieldRow}>
                 <View style={styles.createFieldHalf}>{field('date', 'Date', 'YYYY-MM-DD')}</View>
@@ -1548,22 +1569,25 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
                 <View style={styles.createFieldHalf}>{field('endTime', 'Ends', '13:00')}</View>
               </View>
               {field('location', 'Meeting point', 'A clear place people can find')}
-              <View style={[styles.createRewardPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 4 }]}>
-                <View style={styles.createRewardHeading}>
-                  <Feather name="credit-card" size={20} color={colors.secondary} />
-                  <Text style={[styles.createRewardTitle, { color: colors.foreground }]}>Make joining easy</Text>
-                </View>
-                <View style={styles.createFieldRow}>
-                  <View style={styles.createFieldHalf}>{field('capacity', 'Capacity', '12', false, 'number-pad')}</View>
-                  <View style={styles.createFieldHalf}>{field('xpReward', 'XP reward', '150', false, 'number-pad')}</View>
-                </View>
-                {field('monetaryRewardPence', 'Money reward in pence (optional)', '0', false, 'number-pad')}
-                <Text style={[styles.createHint, { color: colors.mutedForeground }]}>For example, enter 2000 for a £20 reward.</Text>
-              </View>
             </>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
+            <View style={[styles.createRewardPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 4 }]}>
+              <View style={styles.createRewardHeading}>
+                <Feather name="credit-card" size={20} color={colors.secondary} />
+                <Text style={[styles.createRewardTitle, { color: colors.foreground }]}>Make joining easy</Text>
+              </View>
+              <View style={styles.createFieldRow}>
+                <View style={styles.createFieldHalf}>{field('capacity', 'Capacity', '12', false, 'number-pad')}</View>
+                <View style={styles.createFieldHalf}>{field('xpReward', 'XP reward', '150', false, 'number-pad')}</View>
+              </View>
+              {field('monetaryRewardPence', 'Money reward in pence (optional)', '0', false, 'number-pad')}
+              <Text style={[styles.createHint, { color: colors.mutedForeground }]}>For example, enter 2000 for a £20 reward.</Text>
+            </View>
+          )}
+
+          {step === 6 && (
             <>
               {field('whatYouWillDo', 'What will participants do?', 'Walk, make, chat, discover...', true)}
               {field('whatToBring', 'What should they bring?', 'Comfortable shoes and a curious mind', true)}
@@ -1592,11 +1616,11 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
         )}
 
         <View style={styles.createActions}>
-          {step === 4 && (
+          {step === totalSteps && (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Start over"
-              onPress={() => { triggerHaptic(); setStep(1); }}
+              onPress={() => { Keyboard.dismiss(); triggerHaptic(); setStep(1); }}
               style={[styles.createReset, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 8 }]}
             >
               <Feather name="rotate-ccw" size={20} color={colors.mutedForeground} />
@@ -1606,7 +1630,7 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
             accessibilityRole="button"
             accessibilityState={{ disabled: !canContinue || create.isPending }}
             disabled={!canContinue || create.isPending}
-            onPress={() => { triggerHaptic(); step < 4 ? setStep((current) => current + 1) : void publish(); }}
+            onPress={() => { Keyboard.dismiss(); if (step < totalSteps) goToStep(step + 1); else void publish(); }}
             style={({ pressed }) => [
               styles.createPrimary,
               { backgroundColor: canContinue && !create.isPending ? colors.primary : colors.muted, borderRadius: colors.radius - 8 },
@@ -1617,14 +1641,14 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
               ? <ActivityIndicator color={colors.primaryForeground} />
               : (
                 <>
-                  <Text style={[styles.createPrimaryText, { color: canContinue ? colors.primaryForeground : colors.mutedForeground }]}>{step === 4 ? 'Publish experience' : 'Keep going'}</Text>
-                  <Feather name={step === 4 ? 'send' : 'arrow-right'} size={20} color={canContinue ? colors.primaryForeground : colors.mutedForeground} />
+                  <Text style={[styles.createPrimaryText, { color: canContinue ? colors.primaryForeground : colors.mutedForeground }]}>{step === totalSteps ? 'Publish experience' : 'Keep going'}</Text>
+                  <Feather name={step === totalSteps ? 'send' : 'arrow-right'} size={20} color={canContinue ? colors.primaryForeground : colors.mutedForeground} />
                 </>
               )}
           </Pressable>
         </View>
         <Text style={styles.createFooterNote}>
-          {step === 4 ? 'You can edit the details after publishing.' : 'Nothing is published until you say so.'}
+          {step === totalSteps ? 'You can edit the details after publishing.' : 'Nothing is published until you say so.'}
         </Text>
     </KeyboardAwareScrollViewCompat>
   );
