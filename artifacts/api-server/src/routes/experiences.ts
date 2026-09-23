@@ -11,6 +11,7 @@ import {
   MarkAttendanceParams,
   RejectParticipationParams,
   SubmitCompletionParams,
+  AuthenticateTelegramBody,
   UpdateMeBody,
   VerifyParticipationParams,
 } from "@workspace/api-zod";
@@ -24,8 +25,11 @@ import {
 } from "@workspace/db/schema";
 import {
   currentUser,
+  findUserByTelegramId,
   findUserByUsername,
   requireTelegramUser,
+  upsertTelegramUser,
+  verifyTelegramInitData,
 } from "../lib/auth";
 import { logger } from "../lib/logger";
 import {
@@ -39,6 +43,24 @@ import { escapeTelegramHtml, sendFriendRequestNotification, sendTelegramMessage 
 import { createOrReopenFriendRequest } from "../lib/friends";
 
 const router: IRouter = Router();
+
+router.post("/auth/telegram", async (req, res) => {
+  const parsed = AuthenticateTelegramBody.safeParse(req.body);
+  if (!parsed.success) {
+    error(res, 400, "Telegram login data is missing.");
+    return;
+  }
+  try {
+    const identity = verifyTelegramInitData(parsed.data.initData);
+    const existing = await findUserByTelegramId(identity.id);
+    const user = await upsertTelegramUser(identity);
+    res.json({ user: await userResponse(user), isNew: !existing });
+  } catch (authError) {
+    logger.warn({ err: authError }, "Telegram login rejected");
+    error(res, 401, "Your Telegram login is invalid or expired. Reopen the Mini App and try again.");
+  }
+});
+
 router.use(requireTelegramUser);
 
 function error(res: Parameters<Parameters<IRouter["get"]>[1]>[1], status: number, message: string) {

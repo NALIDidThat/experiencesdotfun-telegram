@@ -79,7 +79,6 @@ export async function upsertTelegramUser(identity: TelegramIdentity): Promise<Us
     .onConflictDoUpdate({
       target: usersTable.telegramId,
       set: {
-        name,
         username: identity.username ?? null,
         updatedAt: new Date(),
       },

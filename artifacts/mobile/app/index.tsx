@@ -55,7 +55,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
-import { openTelegramBot } from '@/lib/telegram';
 
 type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'experience' | 'host' | 'create';
 type IconName = keyof typeof Feather.glyphMap;
@@ -215,22 +214,24 @@ function EmptyState({ title, body, icon = 'compass', onAction, actionLabel }: { 
 
 function TelegramConnectCard() {
   const colors = useColors();
+  const { login, loading } = useAuth();
   return (
     <View style={[styles.telegramCard, { backgroundColor: colors.card, borderColor: colors.primary + '35', borderRadius: colors.radius }]}>
       <View style={[styles.telegramIcon, { backgroundColor: colors.primary + '12' }]}>
         <Feather name="send" size={20} color={colors.primary} />
       </View>
       <View style={styles.telegramCopy}>
-        <Text style={[styles.telegramTitle, { color: colors.foreground }]}>Connect your Telegram</Text>
-        <Text style={[styles.telegramBody, { color: colors.mutedForeground }]}>Open Experiences.fun from Telegram to sync your passport and publish experiences.</Text>
+        <Text style={[styles.telegramTitle, { color: colors.foreground }]}>Log in with Telegram</Text>
+        <Text style={[styles.telegramBody, { color: colors.mutedForeground }]}>Use your Telegram profile to sync your passport, friends, and hosted experiences.</Text>
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Open Experiences.fun in Telegram"
-        onPress={() => { triggerHaptic(); openTelegramBot(); }}
-        style={({ pressed }) => [styles.telegramButton, { backgroundColor: colors.primary, borderRadius: colors.radius - 6, opacity: pressed ? 0.82 : 1 }]}
+        accessibilityLabel="Log in with Telegram"
+        disabled={loading}
+        onPress={() => { triggerHaptic(); void login(); }}
+        style={({ pressed }) => [styles.telegramButton, { backgroundColor: colors.primary, borderRadius: colors.radius - 6, opacity: loading ? 0.5 : pressed ? 0.82 : 1 }]}
       >
-        <Feather name="arrow-up-right" size={16} color={colors.primaryForeground} />
+        {loading ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name="arrow-up-right" size={16} color={colors.primaryForeground} />}
       </Pressable>
     </View>
   );
@@ -317,7 +318,11 @@ function OnboardingArtwork({ variant }: { variant: 'welcome' | 'complete' }) {
 function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  const { telegramAvailable } = useAuth();
+  const { user, login, loading, authError } = useAuth();
+
+  const handleTelegramLogin = async () => {
+    if (user || await login()) onContinue();
+  };
 
   return (
     <KeyboardAvoidingView style={[styles.talentScreen, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -365,18 +370,20 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
         <View style={[styles.talentFormPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.talentSheetTitle, { color: colors.foreground }]}>Make room for good things.</Text>
           <Text style={[styles.talentSheetBody, { color: colors.mutedForeground }]}>
-            {telegramAvailable
-              ? 'Your Telegram identity is connected. Create your experience passport and start showing up for what matters.'
-              : 'Open Experiences.fun from Telegram so your passport, friends, and hosted experiences stay connected.'}
+            {user
+              ? `Welcome, ${user.name}. Your Telegram profile is ready to use.`
+              : 'Log in with Telegram so your name, username, passport, friends, and hosted experiences stay connected.'}
           </Text>
           <View style={[styles.talentTelegramNote, { backgroundColor: colors.primary + '10' }]}>
             <Feather name="send" size={18} color={colors.primary} />
-            <Text style={[styles.talentTelegramNoteText, { color: colors.primary }]}>Connected through Telegram</Text>
+            <Text style={[styles.talentTelegramNoteText, { color: colors.primary }]}>{user ? 'Telegram profile recognised' : 'Your Telegram details will create your profile'}</Text>
           </View>
+          {authError && !user ? <Text accessibilityRole="alert" style={[styles.createError, { color: colors.destructive }]}>{authError}</Text> : null}
           <Button
-            label={telegramAvailable ? 'Build my passport' : 'Open Telegram'}
-            onPress={() => { triggerHaptic(); telegramAvailable ? onContinue() : openTelegramBot(); }}
-            icon={telegramAvailable ? 'arrow-right' : 'external-link'}
+            label={loading ? 'Logging in…' : 'Log in with Telegram'}
+            disabled={loading}
+            onPress={() => { void handleTelegramLogin(); }}
+            icon="send"
           />
         </View>
       </View>
@@ -979,6 +986,7 @@ function SocialProfileHeader({
 
 function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
+  const { user: authenticatedUser, authError } = useAuth();
   const queryClient = useQueryClient();
   const profile = useGetMe();
   const completed = useListMyParticipations({ status: 'completed' });
@@ -1035,12 +1043,15 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       <View style={styles.socialHeader}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Friends</Text>
       </View>
-      <View style={[styles.friendAdd, { borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius }]}>
-        <TextInput accessibilityLabel="Friend username" value={username} onChangeText={(value) => { setUsername(value); setFriendFeedback(null); }} placeholder="@username" placeholderTextColor={colors.mutedForeground} style={[styles.friendInput, { color: colors.foreground }]} />
-        <Pressable accessibilityRole="button" accessibilityLabel="Add friend" accessibilityState={{ disabled: !username.trim() || createFriend.isPending }} disabled={!username.trim() || createFriend.isPending} onPress={() => void createFriend.mutateAsync({ data: { username: username.replace(/^@/, '') } }).then(() => { setUsername(''); setFriendFeedback('Friend request sent.'); }).catch((requestError: unknown) => { const message = (requestError as { data?: { message?: string } })?.data?.message; setFriendFeedback(message ?? 'Could not send that request. Check the username or try again.'); })} style={[styles.addButton, { backgroundColor: colors.primary, borderRadius: colors.radius - 4 }]}>
-          <Feather name="user-plus" size={20} color={colors.primaryForeground} />
-        </Pressable>
-      </View>
+      {!authenticatedUser ? <TelegramConnectCard /> : (
+        <View style={[styles.friendAdd, { borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius }]}>
+          <TextInput accessibilityLabel="Friend username" value={username} onChangeText={(value) => { setUsername(value); setFriendFeedback(null); }} placeholder="@username" placeholderTextColor={colors.mutedForeground} style={[styles.friendInput, { color: colors.foreground }]} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Add friend" accessibilityState={{ disabled: !username.trim() || createFriend.isPending }} disabled={!username.trim() || createFriend.isPending} onPress={() => void createFriend.mutateAsync({ data: { username: username.replace(/^@/, '') } }).then(() => { setUsername(''); setFriendFeedback('Friend request sent.'); }).catch((requestError: unknown) => { const message = (requestError as { data?: { message?: string } })?.data?.message; setFriendFeedback(message ?? 'Could not send that request. Check the username or try again.'); })} style={[styles.addButton, { backgroundColor: colors.primary, borderRadius: colors.radius - 4 }]}>
+            <Feather name="user-plus" size={20} color={colors.primaryForeground} />
+          </Pressable>
+        </View>
+      )}
+      {!authenticatedUser && authError ? <Text accessibilityRole="alert" style={[styles.friendFeedback, { color: colors.destructive }]}>{authError}</Text> : null}
       {friendFeedback ? (
         <Text accessibilityRole="alert" style={[styles.friendFeedback, { color: friendFeedback.startsWith('Friend request') ? colors.success : colors.destructive }]}>
           {friendFeedback}
