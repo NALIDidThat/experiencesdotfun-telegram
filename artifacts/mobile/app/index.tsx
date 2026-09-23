@@ -845,78 +845,80 @@ function ContributionDashboard({ user, completed }: { user: User; completed: Par
   );
 }
 
-function MilestoneDashboard({ user }: { user: User }) {
+function SocialProfileHeader({
+  user,
+  friendsCount,
+  onEdit,
+}: {
+  user: User;
+  friendsCount: number;
+  onEdit: () => void;
+}) {
   const colors = useColors();
-  const milestones = [
-    {
-      title: 'First contribution',
-      detail: '1 verified',
-      icon: 'award' as IconName,
-      unlocked: user.completedCount >= 1,
-      tint: colors.primary,
-    },
-    {
-      title: 'Community regular',
-      detail: '5 verified',
-      icon: 'heart' as IconName,
-      unlocked: user.completedCount >= 5,
-      tint: colors.secondary,
-    },
-  ];
+  const interests = user.interests?.map((interest) => categoryLabel[interest]).join(' · ');
 
   return (
-    <View style={[styles.milestoneDashboard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-      <View style={styles.milestoneHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Milestones</Text>
-        <Text style={[styles.milestoneSeeAll, { color: colors.secondary }]}>Your progress</Text>
-      </View>
-
-      <View style={styles.milestoneOverview}>
-        <View style={styles.milestoneIdentity}>
-          <View style={[styles.milestoneAvatar, { backgroundColor: colors.primary + '15' }]}>
-            <Text style={[styles.milestoneAvatarText, { color: colors.primary }]}>{user.name.charAt(0).toUpperCase()}</Text>
-          </View>
-          <Text numberOfLines={1} style={[styles.milestoneName, { color: colors.foreground }]}>{user.name}</Text>
-          <Text style={[styles.milestoneLevel, { color: colors.mutedForeground }]}>{user.level}</Text>
+    <View style={[styles.profileFeatureCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+      <View style={styles.profileFeatureHeader}>
+        <View style={[styles.profileAvatar, { backgroundColor: colors.primary + '15' }]}>
+          <Text style={[styles.profileAvatarText, { color: colors.primary }]}>{user.name.charAt(0).toUpperCase()}</Text>
         </View>
-
-        <View style={styles.milestoneMetrics}>
-          <View style={[styles.milestoneMetric, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <View style={styles.milestoneMetricLabelRow}>
-              <Text style={[styles.milestoneMetricLabel, { color: colors.mutedForeground }]}>Contributions</Text>
-              <Feather name="heart" size={14} color={colors.secondary} />
-            </View>
-            <Text style={[styles.milestoneMetricValue, { color: colors.foreground }]}>{user.completedCount}</Text>
+        <View style={styles.profileIdentity}>
+          <View style={styles.profileNameRow}>
+            <Text numberOfLines={1} style={[styles.profileName, { color: colors.foreground }]}>{user.name}</Text>
+            <Feather name="check-circle" size={16} color={colors.primary} />
           </View>
-          <View style={[styles.milestoneMetric, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <View style={styles.milestoneMetricLabelRow}>
-              <Text style={[styles.milestoneMetricLabel, { color: colors.mutedForeground }]}>Total XP</Text>
-              <Feather name="zap" size={14} color={colors.primary} />
-            </View>
-            <Text style={[styles.milestoneMetricValue, { color: colors.foreground }]}>{user.xp}</Text>
+          <Text style={[styles.profileHandle, { color: colors.mutedForeground }]}>
+            {user.username ? `@${user.username}` : 'Telegram member'}
+          </Text>
+          <View style={styles.profileActionRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit profile"
+              onPress={() => { triggerHaptic(); onEdit(); }}
+              style={[styles.profileAction, { backgroundColor: colors.primary, borderRadius: colors.radius - 4 }]}
+            >
+              <Feather name="edit-2" size={14} color={colors.primaryForeground} />
+              <Text style={[styles.profileActionText, { color: colors.primaryForeground }]}>Edit profile</Text>
+            </Pressable>
           </View>
         </View>
       </View>
 
-      <View style={styles.milestoneGrid}>
-        {milestones.map((milestone) => (
-          <View
-            key={milestone.title}
-            style={[
-              styles.milestoneItem,
-              {
-                backgroundColor: milestone.unlocked ? milestone.tint + '10' : colors.background,
-                borderColor: milestone.unlocked ? milestone.tint + '35' : colors.border,
-              },
-            ]}
-          >
-            <View style={[styles.milestoneBadge, { backgroundColor: milestone.unlocked ? milestone.tint + '20' : colors.muted }]}>
-              <Feather name={milestone.icon} size={24} color={milestone.unlocked ? milestone.tint : colors.mutedForeground} />
-            </View>
-            <Text numberOfLines={2} style={[styles.milestoneTitle, { color: colors.foreground }]}>{milestone.title}</Text>
-            <Text style={[styles.milestoneDetail, { color: colors.mutedForeground }]}>{milestone.detail}</Text>
+      <View style={styles.profileMetricGrid}>
+        {[
+          { label: 'Completed', value: user.completedCount },
+          { label: 'Hosted', value: user.hostedCount },
+          { label: 'Friends', value: friendsCount },
+          { label: 'XP', value: user.xp },
+        ].map((metric) => (
+          <View key={metric.label} style={styles.profileMetric}>
+            <Text style={[styles.profileMetricValue, { color: colors.foreground }]}>{metric.value}</Text>
+            <Text style={[styles.profileMetricLabel, { color: colors.mutedForeground }]}>{metric.label}</Text>
           </View>
         ))}
+      </View>
+
+      <View style={styles.profileDetails}>
+        {user.bio ? (
+          <Text style={[styles.profileBio, { color: colors.foreground }]}>{user.bio}</Text>
+        ) : null}
+        {user.city ? (
+          <View style={styles.profileDetailRow}>
+            <Feather name="map-pin" size={14} color={colors.mutedForeground} />
+            <Text style={[styles.profileDetailText, { color: colors.mutedForeground }]}>{user.city}</Text>
+          </View>
+        ) : null}
+        {interests ? (
+          <View style={styles.profileDetailRow}>
+            <Feather name="heart" size={14} color={colors.mutedForeground} />
+            <Text style={[styles.profileDetailText, { color: colors.mutedForeground }]}>{interests}</Text>
+          </View>
+        ) : null}
+        <View style={styles.profileDetailRow}>
+          <Feather name="award" size={14} color={colors.mutedForeground} />
+          <Text style={[styles.profileDetailText, { color: colors.mutedForeground }]}>{user.level}</Text>
+        </View>
       </View>
     </View>
   );
@@ -944,7 +946,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
       <Header title="Passport" subtitle="Your contribution identity." />
 
-      <MilestoneDashboard user={current} />
+      <SocialProfileHeader user={current} friendsCount={friends.data?.length ?? 0} onEdit={() => setEditing((value) => !value)} />
 
       {editing ? (
         <View style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
@@ -953,23 +955,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           <Button label={update.isPending ? 'Saving…' : 'Save profile'} disabled={update.isPending} onPress={() => void update.mutateAsync({ data: { city, bio: bio || null } }).then(() => setEditing(false))} />
         </View>
       ) : null}
-
-      <View style={[styles.statsGrid, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-        <View style={styles.statBox}>
-          <Text style={[styles.statValue, { color: colors.foreground }]}>{current.completedCount}</Text>
-          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Completed</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statBox}>
-          <Text style={[styles.statValue, { color: colors.foreground }]}>{current.hostedCount}</Text>
-          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Hosted</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statBox}>
-          <Text style={[styles.statValue, { color: colors.foreground }]}>{friends.data?.length ?? 0}</Text>
-          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Friends</Text>
-        </View>
-      </View>
 
       <ContributionDashboard user={current} completed={completed.data} />
 
@@ -1682,11 +1667,8 @@ const styles = StyleSheet.create({
   input: { height: 56, borderWidth: 1, paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_400Regular' },
   bioInput: { height: 100, paddingTop: 16, textAlignVertical: 'top' },
   
-  statsGrid: { flexDirection: 'row', borderWidth: 1, paddingVertical: 20, marginBottom: 32 },
-  statBox: { flex: 1, alignItems: 'center', gap: 4 },
   statValue: { fontSize: 24, fontFamily: 'Inter_700Bold' },
   statLabel: { fontSize: 13, fontFamily: 'Inter_500Medium' },
-  statDivider: { width: 1, backgroundColor: 'rgba(0,0,0,0.05)' },
 
   contributionCard: { borderWidth: 1, padding: 16, marginBottom: 28 },
   contributionHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 },
@@ -1705,25 +1687,25 @@ const styles = StyleSheet.create({
   contributionLegendText: { fontSize: 10, fontFamily: 'Inter_500Medium', marginHorizontal: 2 },
   contributionLegendCell: { width: 11, height: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 2 },
 
-  milestoneDashboard: { borderWidth: 1, padding: 16, marginBottom: 28 },
-  milestoneHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 },
-  milestoneSeeAll: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  milestoneOverview: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  milestoneIdentity: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  milestoneAvatar: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  milestoneAvatarText: { fontSize: 25, fontFamily: 'Inter_700Bold' },
-  milestoneName: { maxWidth: '100%', fontSize: 15, fontFamily: 'Inter_700Bold', textAlign: 'center' },
-  milestoneLevel: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 3 },
-  milestoneMetrics: { flex: 1.35, gap: 8 },
-  milestoneMetric: { flex: 1, borderWidth: 1, borderRadius: 10, padding: 10, justifyContent: 'center' },
-  milestoneMetricLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
-  milestoneMetricLabel: { flex: 1, fontSize: 10, fontFamily: 'Inter_500Medium' },
-  milestoneMetricValue: { fontSize: 20, fontFamily: 'Inter_700Bold', marginTop: 4 },
-  milestoneGrid: { flexDirection: 'row', gap: 10 },
-  milestoneItem: { flex: 1, minHeight: 128, borderWidth: 1, borderRadius: 12, padding: 12, alignItems: 'center', justifyContent: 'center' },
-  milestoneBadge: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  milestoneTitle: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_700Bold', textAlign: 'center' },
-  milestoneDetail: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  profileFeatureCard: { borderWidth: 1, padding: 16, marginBottom: 28 },
+  profileFeatureHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 20 },
+  profileAvatar: { width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center' },
+  profileAvatarText: { fontSize: 32, fontFamily: 'Inter_700Bold' },
+  profileIdentity: { flex: 1, minWidth: 0, paddingTop: 2 },
+  profileNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  profileName: { flexShrink: 1, fontSize: 20, fontFamily: 'Inter_700Bold' },
+  profileHandle: { fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  profileActionRow: { flexDirection: 'row', marginTop: 12 },
+  profileAction: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, paddingVertical: 9 },
+  profileActionText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  profileMetricGrid: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 14, marginBottom: 16 },
+  profileMetric: { flex: 1, alignItems: 'center', gap: 3 },
+  profileMetricValue: { fontSize: 18, fontFamily: 'Inter_700Bold' },
+  profileMetricLabel: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  profileDetails: { gap: 8 },
+  profileBio: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_500Medium' },
+  profileDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  profileDetailText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular' },
   
   historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   historyDot: { width: 12, height: 12, borderRadius: 6, marginRight: 16 },
