@@ -323,7 +323,7 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
           <Text style={[styles.talentSheetKicker, { color: colors.primary }]}>WELCOME TO EXPERIENCES.FUN</Text>
           <Text style={[styles.talentSheetTitle, { color: colors.foreground }]}>Make room for good things.</Text>
           <Text style={[styles.talentSheetBody, { color: colors.mutedForeground }]}>Create your experience passport and start showing up for what matters.</Text>
-          <View style={styles.talentEmailRow}>
+          <View style={[styles.talentEmailRow, { borderColor: colors.input }]}>
             <Feather name="mail" size={18} color={colors.mutedForeground} />
             <TextInput
               value={email}
@@ -332,7 +332,7 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
               keyboardType="email-address"
               placeholder="Your email"
               placeholderTextColor={colors.mutedForeground}
-              style={[styles.talentEmailInput, { color: colors.foreground }]}
+              style={[styles.talentEmailInput, { color: colors.foreground, borderWidth: 0, borderColor: 'transparent', outlineStyle: 'none', outlineWidth: 0, appearance: 'none' } as any]}
               accessibilityLabel="Email"
             />
           </View>
@@ -1022,13 +1022,39 @@ const styles = StyleSheet.create({
   talentScreen: { flex: 1 },
   talentShell: { flex: 1, paddingHorizontal: 24 },
   talentTop: { flex: 1, justifyContent: 'center' },
-  talentIntro: { alignItems: 'center' },
-  talentTitle: { fontSize: 40, fontFamily: 'Inter_700Bold', textAlign: 'center', lineHeight: 48, letterSpacing: -1 },
-  talentTitleSoft: { fontSize: 16, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 16, lineHeight: 24 },
-  talentFormPanel: { gap: 16 },
+  talentTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12 },
+  talentBrandMark: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  talentBrandIcon: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  talentBrand: { fontSize: 15, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 },
+  talentTopAction: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  talentIntro: { alignItems: 'center', paddingTop: 10 },
+  talentEyebrow: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.4, marginBottom: 10 },
+  talentTitle: { fontSize: 38, fontFamily: 'Inter_700Bold', textAlign: 'center', lineHeight: 44, letterSpacing: -1.2 },
+  talentTitleSoft: { maxWidth: 300, fontSize: 15, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 12, lineHeight: 22 },
+  talentArtwork: { width: '100%', height: 184, marginTop: 10, position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  talentArtworkBlob: { position: 'absolute', opacity: 0.2 },
+  talentArtworkBlobLarge: { width: 162, height: 162, borderRadius: 81, left: 28, top: 10 },
+  talentArtworkBlobSmall: { width: 108, height: 108, borderRadius: 54, right: 28, bottom: 6 },
+  talentArtworkCard: { position: 'absolute', borderWidth: 1, borderRadius: 20, shadowColor: '#000000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
+  talentArtworkCardBack: { width: 130, height: 98, left: 38, top: 36, padding: 16, transform: [{ rotate: '-8deg' }] },
+  talentArtworkCardFront: { width: 194, height: 126, right: 24, top: 28, padding: 16, transform: [{ rotate: '6deg' }] },
+  talentArtworkCardText: { fontSize: 14, fontFamily: 'Inter_700Bold', marginTop: 10 },
+  talentArtworkIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  talentArtworkLines: { position: 'absolute', left: 76, top: 18, gap: 8 },
+  talentArtworkLine: { width: 82, height: 7, borderRadius: 4, opacity: 0.8 },
+  talentArtworkLineShort: { width: 54, height: 7, borderRadius: 4 },
+  talentArtworkPill: { position: 'absolute', left: 16, bottom: 14, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10 },
+  talentArtworkPillText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  talentFormPanel: { gap: 12, marginHorizontal: -8, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, borderWidth: 1, borderRadius: 28, shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: -4 }, elevation: 3 },
+  talentSheetKicker: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2 },
+  talentSheetTitle: { fontSize: 24, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
+  talentSheetBody: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20, marginBottom: 2 },
+  talentEmailRow: { height: 52, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 16 },
+  talentSocialRow: { flexDirection: 'row', gap: 10 },
+  talentSocialButton: { flex: 1, minHeight: 50, paddingHorizontal: 8 },
   talentFieldLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 8 },
-  talentEmailInput: { height: 56, borderWidth: 1, paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_400Regular' },
-  talentDividerText: { textAlign: 'center', fontSize: 14, fontFamily: 'Inter_500Medium', marginVertical: 8 },
+  talentEmailInput: { flex: 1, height: 50, paddingHorizontal: 0, fontSize: 16, fontFamily: 'Inter_400Regular' },
+  talentDividerText: { textAlign: 'center', fontSize: 14, fontFamily: 'Inter_500Medium', marginVertical: 2 },
   
   onboarding: { flex: 1 },
   onboardingTopBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 16 },
@@ -1037,10 +1063,14 @@ const styles = StyleSheet.create({
   stepLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   onboardingContent: { paddingHorizontal: 24, paddingBottom: 40 },
   onboardingSlide: { flex: 1, justifyContent: 'center', paddingVertical: 40 },
+  onboardingEyebrow: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.2, marginBottom: 12 },
+  secondScreenIcon: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
   onboardingSmallTitle: { fontSize: 28, fontFamily: 'Inter_700Bold', marginBottom: 12 },
   onboardingBody: { fontSize: 16, fontFamily: 'Inter_400Regular', lineHeight: 24, marginBottom: 32 },
   onboardingForm: { gap: 16 },
-  onboardingNameInput: { height: 60, borderWidth: 1, paddingHorizontal: 16, fontSize: 18, fontFamily: 'Inter_500Medium' },
+  onboardingFieldLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: -8 },
+  onboardingInputRow: { minHeight: 60, borderWidth: 1, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  onboardingNameInput: { flex: 1, height: 60, paddingHorizontal: 0, fontSize: 18, fontFamily: 'Inter_500Medium' },
   inputHint: { fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 8 },
   onboardingChoices: { gap: 12 },
   choiceCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderWidth: 1 },
