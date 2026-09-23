@@ -319,7 +319,6 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
         </View>
 
         <View style={[styles.talentFormPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.talentSheetKicker, { color: colors.primary }]}>WELCOME TO EXPERIENCES.FUN</Text>
           <Text style={[styles.talentSheetTitle, { color: colors.foreground }]}>Make room for good things.</Text>
           <Text style={[styles.talentSheetBody, { color: colors.mutedForeground }]}>Create your experience passport and start showing up for what matters.</Text>
           <View style={[styles.talentEmailRow, { borderColor: colors.input }]}>
