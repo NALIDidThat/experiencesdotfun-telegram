@@ -845,6 +845,83 @@ function ContributionDashboard({ user, completed }: { user: User; completed: Par
   );
 }
 
+function MilestoneDashboard({ user }: { user: User }) {
+  const colors = useColors();
+  const milestones = [
+    {
+      title: 'First contribution',
+      detail: '1 verified',
+      icon: 'award' as IconName,
+      unlocked: user.completedCount >= 1,
+      tint: colors.primary,
+    },
+    {
+      title: 'Community regular',
+      detail: '5 verified',
+      icon: 'heart' as IconName,
+      unlocked: user.completedCount >= 5,
+      tint: colors.secondary,
+    },
+  ];
+
+  return (
+    <View style={[styles.milestoneDashboard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+      <View style={styles.milestoneHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Milestones</Text>
+        <Text style={[styles.milestoneSeeAll, { color: colors.secondary }]}>Your progress</Text>
+      </View>
+
+      <View style={styles.milestoneOverview}>
+        <View style={styles.milestoneIdentity}>
+          <View style={[styles.milestoneAvatar, { backgroundColor: colors.primary + '15' }]}>
+            <Text style={[styles.milestoneAvatarText, { color: colors.primary }]}>{user.name.charAt(0).toUpperCase()}</Text>
+          </View>
+          <Text numberOfLines={1} style={[styles.milestoneName, { color: colors.foreground }]}>{user.name}</Text>
+          <Text style={[styles.milestoneLevel, { color: colors.mutedForeground }]}>{user.level}</Text>
+        </View>
+
+        <View style={styles.milestoneMetrics}>
+          <View style={[styles.milestoneMetric, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <View style={styles.milestoneMetricLabelRow}>
+              <Text style={[styles.milestoneMetricLabel, { color: colors.mutedForeground }]}>Contributions</Text>
+              <Feather name="heart" size={14} color={colors.secondary} />
+            </View>
+            <Text style={[styles.milestoneMetricValue, { color: colors.foreground }]}>{user.completedCount}</Text>
+          </View>
+          <View style={[styles.milestoneMetric, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <View style={styles.milestoneMetricLabelRow}>
+              <Text style={[styles.milestoneMetricLabel, { color: colors.mutedForeground }]}>Total XP</Text>
+              <Feather name="zap" size={14} color={colors.primary} />
+            </View>
+            <Text style={[styles.milestoneMetricValue, { color: colors.foreground }]}>{user.xp}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.milestoneGrid}>
+        {milestones.map((milestone) => (
+          <View
+            key={milestone.title}
+            style={[
+              styles.milestoneItem,
+              {
+                backgroundColor: milestone.unlocked ? milestone.tint + '10' : colors.background,
+                borderColor: milestone.unlocked ? milestone.tint + '35' : colors.border,
+              },
+            ]}
+          >
+            <View style={[styles.milestoneBadge, { backgroundColor: milestone.unlocked ? milestone.tint + '20' : colors.muted }]}>
+              <Feather name={milestone.icon} size={24} color={milestone.unlocked ? milestone.tint : colors.mutedForeground} />
+            </View>
+            <Text numberOfLines={2} style={[styles.milestoneTitle, { color: colors.foreground }]}>{milestone.title}</Text>
+            <Text style={[styles.milestoneDetail, { color: colors.mutedForeground }]}>{milestone.detail}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
   const queryClient = useQueryClient();
@@ -917,6 +994,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         </View>
       </View>
 
+      <MilestoneDashboard user={current} />
       <ContributionDashboard user={current} completed={completed.data} />
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent impact</Text>
@@ -1662,6 +1740,26 @@ const styles = StyleSheet.create({
   contributionLegend: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 14 },
   contributionLegendText: { fontSize: 10, fontFamily: 'Inter_500Medium', marginHorizontal: 2 },
   contributionLegendCell: { width: 11, height: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 2 },
+
+  milestoneDashboard: { borderWidth: 1, padding: 16, marginBottom: 28 },
+  milestoneHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 },
+  milestoneSeeAll: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  milestoneOverview: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  milestoneIdentity: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  milestoneAvatar: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  milestoneAvatarText: { fontSize: 25, fontFamily: 'Inter_700Bold' },
+  milestoneName: { maxWidth: '100%', fontSize: 15, fontFamily: 'Inter_700Bold', textAlign: 'center' },
+  milestoneLevel: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  milestoneMetrics: { flex: 1.35, gap: 8 },
+  milestoneMetric: { flex: 1, borderWidth: 1, borderRadius: 10, padding: 10, justifyContent: 'center' },
+  milestoneMetricLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  milestoneMetricLabel: { flex: 1, fontSize: 10, fontFamily: 'Inter_500Medium' },
+  milestoneMetricValue: { fontSize: 20, fontFamily: 'Inter_700Bold', marginTop: 4 },
+  milestoneGrid: { flexDirection: 'row', gap: 10 },
+  milestoneItem: { flex: 1, minHeight: 128, borderWidth: 1, borderRadius: 12, padding: 12, alignItems: 'center', justifyContent: 'center' },
+  milestoneBadge: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  milestoneTitle: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_700Bold', textAlign: 'center' },
+  milestoneDetail: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 3 },
   
   historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   historyDot: { width: 12, height: 12, borderRadius: 6, marginRight: 16 },
