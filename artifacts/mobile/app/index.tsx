@@ -193,6 +193,78 @@ function OnboardingArtwork({ variant }: { variant: 'welcome' | 'complete' }) {
   );
 }
 
+function TalentWelcome({ onContinue }: { onContinue: () => void }) {
+  const insets = useSafeAreaInsets();
+  const [email, setEmail] = useState('lucia.bell@dka.io');
+  const continueToOnboarding = () => onContinue();
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.talentScreen}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={[styles.talentShell, { paddingTop: Math.max(insets.top, 14), paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <View style={styles.talentTop}>
+          <View style={styles.talentStatusBar}>
+            <Text style={styles.talentTime}>9:41</Text>
+            <View style={styles.talentDynamicIsland}>
+              <View style={styles.talentAvatarDot}><Feather name="user" size={10} color="#FFFFFF" /></View>
+              <Text style={styles.talentSignal}>▥</Text>
+            </View>
+            <View style={styles.talentBattery}><Text style={styles.talentBatteryText}>99</Text></View>
+          </View>
+          <View style={styles.talentIntro}>
+            <View style={styles.talentMark}>
+              {Array.from({ length: 10 }, (_, index) => (
+                <View key={index} style={[styles.talentMarkSpoke, { transform: [{ rotate: `${index * 36}deg` }] }]} />
+              ))}
+              <View style={styles.talentMarkCore} />
+            </View>
+            <Text style={styles.talentTitle}>
+              Let them recognize{'\n'}
+              <Text style={styles.talentTitleStrong}>your talents.</Text>
+              <Text style={styles.talentTitleSoft}> Let{'\n'}your talents shine.</Text>
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.talentFormPanel}>
+          <View style={styles.talentEmailField}>
+            <Text style={styles.talentFieldLabel}>E-mail</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              style={styles.talentEmailInput}
+              accessibilityLabel="Email"
+            />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Continue"
+            onPress={continueToOnboarding}
+            style={({ pressed }) => [styles.talentContinue, { opacity: pressed ? 0.78 : 1 }]}
+          >
+            <Text style={styles.talentContinueText}>Continue</Text>
+          </Pressable>
+          <Text style={styles.talentDividerText}>or continue with your account</Text>
+          <Pressable onPress={continueToOnboarding} style={({ pressed }) => [styles.talentSocialButton, { opacity: pressed ? 0.75 : 1 }]}>
+            <Text style={styles.googleMark}>G</Text>
+            <Text style={styles.talentSocialText}>Google</Text>
+          </Pressable>
+          <Pressable onPress={continueToOnboarding} style={({ pressed }) => [styles.talentSocialButton, { opacity: pressed ? 0.75 : 1 }]}>
+            <Text style={styles.linkedinMark}>in</Text>
+            <Text style={styles.talentSocialText}>LinkedIn</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.talentHomeIndicator} />
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
 function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boolean; onDone: () => void }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -222,6 +294,10 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
   const previous = () => setStep((value) => Math.max(0, value - 1));
   const dots = Array.from({ length: totalSteps }, (_, index) => index);
 
+  if (step === 0) {
+    return <TalentWelcome onContinue={() => setStep(1)} />;
+  }
+
   return (
     <KeyboardAvoidingView style={[styles.onboarding, { backgroundColor: colors.background, paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 18) : insets.top + 12, paddingBottom: insets.bottom + 16 }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.onboardingTopBar}>
@@ -229,7 +305,6 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
         {step === 0 ? <Pressable onPress={() => setStep(1)}><Text style={[styles.skipText, { color: colors.mutedForeground }]}>Skip</Text></Pressable> : <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>0{step + 1} / 05</Text>}
       </View>
       <ScrollView contentContainerStyle={styles.onboardingContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {step === 0 ? <View style={styles.onboardingSlide}><OnboardingArtwork variant="welcome" /><Text style={[styles.onboardingTitle, { color: colors.foreground }]}>Hi there!</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Find small ways to help your community and make your time count.</Text></View> : null}
         {step === 1 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Who are you?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Tell us what people should call you when you show up.</Text><View style={styles.onboardingForm}><TextInput autoFocus value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card }]} /><Text style={[styles.inputHint, { color: colors.mutedForeground }]}>Your Telegram username stays connected automatically.</Text></View></View> : null}
         {step === 2 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>What matters to you?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Pick the causes you’d like to see first.</Text><View style={styles.onboardingChoices}>{categories.slice(1).map((item) => { const selected = interests.includes(item.key as ExperienceCategory); return <Pressable key={item.key} onPress={() => setInterests((current) => selected ? current.filter((value) => value !== item.key) : [...current, item.key as ExperienceCategory])} style={[styles.choiceCard, { backgroundColor: selected ? colors.accent : colors.card, borderColor: selected ? colors.violet : colors.border }]}><Feather name={item.icon} size={21} color={selected ? colors.violet : colors.mutedForeground} /><Text style={[styles.choiceTitle, { color: colors.foreground }]}>{item.label}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={18} color={selected ? colors.violet : colors.border} /></Pressable>; })}</View></View> : null}
         {step === 3 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Where will you show up?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>We’ll use your city to find nearby opportunities.</Text><View style={styles.onboardingForm}><TextInput autoFocus value={city} onChangeText={setCity} placeholder="e.g. London" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card }]} /><Text style={[styles.formLabel, { color: colors.foreground }]}>I want to…</Text><View style={styles.onboardingChoices}>{(['join', 'host', 'both'] as ParticipationType[]).map((value) => { const selected = participationType === value; const labels = { join: 'Join experiences', host: 'Host experiences', both: 'Do both' }; return <Pressable key={value} onPress={() => setParticipationType(value)} style={[styles.participationCard, { backgroundColor: selected ? colors.accent : colors.card, borderColor: selected ? colors.violet : colors.border }]}><Text style={[styles.choiceTitle, { color: colors.foreground }]}>{labels[value]}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={18} color={selected ? colors.violet : colors.border} /></Pressable>; })}</View></View></View> : null}
@@ -433,6 +508,35 @@ const styles = StyleSheet.create({
   emptyBody: { fontSize: 13, lineHeight: 19, textAlign: 'center', maxWidth: 290, fontFamily: 'Inter_400Regular' },
   loading: { alignItems: 'center', justifyContent: 'center', paddingVertical: 36, gap: 10 },
   loadingText: { fontSize: 13, fontFamily: 'Inter_400Regular' },
+  talentScreen: { flex: 1, alignItems: 'center', backgroundColor: '#DCE5E4' },
+  talentShell: { flex: 1, width: '100%', maxWidth: 430, overflow: 'hidden', borderRadius: 28, backgroundColor: '#EEF3F2' },
+  talentTop: { flex: 1.05, minHeight: 0, paddingHorizontal: 25, backgroundColor: '#E9F0EF' },
+  talentStatusBar: { height: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  talentTime: { color: '#0B0B0B', fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  talentDynamicIsland: { width: 116, height: 25, borderRadius: 15, backgroundColor: '#050505', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 7 },
+  talentAvatarDot: { width: 15, height: 15, borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: '#D76D72' },
+  talentSignal: { color: '#FFFFFF', fontSize: 13, lineHeight: 13, transform: [{ rotate: '90deg' }] },
+  talentBattery: { width: 20, height: 10, borderRadius: 3, borderWidth: 1, borderColor: '#0B0B0B', alignItems: 'center', justifyContent: 'center' },
+  talentBatteryText: { color: '#0B0B0B', fontSize: 6, lineHeight: 7, fontFamily: 'Inter_700Bold' },
+  talentIntro: { flex: 1, justifyContent: 'center', paddingBottom: 18 },
+  talentMark: { width: 47, height: 47, alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
+  talentMarkSpoke: { position: 'absolute', width: 8, height: 31, borderRadius: 2, backgroundColor: '#AAB5B6' },
+  talentMarkCore: { width: 21, height: 21, borderRadius: 11, backgroundColor: '#AAB5B6' },
+  talentTitle: { color: '#111111', fontSize: 25, lineHeight: 32, letterSpacing: -0.6, fontFamily: 'Inter_400Regular' },
+  talentTitleStrong: { color: '#111111', fontFamily: 'Inter_500Medium' },
+  talentTitleSoft: { color: '#778183' },
+  talentFormPanel: { flex: 0.95, minHeight: 0, paddingHorizontal: 25, paddingTop: 21, backgroundColor: '#F8FAF9', gap: 10 },
+  talentEmailField: { height: 50, borderRadius: 10, borderWidth: 1, borderColor: '#D8DEDD', backgroundColor: '#FFFFFF', paddingHorizontal: 11, paddingTop: 7 },
+  talentFieldLabel: { color: '#8A9393', fontSize: 9, lineHeight: 11, fontFamily: 'Inter_400Regular' },
+  talentEmailInput: { flex: 1, minHeight: 23, padding: 0, color: '#111111', fontSize: 13, lineHeight: 18, fontFamily: 'Inter_400Regular' },
+  talentContinue: { height: 48, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#050505' },
+  talentContinueText: { color: '#FFFFFF', fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  talentDividerText: { color: '#8A9393', fontSize: 10, textAlign: 'center', marginVertical: 8, fontFamily: 'Inter_400Regular' },
+  talentSocialButton: { height: 43, borderRadius: 9, borderWidth: 1, borderColor: '#D8DEDD', backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+  talentSocialText: { color: '#111111', fontSize: 13, fontFamily: 'Inter_500Medium' },
+  googleMark: { color: '#4285F4', fontSize: 18, lineHeight: 20, fontFamily: 'Inter_700Bold' },
+  linkedinMark: { color: '#0A66C2', fontSize: 12, lineHeight: 16, fontFamily: 'Inter_700Bold' },
+  talentHomeIndicator: { width: 100, height: 4, borderRadius: 3, alignSelf: 'center', marginTop: 22, backgroundColor: '#111111' },
   gate: { flex: 1, paddingHorizontal: 28, paddingTop: 82, paddingBottom: 34 },
   gateMark: { width: 68, height: 68, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
   gateTitle: { fontSize: 40, lineHeight: 42, letterSpacing: -1.6, fontFamily: 'Inter_700Bold' },
