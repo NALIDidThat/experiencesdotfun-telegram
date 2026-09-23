@@ -327,15 +327,6 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   return (
     <KeyboardAvoidingView style={[styles.talentScreen, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.talentShell, { paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 67 : 20), paddingBottom: Math.max(insets.bottom, 24) }]}>
-        <View style={styles.talentTopBar}>
-          <View style={styles.talentBrandMark}>
-            <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.talentBrandIcon}>
-              <Feather name="star" size={16} color={colors.primaryForeground} />
-            </LinearGradient>
-            <Text style={[styles.talentBrand, { color: colors.foreground }]}>experiences.fun</Text>
-          </View>
-        </View>
-
         <View style={styles.talentTop}>
           <View style={styles.talentIntro}>
             <Text style={[styles.talentEyebrow, { color: colors.primary }]}>YOUR NEXT GOOD THING</Text>
@@ -1622,10 +1613,6 @@ const styles = StyleSheet.create({
   talentScreen: { flex: 1 },
   talentShell: { flex: 1, paddingHorizontal: 24 },
   talentTop: { flex: 1, justifyContent: 'center' },
-  talentTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12 },
-  talentBrandMark: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  talentBrandIcon: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  talentBrand: { fontSize: 15, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 },
   talentIntro: { alignItems: 'center', paddingTop: 10 },
   talentEyebrow: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.4, marginBottom: 10 },
   talentTitle: { fontSize: 38, fontFamily: 'Inter_700Bold', textAlign: 'center', lineHeight: 44, letterSpacing: -1.2 },
