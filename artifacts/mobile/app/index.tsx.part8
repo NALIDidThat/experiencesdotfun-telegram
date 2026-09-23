@@ -1,0 +1,80 @@
+function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => void }) {
+  const colors = useColors();
+  const items: Array<{ key: Screen; label: string; icon: IconName }> = [
+    { key: 'home', label: 'Home', icon: 'home' }, 
+    { key: 'explore', label: 'Explore', icon: 'compass' }, 
+    { key: 'experiences', label: 'Journey', icon: 'calendar' }, 
+    { key: 'profile', label: 'Passport', icon: 'user' }
+  ];
+  return (
+    <View style={[styles.bottomNav, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: Platform.OS === 'web' ? 34 : 28 }]}>
+      {items.map((item) => {
+        const selected = active === item.key;
+        return (
+          <Pressable accessibilityRole="button" accessibilityLabel={item.label} accessibilityState={{ selected }} key={item.key} onPress={() => { triggerHaptic(); go(item.key); }} style={styles.navItem}>
+            <View style={[styles.navIconWrapper, selected && { backgroundColor: colors.primary + '15' }]}>
+              <Feather name={item.icon} size={22} color={selected ? colors.primary : colors.mutedForeground} />
+            </View>
+            <Text style={[styles.navLabel, { color: selected ? colors.primary : colors.mutedForeground }]}>{item.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+export default function App() {
+  const params = useLocalSearchParams<{ screen?: string; id?: string; onboarded?: string }>();
+  const router = useRouter();
+  const { user, loading } = useAuth();
+  const colors = useColors();
+  const [onboarded, setOnboarded] = useState(false);
+  const [screen, setScreen] = useState<Screen>((params.screen as Screen) || 'home');
+  const [experienceId, setExperienceId] = useState(params.id);
+  const displayUser = user ?? guestUser;
+  const guestOnboarded = onboarded || params.onboarded === '1';
+  
+  const go = (next: Screen, nextParams?: Record<string, string>) => {
+    setScreen(next);
+    if (nextParams?.id) setExperienceId(nextParams.id);
+    router.setParams({ screen: next, onboarded: guestOnboarded ? '1' : undefined, ...nextParams });
+  };
+  
+  const needsOnboarding = Boolean((!user || !user.city || !user.interests?.length || !user.participationType) && !guestOnboarded);
+
+  const content = (() => {
+    if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
+    if (screen === 'explore') return <Explore go={go} />;
+    if (screen === 'experiences') return <Experiences go={go} />;
+    if (screen === 'profile') return <Profile user={displayUser} go={go} />;
+    if (screen === 'host') return <Host go={go} />;
+    if (screen === 'create') return <Create go={go} />;
+    return <Home user={displayUser} go={go} />;
+  })();
+
+  if (loading) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator color={colors.primary} size="large" />
+        <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Connecting to experiences.fun…</Text>
+      </View>
+    );
+  }
+  
+  if (needsOnboarding) {
+    return <Onboarding user={displayUser} guest={!user} onDone={() => {
+      setOnboarded(true);
+      setScreen('home');
+      if (!user) router.setParams({ screen: 'home', onboarded: '1' });
+    }} />;
+  }
+  
+  const noNav = ['experience', 'create', 'host'].includes(screen);
+  return (
+    <View style={[styles.app, { backgroundColor: colors.background }]}>
+      {content}
+      {!noNav ? <BottomNav active={screen} go={go} /> : null}
+    </View>
+  );
+}
+

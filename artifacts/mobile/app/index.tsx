@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
+  Animated,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,6 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import {
   useAcceptFriendRequest,
   useCreateExperience,
@@ -72,9 +73,9 @@ const categoryLabel: Record<ExperienceCategory, string> = {
 };
 
 const categoryGradients: Record<ExperienceCategory, readonly [string, string]> = {
-  environmental: ['#04ADBF', '#1A98E5'],
-  education: ['#6805F2', '#1A98E5'],
-  community: ['#F20789', '#6805F2'],
+  environmental: ['#00C4CC', '#0097A7'],
+  education: ['#6E00FF', '#4A00E0'],
+  community: ['#FF107A', '#C51162'],
 };
 
 const guestUser: User = {
@@ -82,7 +83,6 @@ const guestUser: User = {
   telegramId: 0,
   username: null,
   name: 'Guest User',
-  
   participationType: 'join',
   interests: ['community', 'environmental'],
   city: 'London', country: null,
@@ -105,23 +105,20 @@ function dateLabel(date: string) {
     : value.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+function triggerHaptic() {
+  if (Platform.OS !== 'web') {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }
+}
+
 function Button({
-  label,
-  onPress,
-  variant = 'primary',
-  disabled = false,
-  icon,
-  style,
+  label, onPress, variant = 'primary', disabled = false, icon, style,
 }: {
-  label: string;
-  onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'alternative';
-  disabled?: boolean;
-  icon?: IconName;
-  style?: any;
+  label: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'alternative'; disabled?: boolean; icon?: IconName; style?: any;
 }) {
   const colors = useColors();
-  
+  const scale = useRef(new Animated.Value(1)).current;
+
   let bg = colors.primary;
   let fg = colors.primaryForeground;
   let border = 'transparent';
@@ -131,32 +128,44 @@ function Button({
     bg = 'transparent';
     fg = colors.foreground;
     border = colors.border;
-    borderWidth = 1;
+    borderWidth = 1.5;
   } else if (variant === 'alternative') {
     bg = colors.secondary;
     fg = colors.secondaryForeground;
   }
 
+  const handlePressIn = () => {
+    if (disabled) return;
+    triggerHaptic();
+    Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, speed: 20, bounciness: 10 }).start();
+  };
+  const handlePressOut = () => {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 10 }).start();
+  };
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        {
-          backgroundColor: bg,
-          borderColor: border,
-          borderWidth,
-          borderRadius: colors.radius,
-          opacity: disabled ? 0.5 : pressed ? 0.8 : 1,
-        },
-        style
-      ]}
-    >
-      {icon ? <Feather name={icon} size={18} color={fg} style={{ marginRight: 6 }} /> : null}
-      <Text style={[styles.buttonText, { color: fg }]}>{label}</Text>
-    </Pressable>
+    <Animated.View style={[{ transform: [{ scale }] }, style]}>
+      <Pressable
+        accessibilityRole="button"
+        disabled={disabled}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.button,
+          {
+            backgroundColor: bg,
+            borderColor: border,
+            borderWidth,
+            borderRadius: colors.radius,
+            opacity: disabled ? 0.4 : pressed ? 0.9 : 1,
+          },
+        ]}
+      >
+        {icon ? <Feather name={icon} size={20} color={fg} style={{ marginRight: 8 }} /> : null}
+        <Text style={[styles.buttonText, { color: fg }]}>{label}</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -164,10 +173,10 @@ function Header({ title, subtitle, onBack }: { title: string; subtitle?: string;
   const colors = useColors();
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 67) : insets.top + 16 }]}>
+    <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 60) : insets.top + 20 }]}>
       {onBack && (
-        <Pressable accessibilityLabel="Go back" onPress={onBack} style={styles.backButton}>
-          <Feather name="arrow-left" size={20} color={colors.foreground} />
+        <Pressable accessibilityLabel="Go back" onPress={() => { triggerHaptic(); onBack(); }} style={[styles.backButton, { backgroundColor: colors.muted }]}>
+          <Feather name="arrow-left" size={22} color={colors.foreground} />
         </Pressable>
       )}
       <View style={styles.headerCopy}>
@@ -183,12 +192,12 @@ function EmptyState({ title, body, icon = 'compass', onAction, actionLabel }: { 
   return (
     <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
       <View style={[styles.emptyIcon, { backgroundColor: colors.muted }]}>
-        <Feather name={icon} size={24} color={colors.mutedForeground} />
+        <Feather name={icon} size={28} color={colors.primary} />
       </View>
       <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</Text>
       <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>{body}</Text>
       {onAction && actionLabel && (
-        <View style={{ marginTop: 24 }}>
+        <View style={{ marginTop: 24, width: '100%' }}>
           <Button label={actionLabel} onPress={onAction} />
         </View>
       )}
@@ -200,68 +209,75 @@ function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => vo
   const colors = useColors();
   const icon = categoryIcon[item.category];
   const gradient = categoryGradients[item.category] || categoryGradients.community;
-  
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`View ${item.title} by ${item.organisation.name}`}
-      onPress={onPress}
-      style={({ pressed }) => [styles.experienceCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
-    >
-      <LinearGradient colors={gradient} style={styles.cardImage}>
-        <Feather name={icon} size={48} color="#ffffff" style={{ opacity: 0.3 }} />
-      </LinearGradient>
-      
-      <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <View style={styles.cardHeaderLeft}>
-            <Text style={[styles.cardTitle, { color: colors.foreground }]} numberOfLines={2}>{item.title}</Text>
-            <Text style={[styles.cardOrg, { color: colors.mutedForeground }]}>{item.organisation.name}</Text>
-          </View>
-          <View style={[styles.xpBadge, { backgroundColor: colors.primary + '15' }]}>
-            <Text style={[styles.xpBadgeText, { color: colors.primary }]}>+{item.xpReward} XP</Text>
-          </View>
-        </View>
+  const scale = useRef(new Animated.Value(1)).current;
 
-        <View style={styles.cardDetails}>
-          <View style={styles.detailItem}>
-            <Feather name={icon} size={14} color={colors.primary} />
-            <Text style={[styles.detailText, { color: colors.foreground }]}>{categoryLabel[item.category]}</Text>
+  return (
+    <Animated.View style={{ transform: [{ scale }], marginBottom: 20 }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`View ${item.title}`}
+        onPressIn={() => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true }).start()}
+        onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
+        onPress={() => { triggerHaptic(); onPress(); }}
+        style={[styles.experienceCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
+      >
+        <LinearGradient colors={gradient} style={styles.cardImage} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <Feather name={icon} size={48} color="#ffffff" style={{ opacity: 0.2 }} />
+        </LinearGradient>
+
+        <View style={styles.cardContent}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderLeft}>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]} numberOfLines={2}>{item.title}</Text>
+              <Text style={[styles.cardOrg, { color: colors.mutedForeground }]}>{item.organisation.name}</Text>
+            </View>
+            <View style={[styles.xpBadge, { backgroundColor: colors.primary + '15' }]}>
+              <Text style={[styles.xpBadgeText, { color: colors.primary }]}>+{item.xpReward} XP</Text>
+            </View>
           </View>
-          <View style={styles.detailItem}>
-            <Feather name="calendar" size={14} color={colors.mutedForeground} />
-            <Text style={[styles.detailText, { color: colors.mutedForeground }]}>{dateLabel(item.date)} · {item.startTime}</Text>
-          </View>
-          <View style={styles.detailItem}>
-            <Feather name="map-pin" size={14} color={colors.mutedForeground} />
-            <Text style={[styles.detailText, { color: colors.mutedForeground }]}>{item.city}</Text>
-          </View>
-          <View style={styles.detailItem}>
-            <Feather name="users" size={14} color={colors.mutedForeground} />
-            <Text style={[styles.detailText, { color: item.availablePlaces < 4 ? colors.primary : colors.mutedForeground }]}>{item.availablePlaces} spots left</Text>
+
+          <View style={styles.cardDetails}>
+            <View style={styles.detailItem}>
+              <Feather name={icon} size={15} color={colors.primary} />
+              <Text style={[styles.detailText, { color: colors.foreground }]}>{categoryLabel[item.category]}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Feather name="calendar" size={15} color={colors.mutedForeground} />
+              <Text style={[styles.detailText, { color: colors.mutedForeground }]}>{dateLabel(item.date)}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Feather name="map-pin" size={15} color={colors.mutedForeground} />
+              <Text style={[styles.detailText, { color: colors.mutedForeground }]}>{item.city}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Feather name="users" size={15} color={colors.mutedForeground} />
+              <Text style={[styles.detailText, { color: item.availablePlaces < 4 ? colors.primary : colors.mutedForeground }]}>{item.availablePlaces} spots left</Text>
+            </View>
           </View>
         </View>
-        <View style={styles.cardAction}>
-          <Text style={[styles.cardActionText, { color: colors.primary }]}>View experience</Text>
-          <Feather name="arrow-right" size={15} color={colors.primary} />
-        </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </Animated.View>
   );
 }
 
 function LoadingState() {
   const colors = useColors();
-  return <View style={styles.loading}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading experiences…</Text></View>;
+  return (
+    <View style={styles.loading}>
+      <ActivityIndicator color={colors.primary} size="large" />
+      <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading...</Text>
+    </View>
+  );
 }
+
 function OnboardingArtwork({ variant }: { variant: 'welcome' | 'complete' }) {
   const colors = useColors();
   return (
     <View style={styles.onboardingArtwork}>
-      <LinearGradient colors={['#F20789', '#6805F2']} style={[styles.artworkBlob, { width: 140, height: 140, borderRadius: 70, left: 20, top: 20, opacity: 0.8 }]} />
-      <LinearGradient colors={['#6805F2', '#04ADBF']} style={[styles.artworkBlob, { width: 100, height: 100, borderRadius: 50, right: 30, bottom: 30, opacity: 0.8 }]} />
+      <LinearGradient colors={['#FF107A', '#6E00FF']} style={[styles.artworkBlob, { width: 160, height: 160, borderRadius: 80, left: 10, top: 10, opacity: 0.9 }]} />
+      <LinearGradient colors={['#6E00FF', '#00C4CC']} style={[styles.artworkBlob, { width: 120, height: 120, borderRadius: 60, right: 20, bottom: 20, opacity: 0.9 }]} />
       <View style={[styles.artworkCircle, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Feather name={variant === 'welcome' ? 'users' : 'check'} size={44} color={colors.foreground} />
+        <Feather name={variant === 'welcome' ? 'users' : 'check'} size={48} color={colors.foreground} />
       </View>
     </View>
   );
@@ -273,17 +289,14 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   const [email, setEmail] = useState('lucia.bell@dka.io');
 
   return (
-    <KeyboardAvoidingView style={styles.talentScreen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.talentShell, { paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 67 : 14), paddingBottom: Math.max(insets.bottom, 24), backgroundColor: colors.muted }]}>
+    <KeyboardAvoidingView style={[styles.talentScreen, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={[styles.talentShell, { paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 67 : 20), paddingBottom: Math.max(insets.bottom, 24) }]}>
         <View style={styles.talentTopBar}>
           <View style={styles.talentBrandMark}>
             <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.talentBrandIcon}>
               <Feather name="star" size={16} color={colors.primaryForeground} />
             </LinearGradient>
             <Text style={[styles.talentBrand, { color: colors.foreground }]}>experiences.fun</Text>
-          </View>
-          <View style={[styles.talentTopAction, { backgroundColor: colors.card }]}>
-            <Feather name="heart" size={16} color={colors.primary} />
           </View>
         </View>
 
@@ -321,8 +334,8 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
         <View style={[styles.talentFormPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.talentSheetTitle, { color: colors.foreground }]}>Make room for good things.</Text>
           <Text style={[styles.talentSheetBody, { color: colors.mutedForeground }]}>Create your experience passport and start showing up for what matters.</Text>
-          <View style={[styles.talentEmailRow, { borderColor: colors.input }]}>
-            <Feather name="mail" size={18} color={colors.mutedForeground} />
+          <View style={[styles.talentEmailRow, { borderColor: colors.input, backgroundColor: colors.background }]}>
+            <Feather name="mail" size={20} color={colors.mutedForeground} />
             <TextInput
               value={email}
               onChangeText={setEmail}
@@ -334,11 +347,11 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
               accessibilityLabel="Email"
             />
           </View>
-          <Button label="Build my passport" onPress={onContinue} />
+          <Button label="Build my passport" onPress={() => { triggerHaptic(); onContinue(); }} />
           <Text style={[styles.talentDividerText, { color: colors.mutedForeground }]}>or continue with</Text>
           <View style={styles.talentSocialRow}>
-            <Button label="Google" variant="secondary" onPress={onContinue} icon="chrome" style={styles.talentSocialButton} />
-            <Button label="LinkedIn" variant="secondary" onPress={onContinue} icon="linkedin" style={styles.talentSocialButton} />
+            <Button label="Google" variant="secondary" onPress={() => { triggerHaptic(); onContinue(); }} icon="chrome" style={styles.talentSocialButton} />
+            <Button label="LinkedIn" variant="secondary" onPress={() => { triggerHaptic(); onContinue(); }} icon="linkedin" style={styles.talentSocialButton} />
           </View>
         </View>
       </View>
@@ -358,6 +371,7 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
   const [name, setName] = useState(user.name);
   const totalSteps = 5;
   const next = async () => {
+    triggerHaptic();
     if (step === 1 && !name.trim()) return;
     if (step === 2 && interests.length === 0) return;
     if (step === 3 && !city.trim()) return;
@@ -372,7 +386,7 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
     }
     setStep((value) => value + 1);
   };
-  const previous = () => setStep((value) => Math.max(0, value - 1));
+  const previous = () => { triggerHaptic(); setStep((value) => Math.max(0, value - 1)); };
   const dots = Array.from({ length: totalSteps }, (_, index) => index);
 
   if (step === 0) {
@@ -382,14 +396,14 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
   return (
     <KeyboardAvoidingView style={[styles.onboarding, { backgroundColor: colors.background, paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 18) : insets.top + 12, paddingBottom: Math.max(insets.bottom, 24) }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.onboardingTopBar}>
-        {step > 0 ? <Pressable accessibilityLabel="Back" onPress={previous} style={styles.onboardingBack}><Feather name="arrow-left" size={24} color={colors.foreground} /></Pressable> : <View style={styles.onboardingBack} />}
+        {step > 0 ? <Pressable accessibilityLabel="Back" onPress={previous} style={[styles.onboardingBack, { backgroundColor: colors.muted }]}><Feather name="arrow-left" size={22} color={colors.foreground} /></Pressable> : <View style={styles.onboardingBack} />}
         {step === 0 ? <Pressable onPress={() => setStep(1)}><Text style={[styles.skipText, { color: colors.mutedForeground }]}>Skip</Text></Pressable> : <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>0{step + 1} / 05</Text>}
       </View>
       <ScrollView contentContainerStyle={styles.onboardingContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {step === 1 ? <View style={styles.onboardingSlide}><View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}><Feather name="user" size={28} color={colors.primary} /></View><Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>STEP 01 · YOUR PASSPORT</Text><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Let’s make it yours.</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Tell us what people should call you when you show up. You can change this later.</Text><View style={styles.onboardingForm}><Text style={[styles.onboardingFieldLabel, { color: colors.foreground }]}>Display name</Text><View style={[styles.onboardingInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}><Feather name="smile" size={18} color={colors.mutedForeground} /><TextInput autoFocus value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, { color: colors.foreground }]} /></View><Text style={[styles.inputHint, { color: colors.mutedForeground }]}>Your Telegram username stays connected automatically.</Text></View></View> : null}
-        {step === 2 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>What matters to you?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Pick the causes you'd like to see first.</Text><View style={styles.onboardingChoices}>{categories.slice(1).map((item) => { const selected = interests.includes(item.key as ExperienceCategory); return <Pressable key={item.key} onPress={() => setInterests((current) => selected ? current.filter((value) => value !== item.key) : [...current, item.key as ExperienceCategory])} style={[styles.choiceCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Feather name={item.icon} size={24} color={selected ? colors.primary : colors.mutedForeground} /><Text style={[styles.choiceTitle, { color: colors.foreground }]}>{item.label}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={20} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></View> : null}
-        {step === 3 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Where will you show up?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>We'll use your city to find nearby opportunities.</Text><View style={styles.onboardingForm}><TextInput autoFocus value={city} onChangeText={setCity} placeholder="e.g. London" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]} /><Text style={[styles.formLabel, { color: colors.foreground }]}>I want to…</Text><View style={styles.onboardingChoices}>{(['join', 'host', 'both'] as ParticipationType[]).map((value) => { const selected = participationType === value; const labels = { join: 'Join experiences', host: 'Host experiences', both: 'Do both' }; return <Pressable key={value} onPress={() => setParticipationType(value)} style={[styles.participationCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Text style={[styles.choiceTitle, { color: colors.foreground }]}>{labels[value]}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={20} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></View></View> : null}
-        {step === 4 ? <View style={styles.onboardingSlide}><OnboardingArtwork variant="complete" /><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>We're all set!</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>You're ready to find your next good thing, {name.trim() || 'friend'}.</Text><TextInput value={bio} onChangeText={setBio} multiline placeholder="Add a short bio (optional)" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius, marginTop: 24 }]} /></View> : null}
+        {step === 1 ? <View style={styles.onboardingSlide}><View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}><Feather name="user" size={32} color={colors.primary} /></View><Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>STEP 01 · YOUR PASSPORT</Text><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Let’s make it yours.</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Tell us what people should call you when you show up. You can change this later.</Text><View style={styles.onboardingForm}><Text style={[styles.onboardingFieldLabel, { color: colors.foreground }]}>Display name</Text><View style={[styles.onboardingInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}><Feather name="smile" size={20} color={colors.mutedForeground} /><TextInput autoFocus value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, { color: colors.foreground }]} /></View><Text style={[styles.inputHint, { color: colors.mutedForeground }]}>Your Telegram username stays connected automatically.</Text></View></View> : null}
+        {step === 2 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>What matters to you?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Pick the causes you'd like to see first.</Text><View style={styles.onboardingChoices}>{categories.slice(1).map((item) => { const selected = interests.includes(item.key as ExperienceCategory); return <Pressable key={item.key} onPress={() => { triggerHaptic(); setInterests((current) => selected ? current.filter((value) => value !== item.key) : [...current, item.key as ExperienceCategory]); }} style={[styles.choiceCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Feather name={item.icon} size={24} color={selected ? colors.primary : colors.mutedForeground} /><Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{item.label}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></View> : null}
+        {step === 3 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Where will you show up?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>We'll use your city to find nearby opportunities.</Text><View style={styles.onboardingForm}><TextInput autoFocus value={city} onChangeText={setCity} placeholder="e.g. London" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, styles.cityInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]} /><Text style={[styles.formLabel, { color: colors.foreground }]}>I want to…</Text><View style={styles.onboardingChoices}>{(['join', 'host', 'both'] as ParticipationType[]).map((value) => { const selected = participationType === value; const labels = { join: 'Join experiences', host: 'Host experiences', both: 'Do both' }; return <Pressable key={value} onPress={() => { triggerHaptic(); setParticipationType(value); }} style={[styles.onboardingParticipationCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{labels[value]}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></View></View> : null}
+        {step === 4 ? <View style={styles.onboardingSlide}><OnboardingArtwork variant="complete" /><Text style={[styles.onboardingSmallTitle, { color: colors.foreground, textAlign: 'center' }]}>We're all set!</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground, textAlign: 'center' }]}>You're ready to find your next good thing, {name.trim() || 'friend'}.</Text><TextInput value={bio} onChangeText={setBio} multiline placeholder="Add a short bio (optional)" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius, marginTop: 24 }]} /></View> : null}
       </ScrollView>
       <View style={styles.onboardingFooter}>
         <View style={styles.onboardingDots}>{dots.map((index) => <View key={index} style={[styles.onboardingDot, { backgroundColor: index === step ? colors.primary : colors.border }]} />)}</View>
@@ -409,31 +423,31 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
   const upcomingCount = participations.data?.length ?? 0;
   const quickActions: Array<{ label: string; icon: IconName; screen: Screen }> = [
     { label: 'Explore', icon: 'compass', screen: 'explore' },
-    { label: 'My journey', icon: 'calendar', screen: 'experiences' },
+    { label: 'Journey', icon: 'calendar', screen: 'experiences' },
     { label: 'Passport', icon: 'award', screen: 'profile' },
     { label: 'Host', icon: 'plus-circle', screen: 'host' },
   ];
 
   return (
     <ScrollView
-      style={[styles.dashboardScreen, { backgroundColor: colors.muted }]}
-      contentContainerStyle={[styles.dashboardContent, { paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 67) : insets.top + 12 }]}
-      refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={colors.primary} />}
+      style={[styles.dashboardScreen, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.dashboardContent, { paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 60) : insets.top + 16 }]}
+      refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { triggerHaptic(); void query.refetch(); }} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.dashboardTopBar}>
         <View style={styles.dashboardBrand}>
-          <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.dashboardBrandIcon}>
+          <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.dashboardBrandIcon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             <Feather name="star" size={16} color={colors.primaryForeground} />
           </LinearGradient>
           <Text style={[styles.dashboardBrandText, { color: colors.foreground }]}>experiences.fun</Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Open passport" onPress={() => go('profile')} style={[styles.dashboardAvatar, { backgroundColor: colors.card }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open passport" onPress={() => { triggerHaptic(); go('profile'); }} style={[styles.dashboardAvatar, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
           <Text style={[styles.dashboardAvatarText, { color: colors.primary }]}>{firstName.charAt(0).toUpperCase()}</Text>
         </Pressable>
       </View>
 
-      <View style={[styles.dashboardHero, { borderRadius: 30, overflow: 'hidden' }]}>
+      <View style={[styles.dashboardHero, { borderRadius: colors.radius, overflow: 'hidden' }]}>
         <LinearGradient colors={[colors.secondary, colors.primary, colors.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
         <View style={[styles.dashboardGlow, styles.dashboardGlowOne]} />
         <View style={[styles.dashboardGlow, styles.dashboardGlowTwo]} />
@@ -441,10 +455,10 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
         <Text style={styles.dashboardName}>{firstName}</Text>
         <Text style={styles.dashboardHeroBody}>Your next good thing is closer than you think.</Text>
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Open your experience journey" onPress={() => go('experiences')} style={styles.dashboardStatusStrip}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open your experience journey" onPress={() => { triggerHaptic(); go('experiences'); }} style={styles.dashboardStatusStrip}>
           <View style={[styles.dashboardStatusIcon, { backgroundColor: colors.primary }]}>
             <Text style={styles.dashboardStatusNumber}>{upcomingCount}</Text>
-            <Feather name="calendar" size={13} color={colors.primaryForeground} />
+            <Feather name="calendar" size={14} color={colors.primaryForeground} />
           </View>
           <View style={styles.dashboardStatusCopy}>
             <Text style={[styles.dashboardStatusTitle, { color: colors.foreground }]}>
@@ -452,17 +466,17 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
             </Text>
             <Text style={[styles.dashboardStatusSub, { color: colors.mutedForeground }]}>{upcomingCount ? 'View your journey' : 'Find something meaningful nearby'}</Text>
           </View>
-          <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+          <Feather name="chevron-right" size={22} color={colors.mutedForeground} />
         </Pressable>
       </View>
 
-      <Pressable accessibilityRole="button" accessibilityLabel="Open your experience passport" onPress={() => go('profile')} style={[styles.dashboardPassportCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open your experience passport" onPress={() => { triggerHaptic(); go('profile'); }} style={[styles.dashboardPassportCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
         <View style={styles.dashboardPassportTop}>
           <View>
             <Text style={[styles.dashboardCardEyebrow, { color: colors.primary }]}>EXPERIENCE PASSPORT</Text>
             <Text style={[styles.dashboardPassportTitle, { color: colors.foreground }]}>{user.level}</Text>
             <View style={styles.dashboardPassportMeta}>
-              <Feather name="zap" size={14} color={colors.primary} />
+              <Feather name="zap" size={16} color={colors.primary} />
               <Text style={[styles.dashboardPassportMetaText, { color: colors.mutedForeground }]}>{user.xp} XP earned</Text>
             </View>
           </View>
@@ -487,11 +501,11 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
             accessibilityRole="button"
             accessibilityLabel={action.label}
             key={action.label}
-            onPress={() => go(action.screen)}
-            style={({ pressed }) => [styles.dashboardAction, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.75 : 1 }]}
+            onPress={() => { triggerHaptic(); go(action.screen); }}
+            style={({ pressed }) => [styles.dashboardAction, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.75 : 1 }]}
           >
             <View style={[styles.dashboardActionIcon, { backgroundColor: colors.primary + '12' }]}>
-              <Feather name={action.icon} size={18} color={colors.primary} />
+              <Feather name={action.icon} size={20} color={colors.primary} />
             </View>
             <Text style={[styles.dashboardActionLabel, { color: colors.foreground }]}>{action.label}</Text>
           </Pressable>
@@ -500,21 +514,21 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
 
       <View style={styles.dashboardSectionHeader}>
         <Text style={[styles.dashboardSectionTitle, { color: colors.foreground }]}>Upcoming near you</Text>
-        <Pressable accessibilityRole="button" onPress={() => go('explore')}>
+        <Pressable accessibilityRole="button" onPress={() => { triggerHaptic(); go('explore'); }}>
           <Text style={[styles.dashboardSeeAll, { color: colors.primary }]}>See all</Text>
         </Pressable>
       </View>
 
-      {query.isLoading ? <LoadingState /> : items.length ? items.slice(0, 2).map((item) => (
+      {query.isLoading ? <LoadingState /> : items.length ? items.slice(0, 3).map((item) => (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`View ${item.title}`}
           key={item.id}
-          onPress={() => go('experience', { id: String(item.id) })}
-          style={[styles.dashboardEventCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => { triggerHaptic(); go('experience', { id: String(item.id) }); }}
+          style={({ pressed }) => [styles.dashboardEventCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.9 : 1 }]}
         >
-          <LinearGradient colors={categoryGradients[item.category]} style={styles.dashboardEventIcon}>
-            <Feather name={categoryIcon[item.category]} size={21} color={colors.primaryForeground} />
+          <LinearGradient colors={categoryGradients[item.category]} style={styles.dashboardEventIcon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <Feather name={categoryIcon[item.category]} size={24} color={colors.primaryForeground} />
           </LinearGradient>
           <View style={styles.dashboardEventCopy}>
             <Text style={[styles.dashboardEventTitle, { color: colors.foreground }]} numberOfLines={1}>{item.title}</Text>
@@ -525,55 +539,56 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
           </View>
         </Pressable>
       )) : (
-        <Pressable accessibilityRole="button" onPress={() => go('explore')} style={[styles.dashboardEmptyEvent, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Pressable accessibilityRole="button" onPress={() => { triggerHaptic(); go('explore'); }} style={[styles.dashboardEmptyEvent, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <View style={[styles.dashboardEventIcon, { backgroundColor: colors.primary + '12' }]}>
-            <Feather name="compass" size={22} color={colors.primary} />
+            <Feather name="compass" size={24} color={colors.primary} />
           </View>
           <View style={styles.dashboardEventCopy}>
             <Text style={[styles.dashboardEventTitle, { color: colors.foreground }]}>Find your next good thing</Text>
             <Text style={[styles.dashboardEventMeta, { color: colors.mutedForeground }]}>Explore experiences happening near you</Text>
           </View>
-          <Feather name="arrow-right" size={20} color={colors.primary} />
+          <Feather name="arrow-right" size={22} color={colors.primary} />
         </Pressable>
       )}
-      <View style={{ height: 100 }} />
+      <View style={{ height: 120 }} />
     </ScrollView>
   );
 }
+
 function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
   const [category, setCategory] = useState<ExperienceCategory | 'all'>('all');
   const [search, setSearch] = useState('');
   const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: true });
-  
+
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
       <Header title="Explore" subtitle="Find your next way to contribute." />
-      
+
       <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
-        <Feather name="search" size={20} color={colors.mutedForeground} />
+        <Feather name="search" size={22} color={colors.mutedForeground} />
         <TextInput accessibilityLabel="Search experiences" value={search} onChangeText={setSearch} placeholder="Search experiences" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />
       </View>
-      
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-        {categories.map((item) => { 
-          const selected = category === item.key; 
+        {categories.map((item) => {
+          const selected = category === item.key;
           return (
-            <Pressable accessibilityRole="button" accessibilityState={{ selected }} key={item.key} onPress={() => setCategory(item.key)} style={[styles.filter, { backgroundColor: selected ? colors.primary : colors.card, borderColor: selected ? colors.primary : colors.border }]}>
-              <Feather name={item.icon} size={16} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+            <Pressable accessibilityRole="button" accessibilityState={{ selected }} key={item.key} onPress={() => { triggerHaptic(); setCategory(item.key); }} style={[styles.filter, { backgroundColor: selected ? colors.primary : colors.card, borderColor: selected ? colors.primary : colors.border }]}>
+              <Feather name={item.icon} size={18} color={selected ? colors.primaryForeground : colors.mutedForeground} />
               <Text style={[styles.filterText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
             </Pressable>
-          ); 
+          );
         })}
       </ScrollView>
-      
+
       <View style={styles.resultsHeading}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Available now</Text>
         <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{query.data?.length ?? 0} opportunities</Text>
       </View>
-      
-      {query.isLoading ? <LoadingState /> : query.data?.length ? query.data.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title="No experiences match yet" body="Try another category or come back when local hosts publish something new." />}
-      <View style={{ height: 100 }} />
+
+      {query.isLoading ? <LoadingState /> : query.data?.length ? query.data.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title="No experiences match" body="Try another category or come back when local hosts publish something new." />}
+      <View style={{ height: 120 }} />
     </ScrollView>
   );
 }
@@ -582,83 +597,87 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
   const colors = useColors();
   const queryClient = useQueryClient();
   const query = useGetExperience(id, { query: { queryKey: getGetExperienceQueryKey(id), enabled: Number.isFinite(id) } });
-  const join = useJoinExperience({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); } } });
-  const submit = useSubmitCompletion({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); } } });
+  const join = useJoinExperience({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const submit = useSubmitCompletion({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
   const item = query.data as ExperienceDetail | undefined;
-  
+
   if (query.isLoading || !item) return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Experience" onBack={() => go('explore')} />{query.isLoading ? <LoadingState /> : <EmptyState title="Experience unavailable" body="This experience may have been archived." />}</View>;
-  
+
   const participation = item.participation as Participation | null;
   const gradient = categoryGradients[item.category] || categoryGradients.community;
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
-      <Header title="Details" onBack={() => go('explore')} />
-      
-      <View style={[styles.detailHero, { borderRadius: colors.radius, overflow: 'hidden' }]}>
-        <LinearGradient colors={gradient} style={StyleSheet.absoluteFill} />
-        <View style={styles.detailHeroContent}>
-          <View style={[styles.detailHeroIcon, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
-            <Feather name={categoryIcon[item.category]} size={32} color="#ffffff" />
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+        <Header title="Details" onBack={() => go('explore')} />
+
+        <View style={[styles.detailHero, { borderRadius: colors.radius, overflow: 'hidden' }]}>
+          <LinearGradient colors={gradient} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+          <View style={styles.detailHeroContent}>
+            <View style={[styles.detailHeroIcon, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+              <Feather name={categoryIcon[item.category]} size={36} color="#ffffff" />
+            </View>
+            <Text style={styles.detailCategoryText}>{categoryLabel[item.category]}</Text>
+            <Text style={styles.detailTitleText}>{item.title}</Text>
+            <Text style={styles.detailOrgText}>{item.organisation.name}{item.organisation.verified ? '  ·  Verified' : ''}</Text>
           </View>
-          <Text style={styles.detailCategoryText}>{categoryLabel[item.category]}</Text>
-          <Text style={styles.detailTitleText}>{item.title}</Text>
-          <Text style={styles.detailOrgText}>{item.organisation.name}{item.organisation.verified ? '  ·  Verified' : ''}</Text>
         </View>
-      </View>
 
-      <View style={styles.detailMetaGrid}>
-        <View style={styles.metaBox}>
-          <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHEN</Text>
-          <Text style={[styles.metaValue, { color: colors.foreground }]}>{dateLabel(item.date)}</Text>
-          <Text style={[styles.metaSub, { color: colors.mutedForeground }]}>{item.startTime} – {item.endTime}</Text>
+        <View style={styles.detailMetaGrid}>
+          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHEN</Text>
+            <Text style={[styles.metaValue, { color: colors.foreground }]}>{dateLabel(item.date)}</Text>
+            <Text style={[styles.metaSub, { color: colors.mutedForeground }]}>{item.startTime} – {item.endTime}</Text>
+          </View>
+          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHERE</Text>
+            <Text style={[styles.metaValue, { color: colors.foreground }]}>{item.city}</Text>
+            <Text style={[styles.metaSub, { color: colors.mutedForeground }]}>{item.location}</Text>
+          </View>
         </View>
-        <View style={styles.metaBox}>
-          <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHERE</Text>
-          <Text style={[styles.metaValue, { color: colors.foreground }]}>{item.city}</Text>
-          <Text style={[styles.metaSub, { color: colors.mutedForeground }]}>{item.location}</Text>
-        </View>
-      </View>
 
-      <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>About this experience</Text>
-      <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.description}</Text>
+        <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>About this experience</Text>
+        <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.description}</Text>
 
-      <View style={[styles.rewardPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-        <View style={styles.rewardCol}>
-          <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>YOU'LL EARN</Text>
-          <Text style={[styles.detailReward, { color: colors.primary }]}>+{item.xpReward} XP</Text>
-        </View>
-        {money(item.monetaryRewardPence) ? (
+        <View style={[styles.rewardPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <View style={styles.rewardCol}>
-            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>REWARD</Text>
-            <Text style={[styles.detailReward, { color: colors.success }]}>{money(item.monetaryRewardPence)}</Text>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>YOU'LL EARN</Text>
+            <Text style={[styles.detailReward, { color: colors.primary }]}>+{item.xpReward} XP</Text>
+          </View>
+          {money(item.monetaryRewardPence) ? (
+            <View style={styles.rewardCol}>
+              <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>REWARD</Text>
+              <Text style={[styles.detailReward, { color: colors.success }]}>{money(item.monetaryRewardPence)}</Text>
+            </View>
+          ) : null}
+          <View style={styles.rewardCol}>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>PLACES</Text>
+            <Text style={[styles.detailReward, { color: colors.foreground }]}>{item.availablePlaces}</Text>
+          </View>
+        </View>
+
+        {item.whatYouWillDo ? (
+          <View style={styles.infoBlock}>
+            <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What you'll do</Text>
+            <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatYouWillDo}</Text>
           </View>
         ) : null}
-        <View style={styles.rewardCol}>
-          <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>PLACES</Text>
-          <Text style={[styles.detailReward, { color: colors.foreground }]}>{item.availablePlaces}</Text>
-        </View>
-      </View>
 
-      {item.whatYouWillDo ? (
-        <View style={styles.infoBlock}>
-          <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What you'll do</Text>
-          <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatYouWillDo}</Text>
-        </View>
-      ) : null}
-      
-      {item.whatToBring ? (
-        <View style={styles.infoBlock}>
-          <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What to bring</Text>
-          <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatToBring}</Text>
-        </View>
-      ) : null}
+        {item.whatToBring ? (
+          <View style={styles.infoBlock}>
+            <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What to bring</Text>
+            <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatToBring}</Text>
+          </View>
+        ) : null}
 
-      <View style={styles.ctaWrap}>
+        <View style={{ height: 160 }} />
+      </ScrollView>
+
+      <View style={[styles.ctaWrap, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
         {item.joined && participation ? (
           <View>
             <View style={[styles.joinedBanner, { backgroundColor: colors.success + '15', borderRadius: colors.radius }]}>
-              <Feather name="check-circle" size={24} color={colors.success} />
+              <Feather name="check-circle" size={28} color={colors.success} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.joinedTitle, { color: colors.success }]}>You're participating</Text>
                 <Text style={[styles.joinedSub, { color: colors.success }]}>{participation.status === 'verified' ? 'Completion verified and reward issued.' : participation.status === 'submitted' ? 'Awaiting host verification.' : 'Show up, then submit your completion.'}</Text>
@@ -672,39 +691,39 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           <Button label={join.isPending ? 'Joining…' : 'Join experience'} disabled={join.isPending || item.availablePlaces === 0} onPress={() => void join.mutateAsync({ experienceId: item.id })} />
         )}
       </View>
-      <View style={{ height: 100 }} />
-    </ScrollView>
+    </View>
   );
 }
+
 function Experiences({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
   const upcoming = useListMyParticipations({ status: 'upcoming' });
   const completed = useListMyParticipations({ status: 'completed' });
   const [tab, setTab] = useState<'upcoming' | 'completed'>('upcoming');
   const data = tab === 'upcoming' ? upcoming.data : completed.data;
-  
+
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
-      <Header title="My experiences" subtitle="Your contribution, in progress." />
-      <View style={[styles.segment, { backgroundColor: colors.muted }]}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
+      <Header title="My journey" subtitle="Your contribution, in progress." />
+      <View style={[styles.segment, { backgroundColor: colors.muted, borderRadius: colors.radius }]}>
         {(['upcoming', 'completed'] as const).map((key) => (
-          <Pressable key={key} onPress={() => setTab(key)} style={[styles.segmentItem, tab === key && { backgroundColor: colors.card }]}>
+          <Pressable key={key} onPress={() => { triggerHaptic(); setTab(key); }} style={[styles.segmentItem, tab === key && { backgroundColor: colors.card, borderRadius: colors.radius - 4 }]}>
             <Text style={[styles.segmentText, { color: tab === key ? colors.foreground : colors.mutedForeground }]}>{key === 'upcoming' ? 'Upcoming' : 'Completed'}</Text>
           </Pressable>
         ))}
       </View>
-      
+
       {data?.length ? data.map((item) => (
-        <Pressable key={item.id} onPress={() => go('experience', { id: String(item.experience.id) })} style={[styles.participationCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+        <Pressable key={item.id} onPress={() => { triggerHaptic(); go('experience', { id: String(item.experience.id) }); }} style={[styles.participationCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <View style={styles.cardTop}>
             <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '15' }]}>
-              <Feather name={categoryIcon[item.experience.category]} size={20} color={colors.primary} />
+              <Feather name={categoryIcon[item.experience.category]} size={24} color={colors.primary} />
             </View>
             <View style={styles.cardCategory}>
               <Text style={[styles.categoryText, { color: colors.mutedForeground }]}>{dateLabel(item.experience.date)}</Text>
               <Text style={[styles.cardTitleSmall, { color: colors.foreground }]}>{item.experience.title}</Text>
             </View>
-            <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+            <Feather name="chevron-right" size={24} color={colors.mutedForeground} />
           </View>
           <View style={styles.statusRow}>
             <View style={[styles.statusPill, { backgroundColor: item.status === 'verified' ? colors.success + '15' : colors.secondary + '15' }]}>
@@ -714,15 +733,15 @@ function Experiences({ go }: { go: (screen: Screen, params?: Record<string, stri
           </View>
         </Pressable>
       )) : (
-        <EmptyState 
-          title={tab === 'upcoming' ? 'Nothing booked yet' : 'Your impact history starts here'} 
-          body={tab === 'upcoming' ? 'Find an experience that fits your time and interests.' : 'Once a host verifies your contribution, it will show up here.'} 
-          icon={tab === 'upcoming' ? 'calendar' : 'award'} 
+        <EmptyState
+          title={tab === 'upcoming' ? 'Nothing booked yet' : 'Your impact history starts here'}
+          body={tab === 'upcoming' ? 'Find an experience that fits your time and interests.' : 'Once a host verifies your contribution, it will show up here.'}
+          icon={tab === 'upcoming' ? 'calendar' : 'award'}
           actionLabel={tab === 'upcoming' ? 'Explore experiences' : undefined}
-          onAction={tab === 'upcoming' ? () => go('explore') : undefined}
+          onAction={tab === 'upcoming' ? () => { triggerHaptic(); go('explore'); } : undefined}
         />
       )}
-      <View style={{ height: 100 }} />
+      <View style={{ height: 120 }} />
     </ScrollView>
   );
 }
@@ -734,21 +753,21 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const completed = useListMyParticipations({ status: 'completed' });
   const friends = useListFriends();
   const requests = useListFriendRequests();
-  const update = useUpdateMe({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); } } });
-  const createFriend = useCreateFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); } } });
-  const accept = useAcceptFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); } } });
+  const update = useUpdateMe({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const createFriend = useCreateFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const accept = useAcceptFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
   const [editing, setEditing] = useState(false);
   const [city, setCity] = useState(user.city ?? '');
   const [bio, setBio] = useState(user.bio ?? '');
   const [username, setUsername] = useState('');
   const current = profile.data ?? user;
-  
+
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
       <Header title="Passport" subtitle="Your contribution identity." />
-      
+
       <View style={[styles.passportHero, { borderRadius: colors.radius, overflow: 'hidden' }]}>
-        <LinearGradient colors={['#F20789', '#6805F2']} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['#FF107A', '#6E00FF']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
         <View style={styles.passportHeroContent}>
           <View style={[styles.passportAvatar, { backgroundColor: '#ffffff' }]}>
             <Text style={[styles.passportInitial, { color: colors.primary }]}>{current.name.charAt(0).toUpperCase()}</Text>
@@ -760,7 +779,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
               <Text style={styles.passportLevelText}>{current.level.toUpperCase()}</Text>
             </View>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel={editing ? 'Close profile editor' : 'Edit profile'} onPress={() => setEditing((value) => !value)} style={[styles.iconButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={editing ? 'Close profile editor' : 'Edit profile'} onPress={() => { triggerHaptic(); setEditing((value) => !value); }} style={[styles.iconButton, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
             <Feather name={editing ? 'x' : 'edit-2'} size={20} color="#ffffff" />
           </Pressable>
         </View>
@@ -816,11 +835,11 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       </View>
       <View style={[styles.friendAdd, { borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius }]}>
         <TextInput accessibilityLabel="Friend username" value={username} onChangeText={setUsername} placeholder="@username" placeholderTextColor={colors.mutedForeground} style={[styles.friendInput, { color: colors.foreground }]} />
-        <Pressable accessibilityRole="button" accessibilityLabel="Add friend" accessibilityState={{ disabled: !username.trim() || createFriend.isPending }} disabled={!username.trim() || createFriend.isPending} onPress={() => void createFriend.mutateAsync({ data: { username: username.replace(/^@/, '') } }).then(() => setUsername(''))} style={[styles.addButton, { backgroundColor: colors.primary, borderRadius: colors.radius }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Add friend" accessibilityState={{ disabled: !username.trim() || createFriend.isPending }} disabled={!username.trim() || createFriend.isPending} onPress={() => void createFriend.mutateAsync({ data: { username: username.replace(/^@/, '') } }).then(() => setUsername(''))} style={[styles.addButton, { backgroundColor: colors.primary, borderRadius: colors.radius - 4 }]}>
           <Feather name="user-plus" size={20} color={colors.primaryForeground} />
         </Pressable>
       </View>
-      
+
       {requests.data?.map((request) => (
         <View key={request.id} style={[styles.requestRow, { backgroundColor: colors.secondary + '15', borderRadius: colors.radius }]}>
           <Text style={[styles.requestText, { color: colors.foreground }]}>{request.user.name} wants to connect</Text>
@@ -829,18 +848,19 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           </Pressable>
         </View>
       ))}
-      
+
       {friends.data?.length ? <Text style={[styles.friendList, { color: colors.inkSoft }]}>{friends.data.map((friend) => `@${friend.username ?? friend.name}`).join('  ·  ')}</Text> : null}
-      
+
       {current.participationType !== 'join' ? (
-        <View style={{ marginTop: 24 }}>
-          <Button label="Open host tools" variant="secondary" onPress={() => go('host')} />
+        <View style={{ marginTop: 32 }}>
+          <Button label="Open host tools" variant="secondary" onPress={() => { triggerHaptic(); go('host'); }} />
         </View>
       ) : null}
-      <View style={{ height: 100 }} />
+      <View style={{ height: 120 }} />
     </ScrollView>
   );
 }
+
 function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
   const queryClient = useQueryClient();
@@ -848,14 +868,14 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
   const experiences = useListHostExperiences();
   const [selected, setSelected] = useState<number | null>(null);
   const participants = useListExperienceParticipants(selected ?? 0, { query: { enabled: selected !== null, queryKey: getListExperienceParticipantsQueryKey(selected ?? 0) } });
-  const attend = useMarkAttendance({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); } } });
-  const verify = useVerifyParticipation({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); } } });
-  const reject = useRejectParticipation({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); } } });
-  
+  const attend = useMarkAttendance({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const verify = useVerifyParticipation({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const reject = useRejectParticipation({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
       <Header title="Host tools" subtitle={overview.data?.organisation?.name ?? 'Create your first opportunity'} onBack={() => go('home')} />
-      
+
       <View style={styles.hostStats}>
         {[['Upcoming', overview.data?.upcomingExperiences ?? 0], ['Participants', overview.data?.participantCount ?? 0], ['To verify', overview.data?.pendingVerifications ?? 0]].map(([label, value]) => (
           <View key={String(label)} style={[styles.hostStat, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
@@ -864,29 +884,29 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
           </View>
         ))}
       </View>
-      
-      <Button label="Create experience" icon="plus" onPress={() => go('create')} />
-      
+
+      <Button label="Create experience" icon="plus" onPress={() => { triggerHaptic(); go('create'); }} />
+
       <View style={styles.socialHeader}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your experiences</Text>
         <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{experiences.data?.length ?? 0} published</Text>
       </View>
-      
+
       {experiences.data?.length ? experiences.data.map((item) => (
-        <Pressable key={item.id} onPress={() => setSelected(selected === item.id ? null : item.id)} style={[styles.participationCard, { backgroundColor: selected === item.id ? colors.primary + '10' : colors.card, borderColor: selected === item.id ? colors.primary : colors.border, borderRadius: colors.radius }]}>
+        <Pressable key={item.id} onPress={() => { triggerHaptic(); setSelected(selected === item.id ? null : item.id); }} style={[styles.participationCard, { backgroundColor: selected === item.id ? colors.primary + '10' : colors.card, borderColor: selected === item.id ? colors.primary : colors.border, borderRadius: colors.radius }]}>
           <View style={styles.cardTop}>
             <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '15' }]}>
-              <Feather name={categoryIcon[item.category]} size={20} color={colors.primary} />
+              <Feather name={categoryIcon[item.category]} size={24} color={colors.primary} />
             </View>
             <View style={styles.cardCategory}>
               <Text style={[styles.categoryText, { color: colors.mutedForeground }]}>{dateLabel(item.date)} · {item.availablePlaces} spots left</Text>
               <Text style={[styles.cardTitleSmall, { color: colors.foreground }]}>{item.title}</Text>
             </View>
-            <Feather name={selected === item.id ? 'chevron-down' : 'chevron-right'} size={20} color={colors.mutedForeground} />
+            <Feather name={selected === item.id ? 'chevron-down' : 'chevron-right'} size={24} color={colors.mutedForeground} />
           </View>
         </Pressable>
       )) : <EmptyState title="No experience published" body="Create a real volunteering opportunity and it will appear here." icon="edit-3" />}
-      
+
       {selected !== null ? (
         <View style={{ marginTop: 24 }}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Participants</Text>
@@ -908,12 +928,12 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
                   <Button label="Reject" variant="secondary" onPress={() => void reject.mutateAsync({ participationId: item.id })} />
                 </View>
               ) : null}
-              {item.status === 'verified' ? <Feather name="check-circle" size={24} color={colors.success} /> : null}
+              {item.status === 'verified' ? <Feather name="check-circle" size={28} color={colors.success} /> : null}
             </View>
           )) : <EmptyState title="No participants yet" body="When people join, you'll manage attendance and completion here." icon="users" />}
         </View>
       ) : null}
-      <View style={{ height: 100 }} />
+      <View style={{ height: 120 }} />
     </ScrollView>
   );
 }
@@ -930,13 +950,13 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
     xpReward: 150,
     monetaryRewardPence: null,
   });
-  
+
   const set = (key: keyof ExperienceCreateInput, value: string | number | null) => {
     const numeric = key === 'capacity' || key === 'xpReward' || key === 'monetaryRewardPence';
     const nextValue = numeric ? (value === '' || value === null ? null : Number(value)) : value;
     setForm((current) => ({ ...current, [key]: nextValue }));
   };
-  
+
   const valid = Boolean(
     form.organisationName?.trim()
     && form.title?.trim()
@@ -965,6 +985,7 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
     valid;
 
   const publish = async () => {
+    triggerHaptic();
     if (!valid || create.isPending) return;
     await create.mutateAsync({
       data: {
@@ -987,16 +1008,10 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
     });
     go('host');
   };
-  
-  const field = (
-    key: keyof ExperienceCreateInput,
-    label: string,
-    placeholder: string,
-    multiline = false,
-    keyboardType: 'default' | 'number-pad' = 'default',
-  ) => (
+
+  const field = (key: keyof ExperienceCreateInput, label: string, placeholder: string, multiline = false, keyboardType: 'default' | 'number-pad' = 'default') => (
     <View style={styles.createField}>
-      <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
+      <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>{label.toUpperCase()}</Text>
       <TextInput
         accessibilityLabel={label}
         value={form[key] == null ? '' : String(form[key])}
@@ -1008,7 +1023,7 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
         style={[
           styles.createInput,
           multiline && styles.createTextArea,
-          { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card },
+          { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius - 8 },
         ]}
       />
     </View>
@@ -1023,19 +1038,19 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
   ];
 
   return (
-    <KeyboardAvoidingView style={[styles.screen, { backgroundColor: '#FFF8FC' }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={[styles.screen, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
-        contentContainerStyle={[styles.createContent, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 28 }]}
+        contentContainerStyle={[styles.createContent, { paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 60) : insets.top + 20, paddingBottom: insets.bottom + 40 }]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.createTopBar}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={step === 1 ? 'Close create experience' : 'Previous step'}
-            onPress={() => step > 1 ? setStep((current) => current - 1) : go('host')}
-            style={[styles.createRoundButton, { backgroundColor: colors.card }]}
+            onPress={() => { triggerHaptic(); step > 1 ? setStep((current) => current - 1) : go('host'); }}
+            style={[styles.createRoundButton, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
           >
-            <Feather name={step === 1 ? 'x' : 'arrow-left'} size={19} color={colors.foreground} />
+            <Feather name={step === 1 ? 'x' : 'arrow-left'} size={22} color={colors.foreground} />
           </Pressable>
           <View accessibilityLabel={`Step ${step} of 4`} style={styles.createProgress}>
             {[1, 2, 3, 4].map((item) => (
@@ -1044,8 +1059,8 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
                 style={[
                   styles.createProgressBar,
                   {
-                    width: item === step ? 32 : 20,
-                    backgroundColor: item === step ? colors.primary : item < step ? colors.teal : '#E8DCE9',
+                    width: item === step ? 40 : 24,
+                    backgroundColor: item === step ? colors.primary : item < step ? colors.primary + '80' : colors.muted,
                   },
                 ]}
               />
@@ -1063,9 +1078,9 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
         <View style={styles.createFields}>
           {step === 1 && (
             <>
-              <View style={styles.createTip}>
-                <Feather name="star" size={18} color={colors.secondary} />
-                <Text style={styles.createTipText}><Text style={styles.createTipStrong}>People join people.</Text> Tell participants who is behind this experience.</Text>
+              <View style={[styles.createTip, { backgroundColor: colors.secondary + '15' }]}>
+                <Feather name="star" size={20} color={colors.secondary} />
+                <Text style={[styles.createTipText, { color: colors.secondary }]}><Text style={styles.createTipStrong}>People join people.</Text> Tell participants who is behind this experience.</Text>
               </View>
               {field('organisationName', 'Organisation name', 'e.g. The Good Gym')}
               {field('organisationDescription', 'What does your organisation do?', 'A sentence or two about your community', true)}
@@ -1081,26 +1096,25 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
                 <View style={styles.createCategoryGrid}>
                   {categories.slice(1).map((item) => {
                     const active = form.category === item.key;
-                    const tint = item.key === 'environmental' ? '#E4F8F8' : item.key === 'community' ? '#FFF0F8' : '#F1EBFF';
+                    const tint = item.key === 'environmental' ? colors.teal + '15' : item.key === 'community' ? colors.primary + '15' : colors.secondary + '15';
                     const iconColor = item.key === 'environmental' ? colors.teal : item.key === 'community' ? colors.primary : colors.secondary;
                     return (
                       <Pressable
                         key={item.key}
                         accessibilityRole="button"
                         accessibilityState={{ selected: active }}
-                        onPress={() => set('category', item.key)}
+                        onPress={() => { triggerHaptic(); set('category', item.key); }}
                         style={[
                           styles.createCategory,
                           {
                             backgroundColor: colors.card,
-                            borderColor: active ? colors.primary : 'transparent',
-                            shadowColor: active ? '#FFD2EA' : '#000000',
-                            shadowOpacity: active ? 1 : 0.06,
+                            borderColor: active ? iconColor : colors.border,
+                            borderRadius: colors.radius - 8,
                           },
                         ]}
                       >
                         <View style={[styles.createCategoryIcon, { backgroundColor: tint }]}>
-                          <Feather name={item.icon} size={19} color={active ? iconColor : colors.mutedForeground} />
+                          <Feather name={item.icon} size={22} color={active ? iconColor : colors.mutedForeground} />
                         </View>
                         <Text style={[styles.createCategoryText, { color: active ? iconColor : colors.mutedForeground }]}>{item.label}</Text>
                       </Pressable>
@@ -1122,9 +1136,9 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
                 <View style={styles.createFieldHalf}>{field('endTime', 'Ends', '13:00')}</View>
               </View>
               {field('location', 'Meeting point', 'A clear place people can find')}
-              <View style={[styles.createRewardPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[styles.createRewardPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 4 }]}>
                 <View style={styles.createRewardHeading}>
-                  <Feather name="credit-card" size={18} color={colors.secondary} />
+                  <Feather name="credit-card" size={20} color={colors.secondary} />
                   <Text style={[styles.createRewardTitle, { color: colors.foreground }]}>Make joining easy</Text>
                 </View>
                 <View style={styles.createFieldRow}>
@@ -1141,18 +1155,18 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
             <>
               {field('whatYouWillDo', 'What will participants do?', 'Walk, make, chat, discover...', true)}
               {field('whatToBring', 'What should they bring?', 'Comfortable shoes and a curious mind', true)}
-              <View style={styles.createPreview}>
+              <View style={[styles.createPreview, { backgroundColor: colors.secondary, borderRadius: colors.radius }]}>
                 <View style={styles.createPreviewTop}>
-                  <Text style={styles.createPreviewEyebrow}>LIVE PREVIEW</Text>
+                  <Text style={[styles.createPreviewEyebrow, { color: colors.primary }]}>LIVE PREVIEW</Text>
                   <Text style={styles.createPreviewCategory}>{form.category ? categoryLabel[form.category] : 'Community'}</Text>
                 </View>
                 <Text style={styles.createPreviewTitle}>{form.title || 'Your experience title'}</Text>
                 <Text style={styles.createPreviewBody}>{form.description || 'Your welcoming description will appear here.'}</Text>
                 <View style={styles.createPreviewGrid}>
-                  <View style={styles.createPreviewMeta}><Feather name="calendar" size={14} color={colors.teal} /><Text style={styles.createPreviewMetaText}>{form.date || 'Date'}</Text></View>
-                  <View style={styles.createPreviewMeta}><Feather name="clock" size={14} color={colors.teal} /><Text style={styles.createPreviewMetaText}>{form.startTime || 'Start'}–{form.endTime || 'End'}</Text></View>
-                  <View style={styles.createPreviewMeta}><Feather name="map-pin" size={14} color={colors.teal} /><Text style={styles.createPreviewMetaText}>{form.city || 'City'}</Text></View>
-                  <View style={styles.createPreviewMeta}><Feather name="users" size={14} color={colors.teal} /><Text style={styles.createPreviewMetaText}>{form.capacity || 0} places</Text></View>
+                  <View style={styles.createPreviewMeta}><Feather name="calendar" size={16} color={colors.teal} /><Text style={styles.createPreviewMetaText}>{form.date || 'Date'}</Text></View>
+                  <View style={styles.createPreviewMeta}><Feather name="clock" size={16} color={colors.teal} /><Text style={styles.createPreviewMetaText}>{form.startTime || 'Start'}–{form.endTime || 'End'}</Text></View>
+                  <View style={styles.createPreviewMeta}><Feather name="map-pin" size={16} color={colors.teal} /><Text style={styles.createPreviewMetaText}>{form.city || 'City'}</Text></View>
+                  <View style={styles.createPreviewMeta}><Feather name="users" size={16} color={colors.teal} /><Text style={styles.createPreviewMetaText}>{form.capacity || 0} places</Text></View>
                 </View>
               </View>
             </>
@@ -1170,20 +1184,20 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Start over"
-              onPress={() => setStep(1)}
-              style={[styles.createReset, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => { triggerHaptic(); setStep(1); }}
+              style={[styles.createReset, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 8 }]}
             >
-              <Feather name="rotate-ccw" size={18} color={colors.mutedForeground} />
+              <Feather name="rotate-ccw" size={20} color={colors.mutedForeground} />
             </Pressable>
           )}
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ disabled: !canContinue || create.isPending }}
             disabled={!canContinue || create.isPending}
-            onPress={() => step < 4 ? setStep((current) => current + 1) : void publish()}
+            onPress={() => { triggerHaptic(); step < 4 ? setStep((current) => current + 1) : void publish(); }}
             style={({ pressed }) => [
               styles.createPrimary,
-              { backgroundColor: canContinue && !create.isPending ? colors.primary : '#D8CBD8' },
+              { backgroundColor: canContinue && !create.isPending ? colors.primary : colors.muted, borderRadius: colors.radius - 8 },
               pressed && canContinue && !create.isPending && styles.createPrimaryPressed,
             ]}
           >
@@ -1191,8 +1205,8 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
               ? <ActivityIndicator color={colors.primaryForeground} />
               : (
                 <>
-                  <Text style={styles.createPrimaryText}>{step === 4 ? 'Publish experience' : 'Keep going'}</Text>
-                  <Feather name={step === 4 ? 'send' : 'arrow-right'} size={18} color={colors.primaryForeground} />
+                  <Text style={[styles.createPrimaryText, { color: canContinue ? colors.primaryForeground : colors.mutedForeground }]}>{step === 4 ? 'Publish experience' : 'Keep going'}</Text>
+                  <Feather name={step === 4 ? 'send' : 'arrow-right'} size={20} color={canContinue ? colors.primaryForeground : colors.mutedForeground} />
                 </>
               )}
           </Pressable>
@@ -1214,15 +1228,17 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
     { key: 'profile', label: 'Passport', icon: 'user' }
   ];
   return (
-    <View style={[styles.bottomNav, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: Platform.OS === 'web' ? 34 : 24 }]}>
-      {items.map((item) => { 
-        const selected = active === item.key; 
+    <View style={[styles.bottomNav, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: Platform.OS === 'web' ? 34 : 28 }]}>
+      {items.map((item) => {
+        const selected = active === item.key;
         return (
-          <Pressable accessibilityRole="button" accessibilityLabel={item.label} accessibilityState={{ selected }} key={item.key} onPress={() => go(item.key)} style={styles.navItem}>
-            <Feather name={item.icon} size={24} color={selected ? colors.primary : colors.mutedForeground} style={{ marginBottom: 4 }} />
+          <Pressable accessibilityRole="button" accessibilityLabel={item.label} accessibilityState={{ selected }} key={item.key} onPress={() => { triggerHaptic(); go(item.key); }} style={styles.navItem}>
+            <View style={[styles.navIconWrapper, selected && { backgroundColor: colors.primary + '15' }]}>
+              <Feather name={item.icon} size={22} color={selected ? colors.primary : colors.mutedForeground} />
+            </View>
             <Text style={[styles.navLabel, { color: selected ? colors.primary : colors.mutedForeground }]}>{item.label}</Text>
           </Pressable>
-        ); 
+        );
       })}
     </View>
   );
@@ -1238,11 +1254,13 @@ export default function App() {
   const [experienceId, setExperienceId] = useState(params.id);
   const displayUser = user ?? guestUser;
   const guestOnboarded = onboarded || params.onboarded === '1';
+
   const go = (next: Screen, nextParams?: Record<string, string>) => {
     setScreen(next);
     if (nextParams?.id) setExperienceId(nextParams.id);
     router.setParams({ screen: next, onboarded: guestOnboarded ? '1' : undefined, ...nextParams });
   };
+
   const needsOnboarding = Boolean((!user || !user.city || !user.interests?.length || !user.participationType) && !guestOnboarded);
 
   const content = (() => {
@@ -1258,12 +1276,12 @@ export default function App() {
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Connecting to Telegram…</Text>
+        <ActivityIndicator color={colors.primary} size="large" />
+        <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Connecting to experiences.fun…</Text>
       </View>
     );
   }
-  
+
   if (needsOnboarding) {
     return <Onboarding user={displayUser} guest={!user} onDone={() => {
       setOnboarded(true);
@@ -1271,7 +1289,7 @@ export default function App() {
       if (!user) router.setParams({ screen: 'home', onboarded: '1' });
     }} />;
   }
-  
+
   const noNav = ['experience', 'create', 'host'].includes(screen);
   return (
     <View style={[styles.app, { backgroundColor: colors.background }]}>
@@ -1280,41 +1298,42 @@ export default function App() {
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   app: { flex: 1 },
   screen: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingHorizontal: 20 },
   header: { paddingBottom: 24, flexDirection: 'row', alignItems: 'flex-start' },
-  backButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  backButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
   headerCopy: { flex: 1 },
-  eyebrow: { fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1, marginBottom: 4 },
-  headerTitle: { fontSize: 28, fontFamily: 'Inter_700Bold' },
-  headerSubtitle: { fontSize: 15, fontFamily: 'Inter_400Regular', marginTop: 4 },
-  button: { minHeight: 56, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
-  buttonText: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
+  headerTitle: { fontSize: 32, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
+  headerSubtitle: { fontSize: 16, fontFamily: 'Inter_400Regular', marginTop: 6, lineHeight: 22 },
+
+  button: { minHeight: 60, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
+  buttonText: { fontSize: 17, fontFamily: 'Inter_700Bold', letterSpacing: 0.2 },
+
   emptyState: { padding: 32, alignItems: 'center', justifyContent: 'center', borderWidth: 1, marginVertical: 24 },
-  emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 8, textAlign: 'center' },
-  emptyBody: { fontSize: 15, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 22 },
+  emptyIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  emptyTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', marginBottom: 8, textAlign: 'center', letterSpacing: -0.3 },
+  emptyBody: { fontSize: 16, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 24 },
+
   loading: { padding: 40, alignItems: 'center', justifyContent: 'center' },
-  loadingText: { marginTop: 16, fontSize: 15, fontFamily: 'Inter_500Medium' },
+  loadingText: { marginTop: 16, fontSize: 16, fontFamily: 'Inter_500Medium' },
   
   // Experience Card
-  experienceCard: { borderWidth: 1, marginBottom: 20, overflow: 'hidden' },
+  experienceCard: { borderWidth: 1, overflow: 'hidden' },
   cardImage: { height: 160, alignItems: 'center', justifyContent: 'center' },
-  cardContent: { padding: 16 },
+  cardContent: { padding: 20 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-  cardHeaderLeft: { flex: 1, paddingRight: 12 },
-  cardTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 4, lineHeight: 24 },
-  cardOrg: { fontSize: 14, fontFamily: 'Inter_500Medium' },
-  xpBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  xpBadgeText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  cardHeaderLeft: { flex: 1, paddingRight: 16 },
+  cardTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', marginBottom: 6, lineHeight: 26, letterSpacing: -0.3 },
+  cardOrg: { fontSize: 15, fontFamily: 'Inter_500Medium' },
+  xpBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  xpBadgeText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   cardDetails: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 16 },
   detailItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  detailText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
-  cardAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginTop: 16 },
-  cardActionText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  detailText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
   
   // Talent / Onboarding
   talentScreen: { flex: 1 },
@@ -1322,291 +1341,265 @@ const styles = StyleSheet.create({
   talentTop: { flex: 1, justifyContent: 'center' },
   talentTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12 },
   talentBrandMark: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  talentBrandIcon: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  talentBrand: { fontSize: 15, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 },
-  talentTopAction: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  talentBrandIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  talentBrand: { fontSize: 17, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 },
   talentIntro: { alignItems: 'center', paddingTop: 10 },
-  talentEyebrow: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.4, marginBottom: 10 },
-  talentTitle: { fontSize: 38, fontFamily: 'Inter_700Bold', textAlign: 'center', lineHeight: 44, letterSpacing: -1.2 },
-  talentTitleSoft: { maxWidth: 300, fontSize: 15, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 12, lineHeight: 22 },
-  talentArtwork: { width: '100%', height: 184, marginTop: 10, position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  talentArtworkBlob: { position: 'absolute', opacity: 0.2 },
-  talentArtworkBlobLarge: { width: 162, height: 162, borderRadius: 81, left: 28, top: 10 },
-  talentArtworkBlobSmall: { width: 108, height: 108, borderRadius: 54, right: 28, bottom: 6 },
-  talentArtworkCard: { position: 'absolute', borderWidth: 1, borderRadius: 20, shadowColor: '#000000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
-  talentArtworkCardBack: { width: 130, height: 98, left: 38, top: 36, padding: 16, transform: [{ rotate: '-8deg' }] },
-  talentArtworkCardFront: { width: 194, height: 126, right: 24, top: 28, padding: 16, transform: [{ rotate: '6deg' }] },
-  talentArtworkCardText: { fontSize: 14, fontFamily: 'Inter_700Bold', marginTop: 10 },
-  talentArtworkIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  talentArtworkLines: { position: 'absolute', left: 76, top: 18, gap: 8 },
-  talentArtworkLine: { width: 82, height: 7, borderRadius: 4, opacity: 0.8 },
-  talentArtworkLineShort: { width: 54, height: 7, borderRadius: 4 },
-  talentArtworkPill: { position: 'absolute', left: 16, bottom: 14, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10 },
-  talentArtworkPillText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
-  talentFormPanel: { gap: 12, marginHorizontal: -8, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, borderWidth: 1, borderRadius: 28, shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: -4 }, elevation: 3 },
-  talentSheetKicker: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2 },
-  talentSheetTitle: { fontSize: 24, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
-  talentSheetBody: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20, marginBottom: 2 },
-  talentEmailRow: { height: 52, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 16 },
-  talentSocialRow: { flexDirection: 'row', gap: 10 },
-  talentSocialButton: { flex: 1, minHeight: 50, paddingHorizontal: 8 },
-  talentFieldLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 8 },
-  talentEmailInput: { flex: 1, height: 50, paddingHorizontal: 0, fontSize: 16, fontFamily: 'Inter_400Regular' },
-  talentDividerText: { textAlign: 'center', fontSize: 14, fontFamily: 'Inter_500Medium', marginVertical: 2 },
+  talentEyebrow: { fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1.4, marginBottom: 12 },
+  talentTitle: { fontSize: 44, fontFamily: 'Inter_700Bold', textAlign: 'center', lineHeight: 50, letterSpacing: -1.5 },
+  talentTitleSoft: { maxWidth: 300, fontSize: 16, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 16, lineHeight: 24 },
+  talentArtwork: { width: '100%', height: 200, marginTop: 20, position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  talentArtworkBlob: { position: 'absolute', opacity: 0.15 },
+  talentArtworkBlobLarge: { width: 180, height: 180, borderRadius: 90, left: 20, top: 10 },
+  talentArtworkBlobSmall: { width: 120, height: 120, borderRadius: 60, right: 20, bottom: 6 },
+  talentArtworkCard: { position: 'absolute', borderWidth: 1, borderRadius: 24, shadowColor: '#000000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 4 },
+  talentArtworkCardBack: { width: 140, height: 110, left: 30, top: 40, padding: 20, transform: [{ rotate: '-8deg' }] },
+  talentArtworkCardFront: { width: 210, height: 140, right: 14, top: 30, padding: 20, transform: [{ rotate: '6deg' }] },
+  talentArtworkCardText: { fontSize: 16, fontFamily: 'Inter_700Bold', marginTop: 12 },
+  talentArtworkIcon: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  talentArtworkLines: { position: 'absolute', left: 84, top: 22, gap: 10 },
+  talentArtworkLine: { width: 90, height: 8, borderRadius: 4, opacity: 0.8 },
+  talentArtworkLineShort: { width: 60, height: 8, borderRadius: 4 },
+  talentArtworkPill: { position: 'absolute', left: 18, bottom: 18, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  talentArtworkPillText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  talentFormPanel: { gap: 14, marginHorizontal: -8, paddingHorizontal: 24, paddingTop: 28, paddingBottom: 24, borderWidth: 1, borderRadius: 32, shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 20, shadowOffset: { width: 0, height: -6 }, elevation: 5 },
+  talentSheetTitle: { fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
+  talentSheetBody: { fontSize: 15, fontFamily: 'Inter_400Regular', lineHeight: 22, marginBottom: 8 },
+  talentEmailRow: { height: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1.5, borderRadius: 20 },
+  talentSocialRow: { flexDirection: 'row', gap: 12 },
+  talentSocialButton: { flex: 1, minHeight: 56, paddingHorizontal: 8 },
+  talentEmailInput: { flex: 1, height: 56, paddingHorizontal: 0, fontSize: 17, fontFamily: 'Inter_400Regular' },
+  talentDividerText: { textAlign: 'center', fontSize: 15, fontFamily: 'Inter_500Medium', marginVertical: 6 },
   
   onboarding: { flex: 1 },
   onboardingTopBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 16 },
-  onboardingBack: { width: 44, height: 44, justifyContent: 'center' },
-  skipText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
-  stepLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  onboardingBack: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  skipText: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
+  stepLabel: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
   onboardingContent: { paddingHorizontal: 24, paddingBottom: 40 },
   onboardingSlide: { flex: 1, justifyContent: 'center', paddingVertical: 40 },
-  onboardingEyebrow: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.2, marginBottom: 12 },
-  secondScreenIcon: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
-  onboardingSmallTitle: { fontSize: 28, fontFamily: 'Inter_700Bold', marginBottom: 12 },
-  onboardingBody: { fontSize: 16, fontFamily: 'Inter_400Regular', lineHeight: 24, marginBottom: 32 },
-  onboardingForm: { gap: 16 },
-  onboardingFieldLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: -8 },
-  onboardingInputRow: { minHeight: 60, borderWidth: 1, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  onboardingNameInput: { flex: 1, height: 60, paddingHorizontal: 0, fontSize: 18, fontFamily: 'Inter_500Medium' },
-  inputHint: { fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 8 },
-  onboardingChoices: { gap: 12 },
-  choiceCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderWidth: 1 },
-  choiceTitle: { flex: 1, fontSize: 16, fontFamily: 'Inter_600SemiBold', marginLeft: 16 },
-  formLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold', marginTop: 24, marginBottom: 8 },
-  participationCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderWidth: 1, marginBottom: 12 },
-  onboardingArtwork: { height: 200, marginBottom: 40, alignItems: 'center', justifyContent: 'center' },
+  onboardingEyebrow: { fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1.4, marginBottom: 16 },
+  secondScreenIcon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 32 },
+  onboardingSmallTitle: { fontSize: 32, fontFamily: 'Inter_700Bold', marginBottom: 16, letterSpacing: -0.5 },
+  onboardingBody: { fontSize: 17, fontFamily: 'Inter_400Regular', lineHeight: 26, marginBottom: 36 },
+  onboardingForm: { gap: 20 },
+  onboardingFieldLabel: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: -10 },
+  onboardingInputRow: { minHeight: 64, borderWidth: 1.5, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  onboardingNameInput: { flex: 1, height: 64, paddingHorizontal: 0, fontSize: 18, fontFamily: 'Inter_500Medium' },
+  cityInput: { height: 64, paddingHorizontal: 20, borderWidth: 1.5 },
+  inputHint: { fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 10 },
+  onboardingChoices: { gap: 14 },
+  choiceCard: { flexDirection: 'row', alignItems: 'center', padding: 22, borderWidth: 1.5 },
+  choiceTitle: { flex: 1, fontSize: 17, fontFamily: 'Inter_600SemiBold', marginLeft: 16 },
+  formLabel: { fontSize: 15, fontFamily: 'Inter_600SemiBold', marginTop: 28, marginBottom: 10 },
+  onboardingParticipationCard: { flexDirection: 'row', alignItems: 'center', padding: 22, borderWidth: 1.5, marginBottom: 14 },
+  onboardingArtwork: { height: 220, marginBottom: 44, alignItems: 'center', justifyContent: 'center' },
   artworkBlob: { position: 'absolute' },
-  artworkCircle: { width: 88, height: 88, borderRadius: 44, borderWidth: 2, alignItems: 'center', justifyContent: 'center', zIndex: 10 },
-  onboardingFooter: { paddingHorizontal: 24, paddingTop: 16 },
-  onboardingDots: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 24 },
-  onboardingDot: { width: 8, height: 8, borderRadius: 4 },
+  artworkCircle: { width: 96, height: 96, borderRadius: 48, borderWidth: 2, alignItems: 'center', justifyContent: 'center', zIndex: 10 },
+  onboardingFooter: { paddingHorizontal: 24, paddingTop: 20 },
+  onboardingDots: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 28 },
+  onboardingDot: { width: 10, height: 10, borderRadius: 5 },
   
   // Home
   dashboardScreen: { flex: 1 },
-  dashboardContent: { paddingHorizontal: 18, paddingBottom: 20 },
-  dashboardTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  dashboardBrand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dashboardBrandIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  dashboardBrandText: { fontSize: 15, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 },
-  dashboardAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
-  dashboardAvatarText: { fontSize: 15, fontFamily: 'Inter_700Bold' },
-  dashboardHero: { minHeight: 276, paddingHorizontal: 24, paddingTop: 38, marginBottom: -34, position: 'relative' },
-  dashboardGlow: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 999 },
-  dashboardGlowOne: { width: 220, height: 220, right: -82, top: -82 },
-  dashboardGlowTwo: { width: 160, height: 160, left: -60, bottom: -76 },
-  dashboardWelcome: { color: 'rgba(255,255,255,0.78)', fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.4, textAlign: 'center', marginBottom: 5 },
-  dashboardName: { color: '#ffffff', fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', textAlign: 'center', letterSpacing: -0.8 },
-  dashboardHeroBody: { color: 'rgba(255,255,255,0.84)', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 6, paddingHorizontal: 20 },
-  dashboardStatusStrip: { minHeight: 72, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.92)', flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 22 },
-  dashboardStatusIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 3 },
-  dashboardStatusNumber: { color: '#ffffff', fontSize: 16, fontFamily: 'Inter_700Bold' },
+  dashboardContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  dashboardTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  dashboardBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dashboardBrandIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  dashboardBrandText: { fontSize: 17, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 },
+  dashboardAvatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  dashboardAvatarText: { fontSize: 17, fontFamily: 'Inter_700Bold' },
+  dashboardHero: { minHeight: 280, paddingHorizontal: 28, paddingTop: 42, marginBottom: -36, position: 'relative' },
+  dashboardGlow: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 999 },
+  dashboardGlowOne: { width: 260, height: 260, right: -90, top: -90 },
+  dashboardGlowTwo: { width: 180, height: 180, left: -70, bottom: -80 },
+  dashboardWelcome: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1.6, textAlign: 'center', marginBottom: 8 },
+  dashboardName: { color: '#ffffff', fontSize: 36, lineHeight: 42, fontFamily: 'Inter_700Bold', textAlign: 'center', letterSpacing: -1 },
+  dashboardHeroBody: { color: 'rgba(255,255,255,0.9)', fontSize: 16, lineHeight: 24, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 10, paddingHorizontal: 24 },
+  dashboardStatusStrip: { minHeight: 80, borderRadius: 24, backgroundColor: '#ffffff', flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 12, marginTop: 28 },
+  dashboardStatusIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 },
+  dashboardStatusNumber: { color: '#ffffff', fontSize: 18, fontFamily: 'Inter_700Bold' },
   dashboardStatusCopy: { flex: 1 },
-  dashboardStatusTitle: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_700Bold' },
-  dashboardStatusSub: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
-  dashboardPassportCard: { marginHorizontal: 8, borderWidth: 1, borderRadius: 24, overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 5, marginBottom: 28 },
-  dashboardPassportTop: { minHeight: 142, padding: 20, paddingTop: 54, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dashboardCardEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2, marginBottom: 7 },
-  dashboardPassportTitle: { fontSize: 23, fontFamily: 'Inter_700Bold', letterSpacing: -0.4, marginBottom: 8 },
-  dashboardPassportMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dashboardPassportMetaText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
-  dashboardPassportArt: { width: 72, height: 72, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  dashboardPassportFooter: { minHeight: 58, paddingHorizontal: 18, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  dashboardPassportStat: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  dashboardPassportButton: { minHeight: 38, paddingHorizontal: 17, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  dashboardPassportButtonText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  dashboardSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 13, marginTop: 4 },
-  dashboardSectionTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
-  dashboardSeeAll: { fontSize: 13, fontFamily: 'Inter_700Bold' },
-  dashboardActionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 28 },
-  dashboardAction: { width: '48%', minHeight: 58, borderWidth: 1, borderRadius: 18, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dashboardActionIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  dashboardActionLabel: { flex: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  dashboardEventCard: { minHeight: 76, borderWidth: 1, borderRadius: 20, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-  dashboardEmptyEvent: { minHeight: 82, borderWidth: 1, borderRadius: 20, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  dashboardEventIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  dashboardStatusTitle: { fontSize: 15, lineHeight: 22, fontFamily: 'Inter_700Bold' },
+  dashboardStatusSub: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_400Regular' },
+  dashboardPassportCard: { marginHorizontal: 8, borderWidth: 1, overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 6, marginBottom: 32 },
+  dashboardPassportTop: { minHeight: 150, padding: 24, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dashboardCardEyebrow: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.4, marginBottom: 10 },
+  dashboardPassportTitle: { fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5, marginBottom: 10 },
+  dashboardPassportMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  dashboardPassportMetaText: { fontSize: 15, fontFamily: 'Inter_500Medium' },
+  dashboardPassportArt: { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  dashboardPassportFooter: { minHeight: 64, paddingHorizontal: 24, borderTopWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dashboardPassportStat: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  dashboardPassportButton: { minHeight: 44, paddingHorizontal: 20, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  dashboardPassportButtonText: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  dashboardSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, marginTop: 8 },
+  dashboardSectionTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
+  dashboardSeeAll: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  dashboardActionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 36 },
+  dashboardAction: { width: '48%', minHeight: 64, borderWidth: 1, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  dashboardActionIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  dashboardActionLabel: { flex: 1, fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  dashboardEventCard: { minHeight: 88, borderWidth: 1, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 },
+  dashboardEmptyEvent: { minHeight: 96, borderWidth: 1, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 },
+  dashboardEventIcon: { width: 60, height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   dashboardEventCopy: { flex: 1 },
-  dashboardEventTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 4 },
-  dashboardEventMeta: { fontSize: 12, fontFamily: 'Inter_400Regular' },
-  dashboardXpPill: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 10 },
-  dashboardXpText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
-  impactBanner: { padding: 24, marginBottom: 32, minHeight: 180, justifyContent: 'center' },
-  bannerCopy: { position: 'relative', zIndex: 10 },
-  bannerKicker: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1, marginBottom: 8 },
-  bannerTitle: { color: '#ffffff', fontSize: 28, fontFamily: 'Inter_700Bold', lineHeight: 34, marginBottom: 16 },
-  bannerLinkBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, gap: 8 },
-  bannerLinkText: { color: '#F20789', fontSize: 14, fontFamily: 'Inter_700Bold' },
-  bannerIcon: { position: 'absolute', right: -20, bottom: -20, opacity: 0.1, zIndex: 1 },
-  
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16, marginTop: 16 },
-  sectionTitle: { fontSize: 20, fontFamily: 'Inter_700Bold' },
-  seeAll: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  
-  progressCard: { padding: 20, borderWidth: 1, marginBottom: 24 },
-  progressTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  progressLevel: { fontSize: 16, fontFamily: 'Inter_700Bold', marginBottom: 4 },
-  progressXp: { fontSize: 14, fontFamily: 'Inter_500Medium' },
-  xpBadgeLg: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: 12 },
-  progressFill: { height: '100%' },
-  progressCaption: { fontSize: 13, fontFamily: 'Inter_500Medium' },
+  dashboardEventTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', marginBottom: 6 },
+  dashboardEventMeta: { fontSize: 14, fontFamily: 'Inter_400Regular' },
+  dashboardXpPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
+  dashboardXpText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   
   // Explore
-  searchBox: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 56, borderWidth: 1, marginBottom: 16 },
-  searchInput: { flex: 1, marginLeft: 12, fontSize: 16, fontFamily: 'Inter_400Regular' },
-  filterRow: { gap: 12, paddingBottom: 24 },
-  filter: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 40, borderRadius: 20, borderWidth: 1, gap: 8 },
-  filterText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  resultsHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 },
-  resultCount: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+  searchBox: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, height: 64, borderWidth: 1, marginBottom: 20 },
+  searchInput: { flex: 1, marginLeft: 14, fontSize: 17, fontFamily: 'Inter_400Regular' },
+  filterRow: { gap: 12, paddingBottom: 28 },
+  filter: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, height: 48, borderRadius: 24, borderWidth: 1, gap: 10, marginRight: 12 },
+  sectionTitle: { fontSize: 22, fontFamily: "Inter_700Bold", marginBottom: 16 },
+  filterText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  resultsHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 20 },
+  resultCount: { fontSize: 15, fontFamily: 'Inter_500Medium' },
   
-  // Details
-  detailHero: { height: 240, marginBottom: 24, justifyContent: 'flex-end', padding: 24 },
-  detailHeroContent: { position: 'relative', zIndex: 10 },
-  detailHeroIcon: { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  detailCategoryText: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: 'Inter_700Bold', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' },
-  detailTitleText: { color: '#ffffff', fontSize: 28, fontFamily: 'Inter_700Bold', lineHeight: 34, marginBottom: 8 },
-  detailOrgText: { color: 'rgba(255,255,255,0.9)', fontSize: 15, fontFamily: 'Inter_500Medium' },
-  
+  // Detail
+  detailHero: { minHeight: 220, marginBottom: 24, position: 'relative' },
+  detailHeroContent: { padding: 24, justifyContent: 'flex-end', flex: 1 },
+  detailHeroIcon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  detailCategoryText: { color: 'rgba(255,255,255,0.9)', fontSize: 14, fontFamily: 'Inter_700Bold', letterSpacing: 1, marginBottom: 6 },
+  detailTitleText: { color: '#ffffff', fontSize: 32, fontFamily: 'Inter_700Bold', lineHeight: 38, marginBottom: 8, letterSpacing: -0.5 },
+  detailOrgText: { color: 'rgba(255,255,255,0.85)', fontSize: 16, fontFamily: 'Inter_500Medium' },
   detailMetaGrid: { flexDirection: 'row', gap: 16, marginBottom: 32 },
-  metaBox: { flex: 1 },
-  metaLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1, marginBottom: 8 },
-  metaValue: { fontSize: 16, fontFamily: 'Inter_600SemiBold', marginBottom: 4 },
+  metaBox: { flex: 1, padding: 20, borderWidth: 1 },
+  metaLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1, marginBottom: 10 },
+  metaValue: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 6 },
   metaSub: { fontSize: 14, fontFamily: 'Inter_400Regular' },
-  
-  detailSectionTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 12 },
-  detailBody: { fontSize: 16, fontFamily: 'Inter_400Regular', lineHeight: 24, marginBottom: 32 },
-  
-  rewardPanel: { flexDirection: 'row', borderWidth: 1, padding: 20, marginBottom: 32 },
-  rewardCol: { flex: 1 },
-  detailReward: { fontSize: 18, fontFamily: 'Inter_700Bold' },
+  detailSectionTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', marginBottom: 12 },
+  detailBody: { fontSize: 17, fontFamily: 'Inter_400Regular', lineHeight: 28, marginBottom: 32 },
+  rewardPanel: { flexDirection: 'row', padding: 24, borderWidth: 1, marginBottom: 32, gap: 16 },
+  rewardCol: { flex: 1, gap: 8 },
+  detailReward: { fontSize: 20, fontFamily: 'Inter_700Bold' },
   infoBlock: { marginBottom: 32 },
+  ctaWrap: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 24, borderTopWidth: 1, paddingBottom: Platform.OS === 'web' ? 34 : 40 },
+  joinedBanner: { flexDirection: 'row', alignItems: 'center', padding: 20, marginBottom: 16, gap: 16 },
+  joinedTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', marginBottom: 4 },
+  joinedSub: { fontSize: 14, fontFamily: 'Inter_500Medium', lineHeight: 20 },
   
-  ctaWrap: { marginTop: 8 },
-  joinedBanner: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 16, marginBottom: 16 },
-  joinedTitle: { fontSize: 16, fontFamily: 'Inter_600SemiBold', marginBottom: 2 },
-  joinedSub: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+  // Experiences (Journey)
+  segment: { flexDirection: 'row', padding: 4, marginBottom: 24 },
+  segmentItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
+  segmentText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  participationCard: { borderWidth: 1, marginBottom: 16, overflow: 'hidden' },
+  cardTop: { flexDirection: 'row', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
+  categoryIcon: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  cardCategory: { flex: 1, paddingHorizontal: 16 },
+  categoryText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 4 },
+  cardTitleSmall: { fontSize: 17, fontFamily: 'Inter_700Bold', lineHeight: 22 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: 'rgba(0,0,0,0.01)' },
+  statusPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  statusText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  places: { fontSize: 15, fontFamily: 'Inter_700Bold' },
   
-  // Journey/Experiences
-  segment: { flexDirection: 'row', padding: 4, borderRadius: 12, marginBottom: 24 },
-  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 8 },
-  segmentText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  // Profile
+  passportHero: { minHeight: 300, marginBottom: 28 },
+  passportHeroContent: { padding: 28, paddingBottom: 20, flexDirection: 'row', alignItems: 'flex-start' },
+  passportAvatar: { width: 84, height: 84, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginRight: 20 },
+  passportInitial: { fontSize: 36, fontFamily: 'Inter_700Bold' },
+  passportIdentity: { flex: 1, justifyContent: 'center', paddingTop: 6 },
+  passportName: { color: '#ffffff', fontSize: 28, fontFamily: 'Inter_700Bold', marginBottom: 6, letterSpacing: -0.5 },
+  passportHandle: { color: 'rgba(255,255,255,0.85)', fontSize: 16, fontFamily: 'Inter_500Medium', marginBottom: 16 },
+  passportLevelPill: { backgroundColor: '#ffffff', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+  passportLevelText: { color: '#FF107A', fontSize: 13, fontFamily: 'Inter_700Bold' },
+  iconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  passportProgressContainer: { backgroundColor: 'rgba(0,0,0,0.15)', padding: 24, marginTop: 'auto' },
+  passportProgressHeader: { flexDirection: 'row', justifyContent: 'space-between' },
+  passportProgressLabel: { color: '#ffffff', fontSize: 15, fontFamily: 'Inter_600SemiBold' },
   
-  cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  categoryIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  cardCategory: { flex: 1 },
-  categoryText: { fontSize: 12, fontFamily: 'Inter_500Medium', marginBottom: 2 },
-  cardTitleSmall: { fontSize: 16, fontFamily: 'Inter_700Bold' },
-  statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  statusPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  statusText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  places: { fontSize: 13, fontFamily: 'Inter_500Medium' },
+  editPanel: { padding: 24, borderWidth: 1, marginBottom: 28, gap: 20 },
+  input: { height: 60, borderWidth: 1.5, paddingHorizontal: 20, fontSize: 17, fontFamily: 'Inter_400Regular' },
+  bioInput: { height: 120, paddingTop: 20, textAlignVertical: 'top' },
   
-  // Passport Profile
-  passportHero: { minHeight: 280, marginBottom: 24 },
-  passportHeroContent: { padding: 24, paddingBottom: 16, flexDirection: 'row', alignItems: 'flex-start' },
-  passportAvatar: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
-  passportInitial: { fontSize: 32, fontFamily: 'Inter_700Bold' },
-  passportIdentity: { flex: 1, justifyContent: 'center', paddingTop: 4 },
-  passportName: { color: '#ffffff', fontSize: 24, fontFamily: 'Inter_700Bold', marginBottom: 4 },
-  passportHandle: { color: 'rgba(255,255,255,0.8)', fontSize: 15, fontFamily: 'Inter_500Medium', marginBottom: 12 },
-  passportLevelPill: { backgroundColor: '#ffffff', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  passportLevelText: { color: '#F20789', fontSize: 12, fontFamily: 'Inter_700Bold' },
-  iconButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  passportProgressContainer: { backgroundColor: 'rgba(0,0,0,0.1)', padding: 20, marginTop: 'auto' },
-  passportProgressHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  passportProgressLabel: { color: '#ffffff', fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  passportProgressTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  passportProgressFill: { height: '100%' },
+  statsGrid: { flexDirection: 'row', borderWidth: 1, paddingVertical: 24, marginBottom: 36 },
+  statBox: { flex: 1, alignItems: 'center', gap: 6 },
+  statValue: { fontSize: 28, fontFamily: 'Inter_700Bold' },
+  statLabel: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+  statDivider: { width: 1, backgroundColor: 'rgba(0,0,0,0.06)' },
   
-  editPanel: { padding: 20, borderWidth: 1, marginBottom: 24, gap: 16 },
-  input: { height: 56, borderWidth: 1, paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_400Regular' },
-  bioInput: { height: 100, paddingTop: 16, textAlignVertical: 'top' },
+  historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 20, borderBottomWidth: 1 },
+  historyDot: { width: 14, height: 14, borderRadius: 7, marginRight: 20 },
+  historyCopy: { flex: 1, paddingRight: 16 },
+  historyTitle: { fontSize: 17, fontFamily: 'Inter_600SemiBold', marginBottom: 6 },
+  historySub: { fontSize: 15, fontFamily: 'Inter_400Regular' },
+  historyRewardPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+  historyRewardText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  mutedParagraph: { fontSize: 16, fontFamily: 'Inter_400Regular', marginTop: 16, marginBottom: 28, lineHeight: 24 },
   
-  statsGrid: { flexDirection: 'row', borderWidth: 1, paddingVertical: 20, marginBottom: 32 },
-  statBox: { flex: 1, alignItems: 'center', gap: 4 },
-  statValue: { fontSize: 24, fontFamily: 'Inter_700Bold' },
-  statLabel: { fontSize: 13, fontFamily: 'Inter_500Medium' },
-  statDivider: { width: 1, backgroundColor: 'rgba(0,0,0,0.05)' },
-  
-  historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
-  historyDot: { width: 12, height: 12, borderRadius: 6, marginRight: 16 },
-  historyCopy: { flex: 1 },
-  historyTitle: { fontSize: 16, fontFamily: 'Inter_600SemiBold', marginBottom: 4 },
-  historySub: { fontSize: 14, fontFamily: 'Inter_400Regular' },
-  historyRewardPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  historyRewardText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  mutedParagraph: { fontSize: 15, fontFamily: 'Inter_400Regular', marginTop: 16, marginBottom: 24 },
-  
-  socialHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 16, marginBottom: 16 },
-  friendAdd: { flexDirection: 'row', alignItems: 'center', paddingLeft: 16, height: 56, borderWidth: 1, marginBottom: 16, overflow: 'hidden' },
-  friendInput: { flex: 1, fontSize: 16, fontFamily: 'Inter_400Regular' },
-  addButton: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
-  requestRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, marginBottom: 12 },
-  requestText: { fontSize: 15, fontFamily: 'Inter_500Medium' },
-  requestAction: { fontSize: 14, fontFamily: 'Inter_700Bold' },
-  friendList: { fontSize: 15, fontFamily: 'Inter_500Medium', lineHeight: 24, marginTop: 8 },
+  socialHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 24, marginBottom: 20 },
+  friendAdd: { flexDirection: 'row', alignItems: 'center', paddingLeft: 20, height: 64, borderWidth: 1.5, marginBottom: 20, overflow: 'hidden' },
+  friendInput: { flex: 1, fontSize: 17, fontFamily: 'Inter_400Regular' },
+  addButton: { width: 64, height: 64, alignItems: 'center', justifyContent: 'center' },
+  requestRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, marginBottom: 16 },
+  requestText: { fontSize: 16, fontFamily: 'Inter_500Medium' },
+  requestAction: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  friendList: { fontSize: 16, fontFamily: 'Inter_500Medium', lineHeight: 28, marginTop: 10 },
   
   // Host
-  hostStats: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  hostStat: { flex: 1, borderWidth: 1, padding: 16, alignItems: 'center', gap: 8 },
-  hostStatValue: { fontSize: 24, fontFamily: 'Inter_700Bold' },
-  participantRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderWidth: 1, marginBottom: 12, gap: 12 },
-  participantAvatar: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  participantInitial: { fontSize: 18, fontFamily: 'Inter_700Bold' },
+  hostStats: { flexDirection: 'row', gap: 16, marginBottom: 28 },
+  hostStat: { flex: 1, borderWidth: 1, padding: 20, alignItems: 'center', gap: 10 },
+  hostStatValue: { fontSize: 28, fontFamily: 'Inter_700Bold' },
+  participantRow: { flexDirection: 'row', alignItems: 'center', padding: 20, borderWidth: 1, marginBottom: 16, gap: 16 },
+  participantAvatar: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  participantInitial: { fontSize: 20, fontFamily: 'Inter_700Bold' },
   participantCopy: { flex: 1 },
-  participantName: { fontSize: 15, fontFamily: 'Inter_600SemiBold', marginBottom: 2 },
-  participantStatus: { fontSize: 13, fontFamily: 'Inter_400Regular' },
-  actionPair: { flexDirection: 'row', gap: 8 },
+  participantName: { fontSize: 17, fontFamily: 'Inter_600SemiBold', marginBottom: 4 },
+  participantStatus: { fontSize: 14, fontFamily: 'Inter_400Regular' },
+  actionPair: { flexDirection: 'row', gap: 12 },
   
   // Create
-  createContent: { paddingHorizontal: 20 },
-  createTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 },
-  createRoundButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  createProgress: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  createProgressBar: { height: 6, borderRadius: 3 },
-  createStepCount: { width: 40, textAlign: 'right', fontSize: 12, fontFamily: 'Inter_700Bold' },
-  createHeading: { marginBottom: 26 },
-  createEyebrow: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.6, marginBottom: 8 },
-  createTitle: { fontSize: 31, lineHeight: 33, fontFamily: 'Inter_700Bold', letterSpacing: -0.9 },
-  createDescription: { marginTop: 8, fontSize: 15, lineHeight: 23, fontFamily: 'Inter_400Regular' },
-  createFields: { gap: 20 },
-  createTip: { borderRadius: 23, backgroundColor: '#F1EBFF', padding: 16, gap: 8 },
-  createTipText: { color: '#5E477D', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular' },
+  createContent: { paddingHorizontal: 24 },
+  createTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 },
+  createRoundButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  createProgress: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  createProgressBar: { height: 8, borderRadius: 4 },
+  createStepCount: { width: 40, textAlign: 'right', fontSize: 14, fontFamily: 'Inter_700Bold' },
+  createHeading: { marginBottom: 32 },
+  createEyebrow: { fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1.6, marginBottom: 10 },
+  createTitle: { fontSize: 36, lineHeight: 40, fontFamily: 'Inter_700Bold', letterSpacing: -1 },
+  createDescription: { marginTop: 12, fontSize: 17, lineHeight: 26, fontFamily: 'Inter_400Regular' },
+  createFields: { gap: 24 },
+  createTip: { borderRadius: 24, padding: 20, gap: 10 },
+  createTipText: { fontSize: 16, lineHeight: 24, fontFamily: 'Inter_400Regular' },
   createTipStrong: { fontFamily: 'Inter_700Bold' },
   createField: { flex: 1 },
-  createFieldLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 0.9, marginBottom: 8 },
-  createInput: { height: 52, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, fontSize: 15, fontFamily: 'Inter_400Regular' },
-  createTextArea: { height: 96, paddingTop: 14, textAlignVertical: 'top' },
-  createFieldRow: { flexDirection: 'row', gap: 12 },
+  createFieldLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1, marginBottom: 10 },
+  createInput: { height: 60, borderWidth: 1.5, paddingHorizontal: 20, fontSize: 17, fontFamily: 'Inter_400Regular' },
+  createTextArea: { height: 120, paddingTop: 20, textAlignVertical: 'top' },
+  createFieldRow: { flexDirection: 'row', gap: 16 },
   createFieldHalf: { flex: 1 },
-  createCategoryGrid: { flexDirection: 'row', gap: 8 },
-  createCategory: { flex: 1, minHeight: 94, borderRadius: 18, borderWidth: 2, alignItems: 'center', justifyContent: 'center', gap: 8, shadowRadius: 0, shadowOffset: { width: 0, height: 5 }, elevation: 1 },
-  createCategoryIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  createCategoryText: { fontSize: 11, fontFamily: 'Inter_700Bold', textAlign: 'center' },
-  createRewardPanel: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 16 },
-  createRewardHeading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  createRewardTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
-  createHint: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular', marginTop: -8 },
-  createPreview: { borderRadius: 23, backgroundColor: '#251832', padding: 16 },
-  createPreviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  createPreviewEyebrow: { color: '#FF8DC7', fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2 },
-  createPreviewCategory: { color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5, fontSize: 11, fontFamily: 'Inter_500Medium' },
-  createPreviewTitle: { color: '#FFFFFF', fontSize: 20, lineHeight: 26, fontFamily: 'Inter_700Bold' },
-  createPreviewBody: { color: '#CABDD0', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', marginTop: 4 },
-  createPreviewGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 10, marginTop: 16 },
-  createPreviewMeta: { width: '50%', flexDirection: 'row', alignItems: 'center', gap: 6 },
-  createPreviewMetaText: { color: '#F5EAF5', fontSize: 11, fontFamily: 'Inter_500Medium', flexShrink: 1 },
-  createError: { textAlign: 'center', fontSize: 13, lineHeight: 19, fontFamily: 'Inter_600SemiBold', marginTop: 16 },
-  createActions: { flexDirection: 'row', gap: 12, marginTop: 28 },
-  createReset: { width: 54, height: 54, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  createPrimary: { flex: 1, height: 54, borderRadius: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, shadowColor: '#B70668', shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
-  createPrimaryPressed: { transform: [{ translateY: 3 }], shadowOpacity: 0, elevation: 0 },
-  createPrimaryText: { color: '#FFFFFF', fontSize: 15, fontFamily: 'Inter_700Bold' },
-  createFooterNote: { color: '#9A8FA0', textAlign: 'center', fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 16 },
+  createCategoryGrid: { flexDirection: 'row', gap: 12 },
+  createCategory: { flex: 1, minHeight: 110, borderWidth: 2, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  createCategoryIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  createCategoryText: { fontSize: 12, fontFamily: 'Inter_700Bold', textAlign: 'center' },
+  createRewardPanel: { borderWidth: 1, padding: 20, gap: 20 },
+  createRewardHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  createRewardTitle: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+  createHint: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', marginTop: -8 },
+  createPreview: { padding: 24 },
+  createPreviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  createPreviewEyebrow: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.4 },
+  createPreviewCategory: { color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6, fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  createPreviewTitle: { color: '#FFFFFF', fontSize: 24, lineHeight: 30, fontFamily: 'Inter_700Bold' },
+  createPreviewBody: { color: 'rgba(255,255,255,0.8)', fontSize: 16, lineHeight: 24, fontFamily: 'Inter_400Regular', marginTop: 8 },
+  createPreviewGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 16, marginTop: 24 },
+  createPreviewMeta: { width: '50%', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  createPreviewMetaText: { color: '#ffffff', fontSize: 13, fontFamily: 'Inter_500Medium', flexShrink: 1 },
+  createError: { textAlign: 'center', fontSize: 15, lineHeight: 22, fontFamily: 'Inter_600SemiBold', marginTop: 20 },
+  createActions: { flexDirection: 'row', gap: 16, marginTop: 36 },
+  createReset: { width: 64, height: 64, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  createPrimary: { flex: 1, height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  createPrimaryPressed: { transform: [{ translateY: 3 }] },
+  createPrimaryText: { fontSize: 17, fontFamily: 'Inter_700Bold' },
+  createFooterNote: { color: '#9A8FA0', textAlign: 'center', fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 20 },
   
   // Bottom Nav
-  bottomNav: { flexDirection: 'row', paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  bottomNav: { flexDirection: 'row', paddingTop: 16, borderTopWidth: 1 },
   navItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  navLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  navIconWrapper: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  navLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
 });

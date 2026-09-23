@@ -1,0 +1,285 @@
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import {
+  useAcceptFriendRequest,
+  useCreateExperience,
+  useCreateFriendRequest,
+  useGetExperience,
+  useGetHostOverview,
+  useGetMe,
+  useJoinExperience,
+  useListExperienceParticipants,
+  useListExperiences,
+  useListFriendRequests,
+  useListFriends,
+  useListHostExperiences,
+  useListMyParticipations,
+  useMarkAttendance,
+  useRejectParticipation,
+  useSubmitCompletion,
+  useUpdateMe,
+  useVerifyParticipation,
+  getGetExperienceQueryKey,
+  getListExperienceParticipantsQueryKey,
+  type Experience,
+  type ExperienceCategory,
+  type ExperienceDetail,
+  type ExperienceCreateInput,
+  type Participation,
+  type ParticipationType,
+  type User,
+} from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/context/AuthContext';
+import { useColors } from '@/hooks/useColors';
+
+type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'experience' | 'host' | 'create';
+type IconName = keyof typeof Feather.glyphMap;
+
+const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
+  { key: 'all', label: 'All', icon: 'grid' },
+  { key: 'environmental', label: 'Environmental', icon: 'feather' },
+  { key: 'education', label: 'Education', icon: 'book-open' },
+  { key: 'community', label: 'Community', icon: 'users' },
+];
+
+const categoryIcon: Record<ExperienceCategory, IconName> = {
+  environmental: 'feather',
+  education: 'book-open',
+  community: 'users',
+};
+
+const categoryLabel: Record<ExperienceCategory, string> = {
+  environmental: 'Environmental',
+  education: 'Education',
+  community: 'Community',
+};
+
+const categoryGradients: Record<ExperienceCategory, readonly [string, string]> = {
+  environmental: ['#00C4CC', '#0097A7'],
+  education: ['#6E00FF', '#4A00E0'],
+  community: ['#FF107A', '#C51162'],
+};
+
+const guestUser: User = {
+  id: 0,
+  telegramId: 0,
+  username: null,
+  name: 'Guest User',
+  participationType: 'join',
+  interests: ['community', 'environmental'],
+  city: 'London', country: null,
+  bio: null,
+  xp: 0,
+  level: 'Newcomer',
+  completedCount: 0,
+  hostedCount: 0,
+  rewardsPence: 0,
+};
+
+function money(pence: number | null | undefined) {
+  return pence ? \`£\${(pence / 100).toFixed(2)}\` : null;
+}
+
+function dateLabel(date: string) {
+  const value = new Date(\`\${date}T12:00:00\`);
+  return Number.isNaN(value.getTime())
+    ? date
+    : value.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function triggerHaptic() {
+  if (Platform.OS !== 'web') {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }
+}
+
+function Button({
+  label, onPress, variant = 'primary', disabled = false, icon, style,
+}: {
+  label: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'alternative'; disabled?: boolean; icon?: IconName; style?: any;
+}) {
+  const colors = useColors();
+  const scale = useRef(new Animated.Value(1)).current;
+
+  let bg = colors.primary;
+  let fg = colors.primaryForeground;
+  let border = 'transparent';
+  let borderWidth = 0;
+
+  if (variant === 'secondary') {
+    bg = 'transparent';
+    fg = colors.foreground;
+    border = colors.border;
+    borderWidth = 1.5;
+  } else if (variant === 'alternative') {
+    bg = colors.secondary;
+    fg = colors.secondaryForeground;
+  }
+
+  const handlePressIn = () => {
+    if (disabled) return;
+    triggerHaptic();
+    Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, speed: 20, bounciness: 10 }).start();
+  };
+  const handlePressOut = () => {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 10 }).start();
+  };
+
+  return (
+    <Animated.View style={[{ transform: [{ scale }] }, style]}>
+      <Pressable
+        accessibilityRole="button"
+        disabled={disabled}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.button,
+          {
+            backgroundColor: bg,
+            borderColor: border,
+            borderWidth,
+            borderRadius: colors.radius,
+            opacity: disabled ? 0.4 : pressed ? 0.9 : 1,
+          },
+        ]}
+      >
+        {icon ? <Feather name={icon} size={20} color={fg} style={{ marginRight: 8 }} /> : null}
+        <Text style={[styles.buttonText, { color: fg }]}>{label}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function Header({ title, subtitle, onBack }: { title: string; subtitle?: string; onBack?: () => void }) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 60) : insets.top + 20 }]}>
+      {onBack && (
+        <Pressable accessibilityLabel="Go back" onPress={() => { triggerHaptic(); onBack(); }} style={[styles.backButton, { backgroundColor: colors.muted }]}>
+          <Feather name="arrow-left" size={22} color={colors.foreground} />
+        </Pressable>
+      )}
+      <View style={styles.headerCopy}>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>{title}</Text>
+        {subtitle && <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>{subtitle}</Text>}
+      </View>
+    </View>
+  );
+}
+
+function EmptyState({ title, body, icon = 'compass', onAction, actionLabel }: { title: string; body: string; icon?: IconName; onAction?: () => void; actionLabel?: string }) {
+  const colors = useColors();
+  return (
+    <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+      <View style={[styles.emptyIcon, { backgroundColor: colors.muted }]}>
+        <Feather name={icon} size={28} color={colors.primary} />
+      </View>
+      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</Text>
+      <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>{body}</Text>
+      {onAction && actionLabel && (
+        <View style={{ marginTop: 24, width: '100%' }}>
+          <Button label={actionLabel} onPress={onAction} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => void }) {
+  const colors = useColors();
+  const icon = categoryIcon[item.category];
+  const gradient = categoryGradients[item.category] || categoryGradients.community;
+  const scale = useRef(new Animated.Value(1)).current;
+
+  return (
+    <Animated.View style={{ transform: [{ scale }], marginBottom: 20 }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={\`View \${item.title}\`}
+        onPressIn={() => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true }).start()}
+        onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
+        onPress={() => { triggerHaptic(); onPress(); }}
+        style={[styles.experienceCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
+      >
+        <LinearGradient colors={gradient} style={styles.cardImage} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <Feather name={icon} size={48} color="#ffffff" style={{ opacity: 0.2 }} />
+        </LinearGradient>
+        
+        <View style={styles.cardContent}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderLeft}>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]} numberOfLines={2}>{item.title}</Text>
+              <Text style={[styles.cardOrg, { color: colors.mutedForeground }]}>{item.organisation.name}</Text>
+            </View>
+            <View style={[styles.xpBadge, { backgroundColor: colors.primary + '15' }]}>
+              <Text style={[styles.xpBadgeText, { color: colors.primary }]}>+{item.xpReward} XP</Text>
+            </View>
+          </View>
+
+          <View style={styles.cardDetails}>
+            <View style={styles.detailItem}>
+              <Feather name={icon} size={15} color={colors.primary} />
+              <Text style={[styles.detailText, { color: colors.foreground }]}>{categoryLabel[item.category]}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Feather name="calendar" size={15} color={colors.mutedForeground} />
+              <Text style={[styles.detailText, { color: colors.mutedForeground }]}>{dateLabel(item.date)}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Feather name="map-pin" size={15} color={colors.mutedForeground} />
+              <Text style={[styles.detailText, { color: colors.mutedForeground }]}>{item.city}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Feather name="users" size={15} color={colors.mutedForeground} />
+              <Text style={[styles.detailText, { color: item.availablePlaces < 4 ? colors.primary : colors.mutedForeground }]}>{item.availablePlaces} spots left</Text>
+            </View>
+          </View>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function LoadingState() {
+  const colors = useColors();
+  return (
+    <View style={styles.loading}>
+      <ActivityIndicator color={colors.primary} size="large" />
+      <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading...</Text>
+    </View>
+  );
+}
+
+function OnboardingArtwork({ variant }: { variant: 'welcome' | 'complete' }) {
+  const colors = useColors();
+  return (
+    <View style={styles.onboardingArtwork}>
+      <LinearGradient colors={['#FF107A', '#6E00FF']} style={[styles.artworkBlob, { width: 160, height: 160, borderRadius: 80, left: 10, top: 10, opacity: 0.9 }]} />
+      <LinearGradient colors={['#6E00FF', '#00C4CC']} style={[styles.artworkBlob, { width: 120, height: 120, borderRadius: 60, right: 20, bottom: 20, opacity: 0.9 }]} />
+      <View style={[styles.artworkCircle, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Feather name={variant === 'welcome' ? 'users' : 'check'} size={48} color={colors.foreground} />
+      </View>
+    </View>
+  );
+}
+

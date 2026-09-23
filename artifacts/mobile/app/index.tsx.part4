@@ -1,0 +1,140 @@
+function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
+  const colors = useColors();
+  const [category, setCategory] = useState<ExperienceCategory | 'all'>('all');
+  const [search, setSearch] = useState('');
+  const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: true });
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
+      <Header title="Explore" subtitle="Find your next way to contribute." />
+
+      <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
+        <Feather name="search" size={22} color={colors.mutedForeground} />
+        <TextInput accessibilityLabel="Search experiences" value={search} onChangeText={setSearch} placeholder="Search experiences" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+        {categories.map((item) => {
+          const selected = category === item.key;
+          return (
+            <Pressable accessibilityRole="button" accessibilityState={{ selected }} key={item.key} onPress={() => { triggerHaptic(); setCategory(item.key); }} style={[styles.filter, { backgroundColor: selected ? colors.primary : colors.card, borderColor: selected ? colors.primary : colors.border }]}>
+              <Feather name={item.icon} size={18} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+              <Text style={[styles.filterText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <View style={styles.resultsHeading}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Available now</Text>
+        <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{query.data?.length ?? 0} opportunities</Text>
+      </View>
+
+      {query.isLoading ? <LoadingState /> : query.data?.length ? query.data.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title="No experiences match" body="Try another category or come back when local hosts publish something new." />}
+      <View style={{ height: 120 }} />
+    </ScrollView>
+  );
+}
+
+function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<string, string>) => void }) {
+  const colors = useColors();
+  const queryClient = useQueryClient();
+  const query = useGetExperience(id, { query: { queryKey: getGetExperienceQueryKey(id), enabled: Number.isFinite(id) } });
+  const join = useJoinExperience({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const submit = useSubmitCompletion({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const item = query.data as ExperienceDetail | undefined;
+
+  if (query.isLoading || !item) return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Experience" onBack={() => go('explore')} />{query.isLoading ? <LoadingState /> : <EmptyState title="Experience unavailable" body="This experience may have been archived." />}</View>;
+
+  const participation = item.participation as Participation | null;
+  const gradient = categoryGradients[item.category] || categoryGradients.community;
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+        <Header title="Details" onBack={() => go('explore')} />
+
+        <View style={[styles.detailHero, { borderRadius: colors.radius, overflow: 'hidden' }]}>
+          <LinearGradient colors={gradient} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+          <View style={styles.detailHeroContent}>
+            <View style={[styles.detailHeroIcon, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+              <Feather name={categoryIcon[item.category]} size={36} color="#ffffff" />
+            </View>
+            <Text style={styles.detailCategoryText}>{categoryLabel[item.category]}</Text>
+            <Text style={styles.detailTitleText}>{item.title}</Text>
+            <Text style={styles.detailOrgText}>{item.organisation.name}{item.organisation.verified ? '  ·  Verified' : ''}</Text>
+          </View>
+        </View>
+
+        <View style={styles.detailMetaGrid}>
+          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHEN</Text>
+            <Text style={[styles.metaValue, { color: colors.foreground }]}>{dateLabel(item.date)}</Text>
+            <Text style={[styles.metaSub, { color: colors.mutedForeground }]}>{item.startTime} – {item.endTime}</Text>
+          </View>
+          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHERE</Text>
+            <Text style={[styles.metaValue, { color: colors.foreground }]}>{item.city}</Text>
+            <Text style={[styles.metaSub, { color: colors.mutedForeground }]}>{item.location}</Text>
+          </View>
+        </View>
+
+        <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>About this experience</Text>
+        <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.description}</Text>
+
+        <View style={[styles.rewardPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <View style={styles.rewardCol}>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>YOU'LL EARN</Text>
+            <Text style={[styles.detailReward, { color: colors.primary }]}>+{item.xpReward} XP</Text>
+          </View>
+          {money(item.monetaryRewardPence) ? (
+            <View style={styles.rewardCol}>
+              <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>REWARD</Text>
+              <Text style={[styles.detailReward, { color: colors.success }]}>{money(item.monetaryRewardPence)}</Text>
+            </View>
+          ) : null}
+          <View style={styles.rewardCol}>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>PLACES</Text>
+            <Text style={[styles.detailReward, { color: colors.foreground }]}>{item.availablePlaces}</Text>
+          </View>
+        </View>
+
+        {item.whatYouWillDo ? (
+          <View style={styles.infoBlock}>
+            <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What you'll do</Text>
+            <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatYouWillDo}</Text>
+          </View>
+        ) : null}
+
+        {item.whatToBring ? (
+          <View style={styles.infoBlock}>
+            <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What to bring</Text>
+            <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatToBring}</Text>
+          </View>
+        ) : null}
+        
+        <View style={{ height: 160 }} />
+      </ScrollView>
+
+      <View style={[styles.ctaWrap, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+        {item.joined && participation ? (
+          <View>
+            <View style={[styles.joinedBanner, { backgroundColor: colors.success + '15', borderRadius: colors.radius }]}>
+              <Feather name="check-circle" size={28} color={colors.success} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.joinedTitle, { color: colors.success }]}>You're participating</Text>
+                <Text style={[styles.joinedSub, { color: colors.success }]}>{participation.status === 'verified' ? 'Completion verified and reward issued.' : participation.status === 'submitted' ? 'Awaiting host verification.' : 'Show up, then submit your completion.'}</Text>
+              </View>
+            </View>
+            {['joined', 'attended'].includes(participation.status) ? (
+              <Button label={participation.status === 'attended' ? 'Submit completion' : 'Waiting for host'} disabled={participation.status !== 'attended' || submit.isPending} onPress={() => void submit.mutateAsync({ participationId: participation.id })} />
+            ) : null}
+          </View>
+        ) : (
+          <Button label={join.isPending ? 'Joining…' : 'Join experience'} disabled={join.isPending || item.availablePlaces === 0} onPress={() => void join.mutateAsync({ experienceId: item.id })} />
+        )}
+      </View>
+    </View>
+  );
+}
+

@@ -1,0 +1,77 @@
+function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
+  const colors = useColors();
+  const queryClient = useQueryClient();
+  const overview = useGetHostOverview();
+  const experiences = useListHostExperiences();
+  const [selected, setSelected] = useState<number | null>(null);
+  const participants = useListExperienceParticipants(selected ?? 0, { query: { enabled: selected !== null, queryKey: getListExperienceParticipantsQueryKey(selected ?? 0) } });
+  const attend = useMarkAttendance({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const verify = useVerifyParticipation({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const reject = useRejectParticipation({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
+      <Header title="Host tools" subtitle={overview.data?.organisation?.name ?? 'Create your first opportunity'} onBack={() => go('home')} />
+
+      <View style={styles.hostStats}>
+        {[['Upcoming', overview.data?.upcomingExperiences ?? 0], ['Participants', overview.data?.participantCount ?? 0], ['To verify', overview.data?.pendingVerifications ?? 0]].map(([label, value]) => (
+          <View key={String(label)} style={[styles.hostStat, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <Text style={[styles.hostStatValue, { color: colors.foreground }]}>{value}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{label}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Button label="Create experience" icon="plus" onPress={() => { triggerHaptic(); go('create'); }} />
+
+      <View style={styles.socialHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your experiences</Text>
+        <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{experiences.data?.length ?? 0} published</Text>
+      </View>
+
+      {experiences.data?.length ? experiences.data.map((item) => (
+        <Pressable key={item.id} onPress={() => { triggerHaptic(); setSelected(selected === item.id ? null : item.id); }} style={[styles.participationCard, { backgroundColor: selected === item.id ? colors.primary + '10' : colors.card, borderColor: selected === item.id ? colors.primary : colors.border, borderRadius: colors.radius }]}>
+          <View style={styles.cardTop}>
+            <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '15' }]}>
+              <Feather name={categoryIcon[item.category]} size={24} color={colors.primary} />
+            </View>
+            <View style={styles.cardCategory}>
+              <Text style={[styles.categoryText, { color: colors.mutedForeground }]}>{dateLabel(item.date)} · {item.availablePlaces} spots left</Text>
+              <Text style={[styles.cardTitleSmall, { color: colors.foreground }]}>{item.title}</Text>
+            </View>
+            <Feather name={selected === item.id ? 'chevron-down' : 'chevron-right'} size={24} color={colors.mutedForeground} />
+          </View>
+        </Pressable>
+      )) : <EmptyState title="No experience published" body="Create a real volunteering opportunity and it will appear here." icon="edit-3" />}
+
+      {selected !== null ? (
+        <View style={{ marginTop: 24 }}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Participants</Text>
+          {participants.isLoading ? <LoadingState /> : participants.data?.length ? participants.data.map((item) => (
+            <View key={item.id} style={[styles.participantRow, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+              <View style={[styles.participantAvatar, { backgroundColor: colors.primary + '15' }]}>
+                <Text style={[styles.participantInitial, { color: colors.primary }]}>{item.participant.name.charAt(0)}</Text>
+              </View>
+              <View style={styles.participantCopy}>
+                <Text style={[styles.participantName, { color: colors.foreground }]}>{item.participant.name}</Text>
+                <Text style={[styles.participantStatus, { color: colors.mutedForeground }]}>{item.participant.username ? \`@\${item.participant.username} · \` : ''}{item.status}</Text>
+              </View>
+              {item.status === 'joined' ? (
+                <Button label="Attend" variant="secondary" onPress={() => void attend.mutateAsync({ participationId: item.id })} />
+              ) : null}
+              {item.status === 'submitted' ? (
+                <View style={styles.actionPair}>
+                  <Button label="Verify" onPress={() => void verify.mutateAsync({ participationId: item.id })} />
+                  <Button label="Reject" variant="secondary" onPress={() => void reject.mutateAsync({ participationId: item.id })} />
+                </View>
+              ) : null}
+              {item.status === 'verified' ? <Feather name="check-circle" size={28} color={colors.success} /> : null}
+            </View>
+          )) : <EmptyState title="No participants yet" body="When people join, you'll manage attendance and completion here." icon="users" />}
+        </View>
+      ) : null}
+      <View style={{ height: 120 }} />
+    </ScrollView>
+  );
+}
+

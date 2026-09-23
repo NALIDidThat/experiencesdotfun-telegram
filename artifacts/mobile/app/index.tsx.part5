@@ -1,0 +1,166 @@
+function Experiences({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
+  const colors = useColors();
+  const upcoming = useListMyParticipations({ status: 'upcoming' });
+  const completed = useListMyParticipations({ status: 'completed' });
+  const [tab, setTab] = useState<'upcoming' | 'completed'>('upcoming');
+  const data = tab === 'upcoming' ? upcoming.data : completed.data;
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
+      <Header title="My journey" subtitle="Your contribution, in progress." />
+      <View style={[styles.segment, { backgroundColor: colors.muted, borderRadius: colors.radius }]}>
+        {(['upcoming', 'completed'] as const).map((key) => (
+          <Pressable key={key} onPress={() => { triggerHaptic(); setTab(key); }} style={[styles.segmentItem, tab === key && { backgroundColor: colors.card, borderRadius: colors.radius - 4 }]}>
+            <Text style={[styles.segmentText, { color: tab === key ? colors.foreground : colors.mutedForeground }]}>{key === 'upcoming' ? 'Upcoming' : 'Completed'}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {data?.length ? data.map((item) => (
+        <Pressable key={item.id} onPress={() => { triggerHaptic(); go('experience', { id: String(item.experience.id) }); }} style={[styles.participationCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <View style={styles.cardTop}>
+            <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '15' }]}>
+              <Feather name={categoryIcon[item.experience.category]} size={24} color={colors.primary} />
+            </View>
+            <View style={styles.cardCategory}>
+              <Text style={[styles.categoryText, { color: colors.mutedForeground }]}>{dateLabel(item.experience.date)}</Text>
+              <Text style={[styles.cardTitleSmall, { color: colors.foreground }]}>{item.experience.title}</Text>
+            </View>
+            <Feather name="chevron-right" size={24} color={colors.mutedForeground} />
+          </View>
+          <View style={styles.statusRow}>
+            <View style={[styles.statusPill, { backgroundColor: item.status === 'verified' ? colors.success + '15' : colors.secondary + '15' }]}>
+              <Text style={[styles.statusText, { color: item.status === 'verified' ? colors.success : colors.secondary }]}>{item.status === 'verified' ? 'Verified' : item.status === 'submitted' ? 'Awaiting verification' : item.status}</Text>
+            </View>
+            <Text style={[styles.places, { color: colors.primary, fontFamily: 'Inter_700Bold' }]}>+{item.experience.xpReward} XP</Text>
+          </View>
+        </Pressable>
+      )) : (
+        <EmptyState
+          title={tab === 'upcoming' ? 'Nothing booked yet' : 'Your impact history starts here'}
+          body={tab === 'upcoming' ? 'Find an experience that fits your time and interests.' : 'Once a host verifies your contribution, it will show up here.'}
+          icon={tab === 'upcoming' ? 'calendar' : 'award'}
+          actionLabel={tab === 'upcoming' ? 'Explore experiences' : undefined}
+          onAction={tab === 'upcoming' ? () => { triggerHaptic(); go('explore'); } : undefined}
+        />
+      )}
+      <View style={{ height: 120 }} />
+    </ScrollView>
+  );
+}
+
+function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
+  const colors = useColors();
+  const queryClient = useQueryClient();
+  const profile = useGetMe();
+  const completed = useListMyParticipations({ status: 'completed' });
+  const friends = useListFriends();
+  const requests = useListFriendRequests();
+  const update = useUpdateMe({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const createFriend = useCreateFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const accept = useAcceptFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const [editing, setEditing] = useState(false);
+  const [city, setCity] = useState(user.city ?? '');
+  const [bio, setBio] = useState(user.bio ?? '');
+  const [username, setUsername] = useState('');
+  const current = profile.data ?? user;
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
+      <Header title="Passport" subtitle="Your contribution identity." />
+
+      <View style={[styles.passportHero, { borderRadius: colors.radius, overflow: 'hidden' }]}>
+        <LinearGradient colors={['#FF107A', '#6E00FF']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+        <View style={styles.passportHeroContent}>
+          <View style={[styles.passportAvatar, { backgroundColor: '#ffffff' }]}>
+            <Text style={[styles.passportInitial, { color: colors.primary }]}>{current.name.charAt(0).toUpperCase()}</Text>
+          </View>
+          <View style={styles.passportIdentity}>
+            <Text style={styles.passportName}>{current.name}</Text>
+            <Text style={styles.passportHandle}>@{current.username ?? 'telegram'}</Text>
+            <View style={styles.passportLevelPill}>
+              <Text style={styles.passportLevelText}>{current.level.toUpperCase()}</Text>
+            </View>
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel={editing ? 'Close profile editor' : 'Edit profile'} onPress={() => { triggerHaptic(); setEditing((value) => !value); }} style={[styles.iconButton, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+            <Feather name={editing ? 'x' : 'edit-2'} size={20} color="#ffffff" />
+          </Pressable>
+        </View>
+        <View style={styles.passportProgressContainer}>
+          <View style={styles.passportProgressHeader}>
+            <Text style={styles.passportProgressLabel}>{current.xp} XP total</Text>
+            <Text style={styles.passportProgressLabel}>Contribution score</Text>
+          </View>
+        </View>
+      </View>
+
+      {editing ? (
+        <View style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <TextInput value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          <TextInput value={bio} onChangeText={setBio} multiline placeholder="Short bio" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          <Button label={update.isPending ? 'Saving…' : 'Save profile'} disabled={update.isPending} onPress={() => void update.mutateAsync({ data: { city, bio: bio || null } }).then(() => setEditing(false))} />
+        </View>
+      ) : null}
+
+      <View style={[styles.statsGrid, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+        <View style={styles.statBox}>
+          <Text style={[styles.statValue, { color: colors.foreground }]}>{current.completedCount}</Text>
+          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Completed</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statBox}>
+          <Text style={[styles.statValue, { color: colors.foreground }]}>{current.hostedCount}</Text>
+          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Hosted</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statBox}>
+          <Text style={[styles.statValue, { color: colors.foreground }]}>{friends.data?.length ?? 0}</Text>
+          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Friends</Text>
+        </View>
+      </View>
+
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent impact</Text>
+      {completed.data?.length ? completed.data.slice(0, 3).map((item) => (
+        <View key={item.id} style={[styles.historyRow, { borderBottomColor: colors.border }]}>
+          <View style={[styles.historyDot, { backgroundColor: colors.primary }]} />
+          <View style={styles.historyCopy}>
+            <Text style={[styles.historyTitle, { color: colors.foreground }]}>{item.experience.title}</Text>
+            <Text style={[styles.historySub, { color: colors.mutedForeground }]}>{dateLabel(item.experience.date)}</Text>
+          </View>
+          <View style={[styles.historyRewardPill, { backgroundColor: colors.primary + '15' }]}>
+            <Text style={[styles.historyRewardText, { color: colors.primary }]}>+{item.experience.xpReward} XP</Text>
+          </View>
+        </View>
+      )) : <Text style={[styles.mutedParagraph, { color: colors.mutedForeground }]}>Verified contributions will appear here.</Text>}
+
+      <View style={styles.socialHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Friends</Text>
+      </View>
+      <View style={[styles.friendAdd, { borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius }]}>
+        <TextInput accessibilityLabel="Friend username" value={username} onChangeText={setUsername} placeholder="@username" placeholderTextColor={colors.mutedForeground} style={[styles.friendInput, { color: colors.foreground }]} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Add friend" accessibilityState={{ disabled: !username.trim() || createFriend.isPending }} disabled={!username.trim() || createFriend.isPending} onPress={() => void createFriend.mutateAsync({ data: { username: username.replace(/^@/, '') } }).then(() => setUsername(''))} style={[styles.addButton, { backgroundColor: colors.primary, borderRadius: colors.radius - 4 }]}>
+          <Feather name="user-plus" size={20} color={colors.primaryForeground} />
+        </Pressable>
+      </View>
+
+      {requests.data?.map((request) => (
+        <View key={request.id} style={[styles.requestRow, { backgroundColor: colors.secondary + '15', borderRadius: colors.radius }]}>
+          <Text style={[styles.requestText, { color: colors.foreground }]}>{request.user.name} wants to connect</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={\`Accept \${request.user.name}'s friend request\`} onPress={() => void accept.mutateAsync({ requestId: request.id })}>
+            <Text style={[styles.requestAction, { color: colors.secondary }]}>Accept</Text>
+          </Pressable>
+        </View>
+      ))}
+
+      {friends.data?.length ? <Text style={[styles.friendList, { color: colors.inkSoft }]}>{friends.data.map((friend) => \`@\${friend.username ?? friend.name}\`).join('  ·  ')}</Text> : null}
+
+      {current.participationType !== 'join' ? (
+        <View style={{ marginTop: 32 }}>
+          <Button label="Open host tools" variant="secondary" onPress={() => { triggerHaptic(); go('host'); }} />
+        </View>
+      ) : null}
+      <View style={{ height: 120 }} />
+    </ScrollView>
+  );
+}
+

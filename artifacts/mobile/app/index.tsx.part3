@@ -1,0 +1,142 @@
+function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const query = useListExperiences({ availableOnly: true });
+  const participations = useListMyParticipations({ status: 'upcoming' });
+  const items = query.data ?? [];
+  const firstName = user.name.split(' ')[0];
+  const upcomingCount = participations.data?.length ?? 0;
+  const quickActions: Array<{ label: string; icon: IconName; screen: Screen }> = [
+    { label: 'Explore', icon: 'compass', screen: 'explore' },
+    { label: 'Journey', icon: 'calendar', screen: 'experiences' },
+    { label: 'Passport', icon: 'award', screen: 'profile' },
+    { label: 'Host', icon: 'plus-circle', screen: 'host' },
+  ];
+
+  return (
+    <ScrollView
+      style={[styles.dashboardScreen, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.dashboardContent, { paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 60) : insets.top + 16 }]}
+      refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { triggerHaptic(); void query.refetch(); }} tintColor={colors.primary} />}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.dashboardTopBar}>
+        <View style={styles.dashboardBrand}>
+          <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.dashboardBrandIcon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <Feather name="star" size={16} color={colors.primaryForeground} />
+          </LinearGradient>
+          <Text style={[styles.dashboardBrandText, { color: colors.foreground }]}>experiences.fun</Text>
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open passport" onPress={() => { triggerHaptic(); go('profile'); }} style={[styles.dashboardAvatar, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
+          <Text style={[styles.dashboardAvatarText, { color: colors.primary }]}>{firstName.charAt(0).toUpperCase()}</Text>
+        </Pressable>
+      </View>
+
+      <View style={[styles.dashboardHero, { borderRadius: colors.radius, overflow: 'hidden' }]}>
+        <LinearGradient colors={[colors.secondary, colors.primary, colors.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        <View style={[styles.dashboardGlow, styles.dashboardGlowOne]} />
+        <View style={[styles.dashboardGlow, styles.dashboardGlowTwo]} />
+        <Text style={styles.dashboardWelcome}>WELCOME BACK</Text>
+        <Text style={styles.dashboardName}>{firstName}</Text>
+        <Text style={styles.dashboardHeroBody}>Your next good thing is closer than you think.</Text>
+
+        <Pressable accessibilityRole="button" accessibilityLabel="Open your experience journey" onPress={() => { triggerHaptic(); go('experiences'); }} style={styles.dashboardStatusStrip}>
+          <View style={[styles.dashboardStatusIcon, { backgroundColor: colors.primary }]}>
+            <Text style={styles.dashboardStatusNumber}>{upcomingCount}</Text>
+            <Feather name="calendar" size={14} color={colors.primaryForeground} />
+          </View>
+          <View style={styles.dashboardStatusCopy}>
+            <Text style={[styles.dashboardStatusTitle, { color: colors.foreground }]}>
+              {upcomingCount ? \`\${upcomingCount} experience\${upcomingCount === 1 ? '' : 's'} coming up\` : 'Ready for your first experience?'}
+            </Text>
+            <Text style={[styles.dashboardStatusSub, { color: colors.mutedForeground }]}>{upcomingCount ? 'View your journey' : 'Find something meaningful nearby'}</Text>
+          </View>
+          <Feather name="chevron-right" size={22} color={colors.mutedForeground} />
+        </Pressable>
+      </View>
+
+      <Pressable accessibilityRole="button" accessibilityLabel="Open your experience passport" onPress={() => { triggerHaptic(); go('profile'); }} style={[styles.dashboardPassportCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+        <View style={styles.dashboardPassportTop}>
+          <View>
+            <Text style={[styles.dashboardCardEyebrow, { color: colors.primary }]}>EXPERIENCE PASSPORT</Text>
+            <Text style={[styles.dashboardPassportTitle, { color: colors.foreground }]}>{user.level}</Text>
+            <View style={styles.dashboardPassportMeta}>
+              <Feather name="zap" size={16} color={colors.primary} />
+              <Text style={[styles.dashboardPassportMetaText, { color: colors.mutedForeground }]}>{user.xp} XP earned</Text>
+            </View>
+          </View>
+          <View style={[styles.dashboardPassportArt, { backgroundColor: colors.primary + '12' }]}>
+            <Feather name="award" size={44} color={colors.primary} />
+          </View>
+        </View>
+        <View style={[styles.dashboardPassportFooter, { borderTopColor: colors.border }]}>
+          <Text style={[styles.dashboardPassportStat, { color: colors.foreground }]}>{user.completedCount} completed</Text>
+          <View style={[styles.dashboardPassportButton, { backgroundColor: colors.foreground }]}>
+            <Text style={[styles.dashboardPassportButtonText, { color: colors.card }]}>View passport</Text>
+          </View>
+        </View>
+      </Pressable>
+
+      <View style={styles.dashboardSectionHeader}>
+        <Text style={[styles.dashboardSectionTitle, { color: colors.foreground }]}>Quick actions</Text>
+      </View>
+      <View style={styles.dashboardActionGrid}>
+        {quickActions.map((action) => (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={action.label}
+            key={action.label}
+            onPress={() => { triggerHaptic(); go(action.screen); }}
+            style={({ pressed }) => [styles.dashboardAction, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.75 : 1 }]}
+          >
+            <View style={[styles.dashboardActionIcon, { backgroundColor: colors.primary + '12' }]}>
+              <Feather name={action.icon} size={20} color={colors.primary} />
+            </View>
+            <Text style={[styles.dashboardActionLabel, { color: colors.foreground }]}>{action.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <View style={styles.dashboardSectionHeader}>
+        <Text style={[styles.dashboardSectionTitle, { color: colors.foreground }]}>Upcoming near you</Text>
+        <Pressable accessibilityRole="button" onPress={() => { triggerHaptic(); go('explore'); }}>
+          <Text style={[styles.dashboardSeeAll, { color: colors.primary }]}>See all</Text>
+        </Pressable>
+      </View>
+
+      {query.isLoading ? <LoadingState /> : items.length ? items.slice(0, 3).map((item) => (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={\`View \${item.title}\`}
+          key={item.id}
+          onPress={() => { triggerHaptic(); go('experience', { id: String(item.id) }); }}
+          style={({ pressed }) => [styles.dashboardEventCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.9 : 1 }]}
+        >
+          <LinearGradient colors={categoryGradients[item.category]} style={styles.dashboardEventIcon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <Feather name={categoryIcon[item.category]} size={24} color={colors.primaryForeground} />
+          </LinearGradient>
+          <View style={styles.dashboardEventCopy}>
+            <Text style={[styles.dashboardEventTitle, { color: colors.foreground }]} numberOfLines={1}>{item.title}</Text>
+            <Text style={[styles.dashboardEventMeta, { color: colors.mutedForeground }]}>{dateLabel(item.date)} · {item.city}</Text>
+          </View>
+          <View style={[styles.dashboardXpPill, { backgroundColor: colors.primary + '12' }]}>
+            <Text style={[styles.dashboardXpText, { color: colors.primary }]}>+{item.xpReward} XP</Text>
+          </View>
+        </Pressable>
+      )) : (
+        <Pressable accessibilityRole="button" onPress={() => { triggerHaptic(); go('explore'); }} style={[styles.dashboardEmptyEvent, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <View style={[styles.dashboardEventIcon, { backgroundColor: colors.primary + '12' }]}>
+            <Feather name="compass" size={24} color={colors.primary} />
+          </View>
+          <View style={styles.dashboardEventCopy}>
+            <Text style={[styles.dashboardEventTitle, { color: colors.foreground }]}>Find your next good thing</Text>
+            <Text style={[styles.dashboardEventMeta, { color: colors.mutedForeground }]}>Explore experiences happening near you</Text>
+          </View>
+          <Feather name="arrow-right" size={22} color={colors.primary} />
+        </Pressable>
+      )}
+      <View style={{ height: 120 }} />
+    </ScrollView>
+  );
+}
+
