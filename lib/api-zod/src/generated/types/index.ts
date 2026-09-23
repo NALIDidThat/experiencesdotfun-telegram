@@ -11,6 +11,8 @@ export * from './availableOnlyParameter';
 export * from './botInfo';
 export * from './categoryParameter';
 export * from './conflictResponse';
+export * from './emailLoginInput';
+export * from './emailSignupInput';
 export * from './error';
 export * from './experience';
 export * from './experienceCategory';

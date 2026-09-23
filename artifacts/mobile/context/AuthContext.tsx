@@ -1,13 +1,18 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useAuthenticateTelegram, type User } from '@workspace/api-client-react';
 import {
-  clearStoredInitData,
-  getStoredInitData,
+  useAuthenticateTelegram,
+  getMe,
+  useLoginWithEmail,
+  useSignUpWithEmail,
+  type AuthResponse,
+  type User,
+} from '@workspace/api-client-react';
+import {
   getTelegramInitData,
   loadTelegramWebApp,
   openTelegramBot,
-  saveInitData,
 } from '@/lib/telegram';
+import { clearStoredAuthToken, getStoredAuthToken, saveAuthToken } from '@/lib/auth-storage';
 
 type AuthContextValue = {
   user: User | null;
@@ -18,6 +23,8 @@ type AuthContextValue = {
   authError: string | null;
   refresh: () => Promise<boolean>;
   login: () => Promise<boolean>;
+  loginWithEmail: (email: string, password: string) => Promise<boolean>;
+  signUpWithEmail: (name: string, email: string, password: string) => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextValue>({
@@ -29,6 +36,8 @@ const AuthContext = createContext<AuthContextValue>({
   authError: null,
   refresh: async () => false,
   login: async () => false,
+  loginWithEmail: async () => false,
+  signUpWithEmail: async () => false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -39,6 +48,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authenticate = useAuthenticateTelegram();
   const authenticateRef = useRef(authenticate);
   authenticateRef.current = authenticate;
+  const emailLoginMutation = useLoginWithEmail();
+  const emailLoginRef = useRef(emailLoginMutation);
+  emailLoginRef.current = emailLoginMutation;
+  const emailSignupMutation = useSignUpWithEmail();
+  const emailSignupRef = useRef(emailSignupMutation);
+  emailSignupRef.current = emailSignupMutation;
 
   const authenticateWith = useCallback(async (candidate: string | null, reportMissing = true) => {
     if (!candidate) {
@@ -52,14 +67,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthError(null);
     try {
       const response = await authenticateRef.current.mutateAsync({ data: { initData: candidate } });
-      await saveInitData(candidate);
+      await saveAuthToken(candidate);
       setInitData(candidate);
       setUser(response.user);
       return true;
     } catch (error) {
       setUser(null);
       setInitData(null);
-      await clearStoredInitData();
+      await clearStoredAuthToken();
       const message = (error as { data?: { message?: string } })?.data?.message;
       setAuthError(message ?? 'Telegram login failed. Reopen the Mini App and try again.');
       return false;
@@ -68,10 +83,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const completeEmailAuth = useCallback(async (response: AuthResponse) => {
+    if (!response.sessionToken) {
+      setAuthError('Email login did not return a valid session. Please try again.');
+      setLoading(false);
+      return false;
+    }
+    await saveAuthToken(response.sessionToken);
+    setInitData(null);
+    setUser(response.user);
+    setAuthError(null);
+    setLoading(false);
+    return true;
+  }, []);
+
+  const restoreEmailSession = useCallback(async () => {
+    setLoading(true);
+    try {
+      const currentUser = await getMe();
+      setInitData(null);
+      setUser(currentUser);
+      setAuthError(null);
+      return true;
+    } catch {
+      await clearStoredAuthToken();
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loginWithEmail = useCallback(async (email: string, password: string) => {
+    setLoading(true);
+    setAuthError(null);
+    try {
+      return await completeEmailAuth(await emailLoginRef.current.mutateAsync({ data: { email, password } }));
+    } catch (error) {
+      const message = (error as { data?: { message?: string } })?.data?.message;
+      setAuthError(message ?? 'Email login failed. Check your details and try again.');
+      setLoading(false);
+      return false;
+    }
+  }, [completeEmailAuth]);
+
+  const signUpWithEmail = useCallback(async (name: string, email: string, password: string) => {
+    setLoading(true);
+    setAuthError(null);
+    try {
+      return await completeEmailAuth(await emailSignupRef.current.mutateAsync({ data: { name, email, password } }));
+    } catch (error) {
+      const message = (error as { data?: { message?: string } })?.data?.message;
+      setAuthError(message ?? 'We could not create your account. Please try again.');
+      setLoading(false);
+      return false;
+    }
+  }, [completeEmailAuth]);
+
   const login = useCallback(async () => {
     await loadTelegramWebApp();
     const liveData = getTelegramInitData();
-    const storedData = liveData ? null : await getStoredInitData();
+    const storedData = liveData ? null : await getStoredAuthToken();
     const authenticated = await authenticateWith(liveData ?? storedData);
     if (!authenticated) openTelegramBot();
     return authenticated;
@@ -82,13 +153,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       await loadTelegramWebApp();
       const liveData = getTelegramInitData();
-      const storedData = liveData ? null : await getStoredInitData();
-      if (active) await authenticateWith(liveData ?? storedData, false);
+      const storedData = liveData ? null : await getStoredAuthToken();
+      if (!active) return;
+      if (!liveData && storedData?.startsWith('email_')) {
+        await restoreEmailSession();
+        return;
+      }
+      await authenticateWith(liveData ?? storedData, false);
     })();
     return () => {
       active = false;
     };
-  }, [authenticateWith]);
+  }, [authenticateWith, restoreEmailSession]);
 
   const value = useMemo(
     () => ({
@@ -103,8 +179,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return authenticateWith(latest);
       },
       login,
+      loginWithEmail,
+      signUpWithEmail,
     }),
-    [user, initData, loading, authError, authenticateWith, login],
+    [user, initData, loading, authError, authenticateWith, login, loginWithEmail, signUpWithEmail],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

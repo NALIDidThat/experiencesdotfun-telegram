@@ -11,7 +11,7 @@ tags:
   - name: health
     description: Health operations
   - name: auth
-    description: Telegram identity
+    description: Telegram and email identity
   - name: experiences
     description: Volunteering discovery and participation
   - name: profile
@@ -60,6 +60,50 @@ paths:
       responses:
         "200":
           description: Authenticated Telegram user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/email/signup:
+    post:
+      operationId: signUpWithEmail
+      tags: [auth]
+      summary: Create an email account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailSignupInput"
+      responses:
+        "200":
+          description: Created email account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /auth/email/login:
+    post:
+      operationId: loginWithEmail
+      tags: [auth]
+      summary: Log in with an email account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailLoginInput"
+      responses:
+        "200":
+          description: Authenticated email account
           content:
             application/json:
               schema:
@@ -541,7 +585,32 @@ components:
           $ref: "#/components/schemas/User"
         isNew:
           type: boolean
-      required: [user, isNew]
+        sessionToken:
+          type: [string, "null"]
+      required: [user, isNew, sessionToken]
+    EmailSignupInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+      required: [name, email, password]
+    EmailLoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+      required: [email, password]
     ExperienceCategory:
       type: string
       enum: [environmental, education, community]
@@ -564,8 +633,11 @@ components:
           type: integer
           format: int64
         telegramId:
-          type: integer
+          type: [integer, "null"]
           format: int64
+        email:
+          type: [string, "null"]
+          format: email
         name:
           type: string
         username:
@@ -597,6 +669,7 @@ components:
       required:
         - id
         - telegramId
+        - email
         - name
         - username
         - bio

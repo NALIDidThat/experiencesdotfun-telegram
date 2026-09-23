@@ -1,3 +1,4 @@
 - [Expo DevTools warning](expo-devtools-warning.md) — missing libglib can affect DevTools installation without preventing Metro or the app preview from running.
 - [Telegram auth bootstrap](telegram-auth-bootstrap.md) — keep Telegram authentication initialization stable across React Query mutation rerenders.
+- [Email auth sessions](email-auth-sessions.md) — email users use hashed passwords and expiring bearer sessions through the same protected API routes.
 - [Telegram polling ownership](telegram-polling-ownership.md) — run only one Telegram long-polling bot instance; local and deployed pollers conflict.

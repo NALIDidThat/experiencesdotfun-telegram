@@ -38,7 +38,8 @@ export const AuthenticateTelegramBody = zod.object({
 export const AuthenticateTelegramResponse = zod.object({
   "user": zod.object({
   "id": zod.number().int(),
-  "telegramId": zod.number().int(),
+  "telegramId": zod.number().int().nullable(),
+  "email": zod.string().email().nullable(),
   "name": zod.string(),
   "username": zod.string().nullable(),
   "bio": zod.string().nullable(),
@@ -52,7 +53,79 @@ export const AuthenticateTelegramResponse = zod.object({
   "hostedCount": zod.number().int(),
   "rewardsPence": zod.number().int()
 }),
-  "isNew": zod.boolean()
+  "isNew": zod.boolean(),
+  "sessionToken": zod.string().nullable()
+})
+
+
+/**
+ * @summary Create an email account
+ */
+
+export const signUpWithEmailBodyPasswordMin = 8;
+
+
+
+export const SignUpWithEmailBody = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().email(),
+  "password": zod.string().min(signUpWithEmailBodyPasswordMin)
+})
+
+export const SignUpWithEmailResponse = zod.object({
+  "user": zod.object({
+  "id": zod.number().int(),
+  "telegramId": zod.number().int().nullable(),
+  "email": zod.string().email().nullable(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "bio": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "participationType": zod.enum(['join', 'host', 'both']).nullable(),
+  "xp": zod.number().int(),
+  "level": zod.string(),
+  "completedCount": zod.number().int(),
+  "hostedCount": zod.number().int(),
+  "rewardsPence": zod.number().int()
+}),
+  "isNew": zod.boolean(),
+  "sessionToken": zod.string().nullable()
+})
+
+
+/**
+ * @summary Log in with an email account
+ */
+
+
+
+export const LoginWithEmailBody = zod.object({
+  "email": zod.string().email(),
+  "password": zod.string().min(1)
+})
+
+export const LoginWithEmailResponse = zod.object({
+  "user": zod.object({
+  "id": zod.number().int(),
+  "telegramId": zod.number().int().nullable(),
+  "email": zod.string().email().nullable(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "bio": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "participationType": zod.enum(['join', 'host', 'both']).nullable(),
+  "xp": zod.number().int(),
+  "level": zod.string(),
+  "completedCount": zod.number().int(),
+  "hostedCount": zod.number().int(),
+  "rewardsPence": zod.number().int()
+}),
+  "isNew": zod.boolean(),
+  "sessionToken": zod.string().nullable()
 })
 
 
@@ -61,7 +134,8 @@ export const AuthenticateTelegramResponse = zod.object({
  */
 export const GetMeResponse = zod.object({
   "id": zod.number().int(),
-  "telegramId": zod.number().int(),
+  "telegramId": zod.number().int().nullable(),
+  "email": zod.string().email().nullable(),
   "name": zod.string(),
   "username": zod.string().nullable(),
   "bio": zod.string().nullable(),
@@ -94,7 +168,8 @@ export const UpdateMeBody = zod.object({
 
 export const UpdateMeResponse = zod.object({
   "id": zod.number().int(),
-  "telegramId": zod.number().int(),
+  "telegramId": zod.number().int().nullable(),
+  "email": zod.string().email().nullable(),
   "name": zod.string(),
   "username": zod.string().nullable(),
   "bio": zod.string().nullable(),

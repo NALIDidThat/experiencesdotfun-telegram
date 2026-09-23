@@ -34,7 +34,10 @@ export const ExperienceCategory = {
 
 export interface User {
   id: number;
-  telegramId: number;
+  /** @nullable */
+  telegramId: number | null;
+  /** @nullable */
+  email: string | null;
   name: string;
   /** @nullable */
   username: string | null;
@@ -57,6 +60,22 @@ export interface User {
 export interface AuthResponse {
   user: User;
   isNew: boolean;
+  /** @nullable */
+  sessionToken: string | null;
+}
+
+export interface EmailSignupInput {
+  /** @minLength 1 */
+  name: string;
+  email: string;
+  /** @minLength 8 */
+  password: string;
+}
+
+export interface EmailLoginInput {
+  email: string;
+  /** @minLength 1 */
+  password: string;
 }
 
 export type ParticipationType = typeof ParticipationType[keyof typeof ParticipationType];

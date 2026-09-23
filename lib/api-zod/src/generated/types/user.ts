@@ -9,7 +9,10 @@ import type { ExperienceCategory } from './experienceCategory';
 
 export interface User {
   id: bigint;
-  telegramId: bigint;
+  /** @nullable */
+  telegramId: bigint | null;
+  /** @nullable */
+  email: string | null;
   name: string;
   /** @nullable */
   username: string | null;

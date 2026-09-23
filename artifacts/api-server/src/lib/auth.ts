@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 import type { NextFunction, Request, Response } from "express";
 import { db } from "@workspace/db";
-import { usersTable, type User } from "@workspace/db/schema";
+import { emailAccountsTable, usersTable, type User } from "@workspace/db/schema";
 import { logger } from "./logger";
 
 export type TelegramIdentity = {
@@ -10,6 +10,17 @@ export type TelegramIdentity = {
   first_name?: string;
   last_name?: string;
   username?: string;
+};
+
+export type EmailSignupInput = {
+  name: string;
+  email: string;
+  password: string;
+};
+
+export type EmailLoginInput = {
+  email: string;
+  password: string;
 };
 
 export type AuthenticatedRequest = Request & {
@@ -22,6 +33,102 @@ function getBotToken(): string {
     throw new Error("TELEGRAM_BOT_TOKEN is not configured.");
   }
   return token;
+}
+
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16);
+  const derivedKey = crypto.scryptSync(password, salt, 64);
+  return `${salt.toString("hex")}:${derivedKey.toString("hex")}`;
+}
+
+function verifyPassword(password: string, encodedHash: string): boolean {
+  const [saltHex, hashHex] = encodedHash.split(":");
+  if (!saltHex || !hashHex) return false;
+  try {
+    const expected = Buffer.from(hashHex, "hex");
+    const actual = crypto.scryptSync(password, Buffer.from(saltHex, "hex"), expected.length);
+    return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+  } catch {
+    return false;
+  }
+}
+
+function hashSessionToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+async function issueEmailSession(userId: number, accountId: number): Promise<string> {
+  const token = `email_${crypto.randomBytes(32).toString("base64url")}`;
+  await db
+    .update(emailAccountsTable)
+    .set({
+      sessionTokenHash: hashSessionToken(token),
+      sessionExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      updatedAt: new Date(),
+    })
+    .where(eq(emailAccountsTable.id, accountId));
+  return token;
+}
+
+export async function createEmailAccount(input: EmailSignupInput): Promise<{ user: User; sessionToken: string }> {
+  const email = normalizeEmail(input.email);
+  const existing = await db.query.emailAccountsTable.findFirst({
+    where: eq(emailAccountsTable.email, email),
+  });
+  if (existing) throw new Error("EMAIL_ALREADY_REGISTERED");
+
+  const [user] = await db
+    .insert(usersTable)
+    .values({
+      telegramId: `email:${crypto.randomUUID()}`,
+      name: input.name.trim(),
+      username: null,
+    })
+    .returning();
+  if (!user) throw new Error("Unable to create email user.");
+
+  const [account] = await db
+    .insert(emailAccountsTable)
+    .values({
+      userId: user.id,
+      email,
+      passwordHash: hashPassword(input.password),
+    })
+    .returning();
+  if (!account) throw new Error("Unable to create email account.");
+
+  return { user, sessionToken: await issueEmailSession(user.id, account.id) };
+}
+
+export async function authenticateEmail(input: EmailLoginInput): Promise<{ user: User; sessionToken: string } | undefined> {
+  const email = normalizeEmail(input.email);
+  const account = await db.query.emailAccountsTable.findFirst({
+    where: eq(emailAccountsTable.email, email),
+  });
+  if (!account || !verifyPassword(input.password, account.passwordHash)) return undefined;
+
+  const user = await db.query.usersTable.findFirst({
+    where: eq(usersTable.id, account.userId),
+  });
+  if (!user) return undefined;
+  return { user, sessionToken: await issueEmailSession(user.id, account.id) };
+}
+
+export async function findUserByEmailSession(sessionToken: string): Promise<User | undefined> {
+  const account = await db.query.emailAccountsTable.findFirst({
+    where: and(
+      eq(emailAccountsTable.sessionTokenHash, hashSessionToken(sessionToken)),
+      gt(emailAccountsTable.sessionExpiresAt, new Date()),
+    ),
+  });
+  if (!account) return undefined;
+  return db.query.usersTable.findFirst({
+    where: eq(usersTable.id, account.userId),
+  });
 }
 
 export function verifyTelegramInitData(initData: string): TelegramIdentity {
@@ -103,6 +210,16 @@ export async function requireTelegramUser(
   }
 
   try {
+    if (initData.startsWith("email_")) {
+      const user = await findUserByEmailSession(initData);
+      if (!user) {
+        res.status(401).json({ message: "Your email session is invalid or expired." });
+        return;
+      }
+      (req as AuthenticatedRequest).telegramUser = user;
+      next();
+      return;
+    }
     const identity = verifyTelegramInitData(initData);
     const user = await upsertTelegramUser(identity);
     (req as AuthenticatedRequest).telegramUser = user;

@@ -12,6 +12,8 @@ import {
   RejectParticipationParams,
   SubmitCompletionParams,
   AuthenticateTelegramBody,
+  SignUpWithEmailBody,
+  LoginWithEmailBody,
   UpdateMeBody,
   VerifyParticipationParams,
 } from "@workspace/api-zod";
@@ -25,6 +27,8 @@ import {
 } from "@workspace/db/schema";
 import {
   currentUser,
+  authenticateEmail,
+  createEmailAccount,
   findUserByTelegramId,
   findUserByUsername,
   requireTelegramUser,
@@ -54,11 +58,44 @@ router.post("/auth/telegram", async (req, res) => {
     const identity = verifyTelegramInitData(parsed.data.initData);
     const existing = await findUserByTelegramId(identity.id);
     const user = await upsertTelegramUser(identity);
-    res.json({ user: await userResponse(user), isNew: !existing });
+    res.json({ user: await userResponse(user), isNew: !existing, sessionToken: null });
   } catch (authError) {
     logger.warn({ err: authError }, "Telegram login rejected");
     error(res, 401, "Your Telegram login is invalid or expired. Reopen the Mini App and try again.");
   }
+});
+
+router.post("/auth/email/signup", async (req, res) => {
+  const parsed = SignUpWithEmailBody.safeParse(req.body);
+  if (!parsed.success) {
+    error(res, 400, "Enter a name, valid email address, and password of at least 8 characters.");
+    return;
+  }
+  try {
+    const result = await createEmailAccount(parsed.data);
+    res.json({ user: await userResponse(result.user), isNew: true, sessionToken: result.sessionToken });
+  } catch (signupError) {
+    if (signupError instanceof Error && signupError.message === "EMAIL_ALREADY_REGISTERED") {
+      error(res, 409, "That email is already registered. Log in instead.");
+      return;
+    }
+    logger.error({ err: signupError }, "Email signup failed");
+    error(res, 500, "We couldn't create your account. Please try again.");
+  }
+});
+
+router.post("/auth/email/login", async (req, res) => {
+  const parsed = LoginWithEmailBody.safeParse(req.body);
+  if (!parsed.success) {
+    error(res, 400, "Enter your email and password.");
+    return;
+  }
+  const result = await authenticateEmail(parsed.data);
+  if (!result) {
+    error(res, 401, "That email or password is not correct.");
+    return;
+  }
+  res.json({ user: await userResponse(result.user), isNew: false, sessionToken: result.sessionToken });
 });
 
 router.use(requireTelegramUser);

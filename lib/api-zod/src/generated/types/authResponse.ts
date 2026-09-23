@@ -10,4 +10,6 @@ import type { User } from './user';
 export interface AuthResponse {
   user: User;
   isNew: boolean;
+  /** @nullable */
+  sessionToken: string | null;
 }

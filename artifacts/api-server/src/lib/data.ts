@@ -1,6 +1,7 @@
 import { and, count, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
+  emailAccountsTable,
   experiencesTable,
   organisationsTable,
   participationsTable,
@@ -53,9 +54,17 @@ export async function userResponse(user: User) {
       ),
     );
 
+  const [emailAccount] = await db
+    .select({ email: emailAccountsTable.email })
+    .from(emailAccountsTable)
+    .where(eq(emailAccountsTable.userId, user.id))
+    .limit(1);
+
+  const telegramId = Number(user.telegramId);
   return {
     id: user.id,
-    telegramId: Number(user.telegramId),
+    telegramId: Number.isSafeInteger(telegramId) && telegramId > 0 ? telegramId : null,
+    email: emailAccount?.email ?? null,
     name: user.name,
     username: user.username,
     bio: user.bio,

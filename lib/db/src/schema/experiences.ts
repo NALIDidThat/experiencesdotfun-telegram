@@ -32,6 +32,27 @@ export const usersTable = pgTable(
   }),
 );
 
+export const emailAccountsTable = pgTable(
+  "email_accounts",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => usersTable.id),
+    email: text("email").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    sessionTokenHash: text("session_token_hash"),
+    sessionExpiresAt: timestamp("session_expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIndex: uniqueIndex("email_accounts_user_id_idx").on(table.userId),
+    emailIndex: uniqueIndex("email_accounts_email_idx").on(table.email),
+    sessionTokenIndex: uniqueIndex("email_accounts_session_token_idx").on(table.sessionTokenHash),
+  }),
+);
+
 export const organisationsTable = pgTable("organisations", {
   id: serial("id").primaryKey(),
   ownerUserId: integer("owner_user_id")

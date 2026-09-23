@@ -88,6 +88,7 @@ const categoryGradients: Record<ExperienceCategory, readonly [string, string]> =
 const guestUser: User = {
   id: 0,
   telegramId: 0,
+  email: null,
   username: null,
   name: 'Guest User',
   participationType: 'join',
@@ -315,14 +316,135 @@ function OnboardingArtwork({ variant }: { variant: 'welcome' | 'complete' }) {
   );
 }
 
+function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => void }) {
+  const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const { loginWithEmail, signUpWithEmail, loading, authError } = useAuth();
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [localError, setLocalError] = useState<string | null>(null);
+  const isSignup = mode === 'signup';
+
+  const submit = async () => {
+    Keyboard.dismiss();
+    setLocalError(null);
+    if (isSignup && password !== confirmPassword) {
+      setLocalError('Your passwords do not match.');
+      return;
+    }
+    const authenticated = isSignup
+      ? await signUpWithEmail(name.trim(), email.trim(), password)
+      : await loginWithEmail(email.trim(), password);
+    if (authenticated) onSuccess();
+  };
+
+  return (
+    <KeyboardAwareScrollViewCompat
+      style={[styles.emailAuthScreen, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 32 : 20), paddingBottom: Math.max(insets.bottom, 24) }]}
+      keyboardDismissMode="on-drag"
+    >
+      <Pressable accessibilityRole="button" accessibilityLabel="Back to Telegram login" onPress={onBack} style={styles.emailBack}>
+        <Feather name="arrow-left" size={20} color={colors.foreground} />
+        <Text style={[styles.emailBackText, { color: colors.foreground }]}>Back</Text>
+      </Pressable>
+      <View style={styles.emailAuthHeader}>
+        <Text style={[styles.talentEyebrow, { color: colors.primary }]}>WELCOME BACK</Text>
+        <Text style={[styles.emailAuthTitle, { color: colors.foreground }]}>{isSignup ? 'Create your account.' : 'Log in with email.'}</Text>
+        <Text style={[styles.emailAuthBody, { color: colors.mutedForeground }]}>
+          {isSignup ? 'Save your passport and contributions with an email account.' : 'Continue to your Experiences.fun passport from any device.'}
+        </Text>
+      </View>
+      <View style={[styles.emailAuthForm, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+        {isSignup ? (
+          <View style={styles.emailField}>
+            <Text style={[styles.emailLabel, { color: colors.foreground }]}>Name</Text>
+            <TextInput
+              accessibilityLabel="Name"
+              value={name}
+              onChangeText={setName}
+              placeholder="Your name"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="words"
+              style={[styles.emailInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius - 4 }]}
+            />
+          </View>
+        ) : null}
+        <View style={styles.emailField}>
+          <Text style={[styles.emailLabel, { color: colors.foreground }]}>Email</Text>
+          <TextInput
+            accessibilityLabel="Email"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            placeholderTextColor={colors.mutedForeground}
+            autoCapitalize="none"
+            autoComplete="email"
+            keyboardType="email-address"
+            style={[styles.emailInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius - 4 }]}
+          />
+        </View>
+        <View style={styles.emailField}>
+          <Text style={[styles.emailLabel, { color: colors.foreground }]}>Password</Text>
+          <TextInput
+            accessibilityLabel="Password"
+            value={password}
+            onChangeText={setPassword}
+            placeholder={isSignup ? 'At least 8 characters' : 'Your password'}
+            placeholderTextColor={colors.mutedForeground}
+            secureTextEntry
+            autoCapitalize="none"
+            style={[styles.emailInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius - 4 }]}
+          />
+        </View>
+        {isSignup ? (
+          <View style={styles.emailField}>
+            <Text style={[styles.emailLabel, { color: colors.foreground }]}>Confirm password</Text>
+            <TextInput
+              accessibilityLabel="Confirm password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Repeat your password"
+              placeholderTextColor={colors.mutedForeground}
+              secureTextEntry
+              autoCapitalize="none"
+              style={[styles.emailInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius - 4 }]}
+            />
+          </View>
+        ) : null}
+        {localError || authError ? <Text accessibilityRole="alert" style={[styles.emailError, { color: colors.destructive }]}>{localError ?? authError}</Text> : null}
+        <Button
+          label={loading ? (isSignup ? 'Creating account…' : 'Logging in…') : (isSignup ? 'Create account' : 'Log in')}
+          disabled={loading || !email.trim() || !password || (isSignup && (!name.trim() || !confirmPassword))}
+          onPress={() => { void submit(); }}
+          icon={isSignup ? 'user-plus' : 'log-in'}
+        />
+        <Pressable accessibilityRole="button" onPress={() => { setMode(isSignup ? 'login' : 'signup'); setLocalError(null); }}>
+          <Text style={[styles.emailSwitch, { color: colors.primary }]}>
+            {isSignup ? 'Already have an account? Log in' : 'Need an account? Sign up'}
+          </Text>
+        </Pressable>
+      </View>
+    </KeyboardAwareScrollViewCompat>
+  );
+}
+
 function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { user, login, loading, authError } = useAuth();
+  const [emailAuthOpen, setEmailAuthOpen] = useState(false);
 
   const handleTelegramLogin = async () => {
     if (user || await login()) onContinue();
   };
+
+  if (emailAuthOpen) {
+    return <EmailAuthPanel onBack={() => setEmailAuthOpen(false)} onSuccess={onContinue} />;
+  }
 
   return (
     <KeyboardAvoidingView style={[styles.talentScreen, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -376,6 +498,9 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
             onPress={() => { void handleTelegramLogin(); }}
             icon="send"
           />
+          <Pressable accessibilityRole="button" accessibilityLabel="Log in with email" onPress={() => setEmailAuthOpen(true)} style={styles.emailLoginLink}>
+            <Text style={[styles.emailLoginLinkText, { color: colors.primary }]}>Log in with email</Text>
+          </Pressable>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -1636,6 +1761,21 @@ const styles = StyleSheet.create({
   talentSheetBody: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20, marginBottom: 2 },
   talentTelegramNote: { minHeight: 46, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14 },
   talentTelegramNoteText: { flex: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  emailLoginLink: { alignItems: 'center', paddingVertical: 2 },
+  emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  emailAuthScreen: { flex: 1 },
+  emailAuthContent: { flexGrow: 1, paddingHorizontal: 24, justifyContent: 'center' },
+  emailBack: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, alignSelf: 'flex-start' },
+  emailBackText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  emailAuthHeader: { marginTop: 28, marginBottom: 24 },
+  emailAuthTitle: { fontSize: 34, lineHeight: 40, fontFamily: 'Inter_700Bold', letterSpacing: -1 },
+  emailAuthBody: { fontSize: 15, lineHeight: 22, fontFamily: 'Inter_400Regular', marginTop: 10, maxWidth: 340 },
+  emailAuthForm: { borderWidth: 1, padding: 20, gap: 16, shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  emailField: { gap: 8 },
+  emailLabel: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  emailInput: { height: 52, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontFamily: 'Inter_400Regular' },
+  emailError: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
+  emailSwitch: { fontSize: 13, fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
   
   onboarding: { flex: 1 },
   onboardingScreenContent: { flexGrow: 1 },

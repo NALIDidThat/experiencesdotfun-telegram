@@ -15,12 +15,12 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { setAuthTokenGetter, setBaseUrl } from '@workspace/api-client-react';
 import { AuthProvider } from '@/context/AuthContext';
-import { getStoredInitData } from '@/lib/telegram';
+import { getStoredAuthToken } from '@/lib/auth-storage';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
-setAuthTokenGetter(getStoredInitData);
+setAuthTokenGetter(getStoredAuthToken);
 
 const queryClient = new QueryClient();
 

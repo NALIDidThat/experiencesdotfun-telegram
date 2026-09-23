@@ -95,8 +95,10 @@ export async function sendTelegramMessage(
   text: string,
   inlineKeyboard?: TelegramButton[][],
 ) {
+  const numericChatId = Number(chatId);
+  if (!Number.isSafeInteger(numericChatId) || numericChatId <= 0) return null;
   return telegramCall("sendMessage", {
-    chat_id: chatId,
+    chat_id: numericChatId,
     text,
     parse_mode: "HTML",
     disable_web_page_preview: true,
