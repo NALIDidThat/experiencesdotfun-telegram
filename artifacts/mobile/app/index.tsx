@@ -275,36 +275,73 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
 
   return (
     <KeyboardAvoidingView style={styles.talentScreen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.talentShell, { paddingTop: Math.max(insets.top, 14), paddingBottom: Math.max(insets.bottom, 24), backgroundColor: colors.background }]}>
+      <View style={[styles.talentShell, { paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 67 : 14), paddingBottom: Math.max(insets.bottom, 24), backgroundColor: colors.muted }]}>
+        <View style={styles.talentTopBar}>
+          <View style={styles.talentBrandMark}>
+            <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.talentBrandIcon}>
+              <Feather name="star" size={16} color={colors.primaryForeground} />
+            </LinearGradient>
+            <Text style={[styles.talentBrand, { color: colors.foreground }]}>experiences.fun</Text>
+          </View>
+          <View style={[styles.talentTopAction, { backgroundColor: colors.card }]}>
+            <Feather name="heart" size={16} color={colors.primary} />
+          </View>
+        </View>
+
         <View style={styles.talentTop}>
           <View style={styles.talentIntro}>
-            <LinearGradient colors={['#F20789', '#6805F2']} style={{ width: 64, height: 64, borderRadius: 16, marginBottom: 24, alignItems: 'center', justifyContent: 'center' }}>
-              <Feather name="star" size={32} color="#ffffff" />
-            </LinearGradient>
+            <Text style={[styles.talentEyebrow, { color: colors.primary }]}>YOUR NEXT GOOD THING</Text>
             <Text style={[styles.talentTitle, { color: colors.foreground }]}>
               Real people doing{'\n'}
               <Text style={{ color: colors.primary }}>real things.</Text>
             </Text>
-            <Text style={[styles.talentTitleSoft, { color: colors.mutedForeground }]}>Connect with local experiences that create real impact.</Text>
+            <Text style={[styles.talentTitleSoft, { color: colors.mutedForeground }]}>Find small ways to make a real difference near you.</Text>
+            <View style={styles.talentArtwork}>
+              <LinearGradient colors={[colors.primary, colors.secondary]} style={[styles.talentArtworkBlob, styles.talentArtworkBlobLarge]} />
+              <LinearGradient colors={[colors.accent, colors.teal]} style={[styles.talentArtworkBlob, styles.talentArtworkBlobSmall]} />
+              <View style={[styles.talentArtworkCard, styles.talentArtworkCardBack, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Feather name="map-pin" size={24} color={colors.accent} />
+                <Text style={[styles.talentArtworkCardText, { color: colors.foreground }]}>near you</Text>
+              </View>
+              <View style={[styles.talentArtworkCard, styles.talentArtworkCardFront, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={[styles.talentArtworkIcon, { backgroundColor: colors.primary + '18' }]}>
+                  <Feather name="users" size={28} color={colors.primary} />
+                </View>
+                <View style={styles.talentArtworkLines}>
+                  <View style={[styles.talentArtworkLine, { backgroundColor: colors.foreground }]} />
+                  <View style={[styles.talentArtworkLineShort, { backgroundColor: colors.border }]} />
+                </View>
+                <View style={[styles.talentArtworkPill, { backgroundColor: colors.teal + '18' }]}>
+                  <Text style={[styles.talentArtworkPillText, { color: colors.teal }]}>+ impact</Text>
+                </View>
+              </View>
+            </View>
           </View>
         </View>
 
-        <View style={styles.talentFormPanel}>
-          <View >
-            <Text style={[styles.talentFieldLabel, { color: colors.foreground }]}>E-mail</Text>
+        <View style={[styles.talentFormPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.talentSheetKicker, { color: colors.primary }]}>WELCOME TO EXPERIENCES.FUN</Text>
+          <Text style={[styles.talentSheetTitle, { color: colors.foreground }]}>Make room for good things.</Text>
+          <Text style={[styles.talentSheetBody, { color: colors.mutedForeground }]}>Create your experience passport and start showing up for what matters.</Text>
+          <View style={styles.talentEmailRow}>
+            <Feather name="mail" size={18} color={colors.mutedForeground} />
             <TextInput
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
-              style={[styles.talentEmailInput, { backgroundColor: colors.card, borderColor: colors.input, color: colors.foreground, borderRadius: colors.radius }]}
+              placeholder="Your email"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.talentEmailInput, { color: colors.foreground }]}
               accessibilityLabel="Email"
             />
           </View>
           <Button label="Build my passport" onPress={onContinue} />
-          <Text style={[styles.talentDividerText, { color: colors.mutedForeground }]}>or continue with your account</Text>
-          <Button label="Google" variant="secondary" onPress={onContinue} icon="chrome" />
-          <Button label="LinkedIn" variant="secondary" onPress={onContinue} icon="linkedin" />
+          <Text style={[styles.talentDividerText, { color: colors.mutedForeground }]}>or continue with</Text>
+          <View style={styles.talentSocialRow}>
+            <Button label="Google" variant="secondary" onPress={onContinue} icon="chrome" style={styles.talentSocialButton} />
+            <Button label="LinkedIn" variant="secondary" onPress={onContinue} icon="linkedin" style={styles.talentSocialButton} />
+          </View>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -351,7 +388,7 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
         {step === 0 ? <Pressable onPress={() => setStep(1)}><Text style={[styles.skipText, { color: colors.mutedForeground }]}>Skip</Text></Pressable> : <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>0{step + 1} / 05</Text>}
       </View>
       <ScrollView contentContainerStyle={styles.onboardingContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {step === 1 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Who are you?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Tell us what people should call you when you show up.</Text><View style={styles.onboardingForm}><TextInput autoFocus value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]} /><Text style={[styles.inputHint, { color: colors.mutedForeground }]}>Your Telegram username stays connected automatically.</Text></View></View> : null}
+        {step === 1 ? <View style={styles.onboardingSlide}><View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}><Feather name="user" size={28} color={colors.primary} /></View><Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>STEP 01 · YOUR PASSPORT</Text><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Let’s make it yours.</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Tell us what people should call you when you show up. You can change this later.</Text><View style={styles.onboardingForm}><Text style={[styles.onboardingFieldLabel, { color: colors.foreground }]}>Display name</Text><View style={[styles.onboardingInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}><Feather name="smile" size={18} color={colors.mutedForeground} /><TextInput autoFocus value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, { color: colors.foreground }]} /></View><Text style={[styles.inputHint, { color: colors.mutedForeground }]}>Your Telegram username stays connected automatically.</Text></View></View> : null}
         {step === 2 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>What matters to you?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Pick the causes you'd like to see first.</Text><View style={styles.onboardingChoices}>{categories.slice(1).map((item) => { const selected = interests.includes(item.key as ExperienceCategory); return <Pressable key={item.key} onPress={() => setInterests((current) => selected ? current.filter((value) => value !== item.key) : [...current, item.key as ExperienceCategory])} style={[styles.choiceCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Feather name={item.icon} size={24} color={selected ? colors.primary : colors.mutedForeground} /><Text style={[styles.choiceTitle, { color: colors.foreground }]}>{item.label}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={20} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></View> : null}
         {step === 3 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Where will you show up?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>We'll use your city to find nearby opportunities.</Text><View style={styles.onboardingForm}><TextInput autoFocus value={city} onChangeText={setCity} placeholder="e.g. London" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]} /><Text style={[styles.formLabel, { color: colors.foreground }]}>I want to…</Text><View style={styles.onboardingChoices}>{(['join', 'host', 'both'] as ParticipationType[]).map((value) => { const selected = participationType === value; const labels = { join: 'Join experiences', host: 'Host experiences', both: 'Do both' }; return <Pressable key={value} onPress={() => setParticipationType(value)} style={[styles.participationCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Text style={[styles.choiceTitle, { color: colors.foreground }]}>{labels[value]}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={20} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></View></View> : null}
         {step === 4 ? <View style={styles.onboardingSlide}><OnboardingArtwork variant="complete" /><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>We're all set!</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>You're ready to find your next good thing, {name.trim() || 'friend'}.</Text><TextInput value={bio} onChangeText={setBio} multiline placeholder="Add a short bio (optional)" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius, marginTop: 24 }]} /></View> : null}
