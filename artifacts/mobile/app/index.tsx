@@ -920,8 +920,16 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
 
 function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const create = useCreateExperience();
-  const [form, setForm] = useState<Partial<ExperienceCreateInput>>({ category: 'community', capacity: 10, xpReward: 100, monetaryRewardPence: null });
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState<Partial<ExperienceCreateInput>>({
+    category: 'community',
+    city: 'London',
+    capacity: 12,
+    xpReward: 150,
+    monetaryRewardPence: null,
+  });
   
   const set = (key: keyof ExperienceCreateInput, value: string | number | null) => {
     const numeric = key === 'capacity' || key === 'xpReward' || key === 'monetaryRewardPence';
@@ -929,62 +937,269 @@ function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) 
     setForm((current) => ({ ...current, [key]: nextValue }));
   };
   
-  const valid = Boolean(form.organisationName && form.title && form.description && form.date && form.startTime && form.endTime && form.location && form.city && form.capacity && form.xpReward);
-  const publish = async () => { if (!valid) return; await create.mutateAsync({ data: form as ExperienceCreateInput }); go('host'); };
+  const valid = Boolean(
+    form.organisationName?.trim()
+    && form.title?.trim()
+    && form.description?.trim()
+    && form.category
+    && form.date?.trim()
+    && form.startTime?.trim()
+    && form.endTime?.trim()
+    && form.location?.trim()
+    && form.city?.trim()
+    && Number(form.capacity) >= 1
+    && Number(form.xpReward) >= 0,
+  );
+  const canContinue =
+    step === 1 ? Boolean(form.organisationName?.trim()) :
+    step === 2 ? Boolean(form.title?.trim() && form.description?.trim() && form.category) :
+    step === 3 ? Boolean(
+      form.date?.trim()
+      && form.startTime?.trim()
+      && form.endTime?.trim()
+      && form.location?.trim()
+      && form.city?.trim()
+      && Number(form.capacity) >= 1
+      && Number(form.xpReward) >= 0,
+    ) :
+    valid;
+
+  const publish = async () => {
+    if (!valid || create.isPending) return;
+    await create.mutateAsync({
+      data: {
+        organisationName: form.organisationName!.trim(),
+        organisationDescription: form.organisationDescription?.trim() || null,
+        title: form.title!.trim(),
+        description: form.description!.trim(),
+        category: form.category!,
+        date: form.date!.trim(),
+        startTime: form.startTime!.trim(),
+        endTime: form.endTime!.trim(),
+        location: form.location!.trim(),
+        city: form.city!.trim(),
+        capacity: Number(form.capacity),
+        xpReward: Number(form.xpReward),
+        monetaryRewardPence: form.monetaryRewardPence == null ? null : Number(form.monetaryRewardPence),
+        whatToBring: form.whatToBring?.trim() || null,
+        whatYouWillDo: form.whatYouWillDo?.trim() || null,
+      },
+    });
+    go('host');
+  };
   
-  const field = (key: keyof ExperienceCreateInput, placeholder: string, multiline = false) => (
-    <TextInput 
-      value={form[key] == null ? '' : String(form[key])} 
-      onChangeText={(value) => set(key, value)} 
-      placeholder={placeholder} 
-      placeholderTextColor={colors.mutedForeground} 
-      multiline={multiline} 
-      style={[styles.input, multiline && styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]} 
-    />
+  const field = (
+    key: keyof ExperienceCreateInput,
+    label: string,
+    placeholder: string,
+    multiline = false,
+    keyboardType: 'default' | 'number-pad' = 'default',
+  ) => (
+    <View style={styles.createField}>
+      <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
+      <TextInput
+        accessibilityLabel={label}
+        value={form[key] == null ? '' : String(form[key])}
+        onChangeText={(value) => set(key, value)}
+        placeholder={placeholder}
+        placeholderTextColor={colors.mutedForeground}
+        multiline={multiline}
+        keyboardType={keyboardType}
+        style={[
+          styles.createInput,
+          multiline && styles.createTextArea,
+          { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card },
+        ]}
+      />
+    </View>
   );
 
+  const stepTitles = ['Tell us about you', 'Shape the idea', 'Set the scene', 'Make it yours'];
+  const stepDescriptions = [
+    'Every great gathering starts with a good host.',
+    'Give your idea a little shape — you can change it later.',
+    'A few details help the right people show up.',
+    'Add the magic, then take a look before you share it.',
+  ];
+
   return (
-    <KeyboardAvoidingView style={[styles.screen, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <Header title="Create experience" subtitle="Give your community a way to show up." onBack={() => go('host')} />
-        
-        <Text style={[styles.formSection, { color: colors.primary }]}>ORGANISATION</Text>
-        {field('organisationName', 'Organisation name')}
-        {field('organisationDescription', 'What does your organisation do?', true)}
-        
-        <Text style={[styles.formSection, { color: colors.primary }]}>THE EXPERIENCE</Text>
-        {field('title', 'Experience title')}
-        {field('description', 'Describe what participants will do', true)}
-        
-        <View style={styles.choiceGrid}>
-          {categories.slice(1).map((item) => (
-            <Pressable key={item.key} onPress={() => set('category', item.key)} style={[styles.smallChoice, { backgroundColor: form.category === item.key ? colors.primary + '15' : colors.card, borderColor: form.category === item.key ? colors.primary : colors.border, borderRadius: colors.radius }]}>
-              <Feather name={item.icon} size={20} color={form.category === item.key ? colors.primary : colors.mutedForeground} />
-              <Text style={[styles.smallChoiceText, { color: colors.foreground }]}>{item.label}</Text>
+    <KeyboardAvoidingView style={[styles.screen, { backgroundColor: '#FFF8FC' }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView
+        contentContainerStyle={[styles.createContent, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 28 }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.createTopBar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={step === 1 ? 'Close create experience' : 'Previous step'}
+            onPress={() => step > 1 ? setStep((current) => current - 1) : go('host')}
+            style={[styles.createRoundButton, { backgroundColor: colors.card }]}
+          >
+            <Feather name={step === 1 ? 'x' : 'arrow-left'} size={19} color={colors.foreground} />
+          </Pressable>
+          <View accessibilityLabel={`Step ${step} of 4`} style={styles.createProgress}>
+            {[1, 2, 3, 4].map((item) => (
+              <View
+                key={item}
+                style={[
+                  styles.createProgressBar,
+                  {
+                    width: item === step ? 32 : 20,
+                    backgroundColor: item === step ? colors.primary : item < step ? colors.teal : '#E8DCE9',
+                  },
+                ]}
+              />
+            ))}
+          </View>
+          <Text style={[styles.createStepCount, { color: colors.mutedForeground }]}>{step}/4</Text>
+        </View>
+
+        <View style={styles.createHeading}>
+          <Text style={[styles.createEyebrow, { color: colors.primary }]}>CREATE EXPERIENCE</Text>
+          <Text style={[styles.createTitle, { color: colors.foreground }]}>{stepTitles[step - 1]}</Text>
+          <Text style={[styles.createDescription, { color: colors.mutedForeground }]}>{stepDescriptions[step - 1]}</Text>
+        </View>
+
+        <View style={styles.createFields}>
+          {step === 1 && (
+            <>
+              <View style={styles.createTip}>
+                <Feather name="star" size={18} color={colors.secondary} />
+                <Text style={styles.createTipText}><Text style={styles.createTipStrong}>People join people.</Text> Tell participants who is behind this experience.</Text>
+              </View>
+              {field('organisationName', 'Organisation name', 'e.g. The Good Gym')}
+              {field('organisationDescription', 'What does your organisation do?', 'A sentence or two about your community', true)}
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              {field('title', 'Experience title', 'e.g. Make a river wild again')}
+              {field('description', 'What is it about?', 'Give your experience a warm, inviting intro', true)}
+              <View>
+                <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>CHOOSE A FEELING</Text>
+                <View style={styles.createCategoryGrid}>
+                  {categories.slice(1).map((item) => {
+                    const active = form.category === item.key;
+                    const tint = item.key === 'environmental' ? '#E4F8F8' : item.key === 'community' ? '#FFF0F8' : '#F1EBFF';
+                    const iconColor = item.key === 'environmental' ? colors.teal : item.key === 'community' ? colors.primary : colors.secondary;
+                    return (
+                      <Pressable
+                        key={item.key}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                        onPress={() => set('category', item.key)}
+                        style={[
+                          styles.createCategory,
+                          {
+                            backgroundColor: colors.card,
+                            borderColor: active ? colors.primary : 'transparent',
+                            shadowColor: active ? '#FFD2EA' : '#000000',
+                            shadowOpacity: active ? 1 : 0.06,
+                          },
+                        ]}
+                      >
+                        <View style={[styles.createCategoryIcon, { backgroundColor: tint }]}>
+                          <Feather name={item.icon} size={19} color={active ? iconColor : colors.mutedForeground} />
+                        </View>
+                        <Text style={[styles.createCategoryText, { color: active ? iconColor : colors.mutedForeground }]}>{item.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <View style={styles.createFieldRow}>
+                <View style={styles.createFieldHalf}>{field('date', 'Date', 'YYYY-MM-DD')}</View>
+                <View style={styles.createFieldHalf}>{field('city', 'City', 'London')}</View>
+              </View>
+              <View style={styles.createFieldRow}>
+                <View style={styles.createFieldHalf}>{field('startTime', 'Starts', '10:00')}</View>
+                <View style={styles.createFieldHalf}>{field('endTime', 'Ends', '13:00')}</View>
+              </View>
+              {field('location', 'Meeting point', 'A clear place people can find')}
+              <View style={[styles.createRewardPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.createRewardHeading}>
+                  <Feather name="credit-card" size={18} color={colors.secondary} />
+                  <Text style={[styles.createRewardTitle, { color: colors.foreground }]}>Make joining easy</Text>
+                </View>
+                <View style={styles.createFieldRow}>
+                  <View style={styles.createFieldHalf}>{field('capacity', 'Capacity', '12', false, 'number-pad')}</View>
+                  <View style={styles.createFieldHalf}>{field('xpReward', 'XP reward', '150', false, 'number-pad')}</View>
+                </View>
+                {field('monetaryRewardPence', 'Money reward in pence (optional)', '0', false, 'number-pad')}
+                <Text style={[styles.createHint, { color: colors.mutedForeground }]}>For example, enter 2000 for a £20 reward.</Text>
+              </View>
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              {field('whatYouWillDo', 'What will participants do?', 'Walk, make, chat, discover...', true)}
+              {field('whatToBring', 'What should they bring?', 'Comfortable shoes and a curious mind', true)}
+              <View style={styles.createPreview}>
+                <View style={styles.createPreviewTop}>
+                  <Text style={styles.createPreviewEyebrow}>LIVE PREVIEW</Text>
+                  <Text style={styles.createPreviewCategory}>{form.category ? categoryLabel[form.category] : 'Community'}</Text>
+                </View>
+                <Text style={styles.createPreviewTitle}>{form.title || 'Your experience title'}</Text>
+                <Text style={styles.createPreviewBody}>{form.description || 'Your welcoming description will appear here.'}</Text>
+                <View style={styles.createPreviewGrid}>
+                  <View style={styles.createPreviewMeta}><Feather name="calendar" size={14} color={colors.teal} /><Text style={styles.createPreviewMetaText}>{form.date || 'Date'}</Text></View>
+                  <View style={styles.createPreviewMeta}><Feather name="clock" size={14} color={colors.teal} /><Text style={styles.createPreviewMetaText}>{form.startTime || 'Start'}–{form.endTime || 'End'}</Text></View>
+                  <View style={styles.createPreviewMeta}><Feather name="map-pin" size={14} color={colors.teal} /><Text style={styles.createPreviewMetaText}>{form.city || 'City'}</Text></View>
+                  <View style={styles.createPreviewMeta}><Feather name="users" size={14} color={colors.teal} /><Text style={styles.createPreviewMetaText}>{form.capacity || 0} places</Text></View>
+                </View>
+              </View>
+            </>
+          )}
+        </View>
+
+        {create.isError && (
+          <Text accessibilityRole="alert" style={[styles.createError, { color: colors.destructive }]}>
+            We couldn’t publish this experience. Please try again.
+          </Text>
+        )}
+
+        <View style={styles.createActions}>
+          {step === 4 && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Start over"
+              onPress={() => setStep(1)}
+              style={[styles.createReset, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <Feather name="rotate-ccw" size={18} color={colors.mutedForeground} />
             </Pressable>
-          ))}
+          )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canContinue || create.isPending }}
+            disabled={!canContinue || create.isPending}
+            onPress={() => step < 4 ? setStep((current) => current + 1) : void publish()}
+            style={({ pressed }) => [
+              styles.createPrimary,
+              { backgroundColor: canContinue && !create.isPending ? colors.primary : '#D8CBD8' },
+              pressed && canContinue && !create.isPending && styles.createPrimaryPressed,
+            ]}
+          >
+            {create.isPending
+              ? <ActivityIndicator color={colors.primaryForeground} />
+              : (
+                <>
+                  <Text style={styles.createPrimaryText}>{step === 4 ? 'Publish experience' : 'Keep going'}</Text>
+                  <Feather name={step === 4 ? 'send' : 'arrow-right'} size={18} color={colors.primaryForeground} />
+                </>
+              )}
+          </Pressable>
         </View>
-        
-        <Text style={[styles.formSection, { color: colors.primary }]}>WHEN & WHERE</Text>
-        {field('date', 'Date (YYYY-MM-DD)')}
-        {field('startTime', 'Start time (e.g. 10:00)')}
-        {field('endTime', 'End time (e.g. 13:00)')}
-        {field('location', 'Meeting point')}
-        {field('city', 'City')}
-        
-        <Text style={[styles.formSection, { color: colors.primary }]}>CAPACITY & REWARDS</Text>
-        {field('capacity', 'Maximum participants')}
-        {field('xpReward', 'XP reward')}
-        {field('monetaryRewardPence', 'Money reward in pence (optional)')}
-        <Text style={[styles.inputHint, { color: colors.mutedForeground }]}>For example, enter 2000 for a £20 reward.</Text>
-        
-        {field('whatYouWillDo', 'What will participants do?', true)}
-        {field('whatToBring', 'What should participants bring?', true)}
-        
-        <View style={{ marginTop: 24 }}>
-          <Button label={create.isPending ? 'Publishing…' : 'Publish experience'} disabled={!valid || create.isPending} onPress={() => void publish()} />
-        </View>
-        <View style={{ height: 100 }} />
+        <Text style={styles.createFooterNote}>
+          {step === 4 ? 'You can edit the details after publishing.' : 'Nothing is published until you say so.'}
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -1345,10 +1560,50 @@ const styles = StyleSheet.create({
   actionPair: { flexDirection: 'row', gap: 8 },
   
   // Create
-  formSection: { fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1, marginTop: 24, marginBottom: 12 },
-  choiceGrid: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  smallChoice: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderWidth: 1, gap: 8 },
-  smallChoiceText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  createContent: { paddingHorizontal: 20 },
+  createTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 },
+  createRoundButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  createProgress: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  createProgressBar: { height: 6, borderRadius: 3 },
+  createStepCount: { width: 40, textAlign: 'right', fontSize: 12, fontFamily: 'Inter_700Bold' },
+  createHeading: { marginBottom: 26 },
+  createEyebrow: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.6, marginBottom: 8 },
+  createTitle: { fontSize: 31, lineHeight: 33, fontFamily: 'Inter_700Bold', letterSpacing: -0.9 },
+  createDescription: { marginTop: 8, fontSize: 15, lineHeight: 23, fontFamily: 'Inter_400Regular' },
+  createFields: { gap: 20 },
+  createTip: { borderRadius: 23, backgroundColor: '#F1EBFF', padding: 16, gap: 8 },
+  createTipText: { color: '#5E477D', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular' },
+  createTipStrong: { fontFamily: 'Inter_700Bold' },
+  createField: { flex: 1 },
+  createFieldLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 0.9, marginBottom: 8 },
+  createInput: { height: 52, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, fontSize: 15, fontFamily: 'Inter_400Regular' },
+  createTextArea: { height: 96, paddingTop: 14, textAlignVertical: 'top' },
+  createFieldRow: { flexDirection: 'row', gap: 12 },
+  createFieldHalf: { flex: 1 },
+  createCategoryGrid: { flexDirection: 'row', gap: 8 },
+  createCategory: { flex: 1, minHeight: 94, borderRadius: 18, borderWidth: 2, alignItems: 'center', justifyContent: 'center', gap: 8, shadowRadius: 0, shadowOffset: { width: 0, height: 5 }, elevation: 1 },
+  createCategoryIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  createCategoryText: { fontSize: 11, fontFamily: 'Inter_700Bold', textAlign: 'center' },
+  createRewardPanel: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 16 },
+  createRewardHeading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  createRewardTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  createHint: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular', marginTop: -8 },
+  createPreview: { borderRadius: 23, backgroundColor: '#251832', padding: 16 },
+  createPreviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  createPreviewEyebrow: { color: '#FF8DC7', fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2 },
+  createPreviewCategory: { color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5, fontSize: 11, fontFamily: 'Inter_500Medium' },
+  createPreviewTitle: { color: '#FFFFFF', fontSize: 20, lineHeight: 26, fontFamily: 'Inter_700Bold' },
+  createPreviewBody: { color: '#CABDD0', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  createPreviewGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 10, marginTop: 16 },
+  createPreviewMeta: { width: '50%', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  createPreviewMetaText: { color: '#F5EAF5', fontSize: 11, fontFamily: 'Inter_500Medium', flexShrink: 1 },
+  createError: { textAlign: 'center', fontSize: 13, lineHeight: 19, fontFamily: 'Inter_600SemiBold', marginTop: 16 },
+  createActions: { flexDirection: 'row', gap: 12, marginTop: 28 },
+  createReset: { width: 54, height: 54, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  createPrimary: { flex: 1, height: 54, borderRadius: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, shadowColor: '#B70668', shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  createPrimaryPressed: { transform: [{ translateY: 3 }], shadowOpacity: 0, elevation: 0 },
+  createPrimaryText: { color: '#FFFFFF', fontSize: 15, fontFamily: 'Inter_700Bold' },
+  createFooterNote: { color: '#9A8FA0', textAlign: 'center', fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 16 },
   
   // Bottom Nav
   bottomNav: { flexDirection: 'row', paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
