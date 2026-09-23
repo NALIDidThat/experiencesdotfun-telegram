@@ -344,49 +344,28 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
   };
 
   return (
-    <LinearGradient colors={['#04ADBF', '#087D8B']} style={styles.emailAuthScreen}>
+    <View style={[styles.emailAuthScreen, { backgroundColor: colors.primary }]}>
       <KeyboardAwareScrollViewCompat
         style={styles.emailAuthScroll}
-        contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 26 : 16), paddingBottom: Math.max(insets.bottom, 24) }]}
+        contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 18 : 12), paddingBottom: Math.max(insets.bottom, 24) }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         bottomOffset={24}
       >
-        <Pressable accessibilityRole="button" accessibilityLabel="Back to Telegram login" onPress={onBack} style={styles.emailBack}>
-          <View style={styles.emailBackIcon}>
-            <Feather name="arrow-left" size={18} color="#FFFFFF" />
-          </View>
-          <Text style={styles.emailBackText}>Back</Text>
-        </Pressable>
-
-        <View style={styles.emailHero}>
-          <View style={styles.emailHeroCopy}>
-            <Text style={styles.emailHeroEyebrow}>EXPERIENCES.FUN</Text>
-            <Text style={styles.emailHeroTitle}>
-              {isSignup ? 'Make space for\ngood things.' : 'Log in to stay on\nyour passport.'}
-            </Text>
-            <Text style={styles.emailHeroBody}>
-              {isSignup ? 'Create an account and keep your impact connected wherever you go.' : 'Pick up where you left off and keep your impact connected.'}
+        <View style={[styles.emailAuthForm, { borderColor: 'rgba(255,255,255,0.42)' }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to Telegram login" onPress={onBack} style={styles.emailBack}>
+            <View style={[styles.emailBackIcon, { backgroundColor: colors.primary + '14' }]}>
+              <Feather name="arrow-left" size={18} color={colors.primary} />
+            </View>
+            <Text style={[styles.emailBackText, { color: colors.foreground }]}>Back</Text>
+          </Pressable>
+          <View style={styles.emailCardIntro}>
+            <Text style={[styles.emailHeroEyebrow, { color: colors.primary }]}>EXPERIENCES.FUN</Text>
+            <Text style={styles.emailCardTitle}>{isSignup ? 'Create account' : 'Log in'}</Text>
+            <Text style={styles.emailCardBody}>
+              {isSignup ? 'Your passport starts with a few details.' : 'Welcome back. Enter your details below.'}
             </Text>
           </View>
-          <View style={styles.emailHeroArt} accessible={false}>
-            <View style={styles.emailHeroOrbLarge} />
-            <View style={styles.emailHeroOrbSmall} />
-            <View style={styles.emailHeroMiniCard}>
-              <Feather name="heart" size={16} color="#087D8B" />
-              <Text style={styles.emailHeroMiniCardText}>your impact</Text>
-            </View>
-            <View style={styles.emailHeroSpark}>
-              <Feather name="plus" size={16} color="#FFFFFF" />
-            </View>
-          </View>
-        </View>
-
-        <View style={[styles.emailAuthForm, { borderColor: 'rgba(255,255,255,0.35)' }]}>
-          <Text style={styles.emailCardTitle}>{isSignup ? 'Create account' : 'Log in'}</Text>
-          <Text style={styles.emailCardBody}>
-            {isSignup ? 'Your passport starts with a few details.' : 'Welcome back. Enter your details below.'}
-          </Text>
           <Pressable
             accessibilityRole="button"
             onPress={() => { setMode(isSignup ? 'login' : 'signup'); setLocalError(null); }}
@@ -480,7 +459,7 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
           </View>
         </View>
       </KeyboardAwareScrollViewCompat>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -1817,24 +1796,15 @@ const styles = StyleSheet.create({
   emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   emailAuthScreen: { flex: 1 },
   emailAuthScroll: { flex: 1 },
-  emailAuthContent: { flexGrow: 1, paddingHorizontal: 20 },
+  emailAuthContent: { flexGrow: 1, paddingHorizontal: 16, justifyContent: 'center' },
   emailBack: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, alignSelf: 'flex-start' },
-  emailBackIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' },
-  emailBackText: { color: '#FFFFFF', fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  emailHero: { minHeight: 220, flexDirection: 'row', alignItems: 'center', paddingTop: 8, paddingBottom: 22 },
-  emailHeroCopy: { flex: 1, zIndex: 2 },
-  emailHeroEyebrow: { color: 'rgba(255,255,255,0.78)', fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.7, marginBottom: 12 },
-  emailHeroTitle: { color: '#FFFFFF', fontSize: 31, lineHeight: 34, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, maxWidth: 230 },
-  emailHeroBody: { color: 'rgba(255,255,255,0.82)', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', marginTop: 12, maxWidth: 235 },
-  emailHeroArt: { width: 112, height: 158, marginLeft: 8, position: 'relative' },
-  emailHeroOrbLarge: { position: 'absolute', width: 126, height: 126, borderRadius: 63, backgroundColor: 'rgba(255,255,255,0.16)', right: -18, top: 7 },
-  emailHeroOrbSmall: { position: 'absolute', width: 54, height: 54, borderRadius: 27, backgroundColor: '#F4A9D2', left: 2, bottom: 19 },
-  emailHeroMiniCard: { position: 'absolute', width: 105, height: 78, right: 3, top: 42, borderRadius: 19, paddingHorizontal: 13, justifyContent: 'center', backgroundColor: '#FFFFFF', shadowColor: '#07535D', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4, transform: [{ rotate: '7deg' }] },
-  emailHeroMiniCardText: { color: '#0B4A52', fontSize: 12, fontFamily: 'Inter_700Bold', marginTop: 8 },
-  emailHeroSpark: { position: 'absolute', width: 30, height: 30, borderRadius: 15, right: 4, bottom: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F20789', transform: [{ rotate: '-12deg' }] },
-  emailAuthForm: { backgroundColor: '#FFFFFF', borderWidth: 1, borderRadius: 28, paddingHorizontal: 20, paddingTop: 23, paddingBottom: 18, gap: 14, shadowColor: '#064C55', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
+  emailBackIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  emailBackText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  emailAuthForm: { backgroundColor: '#FFFFFF', borderWidth: 1, borderRadius: 28, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 18, gap: 14, shadowColor: '#A9005F', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
+  emailCardIntro: { gap: 4 },
+  emailHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.5, marginBottom: 2 },
   emailCardTitle: { color: '#102023', fontSize: 29, lineHeight: 34, fontFamily: 'Inter_700Bold', letterSpacing: -0.7 },
-  emailCardBody: { color: '#708083', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', marginTop: -8 },
+  emailCardBody: { color: '#708083', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular' },
   emailSwitchRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: -3, marginBottom: 3 },
   emailSwitchPrompt: { color: '#708083', fontSize: 13, fontFamily: 'Inter_500Medium' },
   emailSwitchLink: { color: '#087D8B', fontSize: 13, fontFamily: 'Inter_700Bold' },
