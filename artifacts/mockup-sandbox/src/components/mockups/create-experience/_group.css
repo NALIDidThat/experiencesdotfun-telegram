@@ -1,0 +1,14 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+.create-experience-scope {
+  --brand-pink: #f20789;
+  --brand-purple: #6805f2;
+  --brand-aqua: #04adbf;
+  --brand-blue: #1a98e5;
+  --ink: #111111;
+  --muted: #666666;
+  --surface: #ffffff;
+  --soft: #f7f7f8;
+  --border: #eaeaea;
+  font-family: "Inter", sans-serif;
+}
