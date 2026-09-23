@@ -746,6 +746,103 @@ function Experiences({ go }: { go: (screen: Screen, params?: Record<string, stri
   );
 }
 
+function ContributionDashboard({ user, completed }: { user: User; completed: Participation[] | undefined }) {
+  const colors = useColors();
+  const weeks = 16;
+  const days = 7;
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const end = new Date(today);
+  end.setDate(end.getDate() - end.getDay());
+  const start = new Date(end);
+  start.setDate(start.getDate() - (weeks * days - 1));
+
+  const activityByDate = new Map<string, number>();
+  completed?.forEach((item) => {
+    const key = item.experience.date;
+    activityByDate.set(key, (activityByDate.get(key) ?? 0) + 1);
+  });
+
+  const cells = Array.from({ length: weeks }, (_, weekIndex) =>
+    Array.from({ length: days }, (_, dayIndex) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + weekIndex * days + dayIndex);
+      const key = date.toISOString().slice(0, 10);
+      const count = activityByDate.get(key) ?? 0;
+      return { key, count, date };
+    }),
+  );
+  const total = completed?.length ?? user.completedCount;
+  const monthLabels = cells.map((week) => {
+    const first = week[0].date;
+    return first.getDate() <= 7 ? first.toLocaleDateString(undefined, { month: 'short' }) : '';
+  });
+  const levelColors = [
+    colors.muted,
+    colors.primary + '35',
+    colors.primary + '70',
+    colors.primary + 'A8',
+    colors.primary,
+  ];
+
+  return (
+    <View style={[styles.contributionCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+      <View style={styles.contributionHeader}>
+        <View style={styles.contributionHeaderCopy}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Contribution activity</Text>
+          <Text style={[styles.contributionSummary, { color: colors.mutedForeground }]}>
+            {total} {total === 1 ? 'contribution' : 'contributions'} in the last 16 weeks
+          </Text>
+        </View>
+        <Feather name="activity" size={20} color={colors.primary} />
+      </View>
+
+      <View style={styles.contributionChart}>
+        <View style={styles.contributionDayLabels}>
+          <Text style={[styles.contributionDayLabel, { color: colors.mutedForeground }]}>Mon</Text>
+          <Text style={[styles.contributionDayLabel, { color: colors.mutedForeground }]}>Wed</Text>
+          <Text style={[styles.contributionDayLabel, { color: colors.mutedForeground }]}>Fri</Text>
+        </View>
+        <View style={styles.contributionGridWrap}>
+          <View style={styles.contributionMonthLabels}>
+            {monthLabels.map((label, index) => (
+              <Text key={`${label}-${index}`} style={[styles.contributionMonthLabel, { color: colors.mutedForeground }]}>
+                {label}
+              </Text>
+            ))}
+          </View>
+          <View style={styles.contributionGrid}>
+            {cells.map((week, weekIndex) => (
+              <View key={weekIndex} style={styles.contributionWeek}>
+                {week.map((cell) => (
+                  <View
+                    key={cell.key}
+                    style={[
+                      styles.contributionCell,
+                      {
+                        backgroundColor: levelColors[Math.min(cell.count, levelColors.length - 1)],
+                        borderColor: cell.count ? colors.primary + '25' : colors.border,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.contributionLegend}>
+        <Text style={[styles.contributionLegendText, { color: colors.mutedForeground }]}>Less</Text>
+        {levelColors.map((backgroundColor, index) => (
+          <View key={index} style={[styles.contributionLegendCell, { backgroundColor, borderColor: colors.border }]} />
+        ))}
+        <Text style={[styles.contributionLegendText, { color: colors.mutedForeground }]}>More</Text>
+      </View>
+    </View>
+  );
+}
+
 function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
   const queryClient = useQueryClient();
@@ -815,6 +912,8 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Friends</Text>
         </View>
       </View>
+
+      <ContributionDashboard user={current} completed={completed.data} />
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent impact</Text>
       {completed.data?.length ? completed.data.slice(0, 3).map((item) => (
@@ -1520,6 +1619,23 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 24, fontFamily: 'Inter_700Bold' },
   statLabel: { fontSize: 13, fontFamily: 'Inter_500Medium' },
   statDivider: { width: 1, backgroundColor: 'rgba(0,0,0,0.05)' },
+
+  contributionCard: { borderWidth: 1, padding: 16, marginBottom: 28 },
+  contributionHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 },
+  contributionHeaderCopy: { flex: 1 },
+  contributionSummary: { fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  contributionChart: { flexDirection: 'row', minHeight: 108 },
+  contributionDayLabels: { width: 28, paddingTop: 20, justifyContent: 'space-around', paddingBottom: 3 },
+  contributionDayLabel: { fontSize: 9, fontFamily: 'Inter_500Medium' },
+  contributionGridWrap: { flex: 1 },
+  contributionMonthLabels: { height: 18, flexDirection: 'row' },
+  contributionMonthLabel: { flex: 1, fontSize: 9, fontFamily: 'Inter_500Medium' },
+  contributionGrid: { flex: 1, flexDirection: 'row', gap: 3 },
+  contributionWeek: { flex: 1, gap: 3 },
+  contributionCell: { flex: 1, aspectRatio: 1, minHeight: 8, maxHeight: 14, borderWidth: StyleSheet.hairlineWidth, borderRadius: 2 },
+  contributionLegend: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 14 },
+  contributionLegendText: { fontSize: 10, fontFamily: 'Inter_500Medium', marginHorizontal: 2 },
+  contributionLegendCell: { width: 11, height: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 2 },
   
   historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   historyDot: { width: 12, height: 12, borderRadius: 6, marginRight: 16 },
