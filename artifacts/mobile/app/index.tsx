@@ -352,7 +352,7 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
         keyboardDismissMode="on-drag"
         bottomOffset={24}
       >
-        <View style={[styles.emailAuthForm, { borderColor: 'rgba(255,255,255,0.42)' }]}>
+        <View style={[styles.emailAuthForm, { borderColor: 'rgba(255,255,255,0.58)', shadowColor: colors.primary }]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Back to Telegram login" onPress={onBack} style={styles.emailBack}>
             <View style={[styles.emailBackIcon, { backgroundColor: colors.primary + '14' }]}>
               <Feather name="arrow-left" size={18} color={colors.primary} />
@@ -1796,25 +1796,25 @@ const styles = StyleSheet.create({
   emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   emailAuthScreen: { flex: 1 },
   emailAuthScroll: { flex: 1 },
-  emailAuthContent: { flexGrow: 1, paddingHorizontal: 16, justifyContent: 'center' },
-  emailBack: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, alignSelf: 'flex-start' },
-  emailBackIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  emailAuthContent: { flexGrow: 1, paddingHorizontal: 14, justifyContent: 'center' },
+  emailBack: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, alignSelf: 'flex-start' },
+  emailBackIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   emailBackText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  emailAuthForm: { backgroundColor: '#FFFFFF', borderWidth: 1, borderRadius: 28, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 18, gap: 14, shadowColor: '#A9005F', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
-  emailCardIntro: { gap: 4 },
+  emailAuthForm: { width: '100%', backgroundColor: '#FFFFFF', borderWidth: 1, borderRadius: 30, paddingHorizontal: 22, paddingTop: 22, paddingBottom: 20, gap: 13, shadowColor: '#A9005F', shadowOpacity: 0.24, shadowRadius: 22, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
+  emailCardIntro: { gap: 5, marginTop: 5 },
   emailHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.5, marginBottom: 2 },
-  emailCardTitle: { color: '#102023', fontSize: 29, lineHeight: 34, fontFamily: 'Inter_700Bold', letterSpacing: -0.7 },
+  emailCardTitle: { color: '#102023', fontSize: 30, lineHeight: 34, fontFamily: 'Inter_700Bold', letterSpacing: -0.8 },
   emailCardBody: { color: '#708083', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular' },
-  emailSwitchRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: -3, marginBottom: 3 },
+  emailSwitchRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1, marginBottom: 4 },
   emailSwitchPrompt: { color: '#708083', fontSize: 13, fontFamily: 'Inter_500Medium' },
   emailSwitchLink: { color: '#087D8B', fontSize: 13, fontFamily: 'Inter_700Bold' },
-  emailField: { gap: 7 },
+  emailField: { gap: 8 },
   emailLabel: { color: '#25383B', fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 0.55 },
-  emailInputRow: { height: 53, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3EAEB', borderRadius: 14, backgroundColor: '#F4F7F7' },
+  emailInputRow: { height: 54, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3EAEB', borderRadius: 15, backgroundColor: '#F4F7F7' },
   emailInputIcon: { marginLeft: 14, marginRight: 10 },
   emailInput: { flex: 1, height: 51, paddingHorizontal: 0, paddingRight: 13, color: '#162629', fontSize: 15, fontFamily: 'Inter_400Regular' },
   emailError: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
-  emailSubmitButton: { marginTop: 2 },
+  emailSubmitButton: { marginTop: 4 },
   emailSecureNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: -1 },
   emailSecureNoteText: { color: '#7A8A8C', fontSize: 11, fontFamily: 'Inter_500Medium' },
   
