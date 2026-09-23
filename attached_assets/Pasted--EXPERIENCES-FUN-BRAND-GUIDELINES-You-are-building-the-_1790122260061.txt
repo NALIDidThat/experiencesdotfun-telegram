@@ -1,0 +1,818 @@
+# EXPERIENCES.FUN — BRAND GUIDELINES
+
+You are building the Experiences.fun product interface.
+
+Treat this document as the source of truth for the visual identity, UI language, interaction design and brand expression of Experiences.fun.
+
+Do not introduce generic SaaS aesthetics, random gradients, unnecessary glassmorphism, excessive rounded cards, or unrelated colours.
+
+---
+
+# 1. BRAND POSITIONING
+
+Experiences.fun is a social operating system for local development.
+
+It connects people with real-world experiences created by social organisations, communities and local institutions.
+
+The product should feel:
+
+* Social
+* Energetic
+* Youthful
+* Optimistic
+* Experimental
+* Community-driven
+* Technological
+* Human
+* Accessible
+* Action-oriented
+
+The interface should communicate:
+
+> "Real people doing real things that create real impact."
+
+Experiences.fun should NOT feel like:
+
+* A traditional charity platform
+* A government portal
+* A corporate HR platform
+* A generic EdTech SaaS product
+* A crypto trading application
+* A sterile productivity tool
+
+The product sits between **social network + marketplace + community platform + reputation system**.
+
+---
+
+# 2. BRAND PERSONALITY
+
+The visual language should feel:
+
+### Bold
+
+Use strong typography, clear hierarchy and confident layouts.
+
+### Playful
+
+Use subtle moments of personality, playful microcopy, expressive icons and rewarding interactions.
+
+### Human
+
+Prioritise people, communities, experiences and real-world activity.
+
+### Futuristic
+
+Use modern UI patterns and subtle technological elements without making the product look like a cyberpunk crypto dashboard.
+
+### Trustworthy
+
+Information hierarchy must remain clear and credible.
+
+### Inclusive
+
+The product should feel welcoming to someone who has never used Web3.
+
+---
+
+# 3. PRIMARY BRAND COLOURS
+
+Use these colours consistently.
+
+### Primary Pink
+
+HEX: `#F20789`
+
+Use for:
+
+* Primary CTAs
+* Active states
+* Important highlights
+* XP/reward moments
+* Brand accents
+
+### Secondary Purple
+
+HEX: `#6805F2`
+
+Use for:
+
+* Secondary actions
+* Navigation accents
+* Gradients
+* Interactive states
+* Brand depth
+
+### Tertiary Aqua
+
+HEX: `#04ADBF`
+
+Use for:
+
+* Information
+* Environmental themes
+* Supporting accents
+* Secondary data visualisation
+
+### Accent Blue
+
+HEX: `#1A98E5`
+
+Use sparingly for:
+
+* Links
+* Information states
+* Interactive UI
+* Supporting visual elements
+
+---
+
+# 4. NEUTRAL COLOURS
+
+Use a neutral system around the brand colours.
+
+Primary background:
+
+`#FFFFFF`
+
+Primary text:
+
+`#111111`
+
+Secondary text:
+
+`#666666`
+
+Muted text:
+
+`#999999`
+
+Borders:
+
+`#EAEAEA`
+
+Soft background:
+
+`#F7F7F8`
+
+The brand colours should provide energy while the neutral system maintains usability.
+
+Do not make every element colourful.
+
+---
+
+# 5. GRADIENTS
+
+Gradients may be used as a brand accent.
+
+Preferred gradient:
+
+`#F20789 → #6805F2`
+
+Secondary gradient:
+
+`#6805F2 → #04ADBF`
+
+Use gradients for:
+
+* Hero sections
+* XP progression
+* Achievement states
+* Featured experiences
+* Large visual moments
+* Background accents
+
+Do NOT apply gradients to every card, button or piece of text.
+
+Avoid rainbow gradients.
+
+Avoid overly glossy or metallic effects.
+
+---
+
+# 6. TYPOGRAPHY
+
+Use a modern geometric or contemporary sans-serif typeface.
+
+Preferred hierarchy:
+
+### Display
+
+Large, bold, expressive.
+
+Use for:
+
+* Hero headlines
+* Major product statements
+* Large numbers
+* XP levels
+
+### Heading
+
+Bold and compact.
+
+Use for:
+
+* Section headings
+* Experience titles
+* Dashboard sections
+
+### Body
+
+Highly readable.
+
+Use for:
+
+* Descriptions
+* Instructions
+* Experience information
+* Supporting copy
+
+### Labels
+
+Small, medium-weight text.
+
+Use for:
+
+* Categories
+* Status
+* Metadata
+* Navigation
+
+Typography should create a clear hierarchy.
+
+Avoid excessive font weights.
+
+Avoid using more than 2 font families.
+
+---
+
+# 7. UI DESIGN LANGUAGE
+
+Use:
+
+* Strong spacing
+* Clear hierarchy
+* High contrast
+* Simple layouts
+* Responsive grids
+* Large interactive areas
+* Subtle borders
+* Soft shadows
+* Moderate corner radius
+
+Cards should feel tactile and interactive without looking inflated.
+
+Default border radius:
+
+`12px–20px`
+
+Use larger radius for:
+
+* Hero sections
+* Featured experiences
+* Large interactive components
+
+Use smaller radius for:
+
+* Inputs
+* Tags
+* Metadata
+* Compact controls
+
+---
+
+# 8. BUTTONS
+
+Primary CTA:
+
+Background: `#F20789`
+
+Text: `#FFFFFF`
+
+Use for the most important action on a screen.
+
+Example:
+
+`Join Experience`
+
+Secondary CTA:
+
+Transparent or white background with a visible border.
+
+Example:
+
+`View Details`
+
+Alternative brand CTA:
+
+Purple background:
+
+`#6805F2`
+
+Use for secondary/high-value actions.
+
+Buttons should have:
+
+* Clear labels
+* Strong contrast
+* Obvious hover state
+* Obvious pressed state
+* Accessible touch targets
+
+Avoid vague CTAs such as:
+
+"Continue"
+
+when a more descriptive action exists.
+
+Prefer:
+
+"Explore Experiences"
+
+"Join Experience"
+
+"Create Experience"
+
+"Publish Experience"
+
+---
+
+# 9. EXPERIENCE CARDS
+
+Experiences are the fundamental unit of the platform.
+
+Experience cards should therefore be visually important.
+
+Each card should prioritise:
+
+1. Experience image
+2. Experience name
+3. Organisation
+4. Location
+5. Date/time
+6. Category
+7. XP reward
+8. Primary action
+
+Example:
+
+```
+[ EXPERIENCE IMAGE ]
+
+Community Garden Cleanup
+
+🌱 Environment
+📍 Enfield
+🗓 Saturday, 10:00
+
++250 XP
+
+[ Join Experience ]
+```
+
+Do not overload cards with unnecessary metadata.
+
+---
+
+# 10. XP SYSTEM
+
+XP is an important part of the product identity.
+
+Use XP as a visual representation of participation and contribution.
+
+XP should feel:
+
+* Rewarding
+* Progressive
+* Meaningful
+* Social
+* Earned
+
+Examples:
+
+`+250 XP`
+
+`2,450 XP`
+
+`LEVEL 12`
+
+Use subtle animations when XP is earned.
+
+Example interaction:
+
+Experience completed:
+
+`+250 XP`
+
+→ XP counter animates upward.
+
+→ Achievement appears.
+
+→ Progress bar updates.
+
+Avoid turning the interface into a casino.
+
+XP represents **contribution**, not gambling.
+
+---
+
+# 11. EXPERIENCE PASSPORT
+
+The Experience Passport is a core identity concept.
+
+It should feel like a modern digital passport for someone's real-world contributions.
+
+Display:
+
+* Experiences completed
+* Hours contributed
+* Communities visited
+* Skills developed
+* Organisations supported
+* Achievements
+* XP
+* Reputation
+
+Example:
+
+```
+YOUR EXPERIENCE PASSPORT
+
+17 Experiences
+42 Hours
+8 Communities
+6 Skills
+2,450 XP
+
+COMMUNITY BUILDER
+LEVEL 12
+```
+
+The Passport should feel prestigious but accessible.
+
+---
+
+# 12. MAP & LOCATION UI
+
+Location is important because Experiences.fun is focused on local development.
+
+Maps should feel:
+
+* Clean
+* Modern
+* Community-oriented
+
+Use brand colours for:
+
+* Experience markers
+* Organisation nodes
+* User location
+* Featured locations
+
+Avoid overly complex geographic visualisations.
+
+---
+
+# 13. SOCIAL ORGANISATION UI
+
+Organisation interfaces should feel slightly more professional than participant interfaces while remaining within the same brand system.
+
+Organisation dashboards should prioritise:
+
+* Experiences
+* Participants
+* Attendance
+* Impact
+* Community growth
+* XP distributed
+* Completion rates
+
+Use charts sparingly.
+
+Prioritise actionable metrics over decorative analytics.
+
+---
+
+# 14. PARTICIPANT UI
+
+Participant interfaces should prioritise:
+
+* Discovery
+* Personalisation
+* Experiences
+* Journey
+* XP
+* Achievements
+* Community
+* Impact
+
+The experience should feel like a social discovery platform rather than an administrative portal.
+
+---
+
+# 15. ICONOGRAPHY
+
+Use simple, modern icons.
+
+Preferred style:
+
+* Minimal
+* Rounded
+* Friendly
+* Consistent stroke width
+
+Use icons to reinforce meaning.
+
+Do not use icons purely for decoration.
+
+Avoid mixing multiple icon styles.
+
+---
+
+# 16. IMAGERY
+
+Photography should feel authentic.
+
+Prefer:
+
+* Real people
+* Real communities
+* Real environments
+* Local events
+* Education
+* Creativity
+* Environmental activity
+* Collaboration
+
+Avoid generic corporate stock photography.
+
+Avoid overly staged business imagery.
+
+The product should visually communicate:
+
+**people doing things together.**
+
+---
+
+# 17. MOTION
+
+Motion should communicate feedback and progression.
+
+Use subtle animations for:
+
+* XP gains
+* Experience completion
+* Page transitions
+* Card interactions
+* Progress
+* Achievement unlocks
+* Loading states
+
+Animations should generally be:
+
+* Fast
+* Smooth
+* Purposeful
+
+Avoid excessive animation.
+
+The user should never wait for a decorative animation to finish.
+
+---
+
+# 18. EMPTY STATES
+
+Empty states should be useful and human.
+
+Bad:
+
+"No data."
+
+Better:
+
+"No experiences yet."
+
+Best:
+
+"You haven't joined an experience yet.
+
+Find something happening near you."
+
+CTA:
+
+`Explore Experiences`
+
+---
+
+# 19. COPY STYLE
+
+Product copy should be:
+
+* Short
+* Clear
+* Human
+* Action-oriented
+* Encouraging
+* Slightly playful
+
+Avoid corporate jargon.
+
+Avoid:
+
+"Leverage your community engagement capabilities."
+
+Prefer:
+
+"Build stronger communities."
+
+Avoid:
+
+"Submit your participation credentials."
+
+Prefer:
+
+"Verify your experience."
+
+Avoid:
+
+"Create a new community engagement opportunity."
+
+Prefer:
+
+"Create an Experience."
+
+---
+
+# 20. NAVIGATION
+
+Participant navigation should prioritise:
+
+Home
+Explore
+Journey
+Passport
+Profile
+
+Organisation navigation should prioritise:
+
+Overview
+Experiences
+Participants
+Impact
+Organisation
+
+Do not expose unnecessary settings in primary navigation.
+
+---
+
+# 21. RESPONSIVE DESIGN
+
+Design mobile-first.
+
+Telegram and mobile users are a core audience.
+
+Every interaction must work comfortably on:
+
+* Mobile
+* Tablet
+* Desktop
+
+Minimum touch target:
+
+44px.
+
+Avoid desktop-only interactions.
+
+---
+
+# 22. ACCESSIBILITY
+
+Maintain WCAG-conscious contrast.
+
+Do not rely exclusively on colour to communicate state.
+
+Provide:
+
+* Text labels
+* Icons where appropriate
+* Clear focus states
+* Keyboard navigation
+* Accessible form labels
+* Screen-reader-friendly structure
+
+Brand expression must never compromise usability.
+
+---
+
+# 23. WEB3 DESIGN PRINCIPLE
+
+Experiences.fun is built using Web3 infrastructure, but the interface should NOT require users to understand Web3.
+
+Do not lead with:
+
+* Wallet addresses
+* Blockchain terminology
+* Token mechanics
+* Gas
+* Smart contracts
+
+Lead with:
+
+* Experiences
+* People
+* Communities
+* Contribution
+* Impact
+* Reputation
+
+Blockchain should power the product underneath the experience.
+
+The user should understand the value without needing to understand the infrastructure.
+
+---
+
+# 24. DESIGN SYSTEM RULE
+
+Create reusable components rather than one-off UI.
+
+Build a consistent design system containing:
+
+* Buttons
+* Inputs
+* Cards
+* Experience cards
+* Organisation cards
+* Navigation
+* Tabs
+* Badges
+* XP indicators
+* Progress bars
+* Modals
+* Toast notifications
+* Empty states
+* Loading states
+* Avatars
+* Tags
+* Statistics
+* Achievement components
+
+Use consistent spacing, typography, colours and interaction states.
+
+---
+
+# 25. DO NOT
+
+Do not:
+
+* Use generic blue SaaS styling
+* Overuse gradients
+* Overuse rounded containers
+* Use excessive glassmorphism
+* Use unnecessary animations
+* Make every component colourful
+* Create overly dense dashboards
+* Use corporate stock photography
+* Make the interface feel like a crypto exchange
+* Introduce colours outside the brand palette without a functional reason
+* Create inconsistent component styles
+* Sacrifice accessibility for aesthetics
+
+---
+
+# 26. CORE DESIGN PRINCIPLE
+
+Every screen should answer three questions:
+
+1. **Where am I?**
+2. **What can I do?**
+3. **Why should I do it?**
+
+Every important screen should have one clear primary action.
+
+The product should consistently guide users toward:
+
+DISCOVER → PARTICIPATE → CONTRIBUTE → VERIFY → EARN → BUILD REPUTATION → DISCOVER AGAIN
+
+The interface should make this loop feel natural.
+
+---
+
+# FINAL INSTRUCTION TO THE REPLIT AGENT
+
+Use these guidelines as the source of truth whenever generating or modifying the Experiences.fun interface.
+
+Before creating a new component, check whether an existing design-system component can be reused.
+
+Before introducing a new colour, typography style, radius, shadow, animation or UI pattern, check whether it already exists in these guidelines.
+
+When uncertain, prioritise:
+
+1. Usability
+2. Clarity
+3. Brand consistency
+4. Accessibility
+5. Visual personality
+
+Do not optimise for visual novelty at the expense of product usability.
+
+Experiences.fun should feel like a **living social infrastructure product**, not another generic SaaS dashboard.

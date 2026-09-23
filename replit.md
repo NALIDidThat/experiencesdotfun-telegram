@@ -1,6 +1,6 @@
-# [Project name]
+# Experiences.fun
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A social operating system for discovering, joining, hosting, and earning recognition for real-world community experiences.
 
 ## Run & Operate
 
@@ -22,23 +22,28 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- Mobile app: `artifacts/mobile`
+- API server: `artifacts/api-server`
+- Mobile semantic theme: `artifacts/mobile/constants/colors.ts`
+- Brand source of truth: `attached_assets/Pasted--EXPERIENCES-FUN-BRAND-GUIDELINES-You-are-building-the-_1790122260061.txt`
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Browser access intentionally supports a local guest onboarding path; authenticated Telegram users retain server-backed profile and participation behavior.
+- Navigation uses immediate local screen state and mirrors the active screen to Expo Router query parameters for reliable web-preview tabs and deep links.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Discover local experiences, join and verify participation, track XP and contribution history, connect with friends, and manage hosted experiences.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Follow the Experiences.fun brand guidelines for all UI changes. Use the defined pink, purple, aqua, blue, and neutral palette; action-focused copy; moderate radii; and social, energetic, human presentation.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Expo runs in CI mode, so restart `artifacts/mobile: expo` after code changes before relying on screenshots.
+- The React Native DevTools libglib warning does not prevent Metro or the web preview from running.
 
 ## Pointers
 
