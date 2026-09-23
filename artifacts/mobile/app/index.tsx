@@ -56,9 +56,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 
-type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'experience' | 'host' | 'create';
+type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'experience' | 'host' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
-const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'experience', 'host', 'create'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'experience', 'host', 'create', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -1703,6 +1703,18 @@ export default function App() {
         <ActivityIndicator color={colors.primary} size="large" />
         <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Connecting to experiences.fun…</Text>
       </View>
+    );
+  }
+
+  if (screen === 'email') {
+    return (
+      <EmailAuthPanel
+        onBack={() => go('home')}
+        onSuccess={() => {
+          setScreen('home');
+          router.setParams({ screen: 'home', onboarded: undefined });
+        }}
+      />
     );
   }
 
