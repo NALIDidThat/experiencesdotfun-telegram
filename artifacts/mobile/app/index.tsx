@@ -171,7 +171,6 @@ function Header({ title, subtitle, onBack }: { title: string; subtitle?: string;
         </Pressable>
       )}
       <View style={styles.headerCopy}>
-        <Text style={[styles.eyebrow, { color: colors.primary }]}>EXPERIENCES.FUN</Text>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>{title}</Text>
         {subtitle && <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>{subtitle}</Text>}
       </View>
