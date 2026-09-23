@@ -733,6 +733,22 @@ export const CreateFriendRequestResponse = zod.object({
 
 
 /**
+ * @summary List sent friend requests
+ */
+export const ListSentFriendRequestsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "user": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable()
+}),
+  "status": zod.enum(['pending', 'accepted', 'declined']),
+  "createdAt": zod.coerce.date()
+})
+export const ListSentFriendRequestsResponse = zod.array(ListSentFriendRequestsResponseItem)
+
+
+/**
  * @summary Accept a friend request
  */
 export const AcceptFriendRequestParams = zod.object({

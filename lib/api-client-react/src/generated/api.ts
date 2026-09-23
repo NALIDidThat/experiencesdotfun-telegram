@@ -1653,6 +1653,83 @@ export const useCreateFriendRequest = <TError = ErrorType<UnauthorizedResponse |
       return useMutation(getCreateFriendRequestMutationOptions(options));
     }
 
+export const getListSentFriendRequestsUrl = () => {
+
+
+
+
+  return `/api/friends/requests/sent`
+}
+
+/**
+ * @summary List sent friend requests
+ */
+export const listSentFriendRequests = async ( options?: Parameters<typeof customFetch>[1]): Promise<FriendRequest[]> => {
+
+  return customFetch<FriendRequest[]>(getListSentFriendRequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSentFriendRequestsQueryKey = () => {
+    return [
+    `/api/friends/requests/sent`
+    ] as const;
+    }
+
+
+export const getListSentFriendRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listSentFriendRequests>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSentFriendRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSentFriendRequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSentFriendRequests>>> = ({ signal }) => listSentFriendRequests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSentFriendRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSentFriendRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listSentFriendRequests>>>
+export type ListSentFriendRequestsQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary List sent friend requests
+ */
+
+export function useListSentFriendRequests<TData = Awaited<ReturnType<typeof listSentFriendRequests>>, TError = ErrorType<UnauthorizedResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSentFriendRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSentFriendRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getAcceptFriendRequestUrl = (requestId: number,) => {
 
 

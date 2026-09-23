@@ -32,6 +32,7 @@ import {
   useListFriends,
   useListHostExperiences,
   useListMyParticipations,
+  useListSentFriendRequests,
   useMarkAttendance,
   useRejectParticipation,
   useSubmitCompletion,
@@ -40,6 +41,7 @@ import {
   getGetExperienceQueryKey,
   getListExperienceParticipantsQueryKey,
   getListFriendRequestsQueryKey,
+  getListSentFriendRequestsQueryKey,
   type Experience,
   type ExperienceCategory,
   type ExperienceDetail,
@@ -951,6 +953,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const completed = useListMyParticipations({ status: 'completed' });
   const friends = useListFriends();
   const requests = useListFriendRequests({ query: { queryKey: getListFriendRequestsQueryKey(), refetchInterval: 5_000 } });
+  const sentRequests = useListSentFriendRequests({ query: { queryKey: getListSentFriendRequestsQueryKey(), refetchInterval: 5_000 } });
   const update = useUpdateMe({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
   const createFriend = useCreateFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
   const accept = useAcceptFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
@@ -1005,6 +1008,29 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         <Text accessibilityRole="alert" style={[styles.friendFeedback, { color: friendFeedback.startsWith('Friend request') ? colors.success : colors.destructive }]}>
           {friendFeedback}
         </Text>
+      ) : null}
+
+      {sentRequests.data?.length ? (
+        <View style={styles.requestSection}>
+          <View style={styles.requestSectionHeader}>
+            <Text style={[styles.requestSectionTitle, { color: colors.foreground }]}>Sent requests</Text>
+            <Text style={[styles.requestSectionCount, { color: colors.mutedForeground }]}>{sentRequests.data.length} pending</Text>
+          </View>
+          {sentRequests.data.map((request) => (
+            <View key={request.id} style={[styles.sentRequestRow, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+              <View style={[styles.sentRequestIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name="send" size={16} color={colors.primary} />
+              </View>
+              <View style={styles.requestTextWrap}>
+                <Text style={[styles.requestText, { color: colors.foreground }]}>To {request.user.name}</Text>
+                <Text style={[styles.sentRequestMeta, { color: colors.mutedForeground }]}>
+                  {request.user.username ? `@${request.user.username}` : 'Telegram member'} · Pending
+                </Text>
+              </View>
+              <Feather name="clock" size={16} color={colors.mutedForeground} />
+            </View>
+          ))}
+        </View>
       ) : null}
 
       {requests.data?.map((request) => (
@@ -1745,6 +1771,14 @@ const styles = StyleSheet.create({
   friendInput: { flex: 1, fontSize: 16, fontFamily: 'Inter_400Regular' },
   addButton: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
   friendFeedback: { fontSize: 13, fontFamily: 'Inter_600SemiBold', marginTop: -6, marginBottom: 16 },
+  requestSection: { marginBottom: 20 },
+  requestSectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 },
+  requestSectionTitle: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+  requestSectionCount: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  sentRequestRow: { flexDirection: 'row', alignItems: 'center', padding: 12, borderWidth: 1, marginBottom: 8, gap: 10 },
+  sentRequestIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  requestTextWrap: { flex: 1, minWidth: 0 },
+  sentRequestMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 3 },
   requestRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, marginBottom: 12 },
   requestText: { flex: 1, fontSize: 15, fontFamily: 'Inter_500Medium', marginRight: 12 },
   requestActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },

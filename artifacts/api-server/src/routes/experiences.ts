@@ -534,6 +534,27 @@ router.get("/friends/requests", async (req, res) => {
   );
 });
 
+router.get("/friends/requests/sent", async (req, res) => {
+  const rows = await db
+    .select({ friendship: friendshipsTable, user: usersTable })
+    .from(friendshipsTable)
+    .innerJoin(usersTable, eq(usersTable.id, friendshipsTable.recipientUserId))
+    .where(
+      and(
+        eq(friendshipsTable.requesterUserId, currentUser(req).id),
+        eq(friendshipsTable.status, "pending"),
+      ),
+    );
+  res.json(
+    rows.map(({ friendship, user }) => ({
+      id: friendship.id,
+      user: { id: user.id, name: user.name, username: user.username },
+      status: friendship.status,
+      createdAt: friendship.createdAt.toISOString(),
+    })),
+  );
+});
+
 router.post("/friends/requests", async (req, res) => {
   const parsed = CreateFriendRequestBody.safeParse(req.body);
   if (!parsed.success) {

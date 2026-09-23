@@ -390,6 +390,23 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "409":
           $ref: "#/components/responses/Conflict"
+  /friends/requests/sent:
+    get:
+      operationId: listSentFriendRequests
+      tags: [friends]
+      summary: List sent friend requests
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Sent pending requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FriendRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /friends/requests/{requestId}/accept:
     post:
       operationId: acceptFriendRequest
