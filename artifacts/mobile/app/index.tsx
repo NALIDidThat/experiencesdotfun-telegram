@@ -721,6 +721,60 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   );
 }
 
+function FlowProgressHeader({
+  step,
+  total,
+  label,
+  onBack,
+}: {
+  step: number;
+  total: number;
+  label: string;
+  onBack?: () => void;
+}) {
+  const colors = useColors();
+  const progress = Math.round((step / total) * 100);
+
+  return (
+    <View style={styles.flowHeader}>
+      <View style={styles.flowHeaderTop}>
+        {onBack ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            onPress={() => { triggerHaptic(); onBack(); }}
+            style={[styles.flowBackButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <Feather name="arrow-left" size={19} color={colors.foreground} />
+          </Pressable>
+        ) : <View style={styles.flowBackSpacer} />}
+        <View style={styles.flowBrandLockup}>
+          <View style={[styles.flowBrandMark, { backgroundColor: colors.primary }]}>
+            <Feather name="compass" size={15} color={colors.primaryForeground} />
+          </View>
+          <Text style={[styles.flowBrandText, { color: colors.foreground }]}>
+            experiences<Text style={{ color: colors.primary }}>.fun</Text>
+          </Text>
+        </View>
+        <Text style={[styles.flowStepCount, { color: colors.mutedForeground }]}>
+          {String(step).padStart(2, '0')} / {String(total).padStart(2, '0')}
+        </Text>
+      </View>
+      <View style={styles.flowProgressMeta}>
+        <Text style={[styles.flowProgressLabel, { color: colors.foreground }]}>{label}</Text>
+        <Text style={[styles.flowProgressHint, { color: colors.mutedForeground }]}>{progress}% complete</Text>
+      </View>
+      <View
+        accessibilityLabel={`Progress: step ${step} of ${total}`}
+        accessibilityValue={{ min: 0, max: total, now: step }}
+        style={[styles.flowProgressTrack, { backgroundColor: colors.border }]}
+      >
+        <View style={[styles.flowProgressFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
+      </View>
+    </View>
+  );
+}
+
 function AccountTypeSelection({
   selectedType,
   onSelect,
@@ -738,13 +792,13 @@ function AccountTypeSelection({
     {
       value: 'participant',
       title: 'Participant',
-      description: 'Find and join local experiences, track your impact and meet your community.',
+      description: 'Discover local experiences, meet people and build your contribution history.',
       icon: 'compass',
     },
     {
       value: 'organisation',
       title: 'Organisation',
-      description: 'Create and manage experiences for your community, and track participation.',
+      description: 'Bring your community together, host experiences and see your impact.',
       icon: 'briefcase',
     },
   ];
@@ -752,51 +806,61 @@ function AccountTypeSelection({
   return (
     <KeyboardAwareScrollViewCompat
       style={[styles.onboarding, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.onboardingScreenContent, { paddingTop: 12, paddingBottom: Math.max(insets.bottom, 24) }]}
+      contentContainerStyle={[styles.flowScreenContent, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 24) }]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.onboardingTopBar}>
-        {onBack ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Back to start" onPress={onBack} style={[styles.onboardingBack, { backgroundColor: colors.muted }]}>
-            <Feather name="arrow-left" size={22} color={colors.foreground} />
-          </Pressable>
-        ) : <View style={styles.onboardingBack} />}
-        <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>ACCOUNT TYPE</Text>
-      </View>
-      <View style={styles.onboardingContent}>
-        <View style={styles.onboardingSlide}>
-          <View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}>
-            <Feather name="users" size={32} color={colors.primary} />
-          </View>
-          <Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>CHOOSE YOUR ACCOUNT</Text>
-          <Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>How will you use Experiences.fun?</Text>
-          <Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Choose the profile and tools that fit you. You can review your choice before finishing setup.</Text>
-          <View style={styles.onboardingChoices}>
-            {options.map((option) => {
-              const selected = selectedType === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                  onPress={() => { triggerHaptic(); onSelect(option.value); }}
-                  style={[styles.onboardingParticipationCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}
-                >
-                  <Feather name={option.icon} size={23} color={selected ? colors.primary : colors.mutedForeground} />
-                  <View style={{ flex: 1, marginHorizontal: 12 }}>
-                    <Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{option.title}</Text>
-                    <Text style={[styles.inputHint, { color: colors.mutedForeground, marginTop: 4 }]}>{option.description}</Text>
-                  </View>
-                  <Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} />
-                </Pressable>
-              );
-            })}
-          </View>
+      <FlowProgressHeader step={1} total={2} label="ACCOUNT TYPE" onBack={onBack} />
+      <View style={styles.flowContent}>
+        <View style={[styles.flowHeroBadge, { backgroundColor: colors.primary + '14' }]}>
+          <Feather name="users" size={25} color={colors.primary} />
+        </View>
+        <Text style={[styles.flowEyebrow, { color: colors.primary }]}>YOUR PLACE IN THE COMMUNITY</Text>
+        <Text style={[styles.flowTitle, { color: colors.foreground }]}>What brings you here?</Text>
+        <Text style={[styles.flowDescription, { color: colors.mutedForeground }]}>
+          Choose the path that fits. We’ll shape your Experiences.fun profile around it.
+        </Text>
+
+        <View style={styles.accountTypeOptions}>
+          {options.map((option) => {
+            const selected = selectedType === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+                onPress={() => { triggerHaptic(); onSelect(option.value); }}
+                style={[
+                  styles.accountTypeCard,
+                  {
+                    backgroundColor: selected ? colors.primary + '08' : colors.card,
+                    borderColor: selected ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <View style={[styles.accountTypeIcon, { backgroundColor: selected ? colors.primary + '14' : colors.muted }]}>
+                  <Feather name={option.icon} size={21} color={selected ? colors.primary : colors.mutedForeground} />
+                </View>
+                <View style={styles.accountTypeCopy}>
+                  <Text style={[styles.accountTypeTitle, { color: colors.foreground }]}>{option.title}</Text>
+                  <Text style={[styles.accountTypeDescription, { color: colors.mutedForeground }]}>{option.description}</Text>
+                </View>
+                <View style={[styles.accountTypeRadio, { borderColor: selected ? colors.primary : colors.border }]}>
+                  {selected ? <View style={[styles.accountTypeRadioInner, { backgroundColor: colors.primary }]} /> : null}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={styles.flowReassurance}>
+          <Feather name="edit-3" size={14} color={colors.mutedForeground} />
+          <Text style={[styles.flowReassuranceText, { color: colors.mutedForeground }]}>
+            You can update your profile details any time.
+          </Text>
         </View>
       </View>
-      <View style={styles.onboardingFooter}>
-        <Button label="Continue" disabled={!selectedType} onPress={onContinue} />
+      <View style={[styles.flowFooter, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        <Button label="Continue" disabled={!selectedType} onPress={onContinue} icon="arrow-right" />
       </View>
     </KeyboardAwareScrollViewCompat>
   );
@@ -814,6 +878,7 @@ function LoginChoiceScreen({
   onTelegram: () => void;
 }) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const { inTelegram, loading, authError, clearAuthError } = useAuth();
   const accountLabel = accountType === 'organisation' ? 'Organisation' : 'Participant';
 
@@ -826,40 +891,48 @@ function LoginChoiceScreen({
   return (
     <KeyboardAwareScrollViewCompat
       style={[styles.onboarding, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.onboardingScreenContent, { paddingTop: 12, paddingBottom: 24 }]}
+      contentContainerStyle={[styles.flowScreenContent, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 24) }]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.onboardingTopBar}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Back to account type" onPress={() => { clearAuthError(); onBack(); }} style={[styles.onboardingBack, { backgroundColor: colors.muted }]}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </Pressable>
-        <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>SIGN IN</Text>
-      </View>
-      <View style={styles.onboardingContent}>
-        <View style={styles.onboardingSlide}>
-          <View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}>
-            <Feather name="lock" size={30} color={colors.primary} />
-          </View>
-          <Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>{accountLabel.toUpperCase()} ACCOUNT</Text>
-          <Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Log in or create an account</Text>
-          <Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Choose how you want to continue. New accounts will start their {accountLabel.toLowerCase()} profile setup next.</Text>
-          <View style={styles.onboardingForm}>
-            <Button
-              label={loading ? 'Connecting…' : inTelegram ? 'Continue with Telegram' : 'Open Telegram'}
-              disabled={loading}
-              onPress={continueWithTelegram}
-              icon="send"
-              color={colors.primary}
-            />
-            {authError ? <InlineError message={authError} /> : null}
-            <Button
-              label="Continue with email"
-              onPress={() => { clearAuthError(); onEmail(); }}
-              icon="mail"
-              color={colors.secondary}
-            />
-          </View>
+      <FlowProgressHeader
+        step={2}
+        total={2}
+        label="SIGN IN"
+        onBack={() => { clearAuthError(); onBack(); }}
+      />
+      <View style={styles.flowContent}>
+        <View style={[styles.flowHeroBadge, { backgroundColor: colors.primary + '14' }]}>
+          <Feather name="lock" size={23} color={colors.primary} />
+        </View>
+        <Text style={[styles.flowEyebrow, { color: colors.primary }]}>{accountLabel.toUpperCase()} PROFILE</Text>
+        <Text style={[styles.flowTitle, { color: colors.foreground }]}>Let’s get you started.</Text>
+        <Text style={[styles.flowDescription, { color: colors.mutedForeground }]}>
+          Sign in or create an account to continue as a {accountLabel.toLowerCase()}.
+        </Text>
+
+        <View style={styles.loginMethods}>
+          <Button
+            label={loading ? 'Connecting…' : inTelegram ? 'Continue with Telegram' : 'Open Telegram'}
+            disabled={loading}
+            onPress={continueWithTelegram}
+            icon="send"
+          />
+          {authError ? <InlineError message={authError} /> : null}
+          <Button
+            label="Continue with email"
+            variant="secondary"
+            color={colors.card}
+            textColor={colors.foreground}
+            onPress={() => { clearAuthError(); onEmail(); }}
+            icon="mail"
+          />
+        </View>
+        <View style={styles.flowReassurance}>
+          <Feather name="shield" size={14} color={colors.mutedForeground} />
+          <Text style={[styles.flowReassuranceText, { color: colors.mutedForeground }]}>
+            Returning? Use the same sign-in method as before.
+          </Text>
         </View>
       </View>
     </KeyboardAwareScrollViewCompat>
