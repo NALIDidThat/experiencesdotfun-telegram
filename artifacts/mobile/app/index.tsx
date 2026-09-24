@@ -1664,9 +1664,9 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const profile = useGetMe();
   const completed = useListMyParticipations({ status: 'completed' });
   const hosted = useListHostExperiences({ query: { enabled: Boolean(authenticatedUser), queryKey: getListHostExperiencesQueryKey() } });
-  const friends = useListFriends();
-  const requests = useListFriendRequests({ query: { queryKey: getListFriendRequestsQueryKey(), refetchInterval: 5_000 } });
-  const sentRequests = useListSentFriendRequests({ query: { queryKey: getListSentFriendRequestsQueryKey(), refetchInterval: 5_000 } });
+  const friends = useListFriends({ query: { enabled: Boolean(authenticatedUser) } });
+  const requests = useListFriendRequests({ query: { queryKey: getListFriendRequestsQueryKey(), refetchInterval: 5_000, enabled: Boolean(authenticatedUser) } });
+  const sentRequests = useListSentFriendRequests({ query: { queryKey: getListSentFriendRequestsQueryKey(), refetchInterval: 5_000, enabled: Boolean(authenticatedUser) } });
   const update = useUpdateMe({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
   const createFriend = useCreateFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
   const accept = useAcceptFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
@@ -1675,9 +1675,45 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const [city, setCity] = useState(user.city ?? '');
   const [bio, setBio] = useState(user.bio ?? '');
   const [username, setUsername] = useState('');
-  const [friendFeedback, setFriendFeedback] = useState<string | null>(null);
+  const [friendFeedback, setFriendFeedback] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
   const [selectedProfileMetric, setSelectedProfileMetric] = useState<ProfileMetricKey | null>(null);
   const current = profile.data ?? user;
+
+  const sendFriendRequest = () => {
+    const targetUsername = username.trim().replace(/^@+/, '');
+    if (!targetUsername || createFriend.isPending) return;
+
+    setFriendFeedback(null);
+    void createFriend.mutateAsync({ data: { username: targetUsername } })
+      .then(() => {
+        setUsername('');
+        setFriendFeedback({ message: 'Friend request sent.', tone: 'success' });
+      })
+      .catch((requestError: unknown) => {
+        const message = (requestError as { data?: { message?: string } })?.data?.message;
+        setFriendFeedback({
+          message: message ?? 'Could not send that request. Check the username or try again.',
+          tone: 'error',
+        });
+      });
+  };
+
+  const respondToFriendRequest = async (requestId: number, action: 'accept' | 'decline') => {
+    setFriendFeedback(null);
+    try {
+      if (action === 'accept') {
+        await accept.mutateAsync({ requestId });
+        setFriendFeedback({ message: 'Friend request accepted.', tone: 'success' });
+      } else {
+        await decline.mutateAsync({ requestId });
+        setFriendFeedback({ message: 'Friend request declined.', tone: 'success' });
+      }
+    } catch (requestError) {
+      const message = (requestError as { data?: { message?: string } })?.data?.message;
+      setFriendFeedback({ message: message ?? 'That request could not be updated. Please try again.', tone: 'error' });
+      void requests.refetch();
+    }
+  };
 
   return (
     <ScrollView
@@ -1756,61 +1792,252 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       )) : <Text style={[styles.mutedParagraph, { color: colors.mutedForeground }]}>Verified contributions will appear here.</Text>}
 
       <View style={styles.socialHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Friends</Text>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Friends</Text>
+          <Text style={[styles.friendsSubtitle, { color: colors.mutedForeground }]}>Build your circle on Experiences.fun.</Text>
+        </View>
+        <View style={[styles.friendCountPill, { backgroundColor: colors.primary + '12' }]}>
+          <Feather name="users" size={15} color={colors.primary} />
+          <Text style={[styles.friendCountText, { color: colors.primary }]}>{friends.data?.length ?? 0}</Text>
+        </View>
       </View>
       {!authenticatedUser ? <TelegramConnectCard /> : (
-        <View style={[styles.friendAdd, { borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius }]}>
-          <TextInput accessibilityLabel="Friend username" value={username} onChangeText={(value) => { setUsername(value); setFriendFeedback(null); }} placeholder="@username" placeholderTextColor={colors.mutedForeground} style={[styles.friendInput, { color: colors.foreground }]} />
-          <Pressable accessibilityRole="button" accessibilityLabel="Add friend" accessibilityState={{ disabled: !username.trim() || createFriend.isPending }} disabled={!username.trim() || createFriend.isPending} onPress={() => void createFriend.mutateAsync({ data: { username: username.replace(/^@/, '') } }).then(() => { setUsername(''); setFriendFeedback('Friend request sent.'); }).catch((requestError: unknown) => { const message = (requestError as { data?: { message?: string } })?.data?.message; setFriendFeedback(message ?? 'Could not send that request. Check the username or try again.'); })} style={[styles.addButton, { backgroundColor: colors.primary, borderRadius: colors.radius - 4 }]}>
-            <Feather name="user-plus" size={20} color={colors.primaryForeground} />
-          </Pressable>
-        </View>
-      )}
-      {!authenticatedUser && authError ? <Text accessibilityRole="alert" style={[styles.friendFeedback, { color: colors.destructive }]}>{authError}</Text> : null}
-      {friendFeedback ? (
-        <Text accessibilityRole="alert" style={[styles.friendFeedback, { color: friendFeedback.startsWith('Friend request') ? colors.success : colors.destructive }]}>
-          {friendFeedback}
-        </Text>
-      ) : null}
-
-      {sentRequests.data?.length ? (
-        <View style={styles.requestSection}>
-          <View style={styles.requestSectionHeader}>
-            <Text style={[styles.requestSectionTitle, { color: colors.foreground }]}>Sent requests</Text>
-            <Text style={[styles.requestSectionCount, { color: colors.mutedForeground }]}>{sentRequests.data.length} pending</Text>
-          </View>
-          {sentRequests.data.map((request) => (
-            <View key={request.id} style={[styles.sentRequestRow, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-              <View style={[styles.sentRequestIcon, { backgroundColor: colors.primary + '12' }]}>
-                <Feather name="send" size={16} color={colors.primary} />
+        <>
+          <View style={[styles.friendComposer, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 4 }]}>
+            <View style={styles.friendComposerHeader}>
+              <View style={[styles.friendComposerIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name="user-plus" size={18} color={colors.primary} />
               </View>
-              <View style={styles.requestTextWrap}>
-                <Text style={[styles.requestText, { color: colors.foreground }]}>To {request.user.name}</Text>
-                <Text style={[styles.sentRequestMeta, { color: colors.mutedForeground }]}>
-                  {request.user.username ? `@${request.user.username}` : 'Telegram member'} · Pending
-                </Text>
+              <View style={styles.friendComposerCopy}>
+                <Text style={[styles.friendComposerTitle, { color: colors.foreground }]}>Add a friend</Text>
+                <Text style={[styles.friendComposerSubtitle, { color: colors.mutedForeground }]}>Send a request using their username.</Text>
               </View>
-              <Feather name="clock" size={16} color={colors.mutedForeground} />
             </View>
-          ))}
-        </View>
-      ) : null}
-
-      {requests.data?.map((request) => (
-        <View key={request.id} style={[styles.requestRow, { backgroundColor: colors.secondary + '15', borderRadius: colors.radius }]}>
-          <Text style={[styles.requestText, { color: colors.foreground }]}>{request.user.name} wants to connect</Text>
-          <View style={styles.requestActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Decline ${request.user.name}'s friend request`} disabled={decline.isPending || accept.isPending} onPress={() => void decline.mutateAsync({ requestId: request.id }).then(() => setFriendFeedback('Friend request declined.')).catch(() => { setFriendFeedback('That request was already handled.'); void requests.refetch(); })}>
-              <Text style={[styles.requestAction, { color: colors.mutedForeground }]}>Decline</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Accept ${request.user.name}'s friend request`} disabled={decline.isPending || accept.isPending} onPress={() => void accept.mutateAsync({ requestId: request.id }).then(() => setFriendFeedback('Friend request accepted.')).catch(() => { setFriendFeedback('That request was already handled.'); void requests.refetch(); })}>
-              <Text style={[styles.requestAction, { color: colors.secondary }]}>Accept</Text>
-            </Pressable>
+            <View style={styles.friendAdd}>
+              <View style={[styles.friendInputWrap, { backgroundColor: colors.background, borderColor: colors.input, borderRadius: colors.radius - 4 }]}>
+                <Feather name="at-sign" size={17} color={colors.mutedForeground} />
+                <TextInput
+                  testID="profile-friend-username"
+                  accessibilityLabel="Friend username"
+                  value={username}
+                  onChangeText={(value) => { setUsername(value); setFriendFeedback(null); }}
+                  onSubmitEditing={sendFriendRequest}
+                  placeholder="username"
+                  placeholderTextColor={colors.mutedForeground}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="send"
+                  style={[styles.friendInput, { color: colors.foreground }]}
+                />
+              </View>
+              <Pressable
+                testID="profile-friend-send-request"
+                accessibilityRole="button"
+                accessibilityLabel="Send friend request"
+                accessibilityState={{ disabled: !username.trim().replace(/^@+/, '') || createFriend.isPending }}
+                disabled={!username.trim().replace(/^@+/, '') || createFriend.isPending}
+                onPress={sendFriendRequest}
+                style={({ pressed }) => [
+                  styles.addButton,
+                  {
+                    backgroundColor: colors.primary,
+                    borderRadius: colors.radius - 4,
+                    opacity: !username.trim().replace(/^@+/, '') || createFriend.isPending ? 0.55 : pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                {createFriend.isPending ? (
+                  <ActivityIndicator size="small" color={colors.primaryForeground} />
+                ) : (
+                  <>
+                    <Feather name="send" size={15} color={colors.primaryForeground} />
+                    <Text style={[styles.addButtonText, { color: colors.primaryForeground }]}>Send</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+            <Text style={[styles.friendInputHint, { color: colors.mutedForeground }]}>Enter a username with or without @.</Text>
           </View>
-        </View>
-      ))}
 
-      {friends.data?.length ? <Text style={[styles.friendList, { color: colors.inkSoft }]}>{friends.data.map((friend) => `@${friend.username ?? friend.name}`).join('  ·  ')}</Text> : null}
+          {friendFeedback ? (
+            <View style={[
+              styles.friendFeedbackRow,
+              {
+                backgroundColor: friendFeedback.tone === 'success' ? colors.success + '12' : colors.destructive + '12',
+                borderColor: friendFeedback.tone === 'success' ? colors.success + '35' : colors.destructive + '35',
+              },
+            ]}>
+              <Feather
+                name={friendFeedback.tone === 'success' ? 'check-circle' : 'alert-circle'}
+                size={16}
+                color={friendFeedback.tone === 'success' ? colors.success : colors.destructive}
+              />
+              <Text accessibilityRole="alert" style={[styles.friendFeedback, { color: friendFeedback.tone === 'success' ? colors.success : colors.destructive }]}>
+                {friendFeedback.message}
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={styles.friendSection}>
+            <View style={styles.friendSectionHeader}>
+              <Text style={[styles.friendSectionTitle, { color: colors.foreground }]}>Incoming requests</Text>
+              <View style={[styles.friendSectionCount, { backgroundColor: colors.secondary + '12' }]}>
+                <Text style={[styles.friendSectionCountText, { color: colors.secondary }]}>{requests.data?.length ?? 0}</Text>
+              </View>
+            </View>
+            {requests.isLoading ? (
+              <View style={styles.friendInlineState}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.friendInlineStateText, { color: colors.mutedForeground }]}>Checking for new requests…</Text>
+              </View>
+            ) : requests.isError ? (
+              <Pressable accessibilityRole="button" onPress={() => void requests.refetch()} style={[styles.friendInlineState, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius }]}>
+                <Feather name="refresh-cw" size={16} color={colors.primary} />
+                <Text style={[styles.friendInlineStateText, { color: colors.foreground }]}>Couldn’t load requests. Tap to retry.</Text>
+              </Pressable>
+            ) : requests.data?.length ? (
+              requests.data.map((request) => {
+                const responding = accept.isPending || decline.isPending;
+                return (
+                  <View key={request.id} style={[styles.friendRequestCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+                    <View style={styles.friendPersonHeader}>
+                      <View style={[styles.friendAvatar, { backgroundColor: colors.secondary + '15' }]}>
+                        <Text style={[styles.friendAvatarInitial, { color: colors.secondary }]}>{request.user.name.trim().charAt(0).toUpperCase() || '?'}</Text>
+                      </View>
+                      <View style={styles.friendPersonCopy}>
+                        <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>{request.user.name}</Text>
+                        <Text numberOfLines={1} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>
+                          {request.user.username ? `@${request.user.username}` : 'Experiences.fun member'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.friendRequestActions}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Decline ${request.user.name}'s friend request`}
+                        accessibilityState={{ disabled: responding }}
+                        disabled={responding}
+                        onPress={() => void respondToFriendRequest(request.id, 'decline')}
+                        style={[styles.friendRequestButton, { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 4, opacity: responding ? 0.6 : 1 }]}
+                      >
+                        <Text style={[styles.friendRequestButtonText, { color: colors.mutedForeground }]}>Decline</Text>
+                      </Pressable>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Accept ${request.user.name}'s friend request`}
+                        accessibilityState={{ disabled: responding }}
+                        disabled={responding}
+                        onPress={() => void respondToFriendRequest(request.id, 'accept')}
+                        style={[styles.friendRequestButton, { backgroundColor: colors.primary, borderColor: colors.primary, borderRadius: colors.radius - 4, opacity: responding ? 0.6 : 1 }]}
+                      >
+                        {responding ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name="check" size={15} color={colors.primaryForeground} />}
+                        <Text style={[styles.friendRequestButtonText, { color: colors.primaryForeground }]}>Accept</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={[styles.friendEmpty, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+                <View style={[styles.friendEmptyIcon, { backgroundColor: colors.success + '12' }]}>
+                  <Feather name="check" size={16} color={colors.success} />
+                </View>
+                <View style={styles.friendPersonCopy}>
+                  <Text style={[styles.friendPersonName, { color: colors.foreground }]}>You’re all caught up</Text>
+                  <Text style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>New friend requests will appear here.</Text>
+                </View>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.friendSection}>
+            <View style={styles.friendSectionHeader}>
+              <Text style={[styles.friendSectionTitle, { color: colors.foreground }]}>Sent requests</Text>
+              <View style={[styles.friendSectionCount, { backgroundColor: colors.primary + '12' }]}>
+                <Text style={[styles.friendSectionCountText, { color: colors.primary }]}>{sentRequests.data?.length ?? 0}</Text>
+              </View>
+            </View>
+            {sentRequests.isLoading ? (
+              <View style={styles.friendInlineState}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.friendInlineStateText, { color: colors.mutedForeground }]}>Loading sent requests…</Text>
+              </View>
+            ) : sentRequests.isError ? (
+              <Pressable accessibilityRole="button" onPress={() => void sentRequests.refetch()} style={[styles.friendInlineState, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius }]}>
+                <Feather name="refresh-cw" size={16} color={colors.primary} />
+                <Text style={[styles.friendInlineStateText, { color: colors.foreground }]}>Couldn’t load sent requests. Tap to retry.</Text>
+              </Pressable>
+            ) : sentRequests.data?.length ? (
+              sentRequests.data.map((request) => (
+                <View key={request.id} style={[styles.friendPersonRow, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+                  <View style={[styles.friendAvatar, { backgroundColor: colors.primary + '12' }]}>
+                    <Text style={[styles.friendAvatarInitial, { color: colors.primary }]}>{request.user.name.trim().charAt(0).toUpperCase() || '?'}</Text>
+                  </View>
+                  <View style={styles.friendPersonCopy}>
+                    <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>{request.user.name}</Text>
+                    <Text numberOfLines={1} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>
+                      {request.user.username ? `@${request.user.username}` : 'Experiences.fun member'}
+                    </Text>
+                  </View>
+                  <View style={[styles.friendPendingPill, { backgroundColor: colors.secondary + '10' }]}>
+                    <Feather name="clock" size={12} color={colors.mutedForeground} />
+                    <Text style={[styles.friendPendingText, { color: colors.mutedForeground }]}>Pending</Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <Text style={[styles.friendSectionHint, { color: colors.mutedForeground }]}>Requests you send will stay here until they’re accepted.</Text>
+            )}
+          </View>
+
+          <View style={styles.friendSection}>
+            <View style={styles.friendSectionHeader}>
+              <Text style={[styles.friendSectionTitle, { color: colors.foreground }]}>Your friends</Text>
+              <View style={[styles.friendSectionCount, { backgroundColor: colors.success + '12' }]}>
+                <Text style={[styles.friendSectionCountText, { color: colors.success }]}>{friends.data?.length ?? 0}</Text>
+              </View>
+            </View>
+            {friends.isLoading ? (
+              <View style={styles.friendInlineState}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.friendInlineStateText, { color: colors.mutedForeground }]}>Loading your friends…</Text>
+              </View>
+            ) : friends.isError ? (
+              <Pressable accessibilityRole="button" onPress={() => void friends.refetch()} style={[styles.friendInlineState, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius }]}>
+                <Feather name="refresh-cw" size={16} color={colors.primary} />
+                <Text style={[styles.friendInlineStateText, { color: colors.foreground }]}>Couldn’t load your friends. Tap to retry.</Text>
+              </Pressable>
+            ) : friends.data?.length ? (
+              friends.data.map((friend) => (
+                <View key={friend.id} style={[styles.friendPersonRow, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+                  <View style={[styles.friendAvatar, { backgroundColor: colors.primary + '12' }]}>
+                    <Text style={[styles.friendAvatarInitial, { color: colors.primary }]}>{friend.name.trim().charAt(0).toUpperCase() || '?'}</Text>
+                  </View>
+                  <View style={styles.friendPersonCopy}>
+                    <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>{friend.name}</Text>
+                    <Text numberOfLines={1} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>
+                      {friend.username ? `@${friend.username}` : 'Experiences.fun friend'}
+                    </Text>
+                  </View>
+                  <View style={[styles.friendConnectedMark, { backgroundColor: colors.success + '12' }]}>
+                    <Feather name="check" size={15} color={colors.success} />
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={[styles.friendEmpty, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+                <View style={[styles.friendEmptyIcon, { backgroundColor: colors.primary + '12' }]}>
+                  <Feather name="users" size={16} color={colors.primary} />
+                </View>
+                <View style={styles.friendPersonCopy}>
+                  <Text style={[styles.friendPersonName, { color: colors.foreground }]}>Your circle starts here</Text>
+                  <Text style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>Add a friend by username to connect on Experiences.fun.</Text>
+                </View>
+              </View>
+            )}
+          </View>
+        </>
+      )}
 
       {current.participationType !== 'join' ? (
         <View style={{ marginTop: 32 }}>
