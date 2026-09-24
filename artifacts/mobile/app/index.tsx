@@ -1074,15 +1074,15 @@ function SocialProfileHeader({
                 { backgroundColor: colors.primaryForeground, borderRadius: colors.radius - 5, opacity: pressed ? 0.82 : 1 },
               ]}
             >
-              <Feather name="edit-2" size={13} color={colors.secondary} />
-              <Text style={[styles.profileActionText, { color: colors.secondary }]}>Edit</Text>
+              <Feather name="edit-2" size={13} color={colors.primary} />
+              <Text style={[styles.profileActionText, { color: colors.primary }]}>Edit</Text>
             </Pressable>
           </View>
         </View>
       </View>
 
       <View style={styles.profileBentoRow}>
-        <View style={[styles.profileCompletedTile, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '35', borderRadius: colors.radius }]}>
+        <View style={[styles.profileCompletedTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <View style={[styles.profileMetricIcon, { backgroundColor: colors.primary + '20' }]}>
             <Feather name="check-circle" size={16} color={colors.primary} />
           </View>
@@ -1091,20 +1091,20 @@ function SocialProfileHeader({
         </View>
         <View style={styles.profileBentoStack}>
           <View style={[styles.profileCompactTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-            <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.secondary + '12' }]}>
-              <Feather name="calendar" size={13} color={colors.secondary} />
+            <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.primary + '12' }]}>
+              <Feather name="calendar" size={13} color={colors.primary} />
             </View>
             <View style={styles.profileCompactMetricCopy}>
-              <Text style={[styles.profileCompactMetricValue, { color: colors.secondary }]}>{user.hostedCount}</Text>
+              <Text style={[styles.profileCompactMetricValue, { color: colors.primary }]}>{user.hostedCount}</Text>
               <Text style={[styles.profileTileLabel, { color: colors.mutedForeground }]}>Hosted</Text>
             </View>
           </View>
           <View style={[styles.profileCompactTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-            <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.accent + '12' }]}>
-              <Feather name="users" size={13} color={colors.accent} />
+            <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.primary + '12' }]}>
+              <Feather name="users" size={13} color={colors.primary} />
             </View>
             <View style={styles.profileCompactMetricCopy}>
-              <Text style={[styles.profileCompactMetricValue, { color: colors.accent }]}>{friendsCount}</Text>
+              <Text style={[styles.profileCompactMetricValue, { color: colors.primary }]}>{friendsCount}</Text>
               <Text style={[styles.profileTileLabel, { color: colors.mutedForeground }]}>Friends</Text>
             </View>
           </View>
@@ -1113,15 +1113,15 @@ function SocialProfileHeader({
 
       <View style={[styles.profileXpTile, { backgroundColor: colors.muted, borderRadius: colors.radius }]}>
         <View style={styles.profileXpCopy}>
-          <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.teal + '15' }]}>
-            <Feather name="zap" size={14} color={colors.teal} />
+          <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.primary + '12' }]}>
+            <Feather name="zap" size={14} color={colors.primary} />
           </View>
           <View>
             <Text style={[styles.profileXpTitle, { color: colors.foreground }]}>Experience points</Text>
             <Text style={[styles.profileXpCaption, { color: colors.mutedForeground }]}>Earned through participation</Text>
           </View>
         </View>
-        <Text style={[styles.profileXpValue, { color: colors.teal }]}>{user.xp}<Text style={styles.profileXpUnit}> XP</Text></Text>
+        <Text style={[styles.profileXpValue, { color: colors.primary }]}>{user.xp}<Text style={[styles.profileXpUnit, { color: colors.primary }]}> XP</Text></Text>
       </View>
 
       {user.bio ? (
@@ -1144,8 +1144,8 @@ function SocialProfileHeader({
           ) : null}
           {interests ? (
             <View style={[styles.profileDetailTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-              <View style={[styles.profileMetricIcon, { backgroundColor: colors.secondary + '12' }]}>
-                <Feather name="heart" size={15} color={colors.secondary} />
+              <View style={[styles.profileMetricIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name="heart" size={15} color={colors.primary} />
               </View>
               <Text style={[styles.profileTileOverline, { color: colors.mutedForeground }]}>CARES ABOUT</Text>
               <Text numberOfLines={2} style={[styles.profileDetailText, { color: colors.foreground }]}>{interests}</Text>
