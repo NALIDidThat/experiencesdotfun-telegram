@@ -237,10 +237,10 @@ async function sendOnboarding(
 async function sendHowItWorks(chatId: number) {
   return sendTelegramMessage(
     chatId,
-    `<b>✨ How Experiences.fun works</b>\n\n<b>① Build your passport</b>\n📍 Tell us where you are\n💚 Pick the causes you care about\n🧭 Choose how you want to take part\n\n<b>② Find your next good thing</b>\nBrowse nearby community, education, and environmental experiences that fit your interests.\n\n<b>③ Show up with good people</b>\nJoin an experience, contribute together, and make a visible difference.\n\n<b>④ Get your impact recognised</b>\nHosts verify your contribution so you can build XP and collect any available reward.\n\n<b>Have something to share?</b>\nCreate an experience and invite your community to join you.`,
+    `<b>How Experiences.fun works</b>\n\n1️⃣ <b>Build your passport</b>\nAdd your location, interests, and how you want to take part.\n\n2️⃣ <b>Find your next good thing</b>\nBrowse nearby community, education, and environmental experiences.\n\n3️⃣ <b>Show up with good people</b>\nJoin an experience, contribute together, and make a visible difference.\n\n4️⃣ <b>Get your impact recognised</b>\nHosts verify your contribution so you can build Experience XP and collect any available reward.\n\n<b>Have something to share?</b>\nCreate an experience and invite your community to join you.`,
     [
-      [openButton("🚀 Start setup", "/?screen=home")],
-      [callbackButton("🧭 Back to menu", "menu:open")],
+      [openButton("Start setup", "/?screen=home")],
+      [callbackButton("Back to menu", "menu:open")],
     ],
   );
 }
@@ -248,7 +248,7 @@ async function sendHowItWorks(chatId: number) {
 async function sendCommandMenu(chatId: number) {
   return sendTelegramMessage(
     chatId,
-    `<b>🧭 Experiences.fun menu</b>\n\nChoose your next move:\n\n<b>DISCOVER</b>\n🔎 Find upcoming experiences\n⚡ Check your XP and impact\n\n<b>CONNECT</b>\n👥 See your friends\n📨 Review friend requests\n➕ Add someone by username\n\n<b>CREATE</b>\n🎤 Host an experience\n🛠️ Open your host tools\n\n<i>You can also use the commands below any time:</i>\n<code>/onboarding</code> <code>/experiences</code> <code>/xp</code> <code>/rank</code> <code>/leaderboard</code> <code>/add @username</code> <code>/profile</code> <code>/friends</code> <code>/requests</code> <code>/host</code>`,
+    `<b>Experiences.fun · Quick menu</b>\n\nChoose where to start:\n\n1️⃣ <b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n2️⃣ <b>Track your XP</b>\n<code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Your community</b>\n<code>/rank</code> Your rank · <code>/leaderboard</code> Group leaders\n\n4️⃣ <b>Connect and host</b>\n<code>/profile</code> Passport · <code>/add @username</code> Friends · <code>/friends</code> List · <code>/requests</code> Requests · <code>/create</code> Create · <code>/host</code> Manage\n\nNeed more help? Use <code>/help</code> or <code>/onboarding</code>.`,
     menuKeyboard(),
   );
 }
@@ -273,8 +273,8 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
           ? `<b>✅ Your passport is ready</b>\n\nYou can update your details any time in the Mini App, or jump straight into exploring experiences.`
           : `<b>🧩 Finish your passport</b>\n\nAdd your name, interests, city, and participation preference so we can show you experiences that feel relevant to you.`,
         [
-          [openButton(hasCompletedOnboarding(user) ? "🪪 Update profile" : "🚀 Complete setup", "/?screen=home")],
-          [callbackButton("✨ How it works", "onboarding:how"), callbackButton("🧭 Open menu", "menu:open")],
+          [openButton(hasCompletedOnboarding(user) ? "Update profile" : "Complete setup", "/?screen=home")],
+          [callbackButton("How it works", "onboarding:how"), callbackButton("Open menu", "menu:open")],
         ],
       );
       break;
@@ -284,8 +284,8 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
     case "/help":
       await sendTelegramMessage(
         chatId,
-        `<b>💬 Experiences.fun commands</b>\n\n<b>GET STARTED</b>\n<code>/start</code> Open the welcome flow\n<code>/onboarding</code> Finish or update your profile\n<code>/menu</code> Open quick actions\n\n<b>FIND YOUR THING</b>\n<code>/experiences</code> Find upcoming experiences\n<code>/xp</code> Review Experience XP and where it came from\n\n<b>COMMUNITY GROUPS</b>\n<code>/rank</code> View your Community XP rank\n<code>/rank @username</code> View a member's group rank\n<code>/leaderboard</code> View the group's Community XP leaders\n\n<b>YOUR PEOPLE</b>\n<code>/add @username</code> Send a friend request\n<code>/friends</code> View your friends\n<code>/requests</code> View pending requests\n\n<b>HOST</b>\n<code>/profile</code> View your profile\n<code>/host</code> Open host tools`,
-        [[callbackButton("🧭 Open menu", "menu:open"), callbackButton("✨ How it works", "onboarding:how")]],
+        `<b>Experiences.fun · Commands</b>\n\n1️⃣ <b>Start</b>\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/onboarding</code> Finish setup\n\n2️⃣ <b>Discover and track</b>\n<code>/experiences</code> Browse · <code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Community group</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n4️⃣ <b>Connect</b>\n<code>/profile</code> Passport · <code>/add @username</code> Add a friend · <code>/friends</code> Friends · <code>/requests</code> Requests\n\n5️⃣ <b>Host</b>\n<code>/create</code> Create an experience · <code>/host</code> Host tools\n\nUse <code>/help</code> to open this guide.`,
+        [[callbackButton("Open menu", "menu:open"), callbackButton("How it works", "onboarding:how")]],
       );
       break;
     case "/create":
@@ -352,9 +352,15 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
         : user.username
           ? `@${user.username}`
           : user.name;
+      const progressPercent = Math.max(0, Math.min(100, Math.round(current.levelProgress)));
+      const filledSegments = Math.round(progressPercent / 10);
+      const progressBar = `${"■".repeat(filledSegments)}${"□".repeat(10 - filledSegments)}`;
+      const progressLabel = current.nextLevelXp === null
+        ? "<i>Maximum level reached</i>"
+        : `<code>${progressBar}</code> ${progressPercent}% to next level · ${formatCommunityXp(current.nextLevelXp)} XP`;
       await sendTelegramMessage(
         chatId,
-        `<b>Community rank · ${escapeTelegramHtml(current.title)}</b>\n\n${escapeTelegramHtml(displayName)}\n<b>#${current.rank}</b> · ${current.communityXp} Community XP\n${escapeTelegramHtml(current.level)} · ${current.qualifyingMessages} qualifying messages`,
+        `<b>Community rank</b>\n<i>${escapeTelegramHtml(current.title)}</i>\n\n<b>${escapeTelegramHtml(displayName)}</b>\n<b>#${current.rank} · ${formatCommunityXp(current.communityXp)} Community XP</b>\n${escapeTelegramHtml(current.level)}\n${progressLabel}\n\n${current.qualifyingMessages} qualifying message${current.qualifyingMessages === 1 ? "" : "s"} · ${current.contributionCount} contributions`,
       );
       break;
     }
@@ -364,19 +370,39 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
         break;
       }
       const leaderboard = await getCommunityLeaderboard(String(chatId), user.id);
-      if (!leaderboard.length) {
+      const currentSummary = leaderboard.some((member) => member.isCurrentUser)
+        ? null
+        : await getCommunityMemberSummary(String(chatId), user.id);
+      const currentRow = currentSummary
+        ? {
+            rank: currentSummary.rank,
+            name: user.name,
+            username: user.username,
+            communityXp: currentSummary.communityXp,
+            qualifyingMessages: currentSummary.qualifyingMessages,
+            level: currentSummary.level,
+            isCurrentUser: true,
+          }
+        : null;
+      const visibleLeaderboard = currentRow ? [...leaderboard, currentRow] : leaderboard;
+      if (!visibleLeaderboard.length) {
         await sendTelegramMessage(chatId, "This group has no Community XP yet. Start with a thoughtful message of at least seven words.");
         break;
       }
-      const rows = leaderboard.map((member) => {
+      const rows = visibleLeaderboard.map((member) => {
         const label = member.username
           ? `@${member.username}`
           : member.name;
-        return `${member.rank}. ${member.isCurrentUser ? "👉 " : ""}<b>${escapeTelegramHtml(label)}</b> · ${member.communityXp} XP · ${escapeTelegramHtml(member.level)}`;
+        const userTag = member.isCurrentUser ? " <b>YOU</b>" : "";
+        const yourPlace = member.isCurrentUser && member.rank > leaderboard.length
+          ? "<i>YOUR PLACE</i>\n"
+          : "";
+        const messageLabel = member.qualifyingMessages === 1 ? "message" : "messages";
+        return `${yourPlace}${rankNumber(member.rank)} <b>${escapeTelegramHtml(label)}</b>${userTag} · <b>${formatCommunityXp(member.communityXp)} XP</b>\n    ${escapeTelegramHtml(member.level)} · ${member.qualifyingMessages} qualifying ${messageLabel}`;
       });
       await sendTelegramMessage(
         chatId,
-        `<b>Community leaderboard · ${escapeTelegramHtml(rows.length ? "Top contributors" : "This group")}</b>\n\n${rows.join("\n")}`,
+        `<b>Community leaderboard</b>\n<i>Top contributors in this group</i>\n\n${rows.join("\n\n")}`,
       );
       break;
     }
