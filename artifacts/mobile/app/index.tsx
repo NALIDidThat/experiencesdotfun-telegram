@@ -603,7 +603,7 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
     <View style={[styles.talentScreen, { backgroundColor: welcome.background }]}>
       <StatusBar barStyle="light-content" backgroundColor={welcome.background} />
       <Image
-        source={require('../assets/images/welcome-portrait.jpg')}
+        source={require('../assets/images/welcome-panorama.png')}
         resizeMode="cover"
         accessible={false}
         style={[styles.welcomeBackdrop, { height: heroImageHeight }]}
