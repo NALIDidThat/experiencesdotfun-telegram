@@ -682,63 +682,65 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
           <Text style={[styles.welcomeTitle, { color: welcome.foreground }]}>
             Real people{'\n'}doing <Text style={{ color: colors.primary }}>real things.</Text>
           </Text>
-          <Text style={[styles.welcomeDescription, { color: welcome.muted }]}>
-            Find small ways to make a real difference near you — and turn your experiences into lasting impact.
-          </Text>
+          <View style={styles.welcomeDetails}>
+            <Text style={[styles.welcomeDescription, { color: welcome.muted }]}>
+              Find small ways to make a real difference near you — and turn your experiences into lasting impact.
+            </Text>
 
-          <View style={styles.welcomeSocialProof}>
-            <View style={styles.welcomeAvatars} accessibilityLabel="Community members">
-              {[
-                { initials: 'A', backgroundColor: colors.teal },
-                { initials: 'J', backgroundColor: colors.secondary },
-                { initials: 'M', backgroundColor: colors.primary },
-              ].map((avatar) => (
-                <View key={avatar.initials} style={[styles.welcomeAvatar, { backgroundColor: avatar.backgroundColor, borderColor: welcome.background }]}>
-                  <Text style={[styles.welcomeAvatarInitial, { color: colors.primaryForeground }]}>{avatar.initials}</Text>
-                </View>
-              ))}
+            <View style={styles.welcomeSocialProof}>
+              <View style={styles.welcomeAvatars} accessibilityLabel="Community members">
+                {[
+                  { initials: 'A', backgroundColor: colors.teal },
+                  { initials: 'J', backgroundColor: colors.secondary },
+                  { initials: 'M', backgroundColor: colors.primary },
+                ].map((avatar) => (
+                  <View key={avatar.initials} style={[styles.welcomeAvatar, { backgroundColor: avatar.backgroundColor, borderColor: welcome.background }]}>
+                    <Text style={[styles.welcomeAvatarInitial, { color: colors.primaryForeground }]}>{avatar.initials}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={[styles.welcomeSocialText, { color: welcome.muted }]}>
+                Join a growing community making change, together.
+              </Text>
             </View>
-            <Text style={[styles.welcomeSocialText, { color: welcome.muted }]}>
-              Join a growing community making change, together.
+
+            {authError && !user ? <Text accessibilityRole="alert" style={[styles.welcomeError, { color: welcome.error }]}>{authError}</Text> : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={loading ? 'Logging in with Telegram' : user ? 'Continue setup' : 'Log in with Telegram'}
+              testID="welcome-telegram-login"
+              disabled={loading}
+              onPressIn={() => { if (!loading) triggerHaptic(); }}
+              onPress={() => { void handleTelegramLogin(); }}
+              style={({ pressed }) => [
+                styles.welcomeTelegramButton,
+                { backgroundColor: colors.primary, borderRadius: colors.radius * 2, opacity: loading ? 0.58 : pressed ? 0.86 : 1 },
+              ]}
+            >
+              <Feather name="send" size={19} color={colors.primaryForeground} />
+              <Text style={[styles.welcomeTelegramLabel, { color: colors.primaryForeground }]}>
+                {loading ? 'Logging in…' : user ? 'Continue setup' : 'Log in with Telegram'}
+              </Text>
+              {loading
+                ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                : <Feather name="arrow-right" size={19} color={colors.primaryForeground} />}
+            </Pressable>
+
+            <Text style={[styles.welcomeTelegramNote, { color: welcome.muted }]}>
+              {user ? user.email ? 'Email profile recognised' : 'Telegram profile recognised' : 'Your Telegram details will create your profile'}
             </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Log in with email"
+              testID="welcome-email-login"
+              onPress={() => { clearAuthError(); setEmailAuthOpen(true); }}
+              style={styles.welcomeEmailLink}
+            >
+              <Text style={[styles.welcomeEmailLinkText, { color: welcome.subdued }]}>
+                {user ? 'Use a different account' : 'Log in with email'}
+              </Text>
+            </Pressable>
           </View>
-
-          {authError && !user ? <Text accessibilityRole="alert" style={[styles.welcomeError, { color: welcome.error }]}>{authError}</Text> : null}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={loading ? 'Logging in with Telegram' : user ? 'Continue setup' : 'Log in with Telegram'}
-            testID="welcome-telegram-login"
-            disabled={loading}
-            onPressIn={() => { if (!loading) triggerHaptic(); }}
-            onPress={() => { void handleTelegramLogin(); }}
-            style={({ pressed }) => [
-              styles.welcomeTelegramButton,
-              { backgroundColor: colors.primary, borderRadius: colors.radius * 2, opacity: loading ? 0.58 : pressed ? 0.86 : 1 },
-            ]}
-          >
-            <Feather name="send" size={19} color={colors.primaryForeground} />
-            <Text style={[styles.welcomeTelegramLabel, { color: colors.primaryForeground }]}>
-              {loading ? 'Logging in…' : user ? 'Continue setup' : 'Log in with Telegram'}
-            </Text>
-            {loading
-              ? <ActivityIndicator size="small" color={colors.primaryForeground} />
-              : <Feather name="arrow-right" size={19} color={colors.primaryForeground} />}
-          </Pressable>
-
-          <Text style={[styles.welcomeTelegramNote, { color: welcome.muted }]}>
-            {user ? user.email ? 'Email profile recognised' : 'Telegram profile recognised' : 'Your Telegram details will create your profile'}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Log in with email"
-            testID="welcome-email-login"
-            onPress={() => { clearAuthError(); setEmailAuthOpen(true); }}
-            style={styles.welcomeEmailLink}
-          >
-            <Text style={[styles.welcomeEmailLinkText, { color: welcome.subdued }]}>
-              {user ? 'Use a different account' : 'Log in with email'}
-            </Text>
-          </Pressable>
 
           <View style={[styles.welcomeFeatures, { borderTopColor: welcome.border }]}>
             <View style={styles.welcomeFeature}>
@@ -3127,19 +3129,20 @@ const styles = StyleSheet.create({
   welcomeXpCopy: { gap: 2 },
   welcomeXpValue: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   welcomeXpLabel: { fontSize: 8, fontFamily: 'Inter_500Medium' },
-  welcomeContent: { width: '100%', maxWidth: 540, flexGrow: 1, paddingHorizontal: 26, transform: [{ translateY: 16 }] },
+  welcomeContent: { width: '100%', maxWidth: 540, flexGrow: 1, paddingHorizontal: 26 },
   welcomeTitle: { fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', letterSpacing: -0.85 },
-  welcomeDescription: { fontSize: 14, lineHeight: 21, fontFamily: 'Inter_400Regular', marginTop: 9 },
-  welcomeSocialProof: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: 15 },
+  welcomeDetails: { flexGrow: 1, justifyContent: 'space-between', paddingTop: 24 },
+  welcomeDescription: { fontSize: 14, lineHeight: 21, fontFamily: 'Inter_400Regular' },
+  welcomeSocialProof: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 13 },
   welcomeAvatars: { flexDirection: 'row', alignItems: 'center', paddingLeft: 1 },
   welcomeAvatar: { width: 30, height: 30, borderWidth: 2, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginLeft: -5 },
   welcomeAvatarInitial: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   welcomeSocialText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
   welcomeError: { textAlign: 'center', fontSize: 12, lineHeight: 18, fontFamily: 'Inter_600SemiBold', marginTop: 10 },
-  welcomeTelegramButton: { width: '100%', height: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 17 },
+  welcomeTelegramButton: { width: '100%', height: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20 },
   welcomeTelegramLabel: { flex: 1, textAlign: 'center', fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  welcomeTelegramNote: { alignSelf: 'center', textAlign: 'center', fontSize: 10, lineHeight: 15, fontFamily: 'Inter_400Regular', marginTop: 8 },
-  welcomeEmailLink: { minHeight: 24, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  welcomeTelegramNote: { alignSelf: 'center', textAlign: 'center', fontSize: 10, lineHeight: 15, fontFamily: 'Inter_400Regular' },
+  welcomeEmailLink: { minHeight: 24, alignItems: 'center', justifyContent: 'center' },
   welcomeEmailLinkText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   welcomeFeatures: { width: '100%', minHeight: 64, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, marginTop: 'auto', paddingTop: 11 },
   welcomeFeature: { flex: 1, minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
