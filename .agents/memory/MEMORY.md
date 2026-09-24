@@ -5,3 +5,4 @@
 - [Telegram polling ownership](telegram-polling-ownership.md) — run only one Telegram long-polling bot instance; local and deployed pollers conflict.
 - [Telegram group bot compatibility](telegram-group-keyboards.md) — group replies cannot use inline Web App buttons; keep personal actions private.
 - [Query invalidation cancellation](query-invalidation-cancellation.md) — treat expected AbortErrors from mutation-triggered query refreshes as cancellation, not app failure.
+- [Build-first UI iteration](build-first-ui.md) — implement mobile visual references in the app directly; make substantial layout changes when the reference calls for them.
