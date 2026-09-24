@@ -739,8 +739,8 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
         </View>
         <View style={[styles.dashboardPassportFooter, { borderTopColor: colors.border }]}>
           <Text style={[styles.dashboardPassportStat, { color: colors.foreground }]}>{user.completedCount} completed</Text>
-          <View style={[styles.dashboardPassportButton, { backgroundColor: colors.foreground }]}>
-            <Text style={[styles.dashboardPassportButtonText, { color: colors.card }]}>View passport</Text>
+          <View style={[styles.dashboardPassportButton, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.dashboardPassportButtonText, { color: colors.card }]}>View EXP</Text>
           </View>
         </View>
       </Pressable>
