@@ -1826,7 +1826,7 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
 function FeedbackBanner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const paddingTop = Platform.OS === 'web' ? Math.max(insets.top, 67) + 8 : insets.top + 8;
+  const paddingTop = Platform.OS === 'web' ? 8 : insets.top + 8;
 
   const openTelegramFeedback = () => {
     triggerHaptic();
