@@ -415,20 +415,15 @@ function LoadingState() {
   );
 }
 
-function OnboardingArtwork({ variant }: { variant: 'welcome' | 'complete' }) {
-  const colors = useColors();
-  return (
-    <View style={styles.onboardingArtwork}>
-      <LinearGradient colors={['#FF107A', '#6E00FF']} style={[styles.artworkBlob, { width: 160, height: 160, borderRadius: 80, left: 10, top: 10, opacity: 0.9 }]} />
-      <LinearGradient colors={['#6E00FF', '#00C4CC']} style={[styles.artworkBlob, { width: 120, height: 120, borderRadius: 60, right: 20, bottom: 20, opacity: 0.9 }]} />
-      <View style={[styles.artworkCircle, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Feather name={variant === 'welcome' ? 'users' : 'check'} size={48} color={colors.foreground} />
-      </View>
-    </View>
-  );
-}
-
-function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => void }) {
+function EmailAuthPanel({
+  onBack,
+  onSuccess,
+  accountType,
+}: {
+  onBack: () => void;
+  onSuccess: () => void;
+  accountType: UserType | null;
+}) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { loginWithEmail, signUpWithEmail, loading, authError, clearAuthError } = useAuth();
@@ -458,16 +453,16 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
   };
 
   return (
-    <View style={[styles.emailAuthScreen, { backgroundColor: '#F4F5F8' }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F4F5F8" />
+    <View style={[styles.emailAuthScreen, { backgroundColor: colors.muted }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.muted} />
       <KeyboardAwareScrollViewCompat
-        style={styles.emailAuthScroll}
+        style={[styles.emailAuthScroll, { backgroundColor: colors.muted }]}
         contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 24) }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         bottomOffset={24}
       >
-        <View style={styles.emailAuthForm}>
+          <View style={[styles.emailAuthForm, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius + 8, paddingHorizontal: 22, paddingTop: 22, paddingBottom: 20 }]}>
           <View style={styles.emailAuthHeader}>
             <Pressable accessibilityRole="button" accessibilityLabel="Back to sign-in options" onPress={onBack} style={styles.emailBack}>
               <View style={[styles.emailBackIcon, { backgroundColor: colors.secondary + '14' }]}>
@@ -475,14 +470,16 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
               </View>
               <Text style={[styles.emailBackText, { color: colors.foreground }]}>Back</Text>
             </Pressable>
-            <View style={styles.emailIllustration} accessible={false}>
+            <View style={[styles.emailIllustration, { backgroundColor: colors.secondary + '14' }]} accessible={false}>
               <Feather name="users" size={34} color={colors.secondary} />
             </View>
             <View style={styles.emailCardIntro}>
               <Text style={[styles.emailHeroEyebrow, { color: colors.secondary }]}>EXPERIENCES.FUN</Text>
-              <Text style={styles.emailCardTitle}>{isSignup ? 'Create account' : 'Log in'}</Text>
-              <Text style={styles.emailCardBody}>
-                {isSignup ? 'Your passport starts with a few details.' : 'Welcome back. Enter your details below.'}
+              <Text style={[styles.emailCardTitle, { color: colors.foreground }]}>{isSignup ? 'Create account' : 'Log in'}</Text>
+              <Text style={[styles.emailCardBody, { color: colors.mutedForeground }]}>
+                {isSignup
+                  ? `Start your ${accountType === 'organisation' ? 'organisation profile' : 'passport'} with a few details.`
+                  : 'Welcome back. Enter your details below.'}
               </Text>
             </View>
           </View>
@@ -490,68 +487,68 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
           <View style={styles.emailAuthFields}>
             {isSignup ? (
               <View style={styles.emailField}>
-                <Text style={styles.emailLabel}>Name</Text>
-                <View style={styles.emailInputRow}>
-                  <Feather name="user" size={17} color="#7A8A8C" style={styles.emailInputIcon} />
+                <Text style={[styles.emailLabel, { color: colors.foreground }]}>Name</Text>
+                <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
+                  <Feather name="user" size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
                   <TextInput
                     accessibilityLabel="Name"
                     value={name}
                     onChangeText={setName}
                     placeholder="Your name"
-                    placeholderTextColor="#8A989A"
+                    placeholderTextColor={colors.mutedForeground}
                     autoCapitalize="words"
-                    style={styles.emailInput}
+                    style={[styles.emailInput, { color: colors.foreground }]}
                   />
                 </View>
               </View>
             ) : null}
             <View style={styles.emailField}>
-              <Text style={styles.emailLabel}>Email</Text>
-              <View style={styles.emailInputRow}>
-                <Feather name="mail" size={17} color="#7A8A8C" style={styles.emailInputIcon} />
+              <Text style={[styles.emailLabel, { color: colors.foreground }]}>Email</Text>
+              <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
+                <Feather name="mail" size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
                 <TextInput
                   accessibilityLabel="Email"
                   value={email}
                   onChangeText={setEmail}
                   placeholder="you@example.com"
-                  placeholderTextColor="#8A989A"
+                  placeholderTextColor={colors.mutedForeground}
                   autoCapitalize="none"
                   autoComplete="email"
                   keyboardType="email-address"
-                  style={styles.emailInput}
+                  style={[styles.emailInput, { color: colors.foreground }]}
                 />
               </View>
             </View>
             <View style={styles.emailField}>
-              <Text style={styles.emailLabel}>Password</Text>
-              <View style={styles.emailInputRow}>
-                <Feather name="lock" size={17} color="#7A8A8C" style={styles.emailInputIcon} />
+              <Text style={[styles.emailLabel, { color: colors.foreground }]}>Password</Text>
+              <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
+                <Feather name="lock" size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
                 <TextInput
                   accessibilityLabel="Password"
                   value={password}
                   onChangeText={setPassword}
                   placeholder={isSignup ? 'At least 8 characters' : 'Your password'}
-                  placeholderTextColor="#8A989A"
+                  placeholderTextColor={colors.mutedForeground}
                   secureTextEntry
                   autoCapitalize="none"
-                  style={styles.emailInput}
+                  style={[styles.emailInput, { color: colors.foreground }]}
                 />
               </View>
             </View>
             {isSignup ? (
               <View style={styles.emailField}>
-                <Text style={styles.emailLabel}>Confirm password</Text>
-                <View style={styles.emailInputRow}>
-                  <Feather name="check-circle" size={17} color="#7A8A8C" style={styles.emailInputIcon} />
+                <Text style={[styles.emailLabel, { color: colors.foreground }]}>Confirm password</Text>
+                <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
+                  <Feather name="check-circle" size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
                   <TextInput
                     accessibilityLabel="Confirm password"
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     placeholder="Repeat your password"
-                    placeholderTextColor="#8A989A"
+                    placeholderTextColor={colors.mutedForeground}
                     secureTextEntry
                     autoCapitalize="none"
-                    style={styles.emailInput}
+                    style={[styles.emailInput, { color: colors.foreground }]}
                   />
                 </View>
               </View>
@@ -566,8 +563,8 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
               style={styles.emailSubmitButton}
             />
             <View style={styles.emailSecureNote}>
-              <Feather name="shield" size={12} color="#7A8A8C" />
-              <Text style={styles.emailSecureNoteText}>Your details are kept secure</Text>
+              <Feather name="shield" size={12} color={colors.mutedForeground} />
+              <Text style={[styles.emailSecureNoteText, { color: colors.mutedForeground }]}>Your details are kept secure</Text>
             </View>
           </View>
           <Pressable
@@ -575,7 +572,7 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
             onPress={() => { setMode(isSignup ? 'login' : 'signup'); setLocalError(null); clearAuthError(); }}
             style={styles.emailSwitchRow}
           >
-            <Text style={styles.emailSwitchPrompt}>{isSignup ? 'Already have an account?' : 'New to Experiences.fun?'}</Text>
+            <Text style={[styles.emailSwitchPrompt, { color: colors.mutedForeground }]}>{isSignup ? 'Already have an account?' : 'New to Experiences.fun?'}</Text>
             <Text style={[styles.emailSwitchLink, { color: colors.secondary }]}>{isSignup ? 'Log in' : 'Sign up'}</Text>
             <Feather name="arrow-up-right" size={15} color={colors.secondary} />
           </Pressable>
@@ -945,8 +942,9 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
   const queryClient = useQueryClient();
   const update = useUpdateMe();
   const { refresh } = useAuth();
-  const [step, setStep] = useState(1);
   const accountType = user.userType ?? initialAccountType;
+  const totalSteps = 4;
+  const [step, setStep] = useState(1);
   const [interests, setInterests] = useState<ExperienceCategory[]>(user.interests ?? []);
   const [city, setCity] = useState(user.city ?? '');
   const [organisationName, setOrganisationName] = useState(user.organisation?.name ?? '');
@@ -954,7 +952,64 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
   const [bio, setBio] = useState(user.bio ?? '');
   const [name, setName] = useState(user.name ?? '');
   const [saveError, setSaveError] = useState<string | null>(null);
-  const totalSteps = 5;
+
+  const steps = accountType === 'organisation'
+    ? [
+        { label: 'CONTACT', eyebrow: 'THE PERSON BEHIND IT', title: 'Who will people connect with?', description: 'Add the name of the person representing your organisation.', icon: 'user' as IconName },
+        { label: 'ORGANISATION', eyebrow: 'YOUR ORGANISATION', title: 'Introduce your organisation.', description: 'Give participants a clear picture of the community and work you bring together.', icon: 'briefcase' as IconName },
+        { label: 'LOCATION & FOCUS', eyebrow: 'YOUR COMMUNITY', title: 'Where does your work happen?', description: 'Set your base and choose the causes your organisation supports.', icon: 'map-pin' as IconName },
+        { label: 'PROFILE PREVIEW', eyebrow: 'READY TO BEGIN', title: 'Your organisation is taking shape.', description: 'Review the essentials before creating your profile.', icon: 'award' as IconName },
+      ]
+    : [
+        { label: 'YOUR PROFILE', eyebrow: 'FIRST, THE BASICS', title: 'A name people will recognise.', description: 'This is how you’ll appear to people you meet through Experiences.fun.', icon: 'user' as IconName },
+        { label: 'YOUR INTERESTS', eyebrow: 'WHAT YOU CARE ABOUT', title: 'What would you like to do more of?', description: 'Choose the causes you want to see first. Select at least one.', icon: 'heart' as IconName },
+        { label: 'YOUR AREA', eyebrow: 'MAKE IT LOCAL', title: 'Where do you want to get involved?', description: 'We’ll use your city to surface experiences and opportunities nearby.', icon: 'map-pin' as IconName },
+        { label: 'PROFILE PREVIEW', eyebrow: 'READY TO BEGIN', title: 'Your passport is taking shape.', description: 'Review the essentials before creating your profile.', icon: 'award' as IconName },
+      ];
+  const activeStep = steps[step - 1];
+
+  const toggleInterest = (interest: ExperienceCategory) => {
+    triggerHaptic();
+    setInterests((current) => current.includes(interest)
+      ? current.filter((value) => value !== interest)
+      : [...current, interest]);
+  };
+
+  const renderInterestOption = (item: (typeof categories)[number]) => {
+    const interest = item.key as ExperienceCategory;
+    const selected = interests.includes(interest);
+    const descriptions: Record<ExperienceCategory, string> = {
+      environmental: 'Care for the places and planet we share.',
+      education: 'Share knowledge, skills and curiosity.',
+      community: 'Bring people together where you live.',
+    };
+    return (
+      <Pressable
+        key={item.key}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: selected }}
+        onPress={() => toggleInterest(interest)}
+        style={[
+          styles.interestCard,
+          {
+            backgroundColor: selected ? colors.primary + '08' : colors.card,
+            borderColor: selected ? colors.primary : colors.border,
+          },
+        ]}
+      >
+        <View style={[styles.interestIcon, { backgroundColor: selected ? colors.primary + '14' : colors.muted }]}>
+          <Feather name={item.icon} size={20} color={selected ? colors.primary : colors.mutedForeground} />
+        </View>
+        <View style={styles.interestCopy}>
+          <Text style={[styles.interestTitle, { color: colors.foreground }]}>{item.label}</Text>
+          <Text style={[styles.interestDescription, { color: colors.mutedForeground }]}>{descriptions[interest]}</Text>
+        </View>
+        <View style={[styles.interestCheck, { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : 'transparent' }]}>
+          {selected ? <Feather name="check" size={13} color={colors.primaryForeground} /> : null}
+        </View>
+      </Pressable>
+    );
+  };
 
   const next = async () => {
     triggerHaptic();
@@ -963,7 +1018,8 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
     if (step === 2 && accountType === 'participant' && interests.length === 0) return;
     if (step === 2 && accountType === 'organisation' && (!organisationName.trim() || !organisationDescription.trim())) return;
     if (step === 3 && (!city.trim() || (accountType === 'organisation' && interests.length === 0))) return;
-    if (step === totalSteps - 1) {
+
+    if (step === totalSteps) {
       if (!user || !accountType) {
         setSaveError('Choose an account type before saving your profile.');
         return;
@@ -998,15 +1054,19 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
         await refresh();
         onDone();
       } catch (error) {
-        setSaveError(requestErrorMessage(error, 'We couldn’t save your passport. Your answers are still here—please try again.'));
+        setSaveError(requestErrorMessage(error, 'We couldn’t save your profile. Your answers are still here—please try again.'));
       }
       return;
     }
-    setStep((value) => value + 1);
-  };
-  const previous = () => { triggerHaptic(); Keyboard.dismiss(); setStep((value) => Math.max(1, value - 1)); };
-  const dots = Array.from({ length: totalSteps - 1 }, (_, index) => index + 1);
 
+    setStep((value) => Math.min(totalSteps, value + 1));
+  };
+
+  const previous = () => {
+    triggerHaptic();
+    Keyboard.dismiss();
+    setStep((value) => Math.max(1, value - 1));
+  };
 
   const stepIsInvalid =
     (step === 1 && !name.trim()) ||
@@ -1015,29 +1075,225 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
       : !organisationName.trim() || !organisationDescription.trim())) ||
     (step === 3 && (!city.trim() || (accountType === 'organisation' && interests.length === 0)));
 
+  const reviewItems = accountType === 'organisation'
+    ? [
+        { label: 'Contact', value: name.trim() || 'Add a contact name', step: 1 },
+        { label: 'Organisation', value: organisationName.trim() || 'Add an organisation name', step: 2 },
+        { label: 'Location & focus', value: `${city.trim() || 'Add a city'} · ${interests.map((value) => categoryLabel[value]).join(', ') || 'Choose causes'}`, step: 3 },
+      ]
+    : [
+        { label: 'Display name', value: name.trim() || 'Add your name', step: 1 },
+        { label: 'Interests', value: interests.map((value) => categoryLabel[value]).join(', ') || 'Choose interests', step: 2 },
+        { label: 'City', value: city.trim() || 'Add your city', step: 3 },
+      ];
+
   return (
     <KeyboardAwareScrollViewCompat
       style={[styles.onboarding, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.onboardingScreenContent, { paddingTop: 12, paddingBottom: Math.max(insets.bottom, 24) }]}
+      contentContainerStyle={[styles.flowScreenContent, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 24) }]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
+      bottomOffset={24}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.onboardingTopBar}>
-        {step > 1 ? <Pressable accessibilityLabel="Back" onPress={previous} style={[styles.onboardingBack, { backgroundColor: colors.muted }]}><Feather name="arrow-left" size={22} color={colors.foreground} /></Pressable> : <View style={styles.onboardingBack} />}
-        <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>0{step} / 04</Text>
+      <FlowProgressHeader
+        step={step}
+        total={totalSteps}
+        label={activeStep.label}
+        onBack={step > 1 ? previous : undefined}
+      />
+      <View style={styles.flowContent}>
+        <View style={[styles.flowHeroBadge, { backgroundColor: colors.primary + '14' }]}>
+          <Feather name={activeStep.icon} size={23} color={colors.primary} />
+        </View>
+        <Text style={[styles.flowEyebrow, { color: colors.primary }]}>{activeStep.eyebrow}</Text>
+        <Text style={[styles.flowTitle, { color: colors.foreground }]}>{activeStep.title}</Text>
+        <Text style={[styles.flowDescription, { color: colors.mutedForeground }]}>{activeStep.description}</Text>
+
+        {step === 1 ? (
+          <View style={styles.flowForm}>
+            <Text style={[styles.flowFieldLabel, { color: colors.foreground }]}>
+              {accountType === 'organisation' ? 'Contact name' : 'Display name'}
+            </Text>
+            <TextInput
+              accessibilityLabel={accountType === 'organisation' ? 'Contact name' : 'Display name'}
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              autoComplete="name"
+              returnKeyType="done"
+              placeholder="Your name"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.flowTextInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]}
+            />
+            <Text style={[styles.flowFieldHint, { color: colors.mutedForeground }]}>
+              {user.email ? `Signed in as ${user.email}` : 'Your Telegram account stays connected automatically.'}
+            </Text>
+          </View>
+        ) : null}
+
+        {step === 2 && accountType === 'participant' ? (
+          <View style={styles.interestList}>
+            {categories.slice(1).map(renderInterestOption)}
+          </View>
+        ) : null}
+
+        {step === 2 && accountType === 'organisation' ? (
+          <View style={styles.flowForm}>
+            <Text style={[styles.flowFieldLabel, { color: colors.foreground }]}>Organisation name</Text>
+            <TextInput
+              accessibilityLabel="Organisation name"
+              value={organisationName}
+              onChangeText={setOrganisationName}
+              autoCapitalize="words"
+              returnKeyType="next"
+              placeholder="e.g. The Good Gym"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.flowTextInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]}
+            />
+            <View style={styles.flowFieldLabelRow}>
+              <Text style={[styles.flowFieldLabel, { color: colors.foreground }]}>What does your organisation do?</Text>
+              <Text style={[styles.optionalLabel, { color: colors.mutedForeground }]}>Required</Text>
+            </View>
+            <TextInput
+              accessibilityLabel="Organisation description"
+              value={organisationDescription}
+              onChangeText={setOrganisationDescription}
+              multiline
+              maxLength={600}
+              textAlignVertical="top"
+              placeholder="Describe your community and the work you do"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.flowMultilineInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]}
+            />
+            <Text style={[styles.characterCount, { color: colors.mutedForeground }]}>{organisationDescription.length}/600</Text>
+          </View>
+        ) : null}
+
+        {step === 3 ? (
+          <View style={styles.flowForm}>
+            <Text style={[styles.flowFieldLabel, { color: colors.foreground }]}>
+              {accountType === 'organisation' ? 'Organisation city' : 'City or area'}
+            </Text>
+            <TextInput
+              accessibilityLabel={accountType === 'organisation' ? 'Organisation city' : 'City or area'}
+              value={city}
+              onChangeText={setCity}
+              autoCapitalize="words"
+              returnKeyType="done"
+              placeholder="e.g. London"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.flowTextInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]}
+            />
+            {accountType === 'organisation' ? (
+              <View style={styles.organisationFocusSection}>
+                <View style={styles.flowFieldLabelRow}>
+                  <Text style={[styles.flowFieldLabel, { color: colors.foreground }]}>Causes you support</Text>
+                  <Text style={[styles.optionalLabel, { color: colors.mutedForeground }]}>Choose at least one</Text>
+                </View>
+                <View style={styles.interestList}>
+                  {categories.slice(1).map(renderInterestOption)}
+                </View>
+              </View>
+            ) : (
+              <View style={[styles.flowTip, { backgroundColor: colors.muted }]}>
+                <Feather name="map-pin" size={16} color={colors.primary} />
+                <Text style={[styles.flowTipText, { color: colors.mutedForeground }]}>
+                  Your city helps us bring nearby experiences to the front.
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : null}
+
+        {step === totalSteps ? (
+          <View style={styles.reviewSection}>
+            <LinearGradient
+              colors={[colors.secondary, colors.primary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.profilePreviewCard}
+            >
+              <View style={styles.profilePreviewBrand}>
+                <View style={[styles.profilePreviewMark, { backgroundColor: colors.primaryForeground + '24' }]}>
+                  <Feather name={accountType === 'organisation' ? 'briefcase' : 'award'} size={18} color={colors.primaryForeground} />
+                </View>
+                <Text style={[styles.profilePreviewEyebrow, { color: colors.primaryForeground }]}>
+                  {accountType === 'organisation' ? 'ORGANISATION PROFILE' : 'EXPERIENCES PASSPORT'}
+                </Text>
+              </View>
+              <Text style={[styles.profilePreviewTitle, { color: colors.primaryForeground }]} numberOfLines={2}>
+                {accountType === 'organisation' ? organisationName.trim() || 'Your organisation' : name.trim() || 'Your name'}
+              </Text>
+              <Text style={[styles.profilePreviewBody, { color: colors.primaryForeground }]} numberOfLines={2}>
+                {accountType === 'organisation'
+                  ? organisationDescription.trim() || 'A clear introduction to your community.'
+                  : `Participant${city.trim() ? ` · ${city.trim()}` : ''}`}
+              </Text>
+              <View style={styles.profilePreviewLocation}>
+                <Feather name="map-pin" size={14} color={colors.primaryForeground} />
+                <Text style={[styles.profilePreviewLocationText, { color: colors.primaryForeground }]}>{city.trim() || 'Your city'}</Text>
+              </View>
+              <View style={styles.profilePreviewTags}>
+                {interests.map((interest) => (
+                  <View key={interest} style={[styles.profilePreviewTag, { backgroundColor: colors.primaryForeground + '24' }]}>
+                    <Text style={[styles.profilePreviewTagText, { color: colors.primaryForeground }]}>{categoryLabel[interest]}</Text>
+                  </View>
+                ))}
+              </View>
+            </LinearGradient>
+
+            <View style={styles.reviewList}>
+              {reviewItems.map((item) => (
+                <View key={item.label} style={[styles.reviewRow, { borderBottomColor: colors.border }]}>
+                  <View style={styles.reviewCopy}>
+                    <Text style={[styles.reviewLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
+                    <Text style={[styles.reviewValue, { color: colors.foreground }]} numberOfLines={2}>{item.value}</Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Edit ${item.label}`}
+                    onPress={() => { triggerHaptic(); setStep(item.step); }}
+                    style={styles.reviewEditButton}
+                  >
+                    <Text style={[styles.reviewEditText, { color: colors.primary }]}>Edit</Text>
+                    <Feather name="arrow-up-right" size={14} color={colors.primary} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.bioSection}>
+              <View style={styles.flowFieldLabelRow}>
+                <Text style={[styles.flowFieldLabel, { color: colors.foreground }]}>
+                  {accountType === 'organisation' ? 'A note from your contact' : 'A little about you'}
+                </Text>
+                <Text style={[styles.optionalLabel, { color: colors.mutedForeground }]}>Optional</Text>
+              </View>
+              <TextInput
+                accessibilityLabel={accountType === 'organisation' ? 'Contact bio' : 'Profile bio'}
+                value={bio}
+                onChangeText={setBio}
+                multiline
+                maxLength={280}
+                textAlignVertical="top"
+                placeholder={accountType === 'organisation' ? 'Add a short introduction from your contact' : 'Share a little about what you enjoy'}
+                placeholderTextColor={colors.mutedForeground}
+                style={[styles.flowMultilineInput, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]}
+              />
+              <Text style={[styles.characterCount, { color: colors.mutedForeground }]}>{bio.length}/280</Text>
+            </View>
+          </View>
+        ) : null}
       </View>
-      <View style={styles.onboardingContent}>
-        {step === 1 ? <View style={styles.onboardingSlide}><View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}><Feather name={accountType === 'organisation' ? 'briefcase' : 'user'} size={32} color={colors.primary} /></View><Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>STEP 01 · {accountType === 'organisation' ? 'ORGANISATION CONTACT' : 'PARTICIPANT PROFILE'}</Text><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>{accountType === 'organisation' ? 'Who will represent your organisation?' : 'Let’s make your profile yours.'}</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>{accountType === 'organisation' ? 'Add the name participants will see when they connect with your organisation.' : 'Tell us what people should call you when you show up.'}</Text><View style={styles.onboardingForm}><Text style={[styles.onboardingFieldLabel, { color: colors.foreground }]}>{accountType === 'organisation' ? 'Contact name' : 'Display name'}</Text><View style={[styles.onboardingInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}><Feather name="smile" size={20} color={colors.mutedForeground} /><TextInput autoFocus value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, { color: colors.foreground }]} /></View><Text style={[styles.inputHint, { color: colors.mutedForeground }]}>{user.email ? `Signed in as ${user.email}` : 'Your Telegram username stays connected automatically.'}</Text></View></View> : null}
-        {step === 2 && accountType === 'participant' ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>What matters to you?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Pick the causes you'd like to see first.</Text><View style={styles.onboardingChoices}>{categories.slice(1).map((item) => { const selected = interests.includes(item.key as ExperienceCategory); return <Pressable key={item.key} onPress={() => { triggerHaptic(); setInterests((current) => selected ? current.filter((value) => value !== item.key) : [...current, item.key as ExperienceCategory]); }} style={[styles.choiceCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Feather name={item.icon} size={24} color={selected ? colors.primary : colors.mutedForeground} /><Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{item.label}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></View> : null}
-        {step === 2 && accountType === 'organisation' ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Tell us about your organisation.</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>This helps participants understand who is hosting their experience.</Text><View style={styles.onboardingForm}><Text style={[styles.onboardingFieldLabel, { color: colors.foreground }]}>Organisation name</Text><TextInput autoFocus value={organisationName} onChangeText={setOrganisationName} placeholder="e.g. The Good Gym" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, styles.cityInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]} /><Text style={[styles.onboardingFieldLabel, { color: colors.foreground, marginTop: 18 }]}>What does your organisation do?</Text><TextInput value={organisationDescription} onChangeText={setOrganisationDescription} multiline maxLength={600} placeholder="Describe your community and the work you do" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]} /></View></View> : null}
-        {step === 3 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>{accountType === 'organisation' ? 'Where is your organisation based?' : 'Where will you show up?'}</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>{accountType === 'organisation' ? 'Set the location participants should associate with your organisation.' : "We'll use your city to find nearby opportunities."}</Text><View style={styles.onboardingForm}><TextInput autoFocus value={city} onChangeText={setCity} placeholder="e.g. London" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, styles.cityInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]} />{accountType === 'organisation' ? <><Text style={[styles.formLabel, { color: colors.foreground }]}>Causes your organisation supports</Text><View style={styles.onboardingChoices}>{categories.slice(1).map((item) => { const selected = interests.includes(item.key as ExperienceCategory); return <Pressable key={item.key} onPress={() => { triggerHaptic(); setInterests((current) => selected ? current.filter((value) => value !== item.key) : [...current, item.key as ExperienceCategory]); }} style={[styles.choiceCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Feather name={item.icon} size={22} color={selected ? colors.primary : colors.mutedForeground} /><Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{item.label}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={20} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></> : null}</View></View> : null}
-        {step === 4 ? <View style={styles.onboardingSlide}><OnboardingArtwork variant="complete" /><Text style={[styles.onboardingSmallTitle, { color: colors.foreground, textAlign: 'center' }]}>{accountType === 'organisation' ? 'Your organisation is ready.' : "You're all set!"}</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground, textAlign: 'center' }]}>{accountType === 'organisation' ? `You're ready to bring your next experience to life, ${name.trim() || 'host'}.` : `You're ready to find your next good thing, ${name.trim() || 'friend'}.`}</Text><TextInput value={bio} onChangeText={setBio} multiline maxLength={280} placeholder={accountType === 'organisation' ? 'Add a short contact bio (optional)' : 'Add a short bio (optional)'} placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius, marginTop: 24 }]} /></View> : null}
-      </View>
-      <View style={styles.onboardingFooter}>
+      <View style={[styles.flowFooter, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         {saveError ? <InlineError message={saveError} /> : null}
-        <View style={styles.onboardingDots}>{dots.map((index) => <View key={index} style={[styles.onboardingDot, { backgroundColor: index === step ? colors.primary : colors.border }]} />)}</View>
-        <Button label={update.isPending ? 'Saving…' : step === totalSteps - 1 ? (accountType === 'organisation' ? 'Create organisation profile' : 'Create participant profile') : 'Continue'} disabled={update.isPending || stepIsInvalid} onPress={() => void next()} />
+        <Button
+          label={update.isPending ? 'Saving profile…' : step === totalSteps ? (accountType === 'organisation' ? 'Create organisation profile' : 'Create my passport') : 'Continue'}
+          disabled={update.isPending || stepIsInvalid}
+          onPress={() => { void next(); }}
+          icon={step === totalSteps ? 'check' : 'arrow-right'}
+        />
       </View>
     </KeyboardAwareScrollViewCompat>
   );
@@ -3218,8 +3474,9 @@ export default function App() {
 
   if (screen === 'email') {
     return (
-      <AppShell>
+      <AppShell showFeedbackBanner={false}>
         <EmailAuthPanel
+          accountType={selectedAccountType}
           onBack={() => {
             clearAuthError();
             setScreen('home');
@@ -3446,33 +3703,102 @@ const styles = StyleSheet.create({
   emailLoginLink: { alignItems: 'center', paddingVertical: 2 },
   emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   emailAuthScreen: { flex: 1 },
-  emailAuthScroll: { flex: 1, backgroundColor: '#F4F5F8' },
-  emailAuthContent: { flexGrow: 1, paddingHorizontal: 22, justifyContent: 'center', backgroundColor: '#F4F5F8' },
+  emailAuthScroll: { flex: 1 },
+  emailAuthContent: { flexGrow: 1, paddingHorizontal: 22, justifyContent: 'center' },
   emailBack: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, alignSelf: 'flex-start' },
   emailBackIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   emailBackText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  emailAuthForm: { width: '100%', maxWidth: 430, alignSelf: 'center', backgroundColor: 'transparent', paddingTop: 8, paddingBottom: 16, gap: 18 },
+  emailAuthForm: { width: '100%', maxWidth: 430, alignSelf: 'center', gap: 18 },
   emailAuthHeader: { gap: 12 },
   emailAuthFields: { gap: 14 },
-  emailIllustration: { width: 82, height: 82, borderRadius: 41, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ECE8FF', marginBottom: 2 },
+  emailIllustration: { width: 70, height: 70, borderRadius: 35, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   emailCardIntro: { gap: 5, alignItems: 'center', marginTop: 0, marginBottom: 2 },
   emailHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.5, marginBottom: 2 },
-  emailCardTitle: { color: '#102023', fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, textAlign: 'center' },
-  emailCardBody: { color: '#708083', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  emailCardTitle: { fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, textAlign: 'center' },
+  emailCardBody: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', textAlign: 'center' },
   emailSwitchRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 0, marginBottom: 0 },
-  emailSwitchPrompt: { color: '#708083', fontSize: 13, fontFamily: 'Inter_500Medium' },
+  emailSwitchPrompt: { fontSize: 13, fontFamily: 'Inter_500Medium' },
   emailSwitchLink: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   emailField: { gap: 8 },
-  emailLabel: { color: '#25383B', fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 0.55 },
-  emailInputRow: { height: 54, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E1E4EB', borderRadius: 15, backgroundColor: '#FFFFFF' },
+  emailLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 0.55 },
+  emailInputRow: { height: 54, flexDirection: 'row', alignItems: 'center', borderWidth: 1 },
   emailInputIcon: { marginLeft: 14, marginRight: 10 },
-  emailInput: { flex: 1, height: 51, paddingHorizontal: 0, paddingRight: 13, color: '#162629', fontSize: 15, fontFamily: 'Inter_400Regular' },
+  emailInput: { flex: 1, height: 51, paddingHorizontal: 0, paddingRight: 13, fontSize: 15, fontFamily: 'Inter_400Regular' },
   emailError: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
   emailSubmitButton: { marginTop: 4 },
   emailSecureNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: -1 },
-  emailSecureNoteText: { color: '#7A8A8C', fontSize: 11, fontFamily: 'Inter_500Medium' },
+  emailSecureNoteText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   
   onboarding: { flex: 1 },
+  flowScreenContent: { flexGrow: 1 },
+  flowHeader: { paddingHorizontal: 24, paddingBottom: 8 },
+  flowHeaderTop: { height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  flowBackButton: { width: 40, height: 40, borderWidth: 1, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  flowBackSpacer: { width: 40, height: 40 },
+  flowBrandLockup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  flowBrandMark: { width: 28, height: 28, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  flowBrandText: { fontSize: 13, fontFamily: 'Inter_700Bold', letterSpacing: -0.35 },
+  flowStepCount: { minWidth: 48, textAlign: 'right', fontSize: 11, fontFamily: 'Inter_600SemiBold', fontVariant: ['tabular-nums'] },
+  flowProgressMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 19, marginBottom: 9 },
+  flowProgressLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.15 },
+  flowProgressHint: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  flowProgressTrack: { height: 4, borderRadius: 2, overflow: 'hidden' },
+  flowProgressFill: { height: 4, borderRadius: 2 },
+  flowContent: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 27, paddingBottom: 22 },
+  flowHeroBadge: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  flowEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2, marginBottom: 8 },
+  flowTitle: { fontSize: 29, lineHeight: 35, fontFamily: 'Inter_700Bold', letterSpacing: -0.75, marginBottom: 9 },
+  flowDescription: { fontSize: 14, lineHeight: 22, fontFamily: 'Inter_400Regular', marginBottom: 25 },
+  accountTypeOptions: { gap: 12, marginTop: 2 },
+  accountTypeCard: { minHeight: 106, flexDirection: 'row', alignItems: 'center', gap: 13, padding: 16, borderWidth: 1.5, borderRadius: 22 },
+  accountTypeIcon: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  accountTypeCopy: { flex: 1 },
+  accountTypeTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: -0.2 },
+  accountTypeDescription: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular', marginTop: 5 },
+  accountTypeRadio: { width: 22, height: 22, borderWidth: 1.5, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  accountTypeRadioInner: { width: 10, height: 10, borderRadius: 5 },
+  flowReassurance: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 },
+  flowReassuranceText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
+  flowFooter: { paddingHorizontal: 24, paddingTop: 14, gap: 12 },
+  loginMethods: { gap: 12 },
+  flowForm: { gap: 10 },
+  flowFieldLabel: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_700Bold' },
+  flowFieldLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  optionalLabel: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  flowTextInput: { width: '100%', height: 56, borderWidth: 1, paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_500Medium' },
+  flowMultilineInput: { width: '100%', minHeight: 104, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 13, fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular' },
+  flowFieldHint: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
+  characterCount: { alignSelf: 'flex-end', fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: -5 },
+  interestList: { gap: 10 },
+  interestCard: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, borderWidth: 1.5, borderRadius: 18 },
+  interestIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  interestCopy: { flex: 1 },
+  interestTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  interestDescription: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  interestCheck: { width: 22, height: 22, borderWidth: 1.5, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  organisationFocusSection: { gap: 12, marginTop: 8 },
+  flowTip: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 13, borderRadius: 15, marginTop: 12 },
+  flowTipText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
+  reviewSection: { gap: 0 },
+  profilePreviewCard: { borderRadius: 24, padding: 20, overflow: 'hidden' },
+  profilePreviewBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  profilePreviewMark: { width: 36, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  profilePreviewEyebrow: { fontSize: 9, fontFamily: 'Inter_700Bold', letterSpacing: 1.05 },
+  profilePreviewTitle: { fontSize: 23, lineHeight: 29, fontFamily: 'Inter_700Bold', letterSpacing: -0.55, marginTop: 18 },
+  profilePreviewBody: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular', marginTop: 5 },
+  profilePreviewLocation: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
+  profilePreviewLocationText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  profilePreviewTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 13 },
+  profilePreviewTag: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14 },
+  profilePreviewTagText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  reviewList: { marginTop: 10 },
+  reviewRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 12 },
+  reviewCopy: { flex: 1 },
+  reviewLabel: { fontSize: 10, fontFamily: 'Inter_600SemiBold', letterSpacing: 0.45, marginBottom: 3 },
+  reviewValue: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_500Medium' },
+  reviewEditButton: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 8, paddingLeft: 8 },
+  reviewEditText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  bioSection: { gap: 9, marginTop: 22 },
   onboardingScreenContent: { flexGrow: 1 },
   onboardingTopBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 16 },
   onboardingBack: { width: 44, height: 44, justifyContent: 'center' },
