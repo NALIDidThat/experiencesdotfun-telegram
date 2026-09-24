@@ -2253,8 +2253,8 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
   const items: Array<{ key: Screen; label: string; icon: IconName }> = [
     { key: 'home', label: 'Home', icon: 'home' }, 
     { key: 'explore', label: 'Explore', icon: 'compass' }, 
-    { key: 'experiences', label: 'Journey', icon: 'calendar' }, 
-    { key: 'profile', label: 'Passport', icon: 'user' }
+    { key: 'experiences', label: 'Experiences', icon: 'calendar' },
+    { key: 'profile', label: 'Profile', icon: 'user' }
   ];
   return (
     <View style={[styles.bottomNav, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: Platform.OS === 'web' ? 34 : 28 }]}>
