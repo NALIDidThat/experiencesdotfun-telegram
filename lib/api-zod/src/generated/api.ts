@@ -191,6 +191,64 @@ export const UpdateMeResponse = zod.object({
 
 
 /**
+ * @summary List Telegram groups where the current user has Community XP
+ */
+export const GetMyCommunitiesResponse = zod.object({
+  "communities": zod.array(zod.object({
+  "chatId": zod.string(),
+  "title": zod.string(),
+  "communityXp": zod.number().int(),
+  "contributionCount": zod.number().int(),
+  "qualifyingMessages": zod.number().int(),
+  "rank": zod.number().int(),
+  "level": zod.string(),
+  "levelProgress": zod.number(),
+  "nextLevelXp": zod.number().int().nullable()
+}))
+})
+
+
+/**
+ * @summary Get the current user's group reputation, leaderboard, and history
+ */
+export const getCommunityDetailsPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const GetCommunityDetailsParams = zod.object({
+  "chatId": zod.coerce.string().regex(getCommunityDetailsPathChatIdRegExp)
+})
+
+export const GetCommunityDetailsResponse = zod.object({
+  "community": zod.object({
+  "chatId": zod.string(),
+  "title": zod.string(),
+  "communityXp": zod.number().int(),
+  "contributionCount": zod.number().int(),
+  "qualifyingMessages": zod.number().int(),
+  "rank": zod.number().int(),
+  "level": zod.string(),
+  "levelProgress": zod.number(),
+  "nextLevelXp": zod.number().int().nullable()
+}),
+  "leaderboard": zod.array(zod.object({
+  "rank": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "communityXp": zod.number().int(),
+  "qualifyingMessages": zod.number().int(),
+  "level": zod.string(),
+  "isCurrentUser": zod.boolean()
+})),
+  "recentContributions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "contributionType": zod.enum(['telegram_message', 'admin_reward']),
+  "xpAwarded": zod.number().int(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary Discover published volunteering experiences
  */
 export const ListExperiencesQueryParams = zod.object({

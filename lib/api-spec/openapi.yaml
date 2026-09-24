@@ -20,6 +20,8 @@ tags:
     description: Host and organisation management
   - name: friends
     description: Lightweight social graph
+  - name: community
+    description: Group-scoped Community XP and reputation
 paths:
   /healthz:
     get:
@@ -145,6 +147,45 @@ paths:
                 $ref: "#/components/schemas/User"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /community/me:
+    get:
+      operationId: getMyCommunities
+      tags: [community]
+      summary: List Telegram groups where the current user has Community XP
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: User's group memberships and Community XP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyCommunitiesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /community/{chatId}:
+    get:
+      operationId: getCommunityDetails
+      tags: [community]
+      summary: Get the current user's group reputation, leaderboard, and history
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      responses:
+        "200":
+          description: Group-scoped reputation details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityDetails"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /experiences:
     get:
       operationId: listExperiences
@@ -705,6 +746,98 @@ components:
         participationType:
           $ref: "#/components/schemas/ParticipationType"
       additionalProperties: false
+    MyCommunitiesResponse:
+      type: object
+      properties:
+        communities:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommunitySummary"
+      required: [communities]
+    CommunitySummary:
+      type: object
+      properties:
+        chatId:
+          type: string
+        title:
+          type: string
+        communityXp:
+          type: integer
+        contributionCount:
+          type: integer
+        qualifyingMessages:
+          type: integer
+        rank:
+          type: integer
+        level:
+          type: string
+        levelProgress:
+          type: number
+        nextLevelXp:
+          type: [integer, "null"]
+      required:
+        - chatId
+        - title
+        - communityXp
+        - contributionCount
+        - qualifyingMessages
+        - rank
+        - level
+        - levelProgress
+        - nextLevelXp
+    CommunityLeaderboardMember:
+      type: object
+      properties:
+        rank:
+          type: integer
+        name:
+          type: string
+        username:
+          type: [string, "null"]
+        communityXp:
+          type: integer
+        qualifyingMessages:
+          type: integer
+        level:
+          type: string
+        isCurrentUser:
+          type: boolean
+      required:
+        - rank
+        - name
+        - username
+        - communityXp
+        - qualifyingMessages
+        - level
+        - isCurrentUser
+    CommunityContribution:
+      type: object
+      properties:
+        id:
+          type: integer
+        contributionType:
+          type: string
+          enum: [telegram_message, admin_reward]
+        xpAwarded:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, contributionType, xpAwarded, createdAt]
+    CommunityDetails:
+      type: object
+      properties:
+        community:
+          $ref: "#/components/schemas/CommunitySummary"
+        leaderboard:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommunityLeaderboardMember"
+        recentContributions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommunityContribution"
+      required: [community, leaderboard, recentContributions]
     Organisation:
       type: object
       properties:

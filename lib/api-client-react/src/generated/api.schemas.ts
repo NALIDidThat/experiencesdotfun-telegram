@@ -131,6 +131,55 @@ export interface ProfileUpdateInput {
   participationType?: ParticipationType;
 }
 
+export interface CommunitySummary {
+  chatId: string;
+  title: string;
+  communityXp: number;
+  contributionCount: number;
+  qualifyingMessages: number;
+  rank: number;
+  level: string;
+  levelProgress: number;
+  /** @nullable */
+  nextLevelXp: number | null;
+}
+
+export interface MyCommunitiesResponse {
+  communities: CommunitySummary[];
+}
+
+export interface CommunityLeaderboardMember {
+  rank: number;
+  name: string;
+  /** @nullable */
+  username: string | null;
+  communityXp: number;
+  qualifyingMessages: number;
+  level: string;
+  isCurrentUser: boolean;
+}
+
+export type CommunityContributionContributionType = typeof CommunityContributionContributionType[keyof typeof CommunityContributionContributionType];
+
+
+export const CommunityContributionContributionType = {
+  telegram_message: 'telegram_message',
+  admin_reward: 'admin_reward',
+} as const;
+
+export interface CommunityContribution {
+  id: number;
+  contributionType: CommunityContributionContributionType;
+  xpAwarded: number;
+  createdAt: string;
+}
+
+export interface CommunityDetails {
+  community: CommunitySummary;
+  leaderboard: CommunityLeaderboardMember[];
+  recentContributions: CommunityContribution[];
+}
+
 export interface Organisation {
   id: number;
   name: string;

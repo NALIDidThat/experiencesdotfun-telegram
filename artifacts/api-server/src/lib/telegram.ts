@@ -16,6 +16,17 @@ import {
 } from "./auth";
 import { experienceResponse, userResponse } from "./data";
 import { createOrReopenFriendRequest } from "./friends";
+import {
+  getCommunityLeaderboard,
+  getCommunityMemberByUsername,
+  getCommunityMemberSummary,
+  processAdminCommunityReward,
+  processCommunityMessage,
+} from "./contribution";
+import {
+  getMessageQualification,
+  parseAdminRewardAmount,
+} from "./community-rules";
 
 type TelegramButton = {
   text: string;
@@ -26,9 +37,16 @@ type TelegramButton = {
 type TelegramUpdate = {
   update_id: number;
   message?: {
-    chat: { id: number; type?: string };
+    message_id: number;
+    chat: { id: number; type?: string; title?: string };
     text?: string;
     from?: TelegramIdentity;
+    reply_to_message?: {
+      message_id: number;
+      from?: TelegramIdentity;
+      text?: string;
+      caption?: string;
+    };
   };
   callback_query?: {
     id: string;
@@ -45,6 +63,8 @@ const botCommands = [
   { command: "create", description: "Create an experience" },
   { command: "experiences", description: "Find experiences" },
   { command: "xp", description: "Review XP and its sources" },
+  { command: "rank", description: "View your Community XP rank" },
+  { command: "leaderboard", description: "View this group's Community XP leaderboard" },
   { command: "add", description: "Add a friend by username" },
   { command: "profile", description: "View your profile" },
   { command: "friends", description: "View your friends" },
@@ -98,7 +118,7 @@ export async function sendTelegramMessage(
   inlineKeyboard?: TelegramButton[][],
 ) {
   const numericChatId = Number(chatId);
-  if (!Number.isSafeInteger(numericChatId) || numericChatId <= 0) return null;
+  if (!Number.isSafeInteger(numericChatId) || numericChatId === 0) return null;
   return telegramCall("sendMessage", {
     chat_id: numericChatId,
     text,
@@ -219,7 +239,7 @@ async function sendHowItWorks(chatId: number) {
 async function sendCommandMenu(chatId: number) {
   return sendTelegramMessage(
     chatId,
-    `<b>🧭 Experiences.fun menu</b>\n\nChoose your next move:\n\n<b>DISCOVER</b>\n🔎 Find upcoming experiences\n⚡ Check your XP and impact\n\n<b>CONNECT</b>\n👥 See your friends\n📨 Review friend requests\n➕ Add someone by username\n\n<b>CREATE</b>\n🎤 Host an experience\n🛠️ Open your host tools\n\n<i>You can also use the commands below any time:</i>\n<code>/onboarding</code> <code>/experiences</code> <code>/xp</code> <code>/add @username</code> <code>/profile</code> <code>/friends</code> <code>/requests</code> <code>/host</code>`,
+    `<b>🧭 Experiences.fun menu</b>\n\nChoose your next move:\n\n<b>DISCOVER</b>\n🔎 Find upcoming experiences\n⚡ Check your XP and impact\n\n<b>CONNECT</b>\n👥 See your friends\n📨 Review friend requests\n➕ Add someone by username\n\n<b>CREATE</b>\n🎤 Host an experience\n🛠️ Open your host tools\n\n<i>You can also use the commands below any time:</i>\n<code>/onboarding</code> <code>/experiences</code> <code>/xp</code> <code>/rank</code> <code>/leaderboard</code> <code>/add @username</code> <code>/profile</code> <code>/friends</code> <code>/requests</code> <code>/host</code>`,
     menuKeyboard(),
   );
 }
@@ -255,7 +275,7 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
     case "/help":
       await sendTelegramMessage(
         chatId,
-        `<b>💬 Experiences.fun commands</b>\n\n<b>GET STARTED</b>\n<code>/start</code> Open the welcome flow\n<code>/onboarding</code> Finish or update your profile\n<code>/menu</code> Open quick actions\n\n<b>FIND YOUR THING</b>\n<code>/experiences</code> Find upcoming experiences\n<code>/xp</code> Review XP and where it came from\n\n<b>YOUR PEOPLE</b>\n<code>/add @username</code> Send a friend request\n<code>/friends</code> View your friends\n<code>/requests</code> View pending requests\n\n<b>HOST</b>\n<code>/profile</code> View your profile\n<code>/host</code> Open host tools`,
+        `<b>💬 Experiences.fun commands</b>\n\n<b>GET STARTED</b>\n<code>/start</code> Open the welcome flow\n<code>/onboarding</code> Finish or update your profile\n<code>/menu</code> Open quick actions\n\n<b>FIND YOUR THING</b>\n<code>/experiences</code> Find upcoming experiences\n<code>/xp</code> Review Experience XP and where it came from\n\n<b>COMMUNITY GROUPS</b>\n<code>/rank</code> View your Community XP rank\n<code>/rank @username</code> View a member's group rank\n<code>/leaderboard</code> View the group's Community XP leaders\n\n<b>YOUR PEOPLE</b>\n<code>/add @username</code> Send a friend request\n<code>/friends</code> View your friends\n<code>/requests</code> View pending requests\n\n<b>HOST</b>\n<code>/profile</code> View your profile\n<code>/host</code> Open host tools`,
         [[callbackButton("🧭 Open menu", "menu:open"), callbackButton("✨ How it works", "onboarding:how")]],
       );
       break;
@@ -286,8 +306,68 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
         : "\n\nComplete and verify an experience to start earning XP.";
       await sendTelegramMessage(
         chatId,
-        `<b>⚡ Your XP</b>\n\n<b>${profile.xp} XP</b> · ${escapeTelegramHtml(profile.level)}\n${profile.completedCount} experiences completed\n${profile.hostedCount} experiences hosted\n£${(profile.rewardsPence / 100).toFixed(2)} rewards earned${sources}`,
+        `<b>⚡ Your Experience XP</b>\n\n<b>${profile.xp} XP</b> · ${escapeTelegramHtml(profile.level)}\n${profile.completedCount} experiences completed\n${profile.hostedCount} experiences hosted\n£${(profile.rewardsPence / 100).toFixed(2)} rewards earned${sources}\n\nCommunity XP is separate for each group. Use <code>/rank</code> in a community group.`,
         [[openButton("View XP history", "/?screen=profile")]],
+      );
+      break;
+    }
+    case "/rank": {
+      if (chatType !== "group" && chatType !== "supergroup") {
+        await sendTelegramMessage(chatId, "Use <code>/rank</code> inside the Telegram group you want to check.");
+        break;
+      }
+
+      const targetUsername = args[0]?.replace(/^@/, "");
+      const target = targetUsername
+        ? await getCommunityMemberByUsername(String(chatId), targetUsername)
+        : null;
+      if (targetUsername && !target) {
+        await sendTelegramMessage(chatId, `I couldn't find @${escapeTelegramHtml(targetUsername)} with Community XP in this group.`);
+        break;
+      }
+
+      const current = target?.community ?? await getCommunityMemberSummary(String(chatId), user.id);
+      if (!current) {
+        await sendTelegramMessage(
+          chatId,
+          target
+            ? `${escapeTelegramHtml(target.user.name)} hasn't earned Community XP in this group yet.`
+            : "You haven't earned Community XP in this group yet. Send a thoughtful message of at least seven words to get started.",
+        );
+        break;
+      }
+      const displayName = target
+        ? target.user.username
+          ? `@${target.user.username}`
+          : target.user.name
+        : user.username
+          ? `@${user.username}`
+          : user.name;
+      await sendTelegramMessage(
+        chatId,
+        `<b>Community rank · ${escapeTelegramHtml(current.title)}</b>\n\n${escapeTelegramHtml(displayName)}\n<b>#${current.rank}</b> · ${current.communityXp} Community XP\n${escapeTelegramHtml(current.level)} · ${current.qualifyingMessages} qualifying messages`,
+      );
+      break;
+    }
+    case "/leaderboard": {
+      if (chatType !== "group" && chatType !== "supergroup") {
+        await sendTelegramMessage(chatId, "Use <code>/leaderboard</code> inside a Telegram group.");
+        break;
+      }
+      const leaderboard = await getCommunityLeaderboard(String(chatId), user.id);
+      if (!leaderboard.length) {
+        await sendTelegramMessage(chatId, "This group has no Community XP yet. Start with a thoughtful message of at least seven words.");
+        break;
+      }
+      const rows = leaderboard.map((member) => {
+        const label = member.username
+          ? `@${member.username}`
+          : member.name;
+        return `${member.rank}. ${member.isCurrentUser ? "👉 " : ""}<b>${escapeTelegramHtml(label)}</b> · ${member.communityXp} XP · ${escapeTelegramHtml(member.level)}`;
+      });
+      await sendTelegramMessage(
+        chatId,
+        `<b>Community leaderboard · ${escapeTelegramHtml(rows.length ? "Top contributors" : "This group")}</b>\n\n${rows.join("\n")}`,
       );
       break;
     }
@@ -444,6 +524,84 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
   }
 }
 
+function isGroupChat(chatType: string | undefined): boolean {
+  return chatType === "group" || chatType === "supergroup";
+}
+
+async function isTelegramChatAdmin(chatId: number, telegramUserId: number): Promise<boolean> {
+  const member = await telegramCall<{ status?: string }>("getChatMember", {
+    chat_id: chatId,
+    user_id: telegramUserId,
+  });
+  return member?.status === "creator" || member?.status === "administrator";
+}
+
+async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
+  const text = message.text;
+  const identity = message.from;
+  if (!text || !identity || identity.is_bot) return;
+
+  if (text.trim().startsWith("/")) {
+    await handleCommand(message.chat.id, message.chat.type, identity, text);
+    return;
+  }
+  if (!isGroupChat(message.chat.type)) return;
+
+  const rewardAmount = parseAdminRewardAmount(text);
+  const reply = message.reply_to_message;
+  if (rewardAmount !== null && reply?.from && !reply.from.is_bot && reply.from.id !== identity.id) {
+    if (!(await isTelegramChatAdmin(message.chat.id, identity.id))) return;
+
+    const [admin, recipient] = await Promise.all([
+      upsertTelegramUser(identity),
+      upsertTelegramUser(reply.from),
+    ]);
+    const result = await processAdminCommunityReward({
+      admin,
+      recipient,
+      chatId: String(message.chat.id),
+      chatTitle: message.chat.title ?? "Telegram group",
+      telegramMessageId: String(message.message_id),
+      targetMessageId: String(reply.message_id),
+      targetText: reply.text ?? reply.caption,
+      amount: rewardAmount,
+    });
+    if (result.awarded) {
+      const recipientName = recipient.username
+        ? `@${recipient.username}`
+        : recipient.name;
+      await sendTelegramMessage(
+        message.chat.id,
+        `<b>Community recognition</b>\n${escapeTelegramHtml(recipientName)} received +${result.xpAwarded} Community XP.`,
+      );
+    } else if (result.reason === "daily_limit") {
+      await sendTelegramMessage(
+        message.chat.id,
+        "That reward would exceed today's Community XP limit.",
+      );
+    }
+    return;
+  }
+
+  const qualification = getMessageQualification({
+    text,
+    isGroup: true,
+    isBot: false,
+  });
+  if (!qualification.qualifies) return;
+
+  const user = await upsertTelegramUser(identity);
+  await processCommunityMessage({
+    user,
+    chatId: String(message.chat.id),
+    chatTitle: message.chat.title ?? "Telegram group",
+    telegramMessageId: String(message.message_id),
+    text,
+    isGroup: true,
+    isBot: false,
+  });
+}
+
 async function handleCallback(update: NonNullable<TelegramUpdate["callback_query"]>) {
   await answerCallback(update.id);
   if (update.message?.chat.type && update.message.chat.type !== "private") return;
@@ -521,8 +679,8 @@ async function poll(offset: number): Promise<void> {
     for (const update of updates ?? []) {
       nextOffset = Math.max(nextOffset, update.update_id + 1);
       try {
-        if (update.message?.text && update.message.from) {
-          await handleCommand(update.message.chat.id, update.message.chat.type, update.message.from, update.message.text);
+        if (update.message?.text) {
+          await handleMessage(update.message);
         } else if (update.callback_query) {
           await handleCallback(update.callback_query);
         }

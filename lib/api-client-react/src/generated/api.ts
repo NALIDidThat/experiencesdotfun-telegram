@@ -22,6 +22,7 @@ import type {
 import type {
   AuthResponse,
   BotInfo,
+  CommunityDetails,
   ConflictResponse,
   EmailLoginInput,
   EmailSignupInput,
@@ -35,6 +36,7 @@ import type {
   HostOverview,
   ListExperiencesParams,
   ListMyParticipationsParams,
+  MyCommunitiesResponse,
   NotFoundResponse,
   ParticipantSummary,
   Participation,
@@ -654,6 +656,160 @@ export const useUpdateMe = <TError = ErrorType<UnauthorizedResponse>,
       > => {
       return useMutation(getUpdateMeMutationOptions(options));
     }
+
+export const getGetMyCommunitiesUrl = () => {
+
+
+
+
+  return `/api/community/me`
+}
+
+/**
+ * @summary List Telegram groups where the current user has Community XP
+ */
+export const getMyCommunities = async ( options?: Parameters<typeof customFetch>[1]): Promise<MyCommunitiesResponse> => {
+
+  return customFetch<MyCommunitiesResponse>(getGetMyCommunitiesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyCommunitiesQueryKey = () => {
+    return [
+    `/api/community/me`
+    ] as const;
+    }
+
+
+export const getGetMyCommunitiesQueryOptions = <TData = Awaited<ReturnType<typeof getMyCommunities>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyCommunities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyCommunitiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyCommunities>>> = ({ signal }) => getMyCommunities({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyCommunities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyCommunitiesQueryResult = NonNullable<Awaited<ReturnType<typeof getMyCommunities>>>
+export type GetMyCommunitiesQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary List Telegram groups where the current user has Community XP
+ */
+
+export function useGetMyCommunities<TData = Awaited<ReturnType<typeof getMyCommunities>>, TError = ErrorType<UnauthorizedResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyCommunities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyCommunitiesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCommunityDetailsUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/${chatId}`
+}
+
+/**
+ * @summary Get the current user's group reputation, leaderboard, and history
+ */
+export const getCommunityDetails = async (chatId: string, options?: Parameters<typeof customFetch>[1]): Promise<CommunityDetails> => {
+
+  return customFetch<CommunityDetails>(getGetCommunityDetailsUrl(chatId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCommunityDetailsQueryKey = (chatId: string,) => {
+    return [
+    `/api/community/${chatId}`
+    ] as const;
+    }
+
+
+export const getGetCommunityDetailsQueryOptions = <TData = Awaited<ReturnType<typeof getCommunityDetails>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommunityDetails>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCommunityDetailsQueryKey(chatId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCommunityDetails>>> = ({ signal }) => getCommunityDetails(chatId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: chatId !== null && chatId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCommunityDetails>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCommunityDetailsQueryResult = NonNullable<Awaited<ReturnType<typeof getCommunityDetails>>>
+export type GetCommunityDetailsQueryError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+
+
+/**
+ * @summary Get the current user's group reputation, leaderboard, and history
+ */
+
+export function useGetCommunityDetails<TData = Awaited<ReturnType<typeof getCommunityDetails>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(
+ chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommunityDetails>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCommunityDetailsQueryOptions(chatId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListExperiencesUrl = (params?: ListExperiencesParams,) => {
   const normalizedParams = new URLSearchParams();

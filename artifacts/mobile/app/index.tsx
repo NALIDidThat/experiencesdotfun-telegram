@@ -60,6 +60,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 
 type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'experience' | 'host' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
@@ -1721,6 +1722,8 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       ) : null}
 
       <ContributionDashboard user={current} completed={completed.data} />
+
+      <CommunityXpPanel />
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent impact</Text>
       {completed.data?.length ? completed.data.slice(0, 3).map((item) => (
