@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useAuthenticateTelegram,
   getMe,
@@ -23,6 +24,7 @@ type AuthContextValue = {
   authError: string | null;
   clearAuthError: () => void;
   refresh: () => Promise<boolean>;
+  signOut: () => Promise<void>;
   login: () => Promise<boolean>;
   loginWithEmail: (email: string, password: string) => Promise<boolean>;
   signUpWithEmail: (name: string, email: string, password: string) => Promise<boolean>;
@@ -37,12 +39,14 @@ const AuthContext = createContext<AuthContextValue>({
   authError: null,
   clearAuthError: () => {},
   refresh: async () => false,
+  signOut: async () => {},
   login: async () => false,
   loginWithEmail: async () => false,
   signUpWithEmail: async () => false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [initData, setInitData] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +61,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
   }, []);
+  const signOut = useCallback(async () => {
+    await clearStoredAuthToken();
+    queryClient.clear();
+    setUser(null);
+    setInitData(null);
+    setAuthError(null);
+  }, [queryClient]);
   const authenticate = useAuthenticateTelegram();
   const authenticateRef = useRef(authenticate);
   authenticateRef.current = authenticate;
@@ -200,11 +211,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       authError,
       clearAuthError,
       refresh,
+      signOut,
       login,
       loginWithEmail,
       signUpWithEmail,
     }),
-    [user, initData, loading, authError, clearAuthError, refresh, login, loginWithEmail, signUpWithEmail],
+    [user, initData, loading, authError, clearAuthError, refresh, signOut, login, loginWithEmail, signUpWithEmail],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

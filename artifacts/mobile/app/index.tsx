@@ -218,12 +218,16 @@ function Header({
         {menuItems?.length ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Open profile menu"
+            accessibilityLabel={menuOpen ? 'Close profile menu' : 'Open profile menu'}
             accessibilityState={{ expanded: menuOpen }}
+            testID="profile-menu-toggle"
             onPress={() => { triggerHaptic(); setMenuOpen((open) => !open); }}
             style={({ pressed }) => [styles.headerMenuButton, { opacity: pressed ? 0.6 : 1 }]}
           >
-            <Feather name="more-horizontal" size={22} color={colors.foreground} />
+            <View accessibilityElementsHidden style={styles.headerMenuLines}>
+              <View style={[styles.headerMenuLine, { backgroundColor: colors.foreground }]} />
+              <View style={[styles.headerMenuLine, { backgroundColor: colors.foreground }]} />
+            </View>
           </Pressable>
         ) : null}
       </View>
@@ -250,7 +254,9 @@ function Header({
               {menuItems.map((item) => (
                 <Pressable
                   key={item.key}
+                  testID={`profile-menu-${item.key}`}
                   accessibilityRole="button"
+                  accessibilityLabel={item.label}
                   onPress={() => {
                     triggerHaptic();
                     setMenuOpen(false);
@@ -1729,7 +1735,7 @@ function ProfileMetricDetailsSheet({
 
 function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
-  const { user: authenticatedUser, authError, login, refresh } = useAuth();
+  const { user: authenticatedUser, authError, login, refresh, signOut } = useAuth();
   const queryClient = useQueryClient();
   const profile = useGetMe();
   const completed = useListMyParticipations({ status: 'completed' });
@@ -1748,6 +1754,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const [interests, setInterests] = useState<ExperienceCategory[]>(user.interests ?? []);
   const [participationType, setParticipationType] = useState<ParticipationType>((user.participationType as ParticipationType) ?? 'join');
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
+  const [profileMenuError, setProfileMenuError] = useState<string | null>(null);
   const [username, setUsername] = useState('');
   const [friendFeedback, setFriendFeedback] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
   const [respondingRequest, setRespondingRequest] = useState<{ id: number; action: 'accept' | 'decline' } | null>(null);
@@ -1779,6 +1786,43 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       setEditing(false);
     } catch (error) {
       setProfileSaveError(requestErrorMessage(error, 'Your profile could not be saved. Your edits are still here—please try again.'));
+    }
+  };
+
+  const openHostTools = async () => {
+    setProfileMenuError(null);
+    try {
+      const mode = authenticatedUser?.participationType;
+      if (mode !== 'host' && mode !== 'both') {
+        await update.mutateAsync({ data: { participationType: 'host' } });
+        await refresh();
+      }
+      go('host');
+    } catch (error) {
+      setProfileMenuError(requestErrorMessage(error, 'Host tools could not be opened. Please try again.'));
+    }
+  };
+
+  const switchToParticipant = async () => {
+    setProfileMenuError(null);
+    try {
+      if (authenticatedUser?.participationType !== 'join') {
+        await update.mutateAsync({ data: { participationType: 'join' } });
+        await refresh();
+      }
+      go('home');
+    } catch (error) {
+      setProfileMenuError(requestErrorMessage(error, 'Could not switch to participant mode. Please try again.'));
+    }
+  };
+
+  const handleSignOut = async () => {
+    setProfileMenuError(null);
+    try {
+      await signOut();
+      go('home');
+    } catch {
+      setProfileMenuError('Could not sign out. Please try again.');
     }
   };
 
@@ -1839,8 +1883,29 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
             icon: editing ? 'x' : 'edit-2',
             onPress: toggleProfileEditor,
           },
+          {
+            key: 'host-tools',
+            label: 'Host tools',
+            icon: 'briefcase',
+            onPress: () => { void openHostTools(); },
+          },
+          ...(authenticatedUser?.participationType !== 'join'
+            ? [{
+                key: 'switch-to-participant',
+                label: 'Switch to participant',
+                icon: 'users' as IconName,
+                onPress: () => { void switchToParticipant(); },
+              }]
+            : []),
+          {
+            key: 'sign-out',
+            label: 'Sign out',
+            icon: 'log-out',
+            onPress: () => { void handleSignOut(); },
+          },
         ]}
       />
+      {profileMenuError ? <InlineError message={profileMenuError} /> : null}
 
       <SocialProfileHeader
         user={current}
@@ -2860,8 +2925,10 @@ const styles = StyleSheet.create({
   backButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
   headerCopy: { flex: 1 },
   headerMenuButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: 8, marginTop: -4 },
+  headerMenuLines: { alignItems: 'center', justifyContent: 'center', gap: 6 },
+  headerMenuLine: { width: 20, height: 2, borderRadius: 1 },
   headerMenuOverlay: { flex: 1 },
-  headerMenuPopover: { position: 'absolute', right: 16, width: 196, borderWidth: 1, paddingVertical: 4, elevation: 8 },
+  headerMenuPopover: { position: 'absolute', right: 16, width: 224, borderWidth: 1, paddingVertical: 4, elevation: 8 },
   headerMenuItem: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
   headerMenuItemText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
   headerTitle: { fontSize: 28, fontFamily: 'Inter_700Bold' },
