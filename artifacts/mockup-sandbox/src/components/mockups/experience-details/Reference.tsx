@@ -58,18 +58,26 @@ export function Reference() {
         </section>
 
         <section className="mt-3 rounded-[24px] border border-[#e8e8ed] bg-white p-4">
-          <div className="mb-2 flex items-center gap-1.5 text-[12px] font-medium text-[#666]">
-            <span>{experience.organisation}</span>
-            <BadgeCheck size={15} className="text-[#05727d]" />
+          <div className="mb-2.5 flex items-center gap-2">
+            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#17171b]">
+              {experience.organisation}
+            </span>
+            <span className="flex shrink-0 items-center gap-1 rounded-full bg-[#eaf7f5] px-2 py-1 text-[10px] font-semibold text-[#05727d]">
+              <BadgeCheck size={13} />
+              Verified host
+            </span>
           </div>
-          <h2 className="text-[25px] font-bold leading-[1.12] tracking-[-0.6px] text-[#111]">
+          <h2 className="text-[28px] font-bold leading-[1.12] tracking-[-0.7px] text-[#111]">
             {experience.title}
           </h2>
-          <div className="mt-3 rounded-[17px] bg-[#f7f7f8] p-3">
-            <h3 className="mb-1 text-[11px] font-bold uppercase tracking-[0.8px] text-[#666]">
-              About this experience
-            </h3>
-            <p className="text-[14px] leading-5 text-[#333]">{experience.description}</p>
+          <div className="mt-3 flex gap-3 rounded-[17px] bg-[#f7f7f8] p-3">
+            <div className="w-[3px] shrink-0 rounded-full bg-[#f20789]" />
+            <div className="min-w-0 flex-1">
+              <h3 className="mb-1 text-[12px] font-bold text-[#666]">
+                About this experience
+              </h3>
+              <p className="text-[14px] leading-5 text-[#333]">{experience.description}</p>
+            </div>
           </div>
         </section>
 

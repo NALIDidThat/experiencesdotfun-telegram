@@ -918,13 +918,22 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           ]}
         >
           <View style={styles.detailOrganisationLine}>
-            <Text style={[styles.detailOrgText, { color: colors.mutedForeground }]}>{item.organisation.name}</Text>
-            {item.organisation.verified ? <Feather name="check-circle" size={15} color={colors.success} /> : null}
-            {item.organisation.verified ? <Text style={[styles.detailVerifiedText, { color: colors.success }]}>Verified host</Text> : null}
+            <Text style={[styles.detailOrgText, { color: colors.foreground }]} numberOfLines={1}>{item.organisation.name}</Text>
+            {item.organisation.verified ? (
+              <View style={[styles.detailVerifiedBadge, { backgroundColor: colors.success + '12' }]}>
+                <Feather name="check-circle" size={13} color={colors.success} />
+                <Text style={[styles.detailVerifiedText, { color: colors.success }]}>Verified host</Text>
+              </View>
+            ) : null}
           </View>
           <Text style={[styles.detailTitleText, { color: colors.foreground }]}>{item.title}</Text>
-          <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>About this experience</Text>
-          <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.description}</Text>
+          <View style={[styles.detailAboutBlock, { backgroundColor: colors.muted, borderRadius: colors.radius }]}>
+            <View style={[styles.detailAboutAccent, { backgroundColor: colors.primary }]} />
+            <View style={styles.detailAboutCopy}>
+              <Text style={[styles.detailAboutTitle, { color: colors.mutedForeground }]}>About this experience</Text>
+              <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.description}</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.detailMetaGrid}>
@@ -2265,10 +2274,15 @@ const styles = StyleSheet.create({
   detailHeroIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.2)' },
   detailCategoryText: { color: '#ffffff', fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1, textTransform: 'uppercase' },
   detailIntro: { padding: 16, borderWidth: 1, marginBottom: 12 },
-  detailOrganisationLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  detailOrgText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
-  detailVerifiedText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
-  detailTitleText: { fontSize: 26, fontFamily: 'Inter_700Bold', lineHeight: 32, letterSpacing: -0.5, marginBottom: 12 },
+  detailOrganisationLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  detailOrgText: { flexShrink: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  detailVerifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999 },
+  detailVerifiedText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  detailTitleText: { fontSize: 28, fontFamily: 'Inter_700Bold', lineHeight: 34, letterSpacing: -0.6, marginBottom: 13 },
+  detailAboutBlock: { flexDirection: 'row', gap: 10, padding: 12 },
+  detailAboutAccent: { width: 3, borderRadius: 2, alignSelf: 'stretch' },
+  detailAboutCopy: { flex: 1, minWidth: 0 },
+  detailAboutTitle: { fontSize: 12, fontFamily: 'Inter_700Bold', marginBottom: 4 },
   detailMetaGrid: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   metaBox: { flex: 1, minHeight: 112, borderWidth: 1, padding: 13 },
   metaIconLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 },
