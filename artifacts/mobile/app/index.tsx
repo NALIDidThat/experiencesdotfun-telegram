@@ -691,18 +691,6 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
       refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { triggerHaptic(); void query.refetch(); }} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.dashboardTopBar}>
-        <View style={styles.dashboardBrand}>
-          <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.dashboardBrandIcon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-            <Feather name="star" size={16} color={colors.primaryForeground} />
-          </LinearGradient>
-          <Text style={[styles.dashboardBrandText, { color: colors.foreground }]}>experiences.fun</Text>
-        </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Open passport" onPress={() => { triggerHaptic(); go('profile'); }} style={[styles.dashboardAvatar, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
-          <Text style={[styles.dashboardAvatarText, { color: colors.primary }]}>{firstName.charAt(0).toUpperCase()}</Text>
-        </Pressable>
-      </View>
-
       {!authenticatedUser ? <TelegramConnectCard /> : null}
 
       <View style={[styles.dashboardHero, { borderRadius: 30, overflow: 'hidden' }]}>
@@ -2095,12 +2083,6 @@ const styles = StyleSheet.create({
   // Home
   dashboardScreen: { flex: 1 },
   dashboardContent: { paddingHorizontal: 18, paddingBottom: 20 },
-  dashboardTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  dashboardBrand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dashboardBrandIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  dashboardBrandText: { fontSize: 15, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 },
-  dashboardAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  dashboardAvatarText: { fontSize: 15, fontFamily: 'Inter_700Bold' },
   dashboardHero: { minHeight: 276, paddingHorizontal: 24, paddingTop: 38, marginBottom: -34, position: 'relative' },
   dashboardGlow: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 999 },
   dashboardGlowOne: { width: 220, height: 220, right: -82, top: -82 },
