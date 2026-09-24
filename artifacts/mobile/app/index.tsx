@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
+  Alert,
   ActivityIndicator,
   Animated,
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -195,9 +197,8 @@ function Header({
   menuItems?: HeaderMenuItem[];
 }) {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
   const [menuOpen, setMenuOpen] = useState(false);
-  const headerTop = Platform.OS === 'web' ? Math.max(insets.top, 67) : insets.top + 16;
+  const headerTop = 16;
 
   return (
     <>
@@ -416,7 +417,7 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
     <View style={[styles.emailAuthScreen, { backgroundColor: colors.primary }]}>
       <KeyboardAwareScrollViewCompat
         style={styles.emailAuthScroll}
-        contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 18 : 12), paddingBottom: Math.max(insets.bottom, 24) }]}
+        contentContainerStyle={[styles.emailAuthContent, { paddingTop: 12, paddingBottom: Math.max(insets.bottom, 24) }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         bottomOffset={24}
@@ -548,7 +549,7 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
 
   return (
     <KeyboardAvoidingView style={[styles.talentScreen, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.talentShell, { paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 67 : 20), paddingBottom: Math.max(insets.bottom, 24) }]}>
+      <View style={[styles.talentShell, { paddingTop: 12, paddingBottom: Math.max(insets.bottom, 24) }]}>
         <View style={styles.talentTop}>
           <View style={styles.talentIntro}>
             <Text style={[styles.talentEyebrow, { color: colors.primary }]}>YOUR NEXT GOOD THING</Text>
@@ -645,7 +646,7 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
   return (
     <KeyboardAwareScrollViewCompat
       style={[styles.onboarding, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.onboardingScreenContent, { paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 18) : insets.top + 12, paddingBottom: Math.max(insets.bottom, 24) }]}
+      contentContainerStyle={[styles.onboardingScreenContent, { paddingTop: 12, paddingBottom: Math.max(insets.bottom, 24) }]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
@@ -670,7 +671,6 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
 
 function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
   const { user: authenticatedUser } = useAuth();
   const query = useListExperiences({ availableOnly: true });
   const participations = useListMyParticipations({ status: 'upcoming' });
@@ -687,7 +687,7 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
   return (
       <ScrollView
       style={[styles.dashboardScreen, { backgroundColor: colors.muted }]}
-      contentContainerStyle={[styles.dashboardContent, { paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 67) : insets.top + 12 }]}
+      contentContainerStyle={[styles.dashboardContent, { paddingTop: 12 }]}
       refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { triggerHaptic(); void query.refetch(); }} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
@@ -1594,7 +1594,7 @@ function Create({
       style={[styles.screen, { backgroundColor: colors.background }]}
       contentContainerStyle={[
         styles.createContent,
-        { flexGrow: 1, paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 60) : insets.top + 20, paddingBottom: insets.bottom + 40 },
+        { flexGrow: 1, paddingTop: 12, paddingBottom: insets.bottom + 40 },
       ]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
@@ -1823,6 +1823,54 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
   );
 }
 
+function FeedbackBanner() {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const paddingTop = Platform.OS === 'web' ? Math.max(insets.top, 67) + 8 : insets.top + 8;
+
+  const openTelegramFeedback = () => {
+    triggerHaptic();
+    void Linking.openURL('https://t.me/NALIDidThat').catch((error: unknown) => {
+      console.warn('Unable to open Telegram feedback link', error);
+      Alert.alert('Could not open Telegram', 'Try opening t.me/NALIDidThat in your browser.');
+    });
+  };
+
+  return (
+    <View style={[styles.feedbackBanner, { backgroundColor: colors.primary, paddingTop }]}>
+      <Text style={[styles.feedbackBannerText, { color: colors.primaryForeground }]}>
+        {"You're early!🥳 Please give feedback to "}
+        <Text
+          accessibilityRole="link"
+          accessibilityLabel="Open Telegram feedback chat for @NALIDidThat"
+          onPress={openTelegramFeedback}
+          style={[styles.feedbackBannerLink, { color: colors.primaryForeground }]}
+        >
+          @NALIDidThat
+        </Text>
+      </Text>
+    </View>
+  );
+}
+
+function AppShell({
+  children,
+  bottomNav,
+}: {
+  children: React.ReactNode;
+  bottomNav?: React.ReactNode;
+}) {
+  const colors = useColors();
+
+  return (
+    <View style={[styles.app, { backgroundColor: colors.background }]}>
+      <FeedbackBanner />
+      <View style={styles.appContent}>{children}</View>
+      {bottomNav}
+    </View>
+  );
+}
+
 export default function App() {
   const params = useLocalSearchParams<{ screen?: string; id?: string; onboarded?: string; step?: string }>();
   const router = useRouter();
@@ -1867,44 +1915,55 @@ export default function App() {
 
   if (loading) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} size="large" />
-        <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Connecting to experiences.fun…</Text>
-      </View>
+      <AppShell>
+        <View style={[styles.center, { backgroundColor: colors.background }]}>
+          <ActivityIndicator color={colors.primary} size="large" />
+          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Connecting to experiences.fun…</Text>
+        </View>
+      </AppShell>
     );
   }
 
   if (screen === 'email') {
     return (
-      <EmailAuthPanel
-        onBack={() => go('home')}
-        onSuccess={() => {
-          setScreen('home');
-          router.setParams({ screen: 'home', onboarded: undefined });
-        }}
-      />
+      <AppShell>
+        <EmailAuthPanel
+          onBack={() => go('home')}
+          onSuccess={() => {
+            setScreen('home');
+            router.setParams({ screen: 'home', onboarded: undefined });
+          }}
+        />
+      </AppShell>
     );
   }
 
   if (needsOnboarding) {
-    return <Onboarding user={displayUser} guest={!user} onDone={() => {
-      setOnboarded(true);
-      setScreen('home');
-      if (!user) router.setParams({ screen: 'home', onboarded: '1' });
-    }} />;
+    return (
+      <AppShell>
+        <Onboarding user={displayUser} guest={!user} onDone={() => {
+          setOnboarded(true);
+          setScreen('home');
+          if (!user) router.setParams({ screen: 'home', onboarded: '1' });
+        }} />
+      </AppShell>
+    );
   }
 
   const noNav = ['experience', 'create', 'host'].includes(screen);
   return (
-    <View style={[styles.app, { backgroundColor: colors.background }]}>
+    <AppShell bottomNav={!noNav ? <BottomNav active={screen} go={go} /> : null}>
       {content}
-      {!noNav ? <BottomNav active={screen} go={go} /> : null}
-    </View>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
   app: { flex: 1 },
+  appContent: { flex: 1 },
+  feedbackBanner: { alignItems: 'center', paddingHorizontal: 14, paddingBottom: 8 },
+  feedbackBannerText: { width: '100%', textAlign: 'center', fontSize: 13, lineHeight: 19, fontFamily: 'Inter_500Medium' },
+  feedbackBannerLink: { fontFamily: 'Inter_700Bold', textDecorationLine: 'underline' },
   screen: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingHorizontal: 20 },
