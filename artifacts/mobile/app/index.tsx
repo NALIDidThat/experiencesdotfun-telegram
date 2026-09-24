@@ -44,6 +44,7 @@ import {
   useUpdateMe,
   useVerifyParticipation,
   getGetExperienceQueryKey,
+  getListHostExperiencesQueryKey,
   getListExperienceParticipantsQueryKey,
   getListFriendRequestsQueryKey,
   getListSentFriendRequestsQueryKey,
@@ -125,9 +126,9 @@ function triggerHaptic() {
 }
 
 function Button({
-  label, onPress, variant = 'primary', disabled = false, icon, style, color, textColor,
+  label, onPress, variant = 'primary', disabled = false, icon, style, color, textColor, testID,
 }: {
-  label: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'alternative'; disabled?: boolean; icon?: IconName; style?: any; color?: string; textColor?: string;
+  label: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'alternative'; disabled?: boolean; icon?: IconName; style?: any; color?: string; textColor?: string; testID?: string;
 }) {
   const colors = useColors();
   const scale = useRef(new Animated.Value(1)).current;
@@ -162,6 +163,7 @@ function Button({
     <Animated.View style={[{ transform: [{ scale }] }, style]}>
       <Pressable
         accessibilityRole="button"
+        testID={testID}
         disabled={disabled}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -772,6 +774,7 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
 
       {query.isLoading ? <LoadingState /> : items.length ? items.slice(0, 3).map((item) => (
         <Pressable
+          testID="profile-metric-completed"
           accessibilityRole="button"
           accessibilityLabel={`View ${item.title}`}
           key={item.id}
@@ -905,6 +908,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
       >
         <View style={styles.detailToolbar}>
           <Pressable
+            testID="profile-metric-hosted"
             accessibilityRole="button"
             accessibilityLabel="Go back to experiences"
             onPress={() => { triggerHaptic(); go('explore'); }}
@@ -1257,12 +1261,16 @@ function ContributionDashboard({ user, completed }: { user: User; completed: Par
   );
 }
 
+type ProfileMetricKey = 'completed' | 'hosted' | 'friends';
+
 function SocialProfileHeader({
   user,
   friendsCount,
+  onMetricPress,
 }: {
   user: User;
   friendsCount: number;
+  onMetricPress: (metric: ProfileMetricKey) => void;
 }) {
   const colors = useColors();
   const interests = user.interests?.map((interest) => categoryLabel[interest]).join(' · ');
@@ -1300,15 +1308,37 @@ function SocialProfileHeader({
       </View>
 
       <View style={styles.profileBentoRow}>
-        <View style={[styles.profileCompletedTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-          <View style={[styles.profileMetricIcon, { backgroundColor: colors.primary + '20' }]}>
-            <Feather name="check-circle" size={16} color={colors.primary} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`View ${user.completedCount} completed experiences`}
+          accessibilityHint="Opens a summary of your completed experiences."
+          onPress={() => { triggerHaptic(); onMetricPress('completed'); }}
+          style={({ pressed }) => [
+            styles.profileCompletedTile,
+            { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.76 : 1 },
+          ]}
+        >
+          <View style={styles.profileMetricTopRow}>
+            <View style={[styles.profileMetricIcon, { backgroundColor: colors.primary + '20' }]}>
+              <Feather name="check-circle" size={16} color={colors.primary} />
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
           </View>
           <Text style={[styles.profileFeatureMetricValue, { color: colors.primary }]}>{user.completedCount}</Text>
           <Text style={[styles.profileTileLabel, { color: colors.mutedForeground }]}>Completed</Text>
-        </View>
+        </Pressable>
         <View style={styles.profileBentoStack}>
-          <View style={[styles.profileCompactTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <Pressable
+            testID="profile-metric-friends"
+            accessibilityRole="button"
+            accessibilityLabel={`View ${user.hostedCount} hosted experiences`}
+            accessibilityHint="Opens a summary of your hosted experiences."
+            onPress={() => { triggerHaptic(); onMetricPress('hosted'); }}
+            style={({ pressed }) => [
+              styles.profileCompactTile,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.76 : 1 },
+            ]}
+          >
             <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.primary + '12' }]}>
               <Feather name="calendar" size={13} color={colors.primary} />
             </View>
@@ -1316,8 +1346,18 @@ function SocialProfileHeader({
               <Text style={[styles.profileCompactMetricValue, { color: colors.primary }]}>{user.hostedCount}</Text>
               <Text style={[styles.profileTileLabel, { color: colors.mutedForeground }]}>Hosted</Text>
             </View>
-          </View>
-          <View style={[styles.profileCompactTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`View ${friendsCount} friends`}
+            accessibilityHint="Opens your friends list."
+            onPress={() => { triggerHaptic(); onMetricPress('friends'); }}
+            style={({ pressed }) => [
+              styles.profileCompactTile,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.76 : 1 },
+            ]}
+          >
             <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.primary + '12' }]}>
               <Feather name="users" size={13} color={colors.primary} />
             </View>
@@ -1325,7 +1365,8 @@ function SocialProfileHeader({
               <Text style={[styles.profileCompactMetricValue, { color: colors.primary }]}>{friendsCount}</Text>
               <Text style={[styles.profileTileLabel, { color: colors.mutedForeground }]}>Friends</Text>
             </View>
-          </View>
+            <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+          </Pressable>
         </View>
       </View>
 
@@ -1375,12 +1416,237 @@ function SocialProfileHeader({
   );
 }
 
+type ProfileMetricFriend = { id: number; name: string; username: string | null };
+
+function ProfileMetricDetailsSheet({
+  metric,
+  user,
+  completed,
+  hosted,
+  friends,
+  authenticated,
+  authError,
+  isLoading,
+  hasError,
+  onRetry,
+  onLogin,
+  onClose,
+  onOpenExperience,
+}: {
+  metric: ProfileMetricKey | null;
+  user: User;
+  completed?: Participation[];
+  hosted?: Experience[];
+  friends?: ProfileMetricFriend[];
+  authenticated: boolean;
+  authError: string | null;
+  isLoading: boolean;
+  hasError: boolean;
+  onRetry: () => void;
+  onLogin: () => void;
+  onClose: () => void;
+  onOpenExperience: (id: number) => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+
+  if (!metric) return null;
+
+  const title = {
+    completed: 'Completed experiences',
+    hosted: 'Hosted experiences',
+    friends: 'Friends',
+  }[metric];
+  const count = metric === 'completed'
+    ? user.completedCount
+    : metric === 'hosted'
+      ? user.hostedCount
+      : friends?.length ?? 0;
+  const countLabel = {
+    completed: `completed ${count === 1 ? 'experience' : 'experiences'}`,
+    hosted: `hosted ${count === 1 ? 'experience' : 'experiences'}`,
+    friends: count === 1 ? 'friend' : 'friends',
+  }[metric];
+  const description = {
+    completed: 'Your participation history',
+    hosted: 'Experiences you have organised',
+    friends: 'People connected with you',
+  }[metric];
+  const emptyTitle = count > 0 ? 'Summary count saved' : {
+    completed: 'No completed experiences yet',
+    hosted: 'No hosted experiences yet',
+    friends: 'No friends yet',
+  }[metric];
+  const emptyBody = count > 0
+    ? 'The profile total is available, but detailed records are not available right now.'
+    : {
+      completed: 'Completed experiences will appear here.',
+      hosted: 'Experiences you host will appear here.',
+      friends: 'Accepted friend connections will appear here.',
+    }[metric];
+
+  return (
+    <Modal transparent visible animationType="slide" onRequestClose={onClose}>
+      <View style={styles.profileMetricOverlay}>
+        <Pressable
+          testID="profile-metric-backdrop"
+          accessibilityRole="button"
+          accessibilityLabel="Close profile summary"
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+        />
+        <View
+          style={[
+            styles.profileMetricSheet,
+            { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 20) },
+          ]}
+        >
+          <View style={[styles.profileMetricHandle, { backgroundColor: colors.border }]} />
+          <View style={styles.profileMetricSheetHeader}>
+            <View style={styles.profileMetricSheetTitleWrap}>
+              <Text style={[styles.profileMetricEyebrow, { color: colors.primary }]}>PASSPORT SUMMARY</Text>
+              <Text style={[styles.profileMetricSheetTitle, { color: colors.foreground }]}>{title}</Text>
+            </View>
+            <Pressable
+              testID="profile-metric-close"
+              accessibilityRole="button"
+              accessibilityLabel="Close summary"
+              onPress={onClose}
+              style={({ pressed }) => [styles.profileMetricClose, { backgroundColor: colors.muted, opacity: pressed ? 0.65 : 1 }]}
+            >
+              <Feather name="x" size={20} color={colors.foreground} />
+            </Pressable>
+          </View>
+
+          <View style={[styles.profileMetricSummary, { backgroundColor: colors.muted, borderRadius: colors.radius }]}>
+            <Text style={[styles.profileMetricSummaryCount, { color: colors.primary }]}>{count}</Text>
+            <View style={styles.profileMetricSummaryCopy}>
+              <Text style={[styles.profileMetricSummaryLabel, { color: colors.foreground }]}>{countLabel}</Text>
+              <Text style={[styles.profileMetricSummaryDescription, { color: colors.mutedForeground }]}>{description}</Text>
+            </View>
+            <Feather
+              name={metric === 'completed' ? 'check-circle' : metric === 'hosted' ? 'calendar' : 'users'}
+              size={20}
+              color={colors.primary}
+            />
+          </View>
+
+          <ScrollView
+            style={styles.profileMetricScroll}
+            contentContainerStyle={styles.profileMetricScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {!authenticated ? (
+              <View style={styles.profileMetricState}>
+                <View style={[styles.profileMetricStateIcon, { backgroundColor: colors.primary + '12' }]}>
+                  <Feather name="lock" size={20} color={colors.primary} />
+                </View>
+                <Text style={[styles.profileMetricStateTitle, { color: colors.foreground }]}>Log in to see your summary</Text>
+                <Text style={[styles.profileMetricStateBody, { color: colors.mutedForeground }]}>
+                  Connect your account to view your {metric === 'friends' ? 'friends' : 'experience'} records.
+                </Text>
+                {authError ? <Text accessibilityRole="alert" style={[styles.profileMetricError, { color: colors.destructive }]}>{authError}</Text> : null}
+                <Button testID="profile-metric-login" label="Log in with Telegram" icon="send" onPress={onLogin} style={styles.profileMetricStateButton} />
+              </View>
+            ) : isLoading ? (
+              <View style={styles.profileMetricState}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.profileMetricStateBody, { color: colors.mutedForeground }]}>Loading your records…</Text>
+              </View>
+            ) : hasError ? (
+              <View style={styles.profileMetricState}>
+                <View style={[styles.profileMetricStateIcon, { backgroundColor: colors.destructive + '12' }]}>
+                  <Feather name="alert-circle" size={20} color={colors.destructive} />
+                </View>
+                <Text style={[styles.profileMetricStateTitle, { color: colors.foreground }]}>Couldn’t load this summary</Text>
+                <Text style={[styles.profileMetricStateBody, { color: colors.mutedForeground }]}>Your profile is unchanged. Try again to reload these records.</Text>
+                <Button testID="profile-metric-retry" label="Try again" variant="secondary" icon="refresh-cw" onPress={onRetry} style={styles.profileMetricStateButton} />
+              </View>
+            ) : metric === 'completed' && completed?.length ? (
+              completed.map((item) => (
+                <Pressable
+                  testID={`profile-metric-completed-record-${item.id}`}
+                  key={item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${item.experience.title}`}
+                  accessibilityHint="Opens experience details."
+                  onPress={() => onOpenExperience(item.experience.id)}
+                  style={({ pressed }) => [
+                    styles.profileMetricRecord,
+                    { borderBottomColor: colors.border, opacity: pressed ? 0.68 : 1 },
+                  ]}
+                >
+                  <View style={styles.profileMetricRecordCopy}>
+                    <Text numberOfLines={2} style={[styles.profileMetricRecordTitle, { color: colors.foreground }]}>{item.experience.title}</Text>
+                    <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
+                      {dateLabel(item.experience.date)} · {item.experience.city}
+                    </Text>
+                  </View>
+                  <View style={[styles.profileMetricReward, { backgroundColor: colors.primary + '15' }]}>
+                    <Text style={[styles.profileMetricRewardText, { color: colors.primary }]}>+{item.experience.xpReward} XP</Text>
+                  </View>
+                </Pressable>
+              ))
+            ) : metric === 'hosted' && hosted?.length ? (
+              hosted.map((item) => (
+                <Pressable
+                  testID={`profile-metric-hosted-record-${item.id}`}
+                  key={item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${item.title}`}
+                  accessibilityHint="Opens experience details."
+                  onPress={() => onOpenExperience(item.id)}
+                  style={({ pressed }) => [
+                    styles.profileMetricRecord,
+                    { borderBottomColor: colors.border, opacity: pressed ? 0.68 : 1 },
+                  ]}
+                >
+                  <View style={styles.profileMetricRecordCopy}>
+                    <Text numberOfLines={2} style={[styles.profileMetricRecordTitle, { color: colors.foreground }]}>{item.title}</Text>
+                    <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
+                      {dateLabel(item.date)} · {item.city}
+                    </Text>
+                  </View>
+                  <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+                </Pressable>
+              ))
+            ) : metric === 'friends' && friends?.length ? (
+              friends.map((friend) => (
+                <View key={friend.id} style={[styles.profileMetricFriend, { borderBottomColor: colors.border }]}>
+                  <View style={[styles.profileMetricFriendAvatar, { backgroundColor: colors.primary + '12' }]}>
+                    <Text style={[styles.profileMetricFriendInitial, { color: colors.primary }]}>{friend.name.charAt(0).toUpperCase()}</Text>
+                  </View>
+                  <View style={styles.profileMetricRecordCopy}>
+                    <Text numberOfLines={1} style={[styles.profileMetricRecordTitle, { color: colors.foreground }]}>{friend.name}</Text>
+                    <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
+                      {friend.username ? `@${friend.username}` : 'Experiences.fun friend'}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.profileMetricState}>
+                <View style={[styles.profileMetricStateIcon, { backgroundColor: colors.primary + '12' }]}>
+                  <Feather name={metric === 'completed' ? 'check-circle' : metric === 'hosted' ? 'calendar' : 'users'} size={20} color={colors.primary} />
+                </View>
+                <Text style={[styles.profileMetricStateTitle, { color: colors.foreground }]}>{emptyTitle}</Text>
+                <Text style={[styles.profileMetricStateBody, { color: colors.mutedForeground }]}>{emptyBody}</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
-  const { user: authenticatedUser, authError } = useAuth();
+  const { user: authenticatedUser, authError, login } = useAuth();
   const queryClient = useQueryClient();
   const profile = useGetMe();
   const completed = useListMyParticipations({ status: 'completed' });
+  const hosted = useListHostExperiences({ query: { enabled: Boolean(authenticatedUser), queryKey: getListHostExperiencesQueryKey() } });
   const friends = useListFriends();
   const requests = useListFriendRequests({ query: { queryKey: getListFriendRequestsQueryKey(), refetchInterval: 5_000 } });
   const sentRequests = useListSentFriendRequests({ query: { queryKey: getListSentFriendRequestsQueryKey(), refetchInterval: 5_000 } });
@@ -1393,6 +1659,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const [bio, setBio] = useState(user.bio ?? '');
   const [username, setUsername] = useState('');
   const [friendFeedback, setFriendFeedback] = useState<string | null>(null);
+  const [selectedProfileMetric, setSelectedProfileMetric] = useState<ProfileMetricKey | null>(null);
   const current = profile.data ?? user;
 
   return (
@@ -1416,7 +1683,34 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         ]}
       />
 
-      <SocialProfileHeader user={current} friendsCount={friends.data?.length ?? 0} />
+      <SocialProfileHeader
+        user={current}
+        friendsCount={friends.data?.length ?? 0}
+        onMetricPress={setSelectedProfileMetric}
+      />
+      <ProfileMetricDetailsSheet
+        metric={selectedProfileMetric}
+        user={current}
+        completed={completed.data}
+        hosted={hosted.data}
+        friends={friends.data}
+        authenticated={Boolean(authenticatedUser)}
+        authError={authError ?? null}
+        isLoading={selectedProfileMetric === 'completed' ? completed.isLoading : selectedProfileMetric === 'hosted' ? hosted.isLoading : selectedProfileMetric === 'friends' ? friends.isLoading : false}
+        hasError={selectedProfileMetric === 'completed' ? completed.isError : selectedProfileMetric === 'hosted' ? hosted.isError : selectedProfileMetric === 'friends' ? friends.isError : false}
+        onRetry={() => {
+          if (selectedProfileMetric === 'completed') void completed.refetch();
+          else if (selectedProfileMetric === 'hosted') void hosted.refetch();
+          else if (selectedProfileMetric === 'friends') void friends.refetch();
+        }}
+        onLogin={() => { void login(); }}
+        onClose={() => setSelectedProfileMetric(null)}
+        onOpenExperience={(id) => {
+          triggerHaptic();
+          setSelectedProfileMetric(null);
+          go('experience', { id: String(id) });
+        }}
+      />
 
       {editing ? (
         <View style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
@@ -2426,6 +2720,7 @@ const styles = StyleSheet.create({
   profileBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5, maxWidth: '100%' },
   profileBadgeText: { flexShrink: 1, fontSize: 10, fontFamily: 'Inter_600SemiBold' },
   profileBentoRow: { flexDirection: 'row', gap: 10 },
+  profileMetricTopRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   profileCompletedTile: { flex: 1.05, minHeight: 148, justifyContent: 'space-between', padding: 13, borderWidth: 1 },
   profileBentoStack: { flex: 1, gap: 10 },
   profileCompactTile: { flex: 1, minHeight: 69, flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderWidth: 1 },
@@ -2446,6 +2741,36 @@ const styles = StyleSheet.create({
   profileDetailTile: { flex: 1, minWidth: 0, minHeight: 112, justifyContent: 'space-between', alignItems: 'flex-start', gap: 7, padding: 12, borderWidth: 1 },
   profileBio: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_500Medium' },
   profileDetailText: { alignSelf: 'stretch', fontSize: 12, lineHeight: 16, fontFamily: 'Inter_600SemiBold' },
+  profileMetricOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(16,16,22,0.48)' },
+  profileMetricSheet: { height: '84%', maxHeight: '90%', paddingTop: 12, paddingHorizontal: 20, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  profileMetricHandle: { width: 38, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  profileMetricSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 },
+  profileMetricSheetTitleWrap: { flex: 1, minWidth: 0 },
+  profileMetricEyebrow: { fontSize: 10, letterSpacing: 1, fontFamily: 'Inter_700Bold', marginBottom: 4 },
+  profileMetricSheetTitle: { fontSize: 23, lineHeight: 29, fontFamily: 'Inter_700Bold' },
+  profileMetricClose: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  profileMetricSummary: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  profileMetricSummaryCount: { fontSize: 34, lineHeight: 40, fontFamily: 'Inter_700Bold' },
+  profileMetricSummaryCopy: { flex: 1, minWidth: 0 },
+  profileMetricSummaryLabel: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  profileMetricSummaryDescription: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  profileMetricScroll: { flex: 1, marginTop: 12 },
+  profileMetricScrollContent: { paddingBottom: 12 },
+  profileMetricState: { alignItems: 'center', paddingHorizontal: 20, paddingVertical: 28, gap: 10 },
+  profileMetricStateIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  profileMetricStateTitle: { fontSize: 16, lineHeight: 22, fontFamily: 'Inter_700Bold', textAlign: 'center' },
+  profileMetricStateBody: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  profileMetricStateButton: { width: '100%', marginTop: 8 },
+  profileMetricError: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_500Medium', textAlign: 'center' },
+  profileMetricRecord: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+  profileMetricRecordCopy: { flex: 1, minWidth: 0 },
+  profileMetricRecordTitle: { fontSize: 15, lineHeight: 20, fontFamily: 'Inter_600SemiBold' },
+  profileMetricRecordMeta: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  profileMetricReward: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999 },
+  profileMetricRewardText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  profileMetricFriend: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  profileMetricFriendAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  profileMetricFriendInitial: { fontSize: 16, fontFamily: 'Inter_700Bold' },
   
   historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   historyDot: { width: 12, height: 12, borderRadius: 6, marginRight: 16 },
