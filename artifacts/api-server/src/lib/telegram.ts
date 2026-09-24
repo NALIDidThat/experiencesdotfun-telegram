@@ -71,6 +71,15 @@ const botCommands = [
   { command: "onboarding", description: "Finish setting up your profile" },
   { command: "help", description: "Show commands and quick guide" },
 ];
+const groupCommandNames = new Set([
+  "start",
+  "menu",
+  "experiences",
+  "rank",
+  "leaderboard",
+  "help",
+]);
+const groupBotCommands = botCommands.filter(({ command }) => groupCommandNames.has(command));
 
 const rankNumberEmojis = ["", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 const token = () => process.env.TELEGRAM_BOT_TOKEN;
@@ -166,8 +175,18 @@ async function answerCallback(id: string) {
 }
 
 async function registerTelegramCommands() {
-  const registered = await telegramCall<boolean>("setMyCommands", { commands: botCommands });
-  if (!registered && botRunning) {
+  const registrations = await Promise.all([
+    telegramCall<boolean>("setMyCommands", { commands: botCommands }),
+    telegramCall<boolean>("setMyCommands", {
+      commands: botCommands,
+      scope: { type: "all_private_chats" },
+    }),
+    telegramCall<boolean>("setMyCommands", {
+      commands: groupBotCommands,
+      scope: { type: "all_group_chats" },
+    }),
+  ]);
+  if (registrations.some((registered) => !registered) && botRunning) {
     logger.warn("Telegram command registration failed; retrying.");
     setTimeout(() => void registerTelegramCommands(), 5_000);
   }
@@ -246,18 +265,21 @@ async function sendHowItWorks(chatId: number) {
 }
 
 async function sendCommandMenu(chatId: number) {
+  const groupChat = Number(chatId) < 0;
   return sendTelegramMessage(
     chatId,
-    `<b>Experiences.fun · Quick menu</b>\n\nChoose where to start:\n\n1️⃣ <b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n2️⃣ <b>Track your XP</b>\n<code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Your community</b>\n<code>/rank</code> Your rank · <code>/leaderboard</code> Group leaders\n\n4️⃣ <b>Connect and host</b>\n<code>/profile</code> Passport · <code>/add @username</code> Friends · <code>/friends</code> List · <code>/requests</code> Requests · <code>/create</code> Create · <code>/host</code> Manage\n\nNeed more help? Use <code>/help</code> or <code>/onboarding</code>.`,
+    groupChat
+      ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome and quick actions\n<code>/experiences</code> Browse upcoming experiences\n<code>/rank</code> Your Community XP rank · add <code>@username</code> to look up a member\n<code>/leaderboard</code> Top contributors in this group\n<code>/help</code> Show this guide\n\nFor private profile, XP, and friend commands, open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")}.`
+      : `<b>Experiences.fun · Quick menu</b>\n\nChoose where to start:\n\n1️⃣ <b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n2️⃣ <b>Track your XP</b>\n<code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Your community</b>\n<code>/rank</code> Your rank · <code>/leaderboard</code> Group leaders\n\n4️⃣ <b>Connect and host</b>\n<code>/profile</code> Passport · <code>/add @username</code> Friends · <code>/friends</code> List · <code>/requests</code> Requests · <code>/create</code> Create · <code>/host</code> Manage\n\nNeed more help? Use <code>/help</code> or <code>/onboarding</code>.`,
     menuKeyboard(),
   );
 }
 
 async function handleCommand(chatId: number, chatType: string | undefined, identity: TelegramIdentity, text: string) {
-  const user = await upsertTelegramUser(identity);
   const parsedCommand = parseTelegramCommand(text, botUsername);
   if (!parsedCommand) return;
   const { command, args } = parsedCommand;
+  const user = await upsertTelegramUser(identity);
   const privateCommands = new Set(["/onboarding", "/create", "/xp", "/progress", "/profile", "/friends", "/requests", "/add", "/addfriend", "/host"]);
   if (chatType !== "private" && privateCommands.has(command)) {
     await sendTelegramMessage(chatId, "For your privacy, use this command in a private chat with the Experiences.fun bot.");
@@ -283,9 +305,12 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
       await sendCommandMenu(chatId);
       break;
     case "/help":
+      const groupChat = isGroupChat(chatType);
       await sendTelegramMessage(
         chatId,
-        `<b>Experiences.fun · Commands</b>\n\n1️⃣ <b>Start</b>\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/onboarding</code> Finish setup\n\n2️⃣ <b>Discover and track</b>\n<code>/experiences</code> Browse · <code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Community group</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n4️⃣ <b>Connect</b>\n<code>/profile</code> Passport · <code>/add @username</code> Add a friend · <code>/friends</code> Friends · <code>/requests</code> Requests\n\n5️⃣ <b>Host</b>\n<code>/create</code> Create an experience · <code>/host</code> Host tools\n\nUse <code>/help</code> to open this guide.`,
+        groupChat
+          ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/help</code> This guide\n\n<b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n<b>Community</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\nProfile, XP, friend, and host commands are private. Open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} to use them.`
+          : `<b>Experiences.fun · Commands</b>\n\n1️⃣ <b>Start</b>\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/onboarding</code> Finish setup\n\n2️⃣ <b>Discover and track</b>\n<code>/experiences</code> Browse · <code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Community group</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n4️⃣ <b>Connect</b>\n<code>/profile</code> Passport · <code>/add @username</code> Add a friend · <code>/friends</code> Friends · <code>/requests</code> Requests\n\n5️⃣ <b>Host</b>\n<code>/create</code> Create an experience · <code>/host</code> Host tools\n\nUse <code>/help</code> to open this guide.`,
         [[callbackButton("Open menu", "menu:open"), callbackButton("How it works", "onboarding:how")]],
       );
       break;
