@@ -957,47 +957,33 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           {item.organisation.verified ? <Feather name="check-circle" size={19} color={colors.success} /> : null}
         </View>
 
-        <View style={styles.rewardPanel}>
-          <View
-            style={[
-              styles.rewardCol,
-              {
-                backgroundColor: colors.primary,
-                borderColor: colors.primary,
-                borderRadius: colors.radius + 6,
-              },
-            ]}
-          >
-            <Text style={[styles.metaLabel, { color: colors.primaryForeground + 'B8' }]}>YOU'LL EARN</Text>
-            <Text style={[styles.detailReward, { color: colors.primaryForeground }]}>+{item.xpReward} XP</Text>
+        <View
+          style={[
+            styles.rewardPanel,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              borderRadius: colors.radius + 6,
+            },
+          ]}
+        >
+          <View style={styles.rewardCol}>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]} numberOfLines={1}>YOU'LL EARN</Text>
+            <Text style={[styles.detailReward, { color: colors.primary }]} numberOfLines={1}>+{item.xpReward} XP</Text>
           </View>
           {money(item.monetaryRewardPence) ? (
-            <View
-              style={[
-                styles.rewardCol,
-                {
-                  backgroundColor: colors.teal + '12',
-                  borderColor: colors.teal + '35',
-                  borderRadius: colors.radius + 6,
-                },
-              ]}
-            >
-              <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>REWARD</Text>
-              <Text style={[styles.detailReward, { color: colors.teal }]}>{money(item.monetaryRewardPence)}</Text>
-            </View>
+            <>
+              <View style={[styles.rewardDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.rewardCol}>
+                <Text style={[styles.metaLabel, { color: colors.mutedForeground }]} numberOfLines={1}>REWARD</Text>
+                <Text style={[styles.detailReward, { color: colors.teal }]} numberOfLines={1}>{money(item.monetaryRewardPence)}</Text>
+              </View>
+            </>
           ) : null}
-          <View
-            style={[
-              styles.rewardCol,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                borderRadius: colors.radius + 6,
-              },
-            ]}
-          >
-            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>PLACES LEFT</Text>
-            <Text style={[styles.detailReward, { color: colors.foreground }]}>{item.availablePlaces}</Text>
+          <View style={[styles.rewardDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.rewardCol}>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]} numberOfLines={1}>PLACES LEFT</Text>
+            <Text style={[styles.detailReward, { color: colors.foreground }]} numberOfLines={1}>{item.availablePlaces}</Text>
           </View>
         </View>
 
