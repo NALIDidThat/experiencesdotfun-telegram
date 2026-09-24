@@ -1046,7 +1046,7 @@ function SocialProfileHeader({
 
   return (
     <View style={styles.profileFeatureCard}>
-      <View style={[styles.profileIdentityCard, { backgroundColor: colors.secondary, borderRadius: colors.radius + 4 }]}>
+      <View style={[styles.profileIdentityCard, { backgroundColor: colors.primary, borderRadius: colors.radius + 4 }]}>
         <View style={[styles.profileAvatarRing, { backgroundColor: colors.primaryForeground, borderColor: colors.primary + '75' }]}>
           <View style={[styles.profileAvatar, { backgroundColor: colors.primary + '12' }]}>
             <Text style={[styles.profileAvatarText, { color: colors.primary }]}>{user.name.charAt(0).toUpperCase()}</Text>
