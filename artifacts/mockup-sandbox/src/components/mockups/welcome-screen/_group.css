@@ -1,0 +1,23 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+:root {
+  --welcome-background: #080b16;
+  --welcome-foreground: #f7f8fc;
+  --welcome-muted: #c7cad4;
+  --welcome-subdued: #9a9ead;
+  --welcome-surface: #1a1d2b;
+  --welcome-border: #343747;
+  --welcome-pink: #f20789;
+  --welcome-gold: #ffd166;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}

@@ -3,6 +3,7 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
+  Image,
   ImageBackground,
   Keyboard,
   KeyboardAvoidingView,
@@ -12,10 +13,12 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -577,6 +580,13 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   const colors = useColors();
   const { user, login, loading, authError, clearAuthError } = useAuth();
   const [emailAuthOpen, setEmailAuthOpen] = useState(false);
+  const { height: screenHeight } = useWindowDimensions();
+  const welcome = colors.welcome;
+  const isWeb = Platform.OS === 'web';
+  const topInset = isWeb ? 8 : insets.top;
+  const bottomInset = isWeb ? 24 : Math.max(insets.bottom, 16);
+  const heroStageHeight = Math.max(190, Math.min(screenHeight * (isWeb ? 0.29 : 0.25), 250));
+  const heroImageHeight = Math.min(screenHeight * 0.74, 720);
 
   const handleTelegramLogin = async () => {
     if (user || await login()) onContinue();
@@ -587,63 +597,167 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   }
 
   return (
-    <KeyboardAvoidingView style={[styles.talentScreen, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.talentShell, { paddingTop: 12, paddingBottom: Math.max(insets.bottom, 24) }]}>
-        <View style={styles.talentTop}>
-          <View style={styles.talentIntro}>
-            <Text style={[styles.talentEyebrow, { color: colors.primary }]}>YOUR NEXT GOOD THING</Text>
-            <Text style={[styles.talentTitle, { color: colors.foreground }]}>
-              Real people doing{'\n'}
-              <Text style={{ color: colors.primary }}>real things.</Text>
+    <View style={[styles.talentScreen, { backgroundColor: welcome.background }]}>
+      <StatusBar barStyle="light-content" backgroundColor={welcome.background} />
+      <Image
+        source={require('../assets/images/welcome-portrait.jpg')}
+        resizeMode="cover"
+        accessible={false}
+        style={[styles.welcomeBackdrop, { height: heroImageHeight }]}
+      />
+      <View style={[styles.welcomeOverlay, { height: heroImageHeight, pointerEvents: 'none' }]}>
+        <LinearGradient
+          colors={[welcome.overlayTop, welcome.overlayMid, welcome.overlayBottom, welcome.background]}
+          locations={[0, 0.43, 0.8, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        <LinearGradient
+          colors={[welcome.overlayLeft, welcome.overlayRight]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </View>
+
+      <ScrollView
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+        style={styles.welcomeScroll}
+        contentContainerStyle={[
+          styles.welcomeScrollContent,
+          { minHeight: Math.max(0, screenHeight - topInset - bottomInset), paddingTop: topInset, paddingBottom: bottomInset },
+        ]}
+      >
+        {isWeb ? (
+          <View style={styles.welcomeStatusBar} accessibilityLabel="Status bar">
+            <Text style={[styles.welcomeStatusTime, { color: welcome.foreground }]}>9:41</Text>
+            <View style={styles.welcomeStatusIcons}>
+              <View style={styles.welcomeSignal}>
+                <View style={[styles.welcomeSignalBar, { height: 4, backgroundColor: welcome.foreground }]} />
+                <View style={[styles.welcomeSignalBar, { height: 6, backgroundColor: welcome.foreground }]} />
+                <View style={[styles.welcomeSignalBar, { height: 8, backgroundColor: welcome.foreground }]} />
+                <View style={[styles.welcomeSignalBar, { height: 10, backgroundColor: welcome.foreground }]} />
+              </View>
+              <Feather name="wifi" size={15} color={welcome.foreground} />
+              <Feather name="battery" size={17} color={welcome.foreground} />
+            </View>
+          </View>
+        ) : null}
+
+        <View style={[styles.welcomeHeader, { paddingHorizontal: 26 }]}>
+          <Text style={styles.welcomeBrand} accessibilityLabel="Experiences dot fun">
+            <Text style={{ color: welcome.foreground }}>experiences</Text>
+            <Text style={{ color: colors.primary }}>.fun</Text>
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Skip to email login"
+            testID="welcome-skip"
+            onPress={() => { clearAuthError(); setEmailAuthOpen(true); }}
+            style={({ pressed }) => [styles.welcomeSkipButton, { opacity: pressed ? 0.65 : 1 }]}
+          >
+            <Text style={[styles.welcomeSkipText, { color: welcome.muted }]}>Skip</Text>
+          </Pressable>
+        </View>
+
+        <View style={[styles.welcomeHeroStage, { height: heroStageHeight, marginHorizontal: 26 }]}>
+          <View style={styles.welcomeHandwritten}>
+            <Text style={[styles.welcomeHandwrittenText, { color: welcome.muted }]}>
+              Real{'\n'}People{'\n'}Brighter{'\n'}Communities
             </Text>
-            <Text style={[styles.talentTitleSoft, { color: colors.mutedForeground }]}>Find small ways to make a real difference near you.</Text>
-            <View style={styles.talentArtwork}>
-              <LinearGradient colors={[colors.primary, colors.secondary]} style={[styles.talentArtworkBlob, styles.talentArtworkBlobLarge]} />
-              <LinearGradient colors={[colors.accent, colors.teal]} style={[styles.talentArtworkBlob, styles.talentArtworkBlobSmall]} />
-              <View style={[styles.talentArtworkCard, styles.talentArtworkCardBack, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Feather name="map-pin" size={24} color={colors.accent} />
-                <Text style={[styles.talentArtworkCardText, { color: colors.foreground }]}>near you</Text>
-              </View>
-              <View style={[styles.talentArtworkCard, styles.talentArtworkCardFront, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[styles.talentArtworkIcon, { backgroundColor: colors.primary + '18' }]}>
-                  <Feather name="users" size={28} color={colors.primary} />
-                </View>
-                <View style={styles.talentArtworkLines}>
-                  <View style={[styles.talentArtworkLine, { backgroundColor: colors.foreground }]} />
-                  <View style={[styles.talentArtworkLineShort, { backgroundColor: colors.border }]} />
-                </View>
-                <View style={[styles.talentArtworkPill, { backgroundColor: colors.teal + '18' }]}>
-                  <Text style={[styles.talentArtworkPillText, { color: colors.teal }]}>+ impact</Text>
-                </View>
-              </View>
+            <View style={[styles.welcomeHandwrittenUnderline, { backgroundColor: welcome.muted }]} />
+          </View>
+          <View style={[styles.welcomeXpCard, { backgroundColor: welcome.surface, borderColor: welcome.border }]}>
+            <View style={[styles.welcomeMedal, { backgroundColor: colors.primary }]}>
+              <Feather name="award" size={19} color={welcome.gold} />
+            </View>
+            <View style={styles.welcomeXpCopy}>
+              <Text style={[styles.welcomeXpValue, { color: welcome.foreground }]}>+50 XP</Text>
+              <Text style={[styles.welcomeXpLabel, { color: welcome.muted }]}>Community Clean-Up</Text>
             </View>
           </View>
         </View>
 
-        <View style={[styles.talentFormPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.talentSheetTitle, { color: colors.foreground }]}>Make room for good things.</Text>
-          <Text style={[styles.talentSheetBody, { color: colors.mutedForeground }]}>
-            {user
-              ? `Welcome, ${user.name}. Your account is ready to use.`
-              : 'Log in with Telegram so your name, username, passport, friends, and hosted experiences stay connected.'}
+        <View style={styles.welcomeContent}>
+          <Text style={[styles.welcomeTitle, { color: welcome.foreground }]}>
+            Real people{'\n'}doing <Text style={{ color: colors.primary }}>real things.</Text>
           </Text>
-          <View style={[styles.talentTelegramNote, { backgroundColor: colors.primary + '10' }]}>
-            <Feather name="send" size={18} color={colors.primary} />
-            <Text style={[styles.talentTelegramNoteText, { color: colors.primary }]}>{user ? user.email ? 'Email profile recognised' : 'Telegram profile recognised' : 'Your Telegram details will create your profile'}</Text>
+          <Text style={[styles.welcomeDescription, { color: welcome.muted }]}>
+            Find small ways to make a real difference near you — and turn your experiences into lasting impact.
+          </Text>
+
+          <View style={styles.welcomeSocialProof}>
+            <View style={styles.welcomeAvatars} accessibilityLabel="Community members">
+              {[
+                { initials: 'A', backgroundColor: colors.teal },
+                { initials: 'J', backgroundColor: colors.secondary },
+                { initials: 'M', backgroundColor: colors.primary },
+              ].map((avatar) => (
+                <View key={avatar.initials} style={[styles.welcomeAvatar, { backgroundColor: avatar.backgroundColor, borderColor: welcome.background }]}>
+                  <Text style={[styles.welcomeAvatarInitial, { color: colors.primaryForeground }]}>{avatar.initials}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={[styles.welcomeSocialText, { color: welcome.muted }]}>
+              Join a growing community making change, together.
+            </Text>
           </View>
-          {authError && !user ? <Text accessibilityRole="alert" style={[styles.createError, { color: colors.destructive }]}>{authError}</Text> : null}
-          <Button
-            label={loading ? 'Logging in…' : user ? 'Continue setup' : 'Log in with Telegram'}
+
+          {authError && !user ? <Text accessibilityRole="alert" style={[styles.welcomeError, { color: welcome.error }]}>{authError}</Text> : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={loading ? 'Logging in with Telegram' : user ? 'Continue setup' : 'Log in with Telegram'}
+            testID="welcome-telegram-login"
             disabled={loading}
+            onPressIn={() => { if (!loading) triggerHaptic(); }}
             onPress={() => { void handleTelegramLogin(); }}
-            icon={user ? 'arrow-right' : 'send'}
-          />
-          <Pressable accessibilityRole="button" accessibilityLabel="Log in with email" onPress={() => { clearAuthError(); setEmailAuthOpen(true); }} style={styles.emailLoginLink}>
-            <Text style={[styles.emailLoginLinkText, { color: colors.primary }]}>{user ? 'Use a different account' : 'Log in with email'}</Text>
+            style={({ pressed }) => [
+              styles.welcomeTelegramButton,
+              { backgroundColor: colors.primary, borderRadius: colors.radius * 2, opacity: loading ? 0.58 : pressed ? 0.86 : 1 },
+            ]}
+          >
+            <Feather name="send" size={19} color={colors.primaryForeground} />
+            <Text style={[styles.welcomeTelegramLabel, { color: colors.primaryForeground }]}>
+              {loading ? 'Logging in…' : user ? 'Continue setup' : 'Log in with Telegram'}
+            </Text>
+            {loading
+              ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+              : <Feather name="arrow-right" size={19} color={colors.primaryForeground} />}
           </Pressable>
+
+          <Text style={[styles.welcomeTelegramNote, { color: welcome.muted }]}>
+            {user ? user.email ? 'Email profile recognised' : 'Telegram profile recognised' : 'Your Telegram details will create your profile'}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Log in with email"
+            testID="welcome-email-login"
+            onPress={() => { clearAuthError(); setEmailAuthOpen(true); }}
+            style={styles.welcomeEmailLink}
+          >
+            <Text style={[styles.welcomeEmailLinkText, { color: welcome.subdued }]}>
+              {user ? 'Use a different account' : 'Log in with email'}
+            </Text>
+          </Pressable>
+
+          <View style={[styles.welcomeFeatures, { borderTopColor: welcome.border }]}>
+            <View style={styles.welcomeFeature}>
+              <Feather name="globe" size={20} color={welcome.subdued} />
+              <Text style={[styles.welcomeFeatureLabel, { color: welcome.muted }]}>Local{'\n'}Action</Text>
+            </View>
+            <View style={styles.welcomeFeature}>
+              <Feather name="shield" size={20} color={welcome.subdued} />
+              <Text style={[styles.welcomeFeatureLabel, { color: welcome.muted }]}>Real{'\n'}Impact</Text>
+            </View>
+            <View style={styles.welcomeFeature}>
+              <Feather name="users" size={20} color={welcome.subdued} />
+              <Text style={[styles.welcomeFeatureLabel, { color: welcome.muted }]}>Strong{'\n'}Communities</Text>
+            </View>
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+        {isWeb ? <View style={[styles.welcomeHomeIndicator, { backgroundColor: welcome.foreground }]} /> : null}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -2796,15 +2910,17 @@ function FeedbackBanner() {
 function AppShell({
   children,
   bottomNav,
+  showFeedbackBanner = true,
 }: {
   children: React.ReactNode;
   bottomNav?: React.ReactNode;
+  showFeedbackBanner?: boolean;
 }) {
   const colors = useColors();
 
   return (
     <View style={[styles.app, { backgroundColor: colors.background }]}>
-      <FeedbackBanner />
+      {showFeedbackBanner ? <FeedbackBanner /> : null}
       <View style={styles.appContent}>{children}</View>
       {bottomNav}
     </View>
@@ -2872,7 +2988,7 @@ export default function App() {
 
   if (!user || needsOnboarding) {
     return (
-      <AppShell>
+      <AppShell showFeedbackBanner={false}>
         <Onboarding key={user?.id ?? 'signed-out'} user={user} onDone={() => {
           setOnboardingCompleteFor(user?.id ?? null);
           router.setParams({ screen, id: screen === 'experience' ? experienceId : undefined });
@@ -2989,11 +3105,46 @@ const styles = StyleSheet.create({
   talentArtworkLineShort: { width: 54, height: 7, borderRadius: 4 },
   talentArtworkPill: { position: 'absolute', left: 16, bottom: 14, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10 },
   talentArtworkPillText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
-  talentFormPanel: { gap: 12, marginHorizontal: -8, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, borderWidth: 1, borderRadius: 28, shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: -4 }, elevation: 3 },
-  talentSheetTitle: { fontSize: 24, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
-  talentSheetBody: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20, marginBottom: 2 },
-  talentTelegramNote: { minHeight: 46, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14 },
-  talentTelegramNoteText: { flex: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  welcomeBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, width: '100%', zIndex: 0 },
+  welcomeOverlay: { position: 'absolute', top: 0, left: 0, right: 0, width: '100%', zIndex: 0 },
+  welcomeScroll: { flex: 1, zIndex: 1 },
+  welcomeScrollContent: { flexGrow: 1, alignItems: 'center' },
+  welcomeStatusBar: { width: '100%', height: 24, paddingHorizontal: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  welcomeStatusTime: { fontSize: 12, fontFamily: 'Inter_600SemiBold', letterSpacing: 0.2 },
+  welcomeStatusIcons: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  welcomeSignal: { height: 12, flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
+  welcomeSignalBar: { width: 2, borderRadius: 1 },
+  welcomeHeader: { width: '100%', height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
+  welcomeBrand: { position: 'absolute', left: 0, right: 0, textAlign: 'center', fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: -0.7 },
+  welcomeSkipButton: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'flex-end', zIndex: 1 },
+  welcomeSkipText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  welcomeHeroStage: { width: '100%', position: 'relative' },
+  welcomeHandwritten: { position: 'absolute', left: 4, top: 28, transform: [{ rotate: '-5deg' }] },
+  welcomeHandwrittenText: { fontSize: 15, lineHeight: 21, fontFamily: 'Inter_400Regular', fontStyle: 'italic', opacity: 0.78 },
+  welcomeHandwrittenUnderline: { width: 38, height: 1, marginTop: 10, marginLeft: 12, opacity: 0.5, transform: [{ rotate: '-12deg' }] },
+  welcomeXpCard: { position: 'absolute', right: 0, bottom: 8, minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderRadius: 15 },
+  welcomeMedal: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  welcomeXpCopy: { gap: 2 },
+  welcomeXpValue: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  welcomeXpLabel: { fontSize: 8, fontFamily: 'Inter_500Medium' },
+  welcomeContent: { width: '100%', maxWidth: 540, flexGrow: 1, paddingHorizontal: 26, transform: [{ translateY: 16 }] },
+  welcomeTitle: { fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', letterSpacing: -0.85 },
+  welcomeDescription: { fontSize: 14, lineHeight: 21, fontFamily: 'Inter_400Regular', marginTop: 9 },
+  welcomeSocialProof: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: 15 },
+  welcomeAvatars: { flexDirection: 'row', alignItems: 'center', paddingLeft: 1 },
+  welcomeAvatar: { width: 30, height: 30, borderWidth: 2, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginLeft: -5 },
+  welcomeAvatarInitial: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  welcomeSocialText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
+  welcomeError: { textAlign: 'center', fontSize: 12, lineHeight: 18, fontFamily: 'Inter_600SemiBold', marginTop: 10 },
+  welcomeTelegramButton: { width: '100%', height: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 17 },
+  welcomeTelegramLabel: { flex: 1, textAlign: 'center', fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  welcomeTelegramNote: { alignSelf: 'center', textAlign: 'center', fontSize: 10, lineHeight: 15, fontFamily: 'Inter_400Regular', marginTop: 8 },
+  welcomeEmailLink: { minHeight: 24, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  welcomeEmailLinkText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  welcomeFeatures: { width: '100%', minHeight: 64, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, marginTop: 'auto', paddingTop: 11 },
+  welcomeFeature: { flex: 1, minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  welcomeFeatureLabel: { fontSize: 9, lineHeight: 12, fontFamily: 'Inter_400Regular' },
+  welcomeHomeIndicator: { width: 104, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4, opacity: 0.92 },
   emailLoginLink: { alignItems: 'center', paddingVertical: 2 },
   emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   emailAuthScreen: { flex: 1 },
