@@ -3,6 +3,7 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
+  ImageBackground,
   Keyboard,
   KeyboardAvoidingView,
   Linking,
@@ -841,6 +842,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
 
 function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const query = useGetExperience(id, { query: { queryKey: getGetExperienceQueryKey(id), enabled: Number.isFinite(id) } });
   const join = useJoinExperience({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
@@ -854,36 +856,98 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
-        <Header title="Details" onBack={() => go('explore')} />
-
-        <View style={[styles.detailHero, { borderRadius: colors.radius, overflow: 'hidden' }]}>
-          <LinearGradient colors={gradient} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-          <View style={styles.detailHeroContent}>
-            <View style={[styles.detailHeroIcon, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
-              <Feather name={categoryIcon[item.category]} size={36} color="#ffffff" />
-            </View>
-            <Text style={styles.detailCategoryText}>{categoryLabel[item.category]}</Text>
-            <Text style={styles.detailTitleText}>{item.title}</Text>
-            <Text style={styles.detailOrgText}>{item.organisation.name}{item.organisation.verified ? '  ·  Verified' : ''}</Text>
-          </View>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.detailScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.detailToolbar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back to experiences"
+            onPress={() => { triggerHaptic(); go('explore'); }}
+            style={[styles.detailToolbarButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <Feather name="arrow-left" size={20} color={colors.foreground} />
+          </Pressable>
+          <Text style={[styles.detailToolbarTitle, { color: colors.foreground }]}>Experience details</Text>
+          <View style={styles.detailToolbarSpacer} />
         </View>
 
-        <View style={styles.detailMetaGrid}>
-          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHEN</Text>
-            <Text style={[styles.metaValue, { color: colors.foreground }]}>{dateLabel(item.date)}</Text>
-            <Text style={[styles.metaSub, { color: colors.mutedForeground }]}>{item.startTime} – {item.endTime}</Text>
+        <View style={[styles.detailHero, { borderRadius: colors.radius }]}>
+          {item.category === 'community' ? (
+            <ImageBackground
+              source={require('../assets/images/community-cover.jpg')}
+              accessibilityLabel="Community experience category artwork"
+              resizeMode="cover"
+              style={styles.detailCoverFill}
+            >
+              <LinearGradient
+                colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.5)']}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+              />
+              <View style={styles.detailCoverBottom}>
+                <View style={styles.detailCoverPill}>
+                  <Feather name={categoryIcon[item.category]} size={14} color={colors.primary} />
+                  <Text style={[styles.detailCoverPillText, { color: colors.primary }]}>{categoryLabel[item.category]}</Text>
+                </View>
+              </View>
+            </ImageBackground>
+          ) : (
+            <LinearGradient colors={gradient} style={styles.detailCoverFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+              <View style={styles.detailCategoryFallback}>
+                <View style={styles.detailHeroIcon}>
+                  <Feather name={categoryIcon[item.category]} size={26} color="#ffffff" />
+                </View>
+                <Text style={styles.detailCategoryText}>{categoryLabel[item.category]}</Text>
+              </View>
+            </LinearGradient>
+          )}
+        </View>
+
+        <View style={styles.detailIntro}>
+          <View style={styles.detailOrganisationLine}>
+            <Text style={[styles.detailOrgText, { color: colors.mutedForeground }]}>{item.organisation.name}</Text>
+            {item.organisation.verified ? <Feather name="check-circle" size={15} color={colors.success} /> : null}
+            {item.organisation.verified ? <Text style={[styles.detailVerifiedText, { color: colors.success }]}>Verified host</Text> : null}
           </View>
-          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHERE</Text>
-            <Text style={[styles.metaValue, { color: colors.foreground }]}>{item.city}</Text>
-            <Text style={[styles.metaSub, { color: colors.mutedForeground }]}>{item.location}</Text>
-          </View>
+          <Text style={[styles.detailTitleText, { color: colors.foreground }]}>{item.title}</Text>
         </View>
 
         <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>About this experience</Text>
         <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.description}</Text>
+
+        <View style={styles.detailMetaGrid}>
+          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <View style={styles.metaIconLabel}>
+              <Feather name="calendar" size={15} color={colors.primary} />
+              <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHEN</Text>
+            </View>
+            <Text style={[styles.metaValue, { color: colors.foreground }]}>{dateLabel(item.date)}</Text>
+            <Text style={[styles.metaSub, { color: colors.mutedForeground }]}>{item.startTime} – {item.endTime}</Text>
+          </View>
+          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <View style={styles.metaIconLabel}>
+              <Feather name="map-pin" size={15} color={colors.primary} />
+              <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHERE</Text>
+            </View>
+            <Text style={[styles.metaValue, { color: colors.foreground }]}>{item.city}</Text>
+            <Text style={[styles.metaSub, { color: colors.mutedForeground }]} numberOfLines={1}>{item.location}</Text>
+          </View>
+        </View>
+
+        <View style={[styles.detailHostCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <View style={[styles.detailHostAvatar, { backgroundColor: colors.primary + '18' }]}>
+            <Text style={[styles.detailHostInitial, { color: colors.primary }]}>{item.organisation.name.slice(0, 1).toUpperCase()}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.detailHostLabel, { color: colors.mutedForeground }]}>HOSTED BY</Text>
+            <Text style={[styles.detailHostName, { color: colors.foreground }]}>{item.organisation.name}</Text>
+          </View>
+          {item.organisation.verified ? <Feather name="check-circle" size={19} color={colors.success} /> : null}
+        </View>
 
         <View style={[styles.rewardPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <View style={styles.rewardCol}>
@@ -897,14 +961,14 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
             </View>
           ) : null}
           <View style={styles.rewardCol}>
-            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>PLACES</Text>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>PLACES LEFT</Text>
             <Text style={[styles.detailReward, { color: colors.foreground }]}>{item.availablePlaces}</Text>
           </View>
         </View>
 
         {item.whatYouWillDo ? (
           <View style={styles.infoBlock}>
-            <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What you'll do</Text>
+            <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What you&apos;ll do</Text>
             <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatYouWillDo}</Text>
           </View>
         ) : null}
@@ -915,11 +979,18 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
             <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatToBring}</Text>
           </View>
         ) : null}
-
-        <View style={{ height: 160 }} />
       </ScrollView>
 
-      <View style={[styles.ctaWrap, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+      <View
+        style={[
+          styles.ctaWrap,
+          {
+            backgroundColor: colors.card,
+            borderTopColor: colors.border,
+            paddingBottom: Platform.OS === 'web' ? 34 : Math.max(insets.bottom, 12),
+          },
+        ]}
+      >
         {item.joined && participation ? (
           <View>
             <View style={[styles.joinedBanner, { backgroundColor: colors.success + '15', borderRadius: colors.radius }]}>
@@ -930,11 +1001,26 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
               </View>
             </View>
             {['joined', 'attended'].includes(participation.status) ? (
-              <Button label={participation.status === 'attended' ? 'Submit completion' : 'Waiting for host'} disabled={participation.status !== 'attended' || submit.isPending} onPress={() => void submit.mutateAsync({ participationId: participation.id })} />
+              <Button
+                label={participation.status === 'attended' ? 'Submit completion' : 'Waiting for host'}
+                disabled={participation.status !== 'attended' || submit.isPending}
+                onPress={() => void submit.mutateAsync({ participationId: participation.id })}
+              />
             ) : null}
           </View>
         ) : (
-          <Button label={join.isPending ? 'Joining…' : 'Join experience'} disabled={join.isPending || item.availablePlaces === 0} onPress={() => void join.mutateAsync({ experienceId: item.id })} />
+          <View style={styles.detailActionRow}>
+            <View style={styles.detailActionSummary}>
+              <Text style={[styles.detailActionLabel, { color: colors.mutedForeground }]}>YOU&apos;LL EARN</Text>
+              <Text style={[styles.detailActionReward, { color: colors.primary }]}>+{item.xpReward} XP</Text>
+            </View>
+            <Button
+              label={join.isPending ? 'Joining…' : item.availablePlaces === 0 ? 'Fully booked' : 'Join experience'}
+              disabled={join.isPending || item.availablePlaces === 0}
+              onPress={() => void join.mutateAsync({ experienceId: item.id })}
+              style={styles.detailActionButton}
+            />
+          </View>
         )}
       </View>
     </View>
@@ -2134,24 +2220,47 @@ const styles = StyleSheet.create({
   resultCount: { fontSize: 14, fontFamily: 'Inter_500Medium' },
   
   // Detail
-  detailHero: { height: 240, marginBottom: 24, justifyContent: 'flex-end', padding: 24 },
-  detailHeroContent: { position: 'relative', zIndex: 10 },
-  detailHeroIcon: { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  detailCategoryText: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: 'Inter_700Bold', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' },
-  detailTitleText: { color: '#ffffff', fontSize: 28, fontFamily: 'Inter_700Bold', lineHeight: 34, marginBottom: 8 },
-  detailOrgText: { color: 'rgba(255,255,255,0.9)', fontSize: 15, fontFamily: 'Inter_500Medium' },
-  detailMetaGrid: { flexDirection: 'row', gap: 16, marginBottom: 32 },
-  metaBox: { flex: 1 },
-  metaLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1, marginBottom: 8 },
-  metaValue: { fontSize: 16, fontFamily: 'Inter_600SemiBold', marginBottom: 4 },
-  metaSub: { fontSize: 14, fontFamily: 'Inter_400Regular' },
-  detailSectionTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 12 },
-  detailBody: { fontSize: 16, fontFamily: 'Inter_400Regular', lineHeight: 24, marginBottom: 32 },
-  rewardPanel: { flexDirection: 'row', borderWidth: 1, padding: 20, marginBottom: 32 },
+  detailScrollContent: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 24 },
+  detailToolbar: { height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  detailToolbarButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  detailToolbarTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  detailToolbarSpacer: { width: 42 },
+  detailHero: { height: 190, marginBottom: 18, overflow: 'hidden' },
+  detailCoverFill: { flex: 1, justifyContent: 'flex-end' },
+  detailCoverBottom: { padding: 16 },
+  detailCoverPill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.94)' },
+  detailCoverPillText: { fontSize: 11, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 0.7 },
+  detailCategoryFallback: { flex: 1, justifyContent: 'flex-end', alignItems: 'flex-start', padding: 20 },
+  detailHeroIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.2)' },
+  detailCategoryText: { color: '#ffffff', fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1, textTransform: 'uppercase' },
+  detailIntro: { marginBottom: 14 },
+  detailOrganisationLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  detailOrgText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
+  detailVerifiedText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  detailTitleText: { fontSize: 25, fontFamily: 'Inter_700Bold', lineHeight: 31, letterSpacing: -0.4 },
+  detailMetaGrid: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  metaBox: { flex: 1, borderWidth: 1, padding: 13 },
+  metaIconLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 },
+  metaLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.8 },
+  metaValue: { fontSize: 14, fontFamily: 'Inter_600SemiBold', lineHeight: 19, marginBottom: 3 },
+  metaSub: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 16 },
+  detailSectionTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 8 },
+  detailBody: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 22, marginBottom: 18 },
+  detailHostCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1, marginBottom: 16 },
+  detailHostAvatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  detailHostInitial: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+  detailHostLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.8, marginBottom: 3 },
+  detailHostName: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  rewardPanel: { flexDirection: 'row', gap: 8, borderWidth: 1, padding: 14, marginBottom: 20 },
   rewardCol: { flex: 1 },
-  detailReward: { fontSize: 18, fontFamily: 'Inter_700Bold' },
-  infoBlock: { marginBottom: 32 },
-  ctaWrap: { marginTop: 8 },
+  detailReward: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+  infoBlock: { marginBottom: 12 },
+  ctaWrap: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 18, paddingTop: 12 },
+  detailActionRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  detailActionSummary: { minWidth: 86 },
+  detailActionLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.7, marginBottom: 3 },
+  detailActionReward: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+  detailActionButton: { flex: 1 },
   joinedBanner: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 16, marginBottom: 16 },
   joinedTitle: { fontSize: 16, fontFamily: 'Inter_600SemiBold', marginBottom: 2 },
   joinedSub: { fontSize: 14, fontFamily: 'Inter_500Medium' },
