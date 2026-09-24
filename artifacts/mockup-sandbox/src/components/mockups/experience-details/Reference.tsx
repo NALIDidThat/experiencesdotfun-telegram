@@ -18,7 +18,7 @@ const experience = {
   city: "London",
   location: "N",
   description: "The first experience ever.",
-  xpReward: 150,
+  xpReward: 1500,
   cashReward: "£5.00",
   places: 8,
   whatYouWillDo: "Just join the experience",
@@ -103,21 +103,20 @@ export function Reference() {
           <BadgeCheck size={19} className="shrink-0 text-[#05727d]" />
         </section>
 
-        <section className="mt-3 grid grid-cols-3 gap-2">
-          <div className="flex min-h-[92px] flex-col justify-between rounded-[20px] bg-[#f20789] p-3 text-white">
-            <p className="text-[9px] font-bold tracking-[0.5px] text-white/75">YOU&apos;LL EARN</p>
-            <p className="text-[15px] font-bold">+{experience.xpReward} XP</p>
+        <section className="mt-3 flex items-stretch rounded-[22px] border border-[#e8e8ed] bg-white px-2 py-4">
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 px-2">
+            <p className="truncate text-[9px] font-bold tracking-[0.5px] text-[#666]">YOU&apos;LL EARN</p>
+            <p className="truncate text-[15px] font-bold text-[#f20789]">+{experience.xpReward} XP</p>
           </div>
-          <div className="flex min-h-[92px] flex-col justify-between rounded-[20px] border border-[#d8f0f0] bg-[#effafa] p-3">
-            <p className="text-[9px] font-bold tracking-[0.5px] text-[#666]">REWARD</p>
-            <p className="text-[15px] font-bold text-[#05727d]">{experience.cashReward}</p>
+          <div className="my-1 w-px bg-[#e8e8ed]" />
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 px-2">
+            <p className="truncate text-[9px] font-bold tracking-[0.5px] text-[#666]">REWARD</p>
+            <p className="truncate text-[15px] font-bold text-[#05727d]">{experience.cashReward}</p>
           </div>
-          <div className="flex min-h-[92px] flex-col justify-between rounded-[20px] border border-[#e8e8ed] bg-white p-3">
-            <p className="text-[9px] font-bold tracking-[0.5px] text-[#666]">PLACES</p>
-            <p className="flex items-center gap-1 text-[15px] font-bold text-[#17171b]">
-              <Users size={13} className="text-[#666]" />
-              {experience.places}
-            </p>
+          <div className="my-1 w-px bg-[#e8e8ed]" />
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 px-2">
+            <p className="truncate text-[9px] font-bold tracking-[0.5px] text-[#666]">PLACES LEFT</p>
+            <p className="text-[15px] font-bold text-[#17171b]">{experience.places}</p>
           </div>
         </section>
 
