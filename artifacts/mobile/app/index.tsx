@@ -47,6 +47,7 @@ import {
   getListHostExperiencesQueryKey,
   getListExperienceParticipantsQueryKey,
   getListFriendRequestsQueryKey,
+  getListFriendsQueryKey,
   getListSentFriendRequestsQueryKey,
   type Experience,
   type ExperienceCategory,
@@ -1664,7 +1665,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const profile = useGetMe();
   const completed = useListMyParticipations({ status: 'completed' });
   const hosted = useListHostExperiences({ query: { enabled: Boolean(authenticatedUser), queryKey: getListHostExperiencesQueryKey() } });
-  const friends = useListFriends({ query: { enabled: Boolean(authenticatedUser) } });
+  const friends = useListFriends({ query: { queryKey: getListFriendsQueryKey(), enabled: Boolean(authenticatedUser) } });
   const requests = useListFriendRequests({ query: { queryKey: getListFriendRequestsQueryKey(), refetchInterval: 5_000, enabled: Boolean(authenticatedUser) } });
   const sentRequests = useListSentFriendRequests({ query: { queryKey: getListSentFriendRequestsQueryKey(), refetchInterval: 5_000, enabled: Boolean(authenticatedUser) } });
   const update = useUpdateMe({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
@@ -1676,17 +1677,19 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const [bio, setBio] = useState(user.bio ?? '');
   const [username, setUsername] = useState('');
   const [friendFeedback, setFriendFeedback] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
+  const [respondingRequest, setRespondingRequest] = useState<{ id: number; action: 'accept' | 'decline' } | null>(null);
   const [selectedProfileMetric, setSelectedProfileMetric] = useState<ProfileMetricKey | null>(null);
   const current = profile.data ?? user;
+  const normalizedFriendUsername = username.trim().replace(/^@+/, '').trim();
 
   const sendFriendRequest = () => {
-    const targetUsername = username.trim().replace(/^@+/, '');
-    if (!targetUsername || createFriend.isPending) return;
+    if (!normalizedFriendUsername || createFriend.isPending) return;
 
     setFriendFeedback(null);
-    void createFriend.mutateAsync({ data: { username: targetUsername } })
+    void createFriend.mutateAsync({ data: { username: normalizedFriendUsername } })
       .then(() => {
         setUsername('');
+        Keyboard.dismiss();
         setFriendFeedback({ message: 'Friend request sent.', tone: 'success' });
       })
       .catch((requestError: unknown) => {
@@ -1700,6 +1703,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
 
   const respondToFriendRequest = async (requestId: number, action: 'accept' | 'decline') => {
     setFriendFeedback(null);
+    setRespondingRequest({ id: requestId, action });
     try {
       if (action === 'accept') {
         await accept.mutateAsync({ requestId });
@@ -1712,6 +1716,8 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       const message = (requestError as { data?: { message?: string } })?.data?.message;
       setFriendFeedback({ message: message ?? 'That request could not be updated. Please try again.', tone: 'error' });
       void requests.refetch();
+    } finally {
+      setRespondingRequest(null);
     }
   };
 
@@ -1834,15 +1840,15 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
                 testID="profile-friend-send-request"
                 accessibilityRole="button"
                 accessibilityLabel="Send friend request"
-                accessibilityState={{ disabled: !username.trim().replace(/^@+/, '') || createFriend.isPending }}
-                disabled={!username.trim().replace(/^@+/, '') || createFriend.isPending}
+                  accessibilityState={{ disabled: !normalizedFriendUsername || createFriend.isPending }}
+                  disabled={!normalizedFriendUsername || createFriend.isPending}
                 onPress={sendFriendRequest}
                 style={({ pressed }) => [
                   styles.addButton,
                   {
                     backgroundColor: colors.primary,
                     borderRadius: colors.radius - 4,
-                    opacity: !username.trim().replace(/^@+/, '') || createFriend.isPending ? 0.55 : pressed ? 0.8 : 1,
+                    opacity: !normalizedFriendUsername || createFriend.isPending ? 0.55 : pressed ? 0.8 : 1,
                   },
                 ]}
               >
@@ -1920,7 +1926,10 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
                         onPress={() => void respondToFriendRequest(request.id, 'decline')}
                         style={[styles.friendRequestButton, { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 4, opacity: responding ? 0.6 : 1 }]}
                       >
-                        <Text style={[styles.friendRequestButtonText, { color: colors.mutedForeground }]}>Decline</Text>
+                        {respondingRequest?.id === request.id && respondingRequest.action === 'decline' ? <ActivityIndicator size="small" color={colors.mutedForeground} /> : null}
+                        <Text style={[styles.friendRequestButtonText, { color: colors.mutedForeground }]}>
+                          {respondingRequest?.id === request.id && respondingRequest.action === 'decline' ? 'Declining…' : 'Decline'}
+                        </Text>
                       </Pressable>
                       <Pressable
                         accessibilityRole="button"
@@ -1930,8 +1939,12 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
                         onPress={() => void respondToFriendRequest(request.id, 'accept')}
                         style={[styles.friendRequestButton, { backgroundColor: colors.primary, borderColor: colors.primary, borderRadius: colors.radius - 4, opacity: responding ? 0.6 : 1 }]}
                       >
-                        {responding ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name="check" size={15} color={colors.primaryForeground} />}
-                        <Text style={[styles.friendRequestButtonText, { color: colors.primaryForeground }]}>Accept</Text>
+                        {respondingRequest?.id === request.id && respondingRequest.action === 'accept'
+                          ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                          : <Feather name="check" size={15} color={colors.primaryForeground} />}
+                        <Text style={[styles.friendRequestButtonText, { color: colors.primaryForeground }]}>
+                          {respondingRequest?.id === request.id && respondingRequest.action === 'accept' ? 'Accepting…' : 'Accept'}
+                        </Text>
                       </Pressable>
                     </View>
                   </View>
@@ -3027,24 +3040,48 @@ const styles = StyleSheet.create({
   historyRewardText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   mutedParagraph: { fontSize: 15, fontFamily: 'Inter_400Regular', marginTop: 16, marginBottom: 24 },
   
-  socialHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 16, marginBottom: 16 },
-  friendAdd: { flexDirection: 'row', alignItems: 'center', paddingLeft: 16, height: 56, borderWidth: 1, marginBottom: 16, overflow: 'hidden' },
-  friendInput: { flex: 1, fontSize: 16, fontFamily: 'Inter_400Regular' },
-  addButton: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
-  friendFeedback: { fontSize: 13, fontFamily: 'Inter_600SemiBold', marginTop: -6, marginBottom: 16 },
-  requestSection: { marginBottom: 20 },
-  requestSectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 },
-  requestSectionTitle: { fontSize: 16, fontFamily: 'Inter_700Bold' },
-  requestSectionCount: { fontSize: 12, fontFamily: 'Inter_500Medium' },
-  sentRequestRow: { flexDirection: 'row', alignItems: 'center', padding: 12, borderWidth: 1, marginBottom: 8, gap: 10 },
-  sentRequestIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  requestTextWrap: { flex: 1, minWidth: 0 },
-  sentRequestMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 3 },
-  requestRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, marginBottom: 12 },
-  requestText: { flex: 1, fontSize: 15, fontFamily: 'Inter_500Medium', marginRight: 12 },
-  requestActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  requestAction: { fontSize: 14, fontFamily: 'Inter_700Bold' },
-  friendList: { fontSize: 15, fontFamily: 'Inter_500Medium', lineHeight: 24, marginTop: 8 },
+  socialHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 16, marginBottom: 14 },
+  friendsSubtitle: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  friendCountPill: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minWidth: 46, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999 },
+  friendCountText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  friendComposer: { borderWidth: 1, padding: 14, marginBottom: 16 },
+  friendComposerHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  friendComposerIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  friendComposerCopy: { flex: 1, minWidth: 0 },
+  friendComposerTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  friendComposerSubtitle: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  friendAdd: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  friendInputWrap: { flex: 1, minWidth: 0, height: 48, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, paddingHorizontal: 11 },
+  friendInput: { flex: 1, minWidth: 0, height: '100%', fontSize: 15, fontFamily: 'Inter_400Regular' },
+  addButton: { minWidth: 88, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 12 },
+  addButtonText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  friendInputHint: { fontSize: 11, lineHeight: 15, fontFamily: 'Inter_400Regular', marginTop: 7 },
+  friendFeedbackRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16 },
+  friendFeedback: { flex: 1, fontSize: 13, lineHeight: 18, fontFamily: 'Inter_500Medium' },
+  friendSection: { marginBottom: 18 },
+  friendSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 },
+  friendSectionTitle: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  friendSectionCount: { minWidth: 25, height: 24, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, borderRadius: 12 },
+  friendSectionCountText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  friendInlineState: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 14 },
+  friendInlineStateText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium' },
+  friendRequestCard: { borderWidth: 1, padding: 12, marginBottom: 8 },
+  friendPersonHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  friendAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  friendAvatarInitial: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  friendPersonCopy: { flex: 1, minWidth: 0 },
+  friendPersonName: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_600SemiBold' },
+  friendPersonMeta: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  friendRequestActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 12 },
+  friendRequestButton: { minWidth: 92, height: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 12, borderWidth: 1 },
+  friendRequestButtonText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  friendPersonRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderWidth: 1, marginBottom: 8 },
+  friendPendingPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 999 },
+  friendPendingText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
+  friendConnectedMark: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  friendEmpty: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, padding: 13 },
+  friendEmptyIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  friendSectionHint: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular', paddingHorizontal: 2 },
   
   // Host
   hostStats: { flexDirection: 'row', gap: 12, marginBottom: 24 },
