@@ -92,26 +92,23 @@ const categoryGradients: Record<ExperienceCategory, readonly [string, string]> =
   community: ['#F20789', '#6805F2'],
 };
 
-const guestUser: User = {
-  id: 0,
-  createdAt: null,
-  telegramId: 0,
-  email: null,
-  username: null,
-  name: 'Guest User',
-  participationType: 'join',
-  interests: ['community', 'environmental'],
-  city: 'London', country: null,
-  bio: null,
-  xp: 0,
-  level: 'Newcomer',
-  completedCount: 0,
-  hostedCount: 0,
-  rewardsPence: 0,
-};
-
 function money(pence: number | null | undefined) {
   return pence ? `£${(pence / 100).toFixed(2)}` : null;
+}
+
+function requestErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === 'object' && error !== null && 'data' in error) {
+    const message = (error as { data?: { message?: unknown } }).data?.message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return fallback;
+}
+
+function invalidateAppQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries().catch((error: unknown) => {
+    if (typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError') return;
+    console.warn('Could not refresh cached app data after a successful update.');
+  });
 }
 
 function dateLabel(date: string) {
@@ -290,6 +287,16 @@ function EmptyState({ title, body, icon = 'compass', onAction, actionLabel }: { 
   );
 }
 
+function InlineError({ message }: { message: string }) {
+  const colors = useColors();
+  return (
+    <View style={[styles.inlineError, { backgroundColor: colors.destructive + '10', borderColor: colors.destructive + '35', borderRadius: colors.radius }]}>
+      <Feather name="alert-circle" size={17} color={colors.destructive} />
+      <Text accessibilityRole="alert" style={[styles.inlineErrorText, { color: colors.destructive }]}>{message}</Text>
+    </View>
+  );
+}
+
 function TelegramConnectCard() {
   const colors = useColors();
   const { login, loading } = useAuth();
@@ -412,7 +419,7 @@ function OnboardingArtwork({ variant }: { variant: 'welcome' | 'complete' }) {
 function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => void }) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  const { loginWithEmail, signUpWithEmail, loading, authError } = useAuth();
+  const { loginWithEmail, signUpWithEmail, loading, authError, clearAuthError } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -420,6 +427,10 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
   const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const isSignup = mode === 'signup';
+
+  useEffect(() => {
+    clearAuthError();
+  }, [clearAuthError]);
 
   const submit = async () => {
     Keyboard.dismiss();
@@ -459,7 +470,7 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
           </View>
           <Pressable
             accessibilityRole="button"
-            onPress={() => { setMode(isSignup ? 'login' : 'signup'); setLocalError(null); }}
+            onPress={() => { setMode(isSignup ? 'login' : 'signup'); setLocalError(null); clearAuthError(); }}
             style={styles.emailSwitchRow}
           >
             <Text style={styles.emailSwitchPrompt}>{isSignup ? 'Already have an account?' : 'New to Experiences.fun?'}</Text>
@@ -557,7 +568,7 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
 function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  const { user, login, loading, authError } = useAuth();
+  const { user, login, loading, authError, clearAuthError } = useAuth();
   const [emailAuthOpen, setEmailAuthOpen] = useState(false);
 
   const handleTelegramLogin = async () => {
@@ -606,22 +617,22 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
           <Text style={[styles.talentSheetTitle, { color: colors.foreground }]}>Make room for good things.</Text>
           <Text style={[styles.talentSheetBody, { color: colors.mutedForeground }]}>
             {user
-              ? `Welcome, ${user.name}. Your Telegram profile is ready to use.`
+              ? `Welcome, ${user.name}. Your account is ready to use.`
               : 'Log in with Telegram so your name, username, passport, friends, and hosted experiences stay connected.'}
           </Text>
           <View style={[styles.talentTelegramNote, { backgroundColor: colors.primary + '10' }]}>
             <Feather name="send" size={18} color={colors.primary} />
-            <Text style={[styles.talentTelegramNoteText, { color: colors.primary }]}>{user ? 'Telegram profile recognised' : 'Your Telegram details will create your profile'}</Text>
+            <Text style={[styles.talentTelegramNoteText, { color: colors.primary }]}>{user ? user.email ? 'Email profile recognised' : 'Telegram profile recognised' : 'Your Telegram details will create your profile'}</Text>
           </View>
           {authError && !user ? <Text accessibilityRole="alert" style={[styles.createError, { color: colors.destructive }]}>{authError}</Text> : null}
           <Button
-            label={loading ? 'Logging in…' : 'Log in with Telegram'}
+            label={loading ? 'Logging in…' : user ? 'Continue setup' : 'Log in with Telegram'}
             disabled={loading}
             onPress={() => { void handleTelegramLogin(); }}
-            icon="send"
+            icon={user ? 'arrow-right' : 'send'}
           />
-          <Pressable accessibilityRole="button" accessibilityLabel="Log in with email" onPress={() => setEmailAuthOpen(true)} style={styles.emailLoginLink}>
-            <Text style={[styles.emailLoginLinkText, { color: colors.primary }]}>Log in with email</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Log in with email" onPress={() => { clearAuthError(); setEmailAuthOpen(true); }} style={styles.emailLoginLink}>
+            <Text style={[styles.emailLoginLinkText, { color: colors.primary }]}>{user ? 'Use a different account' : 'Log in with email'}</Text>
           </Pressable>
         </View>
       </View>
@@ -629,17 +640,21 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   );
 }
 
-function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boolean; onDone: () => void }) {
+function Onboarding({ user, onDone }: { user: User | null; onDone: () => void }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const update = useUpdateMe();
-  const [step, setStep] = useState(0);
-  const [interests, setInterests] = useState<ExperienceCategory[]>(user.interests ?? []);
-  const [city, setCity] = useState(user.city ?? '');
-  const [participationType, setParticipationType] = useState<ParticipationType>((user.participationType as ParticipationType) ?? 'join');
-  const [bio, setBio] = useState(user.bio ?? '');
-  const [name, setName] = useState(user.name);
+  const { refresh } = useAuth();
+  const [step, setStep] = useState(user ? 1 : 0);
+  const [interests, setInterests] = useState<ExperienceCategory[]>(user?.interests ?? []);
+  const [city, setCity] = useState(user?.city ?? '');
+  const [participationType, setParticipationType] = useState<ParticipationType>((user?.participationType as ParticipationType) ?? 'join');
+  const [bio, setBio] = useState(user?.bio ?? '');
+  const [name, setName] = useState(user?.name ?? '');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const totalSteps = 5;
+
   const next = async () => {
     triggerHaptic();
     Keyboard.dismiss();
@@ -647,12 +662,19 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
     if (step === 2 && interests.length === 0) return;
     if (step === 3 && !city.trim()) return;
     if (step === totalSteps - 1) {
-      if (guest) {
-        onDone();
+      if (!user) {
+        setSaveError('Log in or create an account before saving your passport.');
         return;
       }
-      await update.mutateAsync({ data: { name: name.trim(), bio: bio.trim() || null, city: city.trim(), interests, participationType } });
-      onDone();
+      setSaveError(null);
+      try {
+        await update.mutateAsync({ data: { name: name.trim(), bio: bio.trim() || null, city: city.trim(), interests, participationType } });
+        invalidateAppQueries(queryClient);
+        await refresh();
+        onDone();
+      } catch (error) {
+        setSaveError(requestErrorMessage(error, 'We couldn’t save your passport. Your answers are still here—please try again.'));
+      }
       return;
     }
     setStep((value) => value + 1);
@@ -674,7 +696,7 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
     >
       <View style={styles.onboardingTopBar}>
         {step > 0 ? <Pressable accessibilityLabel="Back" onPress={previous} style={[styles.onboardingBack, { backgroundColor: colors.muted }]}><Feather name="arrow-left" size={22} color={colors.foreground} /></Pressable> : <View style={styles.onboardingBack} />}
-        {step === 0 ? <Pressable onPress={() => setStep(1)}><Text style={[styles.skipText, { color: colors.mutedForeground }]}>Skip</Text></Pressable> : <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>0{step + 1} / 05</Text>}
+        <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>0{step + 1} / 05</Text>
       </View>
       <View style={styles.onboardingContent}>
         {step === 1 ? <View style={styles.onboardingSlide}><View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}><Feather name="user" size={32} color={colors.primary} /></View><Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>STEP 01 · YOUR PASSPORT</Text><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Let’s make it yours.</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Tell us what people should call you when you show up. You can change this later.</Text><View style={styles.onboardingForm}><Text style={[styles.onboardingFieldLabel, { color: colors.foreground }]}>Display name</Text><View style={[styles.onboardingInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}><Feather name="smile" size={20} color={colors.mutedForeground} /><TextInput autoFocus value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, { color: colors.foreground }]} /></View><Text style={[styles.inputHint, { color: colors.mutedForeground }]}>Your Telegram username stays connected automatically.</Text></View></View> : null}
@@ -683,6 +705,7 @@ function Onboarding({ user, guest = false, onDone }: { user: User; guest?: boole
         {step === 4 ? <View style={styles.onboardingSlide}><OnboardingArtwork variant="complete" /><Text style={[styles.onboardingSmallTitle, { color: colors.foreground, textAlign: 'center' }]}>We're all set!</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground, textAlign: 'center' }]}>You're ready to find your next good thing, {name.trim() || 'friend'}.</Text><TextInput value={bio} onChangeText={setBio} multiline placeholder="Add a short bio (optional)" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius, marginTop: 24 }]} /></View> : null}
       </View>
       <View style={styles.onboardingFooter}>
+        {saveError ? <InlineError message={saveError} /> : null}
         <View style={styles.onboardingDots}>{dots.map((index) => <View key={index} style={[styles.onboardingDot, { backgroundColor: index === step ? colors.primary : colors.border }]} />)}</View>
         <Button label={update.isPending ? 'Saving…' : step === totalSteps - 1 ? "Let's go!" : 'Continue'} disabled={update.isPending || (step === 1 && !name.trim()) || (step === 2 && interests.length === 0) || (step === 3 && !city.trim())} onPress={() => void next()} />
       </View>
@@ -702,14 +725,14 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
     { label: 'Explore', icon: 'compass', screen: 'explore' },
     { label: 'Journey', icon: 'calendar', screen: 'experiences' },
     { label: 'Passport', icon: 'award', screen: 'profile' },
-    { label: 'Host', icon: 'plus-circle', screen: 'host' },
+    ...(user.participationType !== 'join' ? [{ label: 'Host', icon: 'plus-circle' as IconName, screen: 'host' as Screen }] : []),
   ];
 
   return (
       <ScrollView
       style={[styles.dashboardScreen, { backgroundColor: colors.muted }]}
       contentContainerStyle={[styles.dashboardContent, { paddingTop: 12 }]}
-      refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { triggerHaptic(); void query.refetch(); }} tintColor={colors.primary} />}
+      refreshControl={<RefreshControl refreshing={query.isRefetching || participations.isRefetching} onRefresh={() => { triggerHaptic(); void Promise.all([query.refetch(), participations.refetch()]); }} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
       {!authenticatedUser ? <TelegramConnectCard /> : null}
@@ -740,6 +763,7 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
           <Feather name="chevron-right" size={22} color={colors.mutedForeground} />
         </Pressable>
       </View>
+      {participations.isError ? <InlineError message="Your upcoming bookings couldn’t be loaded. Pull down to try again." /> : null}
 
       <Pressable accessibilityRole="button" accessibilityLabel="Open your experience passport" onPress={() => { triggerHaptic(); go('profile'); }} style={[styles.dashboardPassportCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
         <View style={styles.dashboardPassportTop}>
@@ -790,7 +814,9 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
         </Pressable>
       </View>
 
-      {query.isLoading ? <LoadingState /> : items.length ? items.slice(0, 3).map((item) => (
+      {query.isLoading ? <LoadingState /> : query.isError ? (
+        <EmptyState title="Experiences didn’t load" body="Your local opportunities are still there. Try again, or browse the full list." actionLabel="Try again" onAction={() => { void query.refetch(); }} />
+      ) : items.length ? items.slice(0, 3).map((item) => (
         <Pressable
           testID="profile-metric-completed"
           accessibilityRole="button"
@@ -897,7 +923,9 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{query.data?.length ?? 0} opportunities</Text>
       </View>
 
-      {query.isLoading ? <LoadingState /> : query.data?.length ? query.data.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title="No experiences match" body="Try another category or come back when local hosts publish something new." />}
+      {query.isLoading ? <LoadingState /> : query.isError ? (
+        <EmptyState title="Experiences didn’t load" body="Check your connection and try again." actionLabel="Try again" onAction={() => { void query.refetch(); }} />
+      ) : query.data?.length ? query.data.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title="No experiences match" body="Try another category or come back when local hosts publish something new." />}
       <View style={{ height: 120 }} />
     </ScrollView>
   );
@@ -907,12 +935,38 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const query = useGetExperience(id, { query: { queryKey: getGetExperienceQueryKey(id), enabled: Number.isFinite(id) } });
-  const join = useJoinExperience({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
-  const submit = useSubmitCompletion({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const query = useGetExperience(id, { query: { queryKey: getGetExperienceQueryKey(id), enabled: Number.isSafeInteger(id) && id > 0 } });
+  const join = useJoinExperience({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const submit = useSubmitCompletion({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const [actionError, setActionError] = useState<string | null>(null);
   const item = query.data as ExperienceDetail | undefined;
 
-  if (query.isLoading || !item) return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Experience" onBack={() => go('explore')} />{query.isLoading ? <LoadingState /> : <EmptyState title="Experience unavailable" body="This experience may have been archived." />}</View>;
+  const joinExperience = async () => {
+    setActionError(null);
+    try {
+      await join.mutateAsync({ experienceId: id });
+    } catch (error) {
+      setActionError(requestErrorMessage(error, 'We couldn’t join this experience. Please try again.'));
+    }
+  };
+  const submitCompletion = async (participationId: number) => {
+    setActionError(null);
+    try {
+      await submit.mutateAsync({ participationId });
+    } catch (error) {
+      setActionError(requestErrorMessage(error, 'Your completion wasn’t submitted. Please try again.'));
+    }
+  };
+
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Experience" onBack={() => go('explore')} /><EmptyState title="This experience link is invalid" body="Return to Explore and choose an available experience." actionLabel="Explore experiences" onAction={() => go('explore')} /></View>;
+  }
+  if (query.isLoading && !item) {
+    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Experience" onBack={() => go('explore')} /><LoadingState /></View>;
+  }
+  if (!item) {
+    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Experience" onBack={() => go('explore')} /><EmptyState title={query.isError ? 'Experience couldn’t be loaded' : 'Experience unavailable'} body={query.isError ? 'Check your connection and try again.' : 'This experience may have been archived.'} actionLabel={query.isError ? 'Try again' : 'Explore experiences'} onAction={query.isError ? () => { void query.refetch(); } : () => go('explore')} /></View>;
+  }
 
   const participation = item.participation as Participation | null;
   const gradient = categoryGradients[item.category] || categoryGradients.community;
@@ -1095,6 +1149,8 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           },
         ]}
       >
+        {query.isError ? <InlineError message="We couldn’t refresh this experience. Your current details are still shown." /> : null}
+        {actionError ? <InlineError message={actionError} /> : null}
         {item.joined && participation ? (
           <View>
             <View style={[styles.joinedBanner, { backgroundColor: colors.success + '15', borderRadius: colors.radius }]}>
@@ -1106,9 +1162,12 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
             </View>
             {['joined', 'attended'].includes(participation.status) ? (
               <Button
-                label={participation.status === 'attended' ? 'Submit completion' : 'Waiting for host'}
-                disabled={participation.status !== 'attended' || submit.isPending}
-                onPress={() => void submit.mutateAsync({ participationId: participation.id })}
+                label={participation.status === 'attended' ? (submit.isPending ? 'Submitting…' : 'Submit completion') : participation.status === 'joined' ? (query.isRefetching ? 'Refreshing…' : 'Refresh status') : (query.isRefetching ? 'Refreshing…' : 'Refresh verification')}
+                disabled={participation.status === 'attended' ? submit.isPending : query.isRefetching}
+                onPress={() => {
+                  if (participation.status === 'attended') void submitCompletion(participation.id);
+                  else void query.refetch();
+                }}
               />
             ) : null}
           </View>
@@ -1121,7 +1180,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
             <Button
               label={join.isPending ? 'Joining…' : item.availablePlaces === 0 ? 'Fully booked' : 'Join experience'}
               disabled={join.isPending || item.availablePlaces === 0}
-              onPress={() => void join.mutateAsync({ experienceId: item.id })}
+              onPress={() => void joinExperience()}
               style={styles.detailActionButton}
             />
           </View>
@@ -1137,6 +1196,7 @@ function Experiences({ go }: { go: (screen: Screen, params?: Record<string, stri
   const completed = useListMyParticipations({ status: 'completed' });
   const [tab, setTab] = useState<'upcoming' | 'completed'>('upcoming');
   const data = tab === 'upcoming' ? upcoming.data : completed.data;
+  const activeQuery = tab === 'upcoming' ? upcoming : completed;
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
@@ -1149,7 +1209,9 @@ function Experiences({ go }: { go: (screen: Screen, params?: Record<string, stri
         ))}
       </View>
 
-      {data?.length ? data.map((item) => (
+      {activeQuery.isLoading ? <LoadingState /> : activeQuery.isError ? (
+        <EmptyState title="Your journey didn’t load" body="Your bookings and completed experiences are saved. Try loading them again." actionLabel="Try again" onAction={() => { void activeQuery.refetch(); }} />
+      ) : data?.length ? data.map((item) => (
         <Pressable key={item.id} onPress={() => { triggerHaptic(); go('experience', { id: String(item.experience.id) }); }} style={[styles.participationCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <View style={styles.cardTop}>
             <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '15' }]}>
@@ -1660,7 +1722,7 @@ function ProfileMetricDetailsSheet({
 
 function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
-  const { user: authenticatedUser, authError, login } = useAuth();
+  const { user: authenticatedUser, authError, login, refresh } = useAuth();
   const queryClient = useQueryClient();
   const profile = useGetMe();
   const completed = useListMyParticipations({ status: 'completed' });
@@ -1668,19 +1730,46 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const friends = useListFriends({ query: { queryKey: getListFriendsQueryKey(), enabled: Boolean(authenticatedUser) } });
   const requests = useListFriendRequests({ query: { queryKey: getListFriendRequestsQueryKey(), refetchInterval: 5_000, enabled: Boolean(authenticatedUser) } });
   const sentRequests = useListSentFriendRequests({ query: { queryKey: getListSentFriendRequestsQueryKey(), refetchInterval: 5_000, enabled: Boolean(authenticatedUser) } });
-  const update = useUpdateMe({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
-  const createFriend = useCreateFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
-  const accept = useAcceptFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
-  const decline = useDeclineFriendRequest({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const update = useUpdateMe({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const createFriend = useCreateFriendRequest({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const accept = useAcceptFriendRequest({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const decline = useDeclineFriendRequest({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(user.name);
   const [city, setCity] = useState(user.city ?? '');
   const [bio, setBio] = useState(user.bio ?? '');
+  const [interests, setInterests] = useState<ExperienceCategory[]>(user.interests ?? []);
+  const [participationType, setParticipationType] = useState<ParticipationType>((user.participationType as ParticipationType) ?? 'join');
+  const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
   const [username, setUsername] = useState('');
   const [friendFeedback, setFriendFeedback] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
   const [respondingRequest, setRespondingRequest] = useState<{ id: number; action: 'accept' | 'decline' } | null>(null);
   const [selectedProfileMetric, setSelectedProfileMetric] = useState<ProfileMetricKey | null>(null);
   const current = profile.data ?? user;
   const normalizedFriendUsername = username.trim().replace(/^@+/, '').trim();
+
+  const toggleProfileEditor = () => {
+    if (!editing) {
+      setName(current.name ?? '');
+      setCity(current.city ?? '');
+      setBio(current.bio ?? '');
+      setInterests(current.interests ?? []);
+      setParticipationType((current.participationType as ParticipationType) ?? 'join');
+      setProfileSaveError(null);
+    }
+    setEditing((value) => !value);
+  };
+
+  const saveProfile = async () => {
+    setProfileSaveError(null);
+    try {
+      await update.mutateAsync({ data: { name: name.trim(), city: city.trim(), bio: bio.trim() || null, interests, participationType } });
+      await refresh();
+      setEditing(false);
+    } catch (error) {
+      setProfileSaveError(requestErrorMessage(error, 'Your profile could not be saved. Your edits are still here—please try again.'));
+    }
+  };
 
   const sendFriendRequest = () => {
     if (!normalizedFriendUsername || createFriend.isPending) return;
@@ -1737,7 +1826,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
             key: 'edit-profile',
             label: editing ? 'Close edit form' : 'Edit profile',
             icon: editing ? 'x' : 'edit-2',
-            onPress: () => setEditing((value) => !value),
+            onPress: toggleProfileEditor,
           },
         ]}
       />
@@ -1747,6 +1836,9 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         friendsCount={friends.data?.length ?? 0}
         onMetricPress={setSelectedProfileMetric}
       />
+      {profile.isError && !profile.data ? (
+        <EmptyState title="Profile details didn’t load" body="Your saved profile is still available. Try again." actionLabel="Try again" onAction={() => { void profile.refetch(); }} />
+      ) : null}
       <ProfileMetricDetailsSheet
         metric={selectedProfileMetric}
         user={current}
@@ -1773,9 +1865,40 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
 
       {editing ? (
         <View style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <TextInput value={name} onChangeText={setName} placeholder="Display name" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
           <TextInput value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
           <TextInput value={bio} onChangeText={setBio} multiline placeholder="Short bio" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
-          <Button label={update.isPending ? 'Saving…' : 'Save profile'} disabled={update.isPending} onPress={() => void update.mutateAsync({ data: { city, bio: bio || null } }).then(() => setEditing(false))} />
+          <Text style={[styles.formLabel, { color: colors.foreground }]}>Interests</Text>
+          <View style={styles.onboardingChoices}>
+            {categories.slice(1).map((item) => {
+              const selected = interests.includes(item.key as ExperienceCategory);
+              return (
+                <Pressable key={item.key} onPress={() => setInterests((currentInterests) => selected ? currentInterests.filter((value) => value !== item.key) : [...currentInterests, item.key as ExperienceCategory])} style={[styles.choiceCard, { backgroundColor: selected ? colors.primary + '10' : colors.background, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}>
+                  <Feather name={item.icon} size={20} color={selected ? colors.primary : colors.mutedForeground} />
+                  <Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{item.label}</Text>
+                  <Feather name={selected ? 'check-circle' : 'circle'} size={20} color={selected ? colors.primary : colors.border} />
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={[styles.formLabel, { color: colors.foreground }]}>I want to…</Text>
+          <View style={styles.onboardingChoices}>
+            {(['join', 'host', 'both'] as ParticipationType[]).map((value) => {
+              const selected = participationType === value;
+              const labels = { join: 'Join experiences', host: 'Host experiences', both: 'Do both' };
+              return (
+                <Pressable key={value} onPress={() => setParticipationType(value)} style={[styles.onboardingParticipationCard, { backgroundColor: selected ? colors.primary + '10' : colors.background, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}>
+                  <Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{labels[value]}</Text>
+                  <Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} />
+                </Pressable>
+              );
+            })}
+          </View>
+          {!name.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add a display name to save your profile.</Text> : null}
+          {!city.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add a city to save your profile.</Text> : null}
+          {!interests.length ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Choose at least one interest to save your profile.</Text> : null}
+          {profileSaveError ? <InlineError message={profileSaveError} /> : null}
+          <Button label={update.isPending ? 'Saving…' : 'Save profile'} disabled={update.isPending || !name.trim() || !city.trim() || interests.length === 0} onPress={() => void saveProfile()} />
         </View>
       ) : null}
 
@@ -1784,7 +1907,12 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       <CommunityXpPanel />
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent impact</Text>
-      {completed.data?.length ? completed.data.slice(0, 3).map((item) => (
+      {completed.isLoading ? <LoadingState /> : completed.isError ? (
+        <View>
+          <InlineError message="Your impact history couldn’t be loaded." />
+          <Button label="Try again" variant="secondary" onPress={() => { void completed.refetch(); }} />
+        </View>
+      ) : completed.data?.length ? completed.data.slice(0, 3).map((item) => (
         <View key={item.id} style={[styles.historyRow, { borderBottomColor: colors.border }]}>
           <View style={[styles.historyDot, { backgroundColor: colors.primary }]} />
           <View style={styles.historyCopy}>
@@ -2052,11 +2180,20 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         </>
       )}
 
-      {current.participationType !== 'join' ? (
-        <View style={{ marginTop: 32 }}>
-          <Button label="Open host tools" variant="secondary" onPress={() => { triggerHaptic(); go('host'); }} />
-        </View>
-      ) : null}
+      <View style={{ marginTop: 32 }}>
+        <Button
+          label={current.participationType !== 'join' ? 'Open host tools' : 'Interested in hosting?'}
+          variant="secondary"
+          onPress={() => {
+            triggerHaptic();
+            if (current.participationType !== 'join') go('host');
+            else {
+              if (!editing) toggleProfileEditor();
+              setParticipationType('both');
+            }
+          }}
+        />
+      </View>
       <View style={{ height: 120 }} />
     </ScrollView>
   );
@@ -2065,13 +2202,27 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
 function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const overview = useGetHostOverview();
   const experiences = useListHostExperiences();
   const [selected, setSelected] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const participants = useListExperienceParticipants(selected ?? 0, { query: { enabled: selected !== null, queryKey: getListExperienceParticipantsQueryKey(selected ?? 0) } });
-  const attend = useMarkAttendance({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
-  const verify = useVerifyParticipation({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
-  const reject = useRejectParticipation({ mutation: { onSuccess: () => { void queryClient.invalidateQueries(); triggerHaptic(); } } });
+  const attend = useMarkAttendance({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const verify = useVerifyParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const reject = useRejectParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const runHostAction = async (action: () => Promise<unknown>) => {
+    setActionError(null);
+    try {
+      await action();
+    } catch (error) {
+      setActionError(requestErrorMessage(error, 'That host action could not be completed. Please try again.'));
+    }
+  };
+
+  if (user?.participationType === 'join') {
+    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Host tools" onBack={() => go('profile')} /><EmptyState title="Hosting isn’t enabled on your profile" body="Update your participation preference to host experiences, then return here." actionLabel="Update profile" onAction={() => go('profile')} /></View>;
+  }
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
@@ -2080,12 +2231,13 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
       <View style={styles.hostStats}>
         {[['Upcoming', overview.data?.upcomingExperiences ?? 0], ['Participants', overview.data?.participantCount ?? 0], ['To verify', overview.data?.pendingVerifications ?? 0]].map(([label, value]) => (
           <View key={String(label)} style={[styles.hostStat, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-            <Text style={[styles.hostStatValue, { color: colors.foreground }]}>{value}</Text>
+            <Text style={[styles.hostStatValue, { color: colors.foreground }]}>{overview.isLoading ? '…' : value}</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{label}</Text>
           </View>
         ))}
       </View>
 
+      {overview.isError ? <EmptyState title="Host statistics couldn’t be loaded" body="Check your connection and try again." actionLabel="Try again" onAction={() => { void overview.refetch(); }} /> : null}
       <Button label="Create experience" icon="plus" onPress={() => { triggerHaptic(); go('create'); }} />
 
       <View style={styles.socialHeader}>
@@ -2093,7 +2245,9 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
         <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{experiences.data?.length ?? 0} published</Text>
       </View>
 
-      {experiences.data?.length ? experiences.data.map((item) => (
+      {experiences.isLoading ? <LoadingState /> : experiences.isError ? (
+        <EmptyState title="Your experiences didn’t load" body="Try again to see your published opportunities." actionLabel="Try again" onAction={() => { void experiences.refetch(); }} />
+      ) : experiences.data?.length ? experiences.data.map((item) => (
         <Pressable key={item.id} onPress={() => { triggerHaptic(); setSelected(selected === item.id ? null : item.id); }} style={[styles.participationCard, { backgroundColor: selected === item.id ? colors.primary + '10' : colors.card, borderColor: selected === item.id ? colors.primary : colors.border, borderRadius: colors.radius }]}>
           <View style={styles.cardTop}>
             <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '15' }]}>
@@ -2111,7 +2265,10 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
       {selected !== null ? (
         <View style={{ marginTop: 24 }}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Participants</Text>
-          {participants.isLoading ? <LoadingState /> : participants.data?.length ? participants.data.map((item) => (
+          {actionError ? <InlineError message={actionError} /> : null}
+          {participants.isLoading ? <LoadingState /> : participants.isError ? (
+            <EmptyState title="Participants couldn’t be loaded" body="Try again to check attendance and completion." actionLabel="Try again" onAction={() => { void participants.refetch(); }} />
+          ) : participants.data?.length ? participants.data.map((item) => (
             <View key={item.id} style={[styles.participantRow, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
               <View style={[styles.participantAvatar, { backgroundColor: colors.primary + '15' }]}>
                 <Text style={[styles.participantInitial, { color: colors.primary }]}>{item.participant.name.charAt(0)}</Text>
@@ -2121,12 +2278,12 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
                 <Text style={[styles.participantStatus, { color: colors.mutedForeground }]}>{item.participant.username ? `@${item.participant.username} · ` : ''}{item.status}</Text>
               </View>
               {item.status === 'joined' ? (
-                <Button label="Attend" variant="secondary" onPress={() => void attend.mutateAsync({ participationId: item.id })} />
+                <Button label={attend.isPending ? 'Saving…' : 'Attend'} variant="secondary" disabled={attend.isPending} onPress={() => void runHostAction(() => attend.mutateAsync({ participationId: item.id }))} />
               ) : null}
               {item.status === 'submitted' ? (
                 <View style={styles.actionPair}>
-                  <Button label="Verify" onPress={() => void verify.mutateAsync({ participationId: item.id })} />
-                  <Button label="Reject" variant="secondary" onPress={() => void reject.mutateAsync({ participationId: item.id })} />
+                  <Button label={verify.isPending ? 'Saving…' : 'Verify'} disabled={verify.isPending || reject.isPending} onPress={() => void runHostAction(() => verify.mutateAsync({ participationId: item.id }))} />
+                  <Button label={reject.isPending ? 'Saving…' : 'Reject'} variant="secondary" disabled={verify.isPending || reject.isPending} onPress={() => void runHostAction(() => reject.mutateAsync({ participationId: item.id }))} />
                 </View>
               ) : null}
               {item.status === 'verified' ? <Feather name="check-circle" size={28} color={colors.success} /> : null}
@@ -2581,46 +2738,38 @@ function AppShell({
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; onboarded?: string; step?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; step?: string }>();
   const router = useRouter();
   const { user, loading } = useAuth();
   const colors = useColors();
-  const [onboarded, setOnboarded] = useState(false);
-  const [screen, setScreen] = useState<Screen>((params.screen as Screen) || 'home');
+  const initialScreen = params.screen && screenNames.includes(params.screen as Screen)
+    ? params.screen as Screen
+    : 'home';
+  const [onboardingCompleteFor, setOnboardingCompleteFor] = useState<number | null>(null);
+  const [screen, setScreen] = useState<Screen>(initialScreen);
   const [experienceId, setExperienceId] = useState(params.id);
-  const displayUser = user ?? guestUser;
-  const guestOnboarded = onboarded || params.onboarded === '1';
 
   useEffect(() => {
     const routeScreen = params.screen;
     if (routeScreen && screenNames.includes(routeScreen as Screen)) {
       setScreen(routeScreen as Screen);
     }
-    if (params.id) setExperienceId(params.id);
+    if (routeScreen === 'experience') setExperienceId(params.id);
+    else if (routeScreen) setExperienceId(undefined);
   }, [params.screen, params.id]);
 
   const go = (next: Screen, nextParams?: Record<string, string>) => {
     Keyboard.dismiss();
     setScreen(next);
-    if (nextParams?.id) setExperienceId(nextParams.id);
+    setExperienceId(next === 'experience' ? nextParams?.id : undefined);
     router.setParams({
       screen: next,
-      onboarded: guestOnboarded ? '1' : undefined,
       id: next === 'experience' ? nextParams?.id : undefined,
     });
   };
 
-  const needsOnboarding = Boolean((!user || !user.city || !user.interests?.length || !user.participationType) && !guestOnboarded);
-
-  const content = (() => {
-    if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
-    if (screen === 'explore') return <Explore go={go} />;
-    if (screen === 'experiences') return <Experiences go={go} />;
-    if (screen === 'profile') return <Profile user={displayUser} go={go} />;
-    if (screen === 'host') return <Host go={go} />;
-    if (screen === 'create') return <Create go={go} initialStep={Number(params.step) || 1} />;
-    return <Home user={displayUser} go={go} />;
-  })();
+  const needsOnboarding = !user
+    || (onboardingCompleteFor !== user.id && (!user.city || !user.interests?.length || !user.participationType));
 
   if (loading) {
     return (
@@ -2640,24 +2789,46 @@ export default function App() {
           onBack={() => go('home')}
           onSuccess={() => {
             setScreen('home');
-            router.setParams({ screen: 'home', onboarded: undefined });
+            router.setParams({ screen: 'home' });
           }}
         />
       </AppShell>
     );
   }
 
-  if (needsOnboarding) {
+  if (!user || needsOnboarding) {
     return (
       <AppShell>
-        <Onboarding user={displayUser} guest={!user} onDone={() => {
-          setOnboarded(true);
-          setScreen('home');
-          if (!user) router.setParams({ screen: 'home', onboarded: '1' });
+        <Onboarding key={user?.id ?? 'signed-out'} user={user} onDone={() => {
+          setOnboardingCompleteFor(user?.id ?? null);
+          router.setParams({ screen, id: screen === 'experience' ? experienceId : undefined });
         }} />
       </AppShell>
     );
   }
+
+  if (user.participationType === 'join' && (screen === 'host' || screen === 'create')) {
+    return (
+      <AppShell>
+        <EmptyState
+          title="Hosting isn’t enabled on your profile"
+          body="Update your participation preference to host experiences, then return here."
+          actionLabel="Open profile"
+          onAction={() => go('profile')}
+        />
+      </AppShell>
+    );
+  }
+
+  const content = (() => {
+    if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
+    if (screen === 'explore') return <Explore go={go} />;
+    if (screen === 'experiences') return <Experiences go={go} />;
+    if (screen === 'profile') return <Profile user={user} go={go} />;
+    if (screen === 'host') return <Host go={go} />;
+    if (screen === 'create') return <Create go={go} initialStep={Number(params.step) || 1} />;
+    return <Home user={user} go={go} />;
+  })();
 
   const noNav = ['experience', 'create', 'host'].includes(screen);
   return (
@@ -2694,6 +2865,8 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   emptyTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 8, textAlign: 'center' },
   emptyBody: { fontSize: 15, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 22 },
+  inlineError: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, marginVertical: 8 },
+  inlineErrorText: { flex: 1, fontSize: 13, lineHeight: 19, fontFamily: 'Inter_500Medium' },
 
   loading: { padding: 40, alignItems: 'center', justifyContent: 'center' },
   loadingText: { marginTop: 16, fontSize: 15, fontFamily: 'Inter_500Medium' },

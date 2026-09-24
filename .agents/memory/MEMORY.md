@@ -4,3 +4,4 @@
 - [Email auth sessions](email-auth-sessions.md) — email users use hashed passwords and expiring bearer sessions through the same protected API routes.
 - [Telegram polling ownership](telegram-polling-ownership.md) — run only one Telegram long-polling bot instance; local and deployed pollers conflict.
 - [Telegram group bot compatibility](telegram-group-keyboards.md) — group replies cannot use inline Web App buttons; keep personal actions private.
+- [Query invalidation cancellation](query-invalidation-cancellation.md) — treat expected AbortErrors from mutation-triggered query refreshes as cancellation, not app failure.

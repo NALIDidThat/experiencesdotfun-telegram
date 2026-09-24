@@ -4,6 +4,7 @@ import { Linking, Platform } from 'react-native';
 const INIT_DATA_KEY = '@experiences/init-data';
 const TELEGRAM_BOT_USERNAME = 'experiencesdotfun_bot';
 const TELEGRAM_WEB_APP_SDK = 'https://telegram.org/js/telegram-web-app.js?59';
+const TELEGRAM_SDK_TIMEOUT_MS = 4_000;
 let telegramSdkPromise: Promise<void> | null = null;
 
 type TelegramWindow = Window & {
@@ -35,18 +36,32 @@ export async function loadTelegramWebApp(): Promise<void> {
   if (telegramSdkPromise) return telegramSdkPromise;
 
   telegramSdkPromise = new Promise((resolve) => {
+    let settled = false;
     const existing = document.querySelector<HTMLScriptElement>('script[data-telegram-web-app]');
+    const script = existing ?? document.createElement('script');
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      script.removeEventListener('load', finish);
+      script.removeEventListener('error', finish);
+      resolve();
+    };
+    const timeout = window.setTimeout(finish, TELEGRAM_SDK_TIMEOUT_MS);
+
+    script.addEventListener('load', finish, { once: true });
+    script.addEventListener('error', finish, { once: true });
     if (existing) {
-      existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener('error', () => resolve(), { once: true });
+      if (existing.dataset.telegramWebAppLoaded === 'true') finish();
       return;
     }
-    const script = document.createElement('script');
+
     script.src = TELEGRAM_WEB_APP_SDK;
     script.async = false;
     script.dataset.telegramWebApp = 'true';
-    script.addEventListener('load', () => resolve(), { once: true });
-    script.addEventListener('error', () => resolve(), { once: true });
+    script.addEventListener('load', () => {
+      script.dataset.telegramWebAppLoaded = 'true';
+    }, { once: true });
     document.head.appendChild(script);
   });
   return telegramSdkPromise;
