@@ -8,7 +8,9 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(botRouter);
-router.use(communityRouter);
+// Telegram/email auth routes are public and must be checked before the
+// community router's authentication middleware.
 router.use(experiencesRouter);
+router.use(communityRouter);
 
 export default router;

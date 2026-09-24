@@ -55,14 +55,30 @@ router.post("/auth/telegram", async (req, res) => {
     error(res, 400, "Telegram login data is missing.");
     return;
   }
+
+  let identity: ReturnType<typeof verifyTelegramInitData>;
   try {
-    const identity = verifyTelegramInitData(parsed.data.initData);
+    identity = verifyTelegramInitData(parsed.data.initData);
+  } catch (authError) {
+    const reason = authError instanceof Error ? authError.message : "";
+    logger.warn({ err: authError }, "Telegram login rejected");
+    if (reason === "TELEGRAM_BOT_TOKEN is not configured.") {
+      error(res, 503, "Telegram sign-in is temporarily unavailable. Please use email or try again later.");
+    } else if (reason.includes("expired")) {
+      error(res, 401, "Your Telegram sign-in has expired. Close the Mini App and reopen it from the official bot.");
+    } else {
+      error(res, 401, "Telegram could not verify this sign-in. Close the Mini App and reopen it from the official bot.");
+    }
+    return;
+  }
+
+  try {
     const existing = await findUserByTelegramId(identity.id);
     const user = await upsertTelegramUser(identity);
     res.json({ user: await userResponse(user), isNew: !existing, sessionToken: null });
-  } catch (authError) {
-    logger.warn({ err: authError }, "Telegram login rejected");
-    error(res, 401, "Your Telegram login is invalid or expired. Reopen the Mini App and try again.");
+  } catch (accountError) {
+    logger.error({ err: accountError }, "Telegram account initialization failed");
+    error(res, 500, "Telegram was verified, but your profile could not be loaded. Please try again or use email.");
   }
 });
 

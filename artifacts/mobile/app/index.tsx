@@ -67,6 +67,7 @@ import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { UserAvatar } from '@/components/UserAvatar';
+import { openTelegramBot } from '@/lib/telegram';
 
 type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'experience' | 'host' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
@@ -468,7 +469,7 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
       >
         <View style={styles.emailAuthForm}>
           <View style={styles.emailAuthHeader}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Back to Telegram login" onPress={onBack} style={styles.emailBack}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Back to sign-in options" onPress={onBack} style={styles.emailBack}>
               <View style={[styles.emailBackIcon, { backgroundColor: colors.secondary + '14' }]}>
                 <Feather name="arrow-left" size={18} color={colors.secondary} />
               </View>
@@ -587,8 +588,6 @@ function EmailAuthPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
 function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  const { user, login, loading, authError, clearAuthError } = useAuth();
-  const [emailAuthOpen, setEmailAuthOpen] = useState(false);
   const { height: screenHeight } = useWindowDimensions();
   const welcome = colors.welcome;
   const isWeb = Platform.OS === 'web';
@@ -599,14 +598,6 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
     ? Math.max(248, screenHeight * 0.37)
     : Math.min(screenHeight * 0.46, 390);
   const heroImageHeight = screenHeight;
-
-  const handleTelegramLogin = async () => {
-    if (user || await login()) onContinue();
-  };
-
-  if (emailAuthOpen) {
-    return <EmailAuthPanel onBack={() => setEmailAuthOpen(false)} onSuccess={onContinue} />;
-  }
 
   return (
     <View style={[styles.talentScreen, { backgroundColor: welcome.background }]}>
@@ -661,18 +652,7 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
             <Text style={{ color: welcome.foreground }}>experiences</Text>
             <Text style={{ color: colors.primary }}>.fun</Text>
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Skip to email login"
-            testID="welcome-skip"
-            onPress={() => { clearAuthError(); setEmailAuthOpen(true); }}
-            style={({ pressed }) => [
-              styles.welcomeSkipButton,
-              { backgroundColor: welcome.surface, borderColor: welcome.border, opacity: pressed ? 0.65 : 1 },
-            ]}
-          >
-            <Text style={[styles.welcomeSkipText, { color: welcome.muted }]}>Skip</Text>
-          </Pressable>
+          <View style={{ width: 54 }} />
         </View>
 
         <View style={[styles.welcomeHeroStage, { height: heroStageHeight, marginHorizontal: 26 }]}>
@@ -713,46 +693,25 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
               </Text>
             </View>
 
-            {authError && !user ? <Text accessibilityRole="alert" style={[styles.welcomeError, { color: welcome.error }]}>{authError}</Text> : null}
-            <View style={styles.welcomeAuthActions}>
+            <View style={[styles.welcomeAuthActions, { flexDirection: 'column' }]}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={loading ? 'Logging in with Telegram' : user ? 'Continue setup' : 'Log in with Telegram'}
-                testID="welcome-telegram-login"
-                disabled={loading}
-                onPressIn={() => { if (!loading) triggerHaptic(); }}
-                onPress={() => { void handleTelegramLogin(); }}
+                accessibilityLabel="Get started"
+                testID="welcome-start"
+                onPressIn={triggerHaptic}
+                onPress={onContinue}
                 style={({ pressed }) => [
                   styles.welcomeTelegramButton,
-                  { backgroundColor: colors.primary, borderRadius: colors.radius * 2, opacity: loading ? 0.58 : pressed ? 0.86 : 1 },
+                  { width: '100%', backgroundColor: colors.primary, borderRadius: colors.radius * 2, opacity: pressed ? 0.86 : 1 },
                 ]}
               >
-                <Feather name="send" size={16} color={colors.primaryForeground} />
-                <Text style={[styles.welcomeTelegramLabel, { color: colors.primaryForeground }]}>
-                  {loading ? 'Logging in…' : user ? 'Continue' : 'Telegram'}
-                </Text>
-                {loading ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : null}
-              </Pressable>
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Log in with email"
-                testID="welcome-email-login"
-                onPress={() => { clearAuthError(); setEmailAuthOpen(true); }}
-                style={({ pressed }) => [
-                  styles.welcomeEmailButton,
-                  { backgroundColor: welcome.surface, borderColor: welcome.border, borderRadius: colors.radius * 2, opacity: pressed ? 0.78 : 1 },
-                ]}
-              >
-                <Feather name="mail" size={16} color={welcome.foreground} />
-                <Text style={[styles.welcomeEmailLinkText, { color: welcome.foreground }]}>
-                  {user ? 'Other account' : 'Email'}
-                </Text>
+                <Text style={[styles.welcomeTelegramLabel, { color: colors.primaryForeground }]}>Get started</Text>
+                <Feather name="arrow-right" size={17} color={colors.primaryForeground} />
               </Pressable>
             </View>
 
             <Text style={[styles.welcomeTelegramNote, { color: welcome.muted }]}>
-              {user ? user.email ? 'Email profile recognised' : 'Telegram profile recognised' : 'Your Telegram details will create your profile'}
+              Choose Participant or Organisation to get started.
             </Text>
           </View>
         </View>
@@ -762,38 +721,167 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   );
 }
 
-function Onboarding({ user, onDone }: { user: User | null; onDone: () => void }) {
+function AccountTypeSelection({
+  selectedType,
+  onSelect,
+  onBack,
+  onContinue,
+}: {
+  selectedType: UserType | null;
+  onSelect: (value: UserType) => void;
+  onBack?: () => void;
+  onContinue: () => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const options: Array<{ value: UserType; title: string; description: string; icon: IconName }> = [
+    {
+      value: 'participant',
+      title: 'Participant',
+      description: 'Find and join local experiences, track your impact and meet your community.',
+      icon: 'compass',
+    },
+    {
+      value: 'organisation',
+      title: 'Organisation',
+      description: 'Create and manage experiences for your community, and track participation.',
+      icon: 'briefcase',
+    },
+  ];
+
+  return (
+    <KeyboardAwareScrollViewCompat
+      style={[styles.onboarding, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.onboardingScreenContent, { paddingTop: 12, paddingBottom: Math.max(insets.bottom, 24) }]}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.onboardingTopBar}>
+        {onBack ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to start" onPress={onBack} style={[styles.onboardingBack, { backgroundColor: colors.muted }]}>
+            <Feather name="arrow-left" size={22} color={colors.foreground} />
+          </Pressable>
+        ) : <View style={styles.onboardingBack} />}
+        <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>ACCOUNT TYPE</Text>
+      </View>
+      <View style={styles.onboardingContent}>
+        <View style={styles.onboardingSlide}>
+          <View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}>
+            <Feather name="users" size={32} color={colors.primary} />
+          </View>
+          <Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>CHOOSE YOUR ACCOUNT</Text>
+          <Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>How will you use Experiences.fun?</Text>
+          <Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Choose the profile and tools that fit you. You can review your choice before finishing setup.</Text>
+          <View style={styles.onboardingChoices}>
+            {options.map((option) => {
+              const selected = selectedType === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  onPress={() => { triggerHaptic(); onSelect(option.value); }}
+                  style={[styles.onboardingParticipationCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}
+                >
+                  <Feather name={option.icon} size={23} color={selected ? colors.primary : colors.mutedForeground} />
+                  <View style={{ flex: 1, marginHorizontal: 12 }}>
+                    <Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{option.title}</Text>
+                    <Text style={[styles.inputHint, { color: colors.mutedForeground, marginTop: 4 }]}>{option.description}</Text>
+                  </View>
+                  <Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} />
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+      <View style={styles.onboardingFooter}>
+        <Button label="Continue" disabled={!selectedType} onPress={onContinue} />
+      </View>
+    </KeyboardAwareScrollViewCompat>
+  );
+}
+
+function LoginChoiceScreen({
+  accountType,
+  onBack,
+  onEmail,
+  onTelegram,
+}: {
+  accountType: UserType;
+  onBack: () => void;
+  onEmail: () => void;
+  onTelegram: () => void;
+}) {
+  const colors = useColors();
+  const { inTelegram, loading, authError, clearAuthError } = useAuth();
+  const accountLabel = accountType === 'organisation' ? 'Organisation' : 'Participant';
+
+  const continueWithTelegram = () => {
+    clearAuthError();
+    if (inTelegram) onTelegram();
+    else openTelegramBot();
+  };
+
+  return (
+    <KeyboardAwareScrollViewCompat
+      style={[styles.onboarding, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.onboardingScreenContent, { paddingTop: 12, paddingBottom: 24 }]}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.onboardingTopBar}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back to account type" onPress={() => { clearAuthError(); onBack(); }} style={[styles.onboardingBack, { backgroundColor: colors.muted }]}>
+          <Feather name="arrow-left" size={22} color={colors.foreground} />
+        </Pressable>
+        <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>SIGN IN</Text>
+      </View>
+      <View style={styles.onboardingContent}>
+        <View style={styles.onboardingSlide}>
+          <View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}>
+            <Feather name="lock" size={30} color={colors.primary} />
+          </View>
+          <Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>{accountLabel.toUpperCase()} ACCOUNT</Text>
+          <Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Log in or create an account</Text>
+          <Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Choose how you want to continue. New accounts will start their {accountLabel.toLowerCase()} profile setup next.</Text>
+          <View style={styles.onboardingForm}>
+            <Button
+              label={loading ? 'Connecting…' : inTelegram ? 'Continue with Telegram' : 'Open Telegram'}
+              disabled={loading}
+              onPress={continueWithTelegram}
+              icon="send"
+              color={colors.primary}
+            />
+            {authError ? <InlineError message={authError} /> : null}
+            <Button
+              label="Continue with email"
+              onPress={() => { clearAuthError(); onEmail(); }}
+              icon="mail"
+              color={colors.secondary}
+            />
+          </View>
+        </View>
+      </View>
+    </KeyboardAwareScrollViewCompat>
+  );
+}
+
+function Onboarding({ user, accountType: initialAccountType, onDone }: { user: User; accountType: UserType; onDone: () => void }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const update = useUpdateMe();
   const { refresh } = useAuth();
-  const [step, setStep] = useState(user ? (user.userType ? 1 : 0) : 0);
-  const [accountType, setAccountType] = useState<UserType | null>(user?.userType ?? null);
-  const [selectedAccountType, setSelectedAccountType] = useState<UserType | null>(user?.userType ?? null);
-  const [interests, setInterests] = useState<ExperienceCategory[]>(user?.interests ?? []);
-  const [city, setCity] = useState(user?.city ?? '');
-  const [organisationName, setOrganisationName] = useState(user?.organisation?.name ?? '');
-  const [organisationDescription, setOrganisationDescription] = useState(user?.organisation?.description ?? '');
-  const [bio, setBio] = useState(user?.bio ?? '');
-  const [name, setName] = useState(user?.name ?? '');
+  const [step, setStep] = useState(1);
+  const accountType = user.userType ?? initialAccountType;
+  const [interests, setInterests] = useState<ExperienceCategory[]>(user.interests ?? []);
+  const [city, setCity] = useState(user.city ?? '');
+  const [organisationName, setOrganisationName] = useState(user.organisation?.name ?? '');
+  const [organisationDescription, setOrganisationDescription] = useState(user.organisation?.description ?? '');
+  const [bio, setBio] = useState(user.bio ?? '');
+  const [name, setName] = useState(user.name ?? '');
   const [saveError, setSaveError] = useState<string | null>(null);
   const totalSteps = 5;
-
-  const persistAccountType = async () => {
-    if (!user || !selectedAccountType || update.isPending) return;
-    triggerHaptic();
-    setSaveError(null);
-    try {
-      await update.mutateAsync({ data: { userType: selectedAccountType } });
-      invalidateAppQueries(queryClient);
-      await refresh();
-      setAccountType(selectedAccountType);
-      setStep(1);
-    } catch (error) {
-      setSaveError(requestErrorMessage(error, 'We couldn’t save your account type. Please try again.'));
-    }
-  };
 
   const next = async () => {
     triggerHaptic();
@@ -846,73 +934,6 @@ function Onboarding({ user, onDone }: { user: User | null; onDone: () => void })
   const previous = () => { triggerHaptic(); Keyboard.dismiss(); setStep((value) => Math.max(1, value - 1)); };
   const dots = Array.from({ length: totalSteps - 1 }, (_, index) => index + 1);
 
-  if (!user) {
-    return <TalentWelcome onContinue={() => setStep(1)} />;
-  }
-
-  if (step === 0) {
-    return (
-      <KeyboardAwareScrollViewCompat
-        style={[styles.onboarding, { backgroundColor: colors.background }]}
-        contentContainerStyle={[styles.onboardingScreenContent, { paddingTop: 12, paddingBottom: Math.max(insets.bottom, 24) }]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.onboardingTopBar}>
-          <View style={styles.onboardingBack} />
-          <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>ACCOUNT TYPE</Text>
-        </View>
-        <View style={styles.onboardingContent}>
-          <View style={styles.onboardingSlide}>
-            <View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}>
-              <Feather name="users" size={32} color={colors.primary} />
-            </View>
-            <Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>FIRST, CHOOSE YOUR ACCOUNT</Text>
-            <Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>How will you use Experiences.fun?</Text>
-            <Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Your choice sets up the right profile and tools. You can’t change the account type after choosing.</Text>
-            <View style={styles.onboardingChoices}>
-              {([
-                {
-                  value: 'participant' as const,
-                  title: 'Participant',
-                  description: 'Find and join local experiences, track your impact and meet your community.',
-                  icon: 'compass' as IconName,
-                },
-                {
-                  value: 'organisation' as const,
-                  title: 'Organisation',
-                  description: 'Create and manage experiences for your community, and track participation.',
-                  icon: 'briefcase' as IconName,
-                },
-              ]).map((option) => {
-                const selected = selectedAccountType === option.value;
-                return (
-                  <Pressable
-                    key={option.value}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected }}
-                    onPress={() => { triggerHaptic(); setSelectedAccountType(option.value); }}
-                    style={[styles.onboardingParticipationCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}
-                  >
-                    <Feather name={option.icon} size={23} color={selected ? colors.primary : colors.mutedForeground} />
-                    <View style={{ flex: 1, marginHorizontal: 12 }}>
-                      <Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{option.title}</Text>
-                      <Text style={[styles.inputHint, { color: colors.mutedForeground, marginTop: 4 }]}>{option.description}</Text>
-                    </View>
-                    <Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} />
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-        <View style={styles.onboardingFooter}>
-          {saveError ? <InlineError message={saveError} /> : null}
-          <Button label={update.isPending ? 'Saving…' : 'Continue'} disabled={!selectedAccountType || update.isPending} onPress={() => void persistAccountType()} />
-        </View>
-      </KeyboardAwareScrollViewCompat>
-    );
-  }
 
   const stepIsInvalid =
     (step === 1 && !name.trim()) ||
@@ -3059,13 +3080,24 @@ function AppShell({
 export default function App() {
   const params = useLocalSearchParams<{ screen?: string; id?: string; step?: string }>();
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
+  const [entryStage, setEntryStage] = useState<'start' | 'account-type' | 'login'>('start');
+  const [selectedAccountType, setSelectedAccountType] = useState<UserType | null>(null);
+  const [accountTypeConfirmed, setAccountTypeConfirmed] = useState(false);
   const initialScreen = params.screen && screenNames.includes(params.screen as Screen)
     ? params.screen as Screen
     : 'home';
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [experienceId, setExperienceId] = useState(params.id);
+
+  useEffect(() => {
+    if (!user) {
+      setEntryStage('start');
+      setSelectedAccountType(null);
+      setAccountTypeConfirmed(false);
+    }
+  }, [user]);
 
   useEffect(() => {
     const routeScreen = params.screen;
@@ -3092,12 +3124,13 @@ export default function App() {
       || !user.organisation.description?.trim()
       || !user.organisation.city?.trim()
       || !user.organisation.categories.length);
-  const needsOnboarding = !user
-    || !user.userType
+  const needsOnboarding = Boolean(user && (
+    !user.userType
     || !user.name.trim()
     || !user.city?.trim()
     || !user.interests.length
-    || organisationProfileIncomplete;
+    || organisationProfileIncomplete
+  ));
 
   if (loading) {
     return (
@@ -3114,7 +3147,12 @@ export default function App() {
     return (
       <AppShell>
         <EmailAuthPanel
-          onBack={() => go('home')}
+          onBack={() => {
+            clearAuthError();
+            setScreen('home');
+            setEntryStage('login');
+            router.setParams({ screen: 'home' });
+          }}
           onSuccess={() => {
             setScreen('home');
             router.setParams({ screen: 'home' });
@@ -3124,10 +3162,63 @@ export default function App() {
     );
   }
 
-  if (!user || needsOnboarding) {
+  if (!user) {
     return (
       <AppShell showFeedbackBanner={false}>
-        <Onboarding key={user?.id ?? 'signed-out'} user={user} onDone={() => {
+        {entryStage === 'start' ? (
+          <TalentWelcome onContinue={() => {
+            clearAuthError();
+            setEntryStage('account-type');
+          }} />
+        ) : entryStage === 'account-type' || !selectedAccountType ? (
+          <AccountTypeSelection
+            selectedType={selectedAccountType}
+            onSelect={(value) => {
+              setSelectedAccountType(value);
+              setAccountTypeConfirmed(false);
+            }}
+            onBack={() => setEntryStage('start')}
+            onContinue={() => {
+              if (!selectedAccountType) return;
+              clearAuthError();
+              setAccountTypeConfirmed(true);
+              setEntryStage('login');
+            }}
+          />
+        ) : (
+          <LoginChoiceScreen
+            accountType={selectedAccountType}
+            onBack={() => setEntryStage('account-type')}
+            onEmail={() => go('email')}
+            onTelegram={() => { void login(); }}
+          />
+        )}
+      </AppShell>
+    );
+  }
+
+  if (needsOnboarding) {
+    const onboardingAccountType = user.userType ?? selectedAccountType;
+    if (!onboardingAccountType || (!user.userType && !accountTypeConfirmed)) {
+      return (
+        <AppShell showFeedbackBanner={false}>
+          <AccountTypeSelection
+            selectedType={selectedAccountType}
+            onSelect={(value) => {
+              setSelectedAccountType(value);
+              setAccountTypeConfirmed(false);
+            }}
+            onContinue={() => {
+              if (!selectedAccountType) return;
+              setAccountTypeConfirmed(true);
+            }}
+          />
+        </AppShell>
+      );
+    }
+    return (
+      <AppShell showFeedbackBanner={false}>
+        <Onboarding key={user.id} user={user} accountType={onboardingAccountType} onDone={() => {
           router.setParams({ screen, id: screen === 'experience' ? experienceId : undefined });
         }} />
       </AppShell>

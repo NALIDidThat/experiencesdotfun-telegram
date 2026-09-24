@@ -10,8 +10,8 @@ import {
 } from '@workspace/api-client-react';
 import {
   getTelegramInitData,
+  isTelegramMiniApp,
   loadTelegramWebApp,
-  openTelegramBot,
 } from '@/lib/telegram';
 import { clearStoredAuthToken, getStoredAuthToken, saveAuthToken } from '@/lib/auth-storage';
 
@@ -85,7 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ) => {
     if (!candidate) {
       if (reportMissing) {
-        setAuthError('Telegram login data is unavailable. Open the app from the Experiences.fun bot.');
+        setAuthError(isTelegramMiniApp()
+          ? 'Telegram opened Experiences.fun without sign-in data. Close the Mini App and reopen it from the official bot.'
+          : 'Telegram sign-in data is unavailable. Open Experiences.fun from the official bot, or use email.');
       }
       setLoading(false);
       return false;
@@ -178,23 +180,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!liveData && storedData?.startsWith('email_')) {
       return restoreEmailSession();
     }
-    const authenticated = await authenticateWith(liveData ?? storedData, true, Boolean(user));
-    if (!authenticated && !user) openTelegramBot();
-    return authenticated;
+    return authenticateWith(liveData ?? storedData, true, Boolean(user));
   }, [authenticateWith, restoreEmailSession, user]);
 
   useEffect(() => {
     let active = true;
     void (async () => {
       await loadTelegramWebApp();
-      const liveData = getTelegramInitData();
-      const storedData = liveData ? null : await getStoredAuthToken();
+      const storedData = await getStoredAuthToken();
       if (!active) return;
-      if (!liveData && storedData?.startsWith('email_')) {
+      if (!storedData) {
+        setLoading(false);
+        return;
+      }
+      if (storedData.startsWith('email_')) {
         await restoreEmailSession();
         return;
       }
-      await authenticateWith(liveData ?? storedData, false);
+      await authenticateWith(storedData, false);
     })();
     return () => {
       active = false;
@@ -206,8 +209,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       initData,
       loading,
-      telegramAvailable: Boolean(getTelegramInitData() || initData),
-      inTelegram: Boolean(getTelegramInitData()),
+      telegramAvailable: isTelegramMiniApp() || Boolean(initData),
+      inTelegram: isTelegramMiniApp(),
       authError,
       clearAuthError,
       refresh,
