@@ -58,24 +58,33 @@ type TelegramUpdate = {
 
 const botCommands = [
   { command: "start", description: "Open Experiences.fun" },
-  { command: "onboarding", description: "Finish setting up your profile" },
-  { command: "menu", description: "Open the Experiences.fun menu" },
-  { command: "create", description: "Create an experience" },
-  { command: "experiences", description: "Find experiences" },
-  { command: "xp", description: "Review XP and its sources" },
-  { command: "rank", description: "View your Community XP rank" },
-  { command: "leaderboard", description: "View this group's Community XP leaderboard" },
-  { command: "add", description: "Add a friend by username" },
-  { command: "profile", description: "View your profile" },
+  { command: "menu", description: "Open quick actions" },
+  { command: "experiences", description: "Browse upcoming experiences" },
+  { command: "xp", description: "View Experience XP and rewards" },
+  { command: "rank", description: "View Community XP rank in this group" },
+  { command: "leaderboard", description: "View this group's top contributors" },
+  { command: "profile", description: "View your passport and profile" },
+  { command: "add", description: "Send a friend request by username" },
   { command: "friends", description: "View your friends" },
-  { command: "requests", description: "View friend requests" },
+  { command: "requests", description: "View pending friend requests" },
+  { command: "create", description: "Create a community experience" },
   { command: "host", description: "Open host tools" },
-  { command: "help", description: "View commands" },
+  { command: "onboarding", description: "Finish setting up your profile" },
+  { command: "help", description: "Show commands and quick guide" },
 ];
 
+const rankNumberEmojis = ["", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 const token = () => process.env.TELEGRAM_BOT_TOKEN;
 let botUsername: string | null = null;
 let botRunning = false;
+
+function rankNumber(rank: number): string {
+  return rankNumberEmojis[rank] ?? `${rank}.`;
+}
+
+function formatCommunityXp(value: number): string {
+  return value.toLocaleString("en-GB");
+}
 
 export function escapeTelegramHtml(value: string | number | null | undefined): string {
   return String(value ?? "")
@@ -186,30 +195,30 @@ function hasCompletedOnboarding(user: {
 
 function onboardingKeyboard(): TelegramButton[][] {
   return [
-    [openButton("🚀 Open Experiences.fun", "/?screen=home")],
+    [openButton("Open Experiences.fun", "/?screen=home")],
     [
-      callbackButton("✨ How it works", "onboarding:how"),
-      callbackButton("🌱 I want to join", "onboarding:join"),
+      callbackButton("How it works", "onboarding:how"),
+      callbackButton("I want to join", "onboarding:join"),
     ],
     [
-      callbackButton("🎤 I want to host", "onboarding:host"),
-      callbackButton("🧭 More options", "menu:open"),
+      callbackButton("I want to host", "onboarding:host"),
+      callbackButton("More options", "menu:open"),
     ],
   ];
 }
 
 function menuKeyboard(): TelegramButton[][] {
   return [
-    [openButton("🚀 Open Experiences.fun", "/?screen=home")],
+    [openButton("Open Experiences.fun", "/?screen=home")],
     [
-      openButton("🔎 Explore", "/?screen=explore"),
-      openButton("🪪 My profile", "/?screen=profile"),
+      openButton("Explore", "/?screen=explore"),
+      openButton("Community XP and profile", "/?screen=profile"),
     ],
     [
-      openButton("➕ Create experience", "/?screen=create"),
-      openButton("🎤 Host tools", "/?screen=host"),
+      openButton("Create experience", "/?screen=create"),
+      openButton("Host tools", "/?screen=host"),
     ],
-    [callbackButton("✨ How it works", "onboarding:how")],
+    [callbackButton("How it works", "onboarding:how")],
   ];
 }
 
