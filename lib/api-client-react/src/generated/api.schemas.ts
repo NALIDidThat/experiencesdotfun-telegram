@@ -35,6 +35,8 @@ export const ExperienceCategory = {
 export interface User {
   id: number;
   /** @nullable */
+  createdAt: string | null;
+  /** @nullable */
   telegramId: number | null;
   /** @nullable */
   email: string | null;

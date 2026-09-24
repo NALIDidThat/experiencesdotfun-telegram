@@ -63,6 +63,7 @@ export async function userResponse(user: User) {
   const telegramId = Number(user.telegramId);
   return {
     id: user.id,
+    createdAt: user.createdAt.toISOString(),
     telegramId: Number.isSafeInteger(telegramId) && telegramId > 0 ? telegramId : null,
     email: emailAccount?.email ?? null,
     name: user.name,

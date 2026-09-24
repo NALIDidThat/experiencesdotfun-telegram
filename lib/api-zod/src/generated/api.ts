@@ -38,6 +38,7 @@ export const AuthenticateTelegramBody = zod.object({
 export const AuthenticateTelegramResponse = zod.object({
   "user": zod.object({
   "id": zod.number().int(),
+  "createdAt": zod.coerce.date().nullable(),
   "telegramId": zod.number().int().nullable(),
   "email": zod.string().email().nullable(),
   "name": zod.string(),
@@ -75,6 +76,7 @@ export const SignUpWithEmailBody = zod.object({
 export const SignUpWithEmailResponse = zod.object({
   "user": zod.object({
   "id": zod.number().int(),
+  "createdAt": zod.coerce.date().nullable(),
   "telegramId": zod.number().int().nullable(),
   "email": zod.string().email().nullable(),
   "name": zod.string(),
@@ -109,6 +111,7 @@ export const LoginWithEmailBody = zod.object({
 export const LoginWithEmailResponse = zod.object({
   "user": zod.object({
   "id": zod.number().int(),
+  "createdAt": zod.coerce.date().nullable(),
   "telegramId": zod.number().int().nullable(),
   "email": zod.string().email().nullable(),
   "name": zod.string(),
@@ -134,6 +137,7 @@ export const LoginWithEmailResponse = zod.object({
  */
 export const GetMeResponse = zod.object({
   "id": zod.number().int(),
+  "createdAt": zod.coerce.date().nullable(),
   "telegramId": zod.number().int().nullable(),
   "email": zod.string().email().nullable(),
   "name": zod.string(),
@@ -168,6 +172,7 @@ export const UpdateMeBody = zod.object({
 
 export const UpdateMeResponse = zod.object({
   "id": zod.number().int(),
+  "createdAt": zod.coerce.date().nullable(),
   "telegramId": zod.number().int().nullable(),
   "email": zod.string().email().nullable(),
   "name": zod.string(),

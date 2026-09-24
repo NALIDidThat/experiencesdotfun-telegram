@@ -632,6 +632,9 @@ components:
         id:
           type: integer
           format: int64
+        createdAt:
+          type: [string, "null"]
+          format: date-time
         telegramId:
           type: [integer, "null"]
           format: int64
@@ -668,6 +671,7 @@ components:
           type: integer
       required:
         - id
+        - createdAt
         - telegramId
         - email
         - name

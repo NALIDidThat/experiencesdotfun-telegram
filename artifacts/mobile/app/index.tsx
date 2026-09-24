@@ -87,6 +87,7 @@ const categoryGradients: Record<ExperienceCategory, readonly [string, string]> =
 
 const guestUser: User = {
   id: 0,
+  createdAt: null,
   telegramId: 0,
   email: null,
   username: null,
@@ -1043,6 +1044,11 @@ function SocialProfileHeader({
 }) {
   const colors = useColors();
   const interests = user.interests?.map((interest) => categoryLabel[interest]).join(' · ');
+  const joinedIn2026 = Boolean(user.createdAt && new Date(user.createdAt).getUTCFullYear() === 2026);
+  const profileBadges: Array<{ key: string; label: string; icon: IconName }> = [
+    { key: 'level', label: user.level, icon: 'award' },
+    ...(joinedIn2026 ? [{ key: 'early', label: 'Early', icon: 'star' as IconName }] : []),
+  ];
 
   return (
     <View style={styles.profileFeatureCard}>
@@ -1061,10 +1067,12 @@ function SocialProfileHeader({
             {user.username ? `@${user.username}` : 'Telegram member'}
           </Text>
           <View style={styles.profileIdentityFooter}>
-            <View style={[styles.profileLevelPill, { borderColor: colors.primaryForeground + '55' }]}>
-              <Feather name="award" size={12} color={colors.primaryForeground} />
-              <Text numberOfLines={1} style={[styles.profileLevelText, { color: colors.primaryForeground }]}>{user.level}</Text>
-            </View>
+            {profileBadges.map((badge) => (
+              <View key={badge.key} style={[styles.profileBadge, { backgroundColor: colors.primaryForeground, borderColor: colors.primaryForeground }]}>
+                <Feather name={badge.icon} size={12} color={colors.primary} />
+                <Text numberOfLines={1} style={[styles.profileBadgeText, { color: colors.primary }]}>{badge.label}</Text>
+              </View>
+            ))}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Edit profile"
@@ -2088,9 +2096,9 @@ const styles = StyleSheet.create({
   profileNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   profileName: { flexShrink: 1, fontSize: 20, fontFamily: 'Inter_700Bold' },
   profileHandle: { fontSize: 12, fontFamily: 'Inter_500Medium', marginTop: 3 },
-  profileIdentityFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 10 },
-  profileLevelPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5, maxWidth: '68%' },
-  profileLevelText: { flexShrink: 1, fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  profileIdentityFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  profileBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5, maxWidth: '100%' },
+  profileBadgeText: { flexShrink: 1, fontSize: 10, fontFamily: 'Inter_600SemiBold' },
   profileAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 7 },
   profileActionText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   profileBentoRow: { flexDirection: 'row', gap: 10 },
