@@ -698,9 +698,13 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
         <LinearGradient colors={[colors.secondary, colors.primary, colors.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
         <View style={[styles.dashboardGlow, styles.dashboardGlowOne]} />
         <View style={[styles.dashboardGlow, styles.dashboardGlowTwo]} />
-        <Text style={styles.dashboardWelcome}>WELCOME BACK</Text>
-        <Text style={styles.dashboardName}>{firstName}</Text>
-        <Text style={styles.dashboardHeroBody}>Your next good thing is closer than you think.</Text>
+        <View style={styles.dashboardGreeting}>
+          <View style={styles.dashboardGreetingAccent} />
+          <View style={styles.dashboardGreetingCopy}>
+            <Text style={styles.dashboardWelcome}>Welcome back</Text>
+            <Text style={styles.dashboardName} numberOfLines={1}>{firstName}</Text>
+          </View>
+        </View>
 
         <Pressable accessibilityRole="button" accessibilityLabel="Open your experience journey" onPress={() => { triggerHaptic(); go('experiences'); }} style={styles.dashboardStatusStrip}>
           <View style={[styles.dashboardStatusIcon, { backgroundColor: colors.primary }]}>
@@ -2247,14 +2251,16 @@ const styles = StyleSheet.create({
   // Home
   dashboardScreen: { flex: 1 },
   dashboardContent: { paddingHorizontal: 18, paddingBottom: 20 },
-  dashboardHero: { minHeight: 276, paddingHorizontal: 24, paddingTop: 38, marginBottom: -34, position: 'relative' },
+  dashboardHero: { minHeight: 260, paddingHorizontal: 24, paddingTop: 34, marginBottom: -34, position: 'relative' },
   dashboardGlow: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 999 },
   dashboardGlowOne: { width: 220, height: 220, right: -82, top: -82 },
   dashboardGlowTwo: { width: 160, height: 160, left: -60, bottom: -76 },
-  dashboardWelcome: { color: 'rgba(255,255,255,0.78)', fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.4, textAlign: 'center', marginBottom: 5 },
-  dashboardName: { color: '#ffffff', fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', textAlign: 'center', letterSpacing: -0.8 },
-  dashboardHeroBody: { color: 'rgba(255,255,255,0.84)', fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 6, paddingHorizontal: 20 },
-  dashboardStatusStrip: { minHeight: 72, borderRadius: 22, backgroundColor: '#ffffff', flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 22 },
+  dashboardGreeting: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 0 },
+  dashboardGreetingAccent: { width: 3, height: 48, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.56)' },
+  dashboardGreetingCopy: { flex: 1, minWidth: 0 },
+  dashboardWelcome: { color: 'rgba(255,255,255,0.82)', fontSize: 14, fontFamily: 'Inter_500Medium', textAlign: 'left', marginBottom: 3 },
+  dashboardName: { color: '#ffffff', fontSize: 34, lineHeight: 40, fontFamily: 'Inter_700Bold', textAlign: 'left', letterSpacing: -0.9 },
+  dashboardStatusStrip: { minHeight: 72, borderRadius: 22, backgroundColor: '#ffffff', flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 24 },
   dashboardStatusIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 3 },
   dashboardStatusNumber: { color: '#ffffff', fontSize: 16, fontFamily: 'Inter_700Bold' },
   dashboardStatusCopy: { flex: 1 },

@@ -6,5 +6,7 @@ export const modules: ModuleMap = {
   "./components/mockups/experience-card/Current.tsx": () => import("../components/mockups/experience-card/Current.tsx"),
   "./components/mockups/experience-card/Reference.tsx": () => import("../components/mockups/experience-card/Reference.tsx"),
   "./components/mockups/experience-details/Current.tsx": () => import("../components/mockups/experience-details/Current.tsx"),
-  "./components/mockups/experience-details/Reference.tsx": () => import("../components/mockups/experience-details/Reference.tsx")
+  "./components/mockups/experience-details/Reference.tsx": () => import("../components/mockups/experience-details/Reference.tsx"),
+  "./components/mockups/dashboard-greeting/Current.tsx": () => import("../components/mockups/dashboard-greeting/Current.tsx"),
+  "./components/mockups/dashboard-greeting/Reference.tsx": () => import("../components/mockups/dashboard-greeting/Reference.tsx")
 };
