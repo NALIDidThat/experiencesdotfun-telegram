@@ -27,12 +27,11 @@ import {
   getMessageQualification,
   parseAdminRewardAmount,
 } from "./community-rules";
-
-type TelegramButton = {
-  text: string;
-  web_app?: { url: string };
-  callback_data?: string;
-};
+import {
+  makeChatCompatibleKeyboard,
+  parseTelegramCommand,
+  type TelegramButton,
+} from "./telegram-utils";
 
 type TelegramUpdate = {
   update_id: number;
@@ -128,12 +127,13 @@ export async function sendTelegramMessage(
 ) {
   const numericChatId = Number(chatId);
   if (!Number.isSafeInteger(numericChatId) || numericChatId === 0) return null;
+  const compatibleKeyboard = makeChatCompatibleKeyboard(numericChatId, inlineKeyboard);
   return telegramCall("sendMessage", {
     chat_id: numericChatId,
     text,
     parse_mode: "HTML",
     disable_web_page_preview: true,
-    reply_markup: inlineKeyboard ? { inline_keyboard: inlineKeyboard } : undefined,
+    reply_markup: compatibleKeyboard ? { inline_keyboard: compatibleKeyboard } : undefined,
   });
 }
 
@@ -255,8 +255,9 @@ async function sendCommandMenu(chatId: number) {
 
 async function handleCommand(chatId: number, chatType: string | undefined, identity: TelegramIdentity, text: string) {
   const user = await upsertTelegramUser(identity);
-  const [rawCommand, ...args] = text.trim().split(/\s+/);
-  const command = rawCommand.toLowerCase().split("@")[0];
+  const parsedCommand = parseTelegramCommand(text, botUsername);
+  if (!parsedCommand) return;
+  const { command, args } = parsedCommand;
   const privateCommands = new Set(["/onboarding", "/create", "/xp", "/progress", "/profile", "/friends", "/requests", "/add", "/addfriend", "/host"]);
   if (chatType !== "private" && privateCommands.has(command)) {
     await sendTelegramMessage(chatId, "For your privacy, use this command in a private chat with the Experiences.fun bot.");
@@ -639,7 +640,8 @@ async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
 
 async function handleCallback(update: NonNullable<TelegramUpdate["callback_query"]>) {
   await answerCallback(update.id);
-  if (update.message?.chat.type && update.message.chat.type !== "private") return;
+  const chatType = update.message?.chat.type;
+  if (chatType && chatType !== "private" && !isGroupChat(chatType)) return;
   const chatId = update.message?.chat.id ?? update.from.id;
   const callback = update.data ?? "";
   if (callback === "menu:open") {
@@ -672,6 +674,7 @@ async function handleCallback(update: NonNullable<TelegramUpdate["callback_query
     );
     return;
   }
+  if (chatType && chatType !== "private") return;
   const [kind, action, rawId] = update.data?.split(":") ?? [];
   const id = Number(rawId);
   if (kind !== "friend" || !["accept", "decline"].includes(action) || !Number.isSafeInteger(id)) return;
