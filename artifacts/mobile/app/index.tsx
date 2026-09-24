@@ -330,9 +330,25 @@ function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => vo
         onPress={() => { triggerHaptic(); onPress(); }}
         style={[styles.experienceCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
       >
-        <LinearGradient colors={gradient} style={styles.cardImage} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-          <Feather name={icon} size={48} color="#ffffff" style={{ opacity: 0.2 }} />
-        </LinearGradient>
+        {item.category === 'community' ? (
+          <ImageBackground
+            source={require('../assets/images/community-cover.jpg')}
+            accessibilityLabel={`Artwork for ${item.title}`}
+            resizeMode="cover"
+            style={styles.cardImage}
+          >
+            <LinearGradient
+              colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.28)']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+            />
+          </ImageBackground>
+        ) : (
+          <LinearGradient colors={gradient} style={styles.cardImage} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <Feather name={icon} size={48} color="#ffffff" style={{ opacity: 0.2 }} />
+          </LinearGradient>
+        )}
 
         <View style={styles.cardContent}>
           <View style={styles.cardHeader}>
