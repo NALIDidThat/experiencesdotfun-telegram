@@ -585,8 +585,11 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   const isWeb = Platform.OS === 'web';
   const topInset = isWeb ? 8 : insets.top;
   const bottomInset = isWeb ? 24 : Math.max(insets.bottom, 16);
-  const heroStageHeight = Math.max(190, Math.min(screenHeight * (isWeb ? 0.29 : 0.25), 250));
-  const heroImageHeight = Math.min(screenHeight * 0.74, 720);
+  const isCompactWelcome = screenHeight < 740;
+  const heroStageHeight = isCompactWelcome
+    ? Math.max(214, screenHeight * 0.33)
+    : Math.min(screenHeight * 0.36, 310);
+  const heroImageHeight = Math.min(screenHeight * 0.55, 470);
 
   const handleTelegramLogin = async () => {
     if (user || await login()) onContinue();
@@ -654,19 +657,16 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
             accessibilityLabel="Skip to email login"
             testID="welcome-skip"
             onPress={() => { clearAuthError(); setEmailAuthOpen(true); }}
-            style={({ pressed }) => [styles.welcomeSkipButton, { opacity: pressed ? 0.65 : 1 }]}
+            style={({ pressed }) => [
+              styles.welcomeSkipButton,
+              { backgroundColor: welcome.surface, borderColor: welcome.border, opacity: pressed ? 0.65 : 1 },
+            ]}
           >
             <Text style={[styles.welcomeSkipText, { color: welcome.muted }]}>Skip</Text>
           </Pressable>
         </View>
 
         <View style={[styles.welcomeHeroStage, { height: heroStageHeight, marginHorizontal: 26 }]}>
-          <View style={styles.welcomeHandwritten}>
-            <Text style={[styles.welcomeHandwrittenText, { color: welcome.muted }]}>
-              Real{'\n'}People{'\n'}Brighter{'\n'}Communities
-            </Text>
-            <View style={[styles.welcomeHandwrittenUnderline, { backgroundColor: welcome.muted }]} />
-          </View>
           <View style={[styles.welcomeXpCard, { backgroundColor: welcome.surface, borderColor: welcome.border }]}>
             <View style={[styles.welcomeMedal, { backgroundColor: colors.primary }]}>
               <Feather name="award" size={19} color={welcome.gold} />
@@ -678,7 +678,7 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
           </View>
         </View>
 
-        <View style={styles.welcomeContent}>
+        <View style={[styles.welcomeContent, { backgroundColor: welcome.background }]}>
           <Text style={[styles.welcomeTitle, { color: welcome.foreground }]}>
             Real people{'\n'}doing <Text style={{ color: colors.primary }}>real things.</Text>
           </Text>
@@ -3116,22 +3116,19 @@ const styles = StyleSheet.create({
   welcomeStatusIcons: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   welcomeSignal: { height: 12, flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
   welcomeSignalBar: { width: 2, borderRadius: 1 },
-  welcomeHeader: { width: '100%', height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
-  welcomeBrand: { position: 'absolute', left: 0, right: 0, textAlign: 'center', fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: -0.7 },
-  welcomeSkipButton: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'flex-end', zIndex: 1 },
+  welcomeHeader: { width: '100%', height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  welcomeBrand: { fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: -0.7 },
+  welcomeSkipButton: { minWidth: 54, minHeight: 32, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: 16, zIndex: 1 },
   welcomeSkipText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
   welcomeHeroStage: { width: '100%', position: 'relative' },
-  welcomeHandwritten: { position: 'absolute', left: 4, top: 28, transform: [{ rotate: '-5deg' }] },
-  welcomeHandwrittenText: { fontSize: 15, lineHeight: 21, fontFamily: 'Inter_400Regular', fontStyle: 'italic', opacity: 0.78 },
-  welcomeHandwrittenUnderline: { width: 38, height: 1, marginTop: 10, marginLeft: 12, opacity: 0.5, transform: [{ rotate: '-12deg' }] },
-  welcomeXpCard: { position: 'absolute', right: 0, bottom: 8, minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderRadius: 15 },
+  welcomeXpCard: { position: 'absolute', right: 0, bottom: 32, minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderRadius: 15 },
   welcomeMedal: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   welcomeXpCopy: { gap: 2 },
   welcomeXpValue: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   welcomeXpLabel: { fontSize: 8, fontFamily: 'Inter_500Medium' },
-  welcomeContent: { width: '100%', maxWidth: 540, flexGrow: 1, paddingHorizontal: 26 },
+  welcomeContent: { width: '100%', maxWidth: 540, flexGrow: 1, paddingHorizontal: 26, paddingTop: 24, paddingBottom: 8, marginTop: -24, borderTopLeftRadius: 28, borderTopRightRadius: 28, zIndex: 1 },
   welcomeTitle: { fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', letterSpacing: -0.85 },
-  welcomeDetails: { flexGrow: 1, justifyContent: 'space-between', paddingTop: 24 },
+  welcomeDetails: { flexGrow: 1, justifyContent: 'space-between', paddingTop: 18 },
   welcomeDescription: { fontSize: 14, lineHeight: 21, fontFamily: 'Inter_400Regular' },
   welcomeSocialProof: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 13 },
   welcomeAvatars: { flexDirection: 'row', alignItems: 'center', paddingLeft: 1 },
