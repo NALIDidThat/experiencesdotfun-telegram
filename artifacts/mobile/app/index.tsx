@@ -699,7 +699,7 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
                 onPress={onContinue}
                 style={({ pressed }) => [
                   styles.welcomeTelegramButton,
-                  { width: '100%', backgroundColor: colors.primary, borderRadius: colors.radius * 2, opacity: pressed ? 0.86 : 1 },
+                  { width: '100%', backgroundColor: colors.primary, borderRadius: colors.radius, opacity: pressed ? 0.86 : 1 },
                 ]}
               >
                 <Text style={[styles.welcomeTelegramLabel, { color: colors.primaryForeground }]}>Get started</Text>
@@ -3694,7 +3694,7 @@ const styles = StyleSheet.create({
   welcomeSocialText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
   welcomeError: { textAlign: 'center', fontSize: 12, lineHeight: 18, fontFamily: 'Inter_600SemiBold', marginTop: 10 },
   welcomeAuthActions: { flexDirection: 'row', gap: 10 },
-  welcomeTelegramButton: { flex: 1, height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 10 },
+  welcomeTelegramButton: { flex: 0, alignSelf: 'stretch', height: 62, minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 18 },
   welcomeTelegramLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   welcomeEmailButton: { flex: 1, height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 10, borderWidth: 1 },
   welcomeTelegramNote: { alignSelf: 'center', textAlign: 'center', fontSize: 10, lineHeight: 15, fontFamily: 'Inter_400Regular' },
