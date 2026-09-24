@@ -4,6 +4,7 @@ import {
   Animated,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -180,21 +181,88 @@ function Button({
   );
 }
 
-function Header({ title, subtitle, onBack }: { title: string; subtitle?: string; onBack?: () => void }) {
+type HeaderMenuItem = { key: string; label: string; icon: IconName; onPress: () => void };
+
+function Header({
+  title,
+  subtitle,
+  onBack,
+  menuItems,
+}: {
+  title: string;
+  subtitle?: string;
+  onBack?: () => void;
+  menuItems?: HeaderMenuItem[];
+}) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const headerTop = Platform.OS === 'web' ? Math.max(insets.top, 67) : insets.top + 16;
+
   return (
-    <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 67) : insets.top + 16 }]}>
-      {onBack && (
-        <Pressable accessibilityLabel="Go back" onPress={() => { triggerHaptic(); onBack(); }} style={styles.backButton}>
-          <Feather name="arrow-left" size={20} color={colors.foreground} />
-        </Pressable>
-      )}
-      <View style={styles.headerCopy}>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>{title}</Text>
-        {subtitle && <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>{subtitle}</Text>}
+    <>
+      <View style={[styles.header, { paddingTop: headerTop }]}>
+        {onBack && (
+          <Pressable accessibilityLabel="Go back" onPress={() => { triggerHaptic(); onBack(); }} style={styles.backButton}>
+            <Feather name="arrow-left" size={20} color={colors.foreground} />
+          </Pressable>
+        )}
+        <View style={styles.headerCopy}>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>{title}</Text>
+          {subtitle && <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>{subtitle}</Text>}
+        </View>
+        {menuItems?.length ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open profile menu"
+            accessibilityState={{ expanded: menuOpen }}
+            onPress={() => { triggerHaptic(); setMenuOpen((open) => !open); }}
+            style={({ pressed }) => [styles.headerMenuButton, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Feather name="more-horizontal" size={22} color={colors.foreground} />
+          </Pressable>
+        ) : null}
       </View>
-    </View>
+      {menuItems?.length ? (
+        <Modal transparent visible={menuOpen} animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+          <View style={styles.headerMenuOverlay}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close profile menu"
+              onPress={() => setMenuOpen(false)}
+              style={StyleSheet.absoluteFill}
+            />
+            <View
+              style={[
+                styles.headerMenuPopover,
+                {
+                  top: headerTop + 44,
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  borderRadius: colors.radius,
+                },
+              ]}
+            >
+              {menuItems.map((item) => (
+                <Pressable
+                  key={item.key}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    triggerHaptic();
+                    setMenuOpen(false);
+                    item.onPress();
+                  }}
+                  style={({ pressed }) => [styles.headerMenuItem, { opacity: pressed ? 0.65 : 1 }]}
+                >
+                  <Feather name={item.icon} size={16} color={colors.primary} />
+                  <Text style={[styles.headerMenuItemText, { color: colors.foreground }]}>{item.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </Modal>
+      ) : null}
+    </>
   );
 }
 
@@ -1036,11 +1104,9 @@ function ContributionDashboard({ user, completed }: { user: User; completed: Par
 function SocialProfileHeader({
   user,
   friendsCount,
-  onEdit,
 }: {
   user: User;
   friendsCount: number;
-  onEdit: () => void;
 }) {
   const colors = useColors();
   const interests = user.interests?.map((interest) => categoryLabel[interest]).join(' · ');
@@ -1073,18 +1139,6 @@ function SocialProfileHeader({
                 <Text numberOfLines={1} style={[styles.profileBadgeText, { color: colors.primary }]}>{badge.label}</Text>
               </View>
             ))}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Edit profile"
-              onPress={() => { triggerHaptic(); onEdit(); }}
-              style={({ pressed }) => [
-                styles.profileAction,
-                { backgroundColor: colors.primaryForeground, borderRadius: colors.radius - 5, opacity: pressed ? 0.82 : 1 },
-              ]}
-            >
-              <Feather name="edit-2" size={13} color={colors.primary} />
-              <Text style={[styles.profileActionText, { color: colors.primary }]}>Edit</Text>
-            </Pressable>
           </View>
         </View>
       </View>
@@ -1193,9 +1247,20 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
     >
-      <Header title="Passport" subtitle="Your contribution identity." />
+      <Header
+        title="Passport"
+        subtitle="Your contribution identity."
+        menuItems={[
+          {
+            key: 'edit-profile',
+            label: editing ? 'Close edit form' : 'Edit profile',
+            icon: editing ? 'x' : 'edit-2',
+            onPress: () => setEditing((value) => !value),
+          },
+        ]}
+      />
 
-      <SocialProfileHeader user={current} friendsCount={friends.data?.length ?? 0} onEdit={() => setEditing((value) => !value)} />
+      <SocialProfileHeader user={current} friendsCount={friends.data?.length ?? 0} />
 
       {editing ? (
         <View style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
@@ -1846,6 +1911,11 @@ const styles = StyleSheet.create({
   header: { paddingBottom: 24, flexDirection: 'row', alignItems: 'flex-start' },
   backButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
   headerCopy: { flex: 1 },
+  headerMenuButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: 8, marginTop: -4 },
+  headerMenuOverlay: { flex: 1 },
+  headerMenuPopover: { position: 'absolute', right: 16, width: 196, borderWidth: 1, paddingVertical: 4, elevation: 8 },
+  headerMenuItem: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
+  headerMenuItemText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
   headerTitle: { fontSize: 28, fontFamily: 'Inter_700Bold' },
   headerSubtitle: { fontSize: 15, fontFamily: 'Inter_400Regular', marginTop: 4 },
 
@@ -2099,8 +2169,6 @@ const styles = StyleSheet.create({
   profileIdentityFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   profileBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5, maxWidth: '100%' },
   profileBadgeText: { flexShrink: 1, fontSize: 10, fontFamily: 'Inter_600SemiBold' },
-  profileAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 7 },
-  profileActionText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   profileBentoRow: { flexDirection: 'row', gap: 10 },
   profileCompletedTile: { flex: 1.05, minHeight: 148, justifyContent: 'space-between', padding: 13, borderWidth: 1 },
   profileBentoStack: { flex: 1, gap: 10 },
