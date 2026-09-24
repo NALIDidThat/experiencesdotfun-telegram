@@ -49,6 +49,16 @@ export const AuthenticateTelegramResponse = zod.object({
   "country": zod.string().nullable(),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "participationType": zod.enum(['join', 'host', 'both']).nullable(),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "verified": zod.boolean()
+}).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
   "completedCount": zod.number().int(),
@@ -88,6 +98,16 @@ export const SignUpWithEmailResponse = zod.object({
   "country": zod.string().nullable(),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "participationType": zod.enum(['join', 'host', 'both']).nullable(),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "verified": zod.boolean()
+}).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
   "completedCount": zod.number().int(),
@@ -124,6 +144,16 @@ export const LoginWithEmailResponse = zod.object({
   "country": zod.string().nullable(),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "participationType": zod.enum(['join', 'host', 'both']).nullable(),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "verified": zod.boolean()
+}).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
   "completedCount": zod.number().int(),
@@ -151,6 +181,16 @@ export const GetMeResponse = zod.object({
   "country": zod.string().nullable(),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "participationType": zod.enum(['join', 'host', 'both']).nullable(),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "verified": zod.boolean()
+}).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
   "completedCount": zod.number().int(),
@@ -163,6 +203,16 @@ export const GetMeResponse = zod.object({
  * @summary Update the current user's profile
  */
 
+export const updateMeBodyOrganisationNameMin = 2;
+export const updateMeBodyOrganisationNameMax = 120;
+
+export const updateMeBodyOrganisationDescriptionMin = 10;
+export const updateMeBodyOrganisationDescriptionMax = 600;
+
+export const updateMeBodyOrganisationCityMin = 2;
+export const updateMeBodyOrganisationCityMax = 100;
+
+
 
 
 export const UpdateMeBody = zod.object({
@@ -171,7 +221,14 @@ export const UpdateMeBody = zod.object({
   "city": zod.string().nullish(),
   "country": zod.string().nullish(),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])).optional(),
-  "participationType": zod.enum(['join', 'host', 'both']).optional()
+  "participationType": zod.enum(['join', 'host', 'both']).optional(),
+  "userType": zod.enum(['participant', 'organisation']).optional(),
+  "organisation": zod.object({
+  "name": zod.string().min(updateMeBodyOrganisationNameMin).max(updateMeBodyOrganisationNameMax),
+  "description": zod.string().min(updateMeBodyOrganisationDescriptionMin).max(updateMeBodyOrganisationDescriptionMax),
+  "city": zod.string().min(updateMeBodyOrganisationCityMin).max(updateMeBodyOrganisationCityMax),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])).min(1)
+}).optional()
 })
 
 export const UpdateMeResponse = zod.object({
@@ -187,6 +244,16 @@ export const UpdateMeResponse = zod.object({
   "country": zod.string().nullable(),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "participationType": zod.enum(['join', 'host', 'both']).nullable(),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "verified": zod.boolean()
+}).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
   "completedCount": zod.number().int(),

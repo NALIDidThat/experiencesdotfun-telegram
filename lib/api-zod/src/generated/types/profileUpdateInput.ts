@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ExperienceCategory } from './experienceCategory';
+import type { OrganisationProfileInput } from './organisationProfileInput';
 import type { ParticipationType } from './participationType';
+import type { UserType } from './userType';
 
 export interface ProfileUpdateInput {
   /** @minLength 1 */
@@ -19,4 +21,6 @@ export interface ProfileUpdateInput {
   country?: string | null;
   interests?: ExperienceCategory[];
   participationType?: ParticipationType;
+  userType?: UserType;
+  organisation?: OrganisationProfileInput;
 }

@@ -47,6 +47,7 @@ import {
   useUpdateMe,
   useVerifyParticipation,
   getGetExperienceQueryKey,
+  getListMyParticipationsQueryKey,
   getListHostExperiencesQueryKey,
   getListExperienceParticipantsQueryKey,
   getListFriendRequestsQueryKey,
@@ -57,8 +58,8 @@ import {
   type ExperienceDetail,
   type ExperienceCreateInput,
   type Participation,
-  type ParticipationType,
   type User,
+  type UserType,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
@@ -767,29 +768,71 @@ function Onboarding({ user, onDone }: { user: User | null; onDone: () => void })
   const queryClient = useQueryClient();
   const update = useUpdateMe();
   const { refresh } = useAuth();
-  const [step, setStep] = useState(user ? 1 : 0);
+  const [step, setStep] = useState(user ? (user.userType ? 1 : 0) : 0);
+  const [accountType, setAccountType] = useState<UserType | null>(user?.userType ?? null);
+  const [selectedAccountType, setSelectedAccountType] = useState<UserType | null>(user?.userType ?? null);
   const [interests, setInterests] = useState<ExperienceCategory[]>(user?.interests ?? []);
   const [city, setCity] = useState(user?.city ?? '');
-  const [participationType, setParticipationType] = useState<ParticipationType>((user?.participationType as ParticipationType) ?? 'join');
+  const [organisationName, setOrganisationName] = useState(user?.organisation?.name ?? '');
+  const [organisationDescription, setOrganisationDescription] = useState(user?.organisation?.description ?? '');
   const [bio, setBio] = useState(user?.bio ?? '');
   const [name, setName] = useState(user?.name ?? '');
   const [saveError, setSaveError] = useState<string | null>(null);
   const totalSteps = 5;
 
+  const persistAccountType = async () => {
+    if (!user || !selectedAccountType || update.isPending) return;
+    triggerHaptic();
+    setSaveError(null);
+    try {
+      await update.mutateAsync({ data: { userType: selectedAccountType } });
+      invalidateAppQueries(queryClient);
+      await refresh();
+      setAccountType(selectedAccountType);
+      setStep(1);
+    } catch (error) {
+      setSaveError(requestErrorMessage(error, 'We couldn’t save your account type. Please try again.'));
+    }
+  };
+
   const next = async () => {
     triggerHaptic();
     Keyboard.dismiss();
     if (step === 1 && !name.trim()) return;
-    if (step === 2 && interests.length === 0) return;
-    if (step === 3 && !city.trim()) return;
+    if (step === 2 && accountType === 'participant' && interests.length === 0) return;
+    if (step === 2 && accountType === 'organisation' && (!organisationName.trim() || !organisationDescription.trim())) return;
+    if (step === 3 && (!city.trim() || (accountType === 'organisation' && interests.length === 0))) return;
     if (step === totalSteps - 1) {
-      if (!user) {
-        setSaveError('Log in or create an account before saving your passport.');
+      if (!user || !accountType) {
+        setSaveError('Choose an account type before saving your profile.');
         return;
       }
       setSaveError(null);
       try {
-        await update.mutateAsync({ data: { name: name.trim(), bio: bio.trim() || null, city: city.trim(), interests, participationType } });
+        const data = accountType === 'organisation'
+          ? {
+              name: name.trim(),
+              bio: bio.trim() || null,
+              city: city.trim(),
+              interests,
+              participationType: 'host' as const,
+              userType: accountType,
+              organisation: {
+                name: organisationName.trim(),
+                description: organisationDescription.trim(),
+                city: city.trim(),
+                categories: interests,
+              },
+            }
+          : {
+              name: name.trim(),
+              bio: bio.trim() || null,
+              city: city.trim(),
+              interests,
+              participationType: 'join' as const,
+              userType: accountType,
+            };
+        await update.mutateAsync({ data });
         invalidateAppQueries(queryClient);
         await refresh();
         onDone();
@@ -800,12 +843,83 @@ function Onboarding({ user, onDone }: { user: User | null; onDone: () => void })
     }
     setStep((value) => value + 1);
   };
-  const previous = () => { triggerHaptic(); Keyboard.dismiss(); setStep((value) => Math.max(0, value - 1)); };
-  const dots = Array.from({ length: totalSteps }, (_, index) => index);
+  const previous = () => { triggerHaptic(); Keyboard.dismiss(); setStep((value) => Math.max(1, value - 1)); };
+  const dots = Array.from({ length: totalSteps - 1 }, (_, index) => index + 1);
 
-  if (step === 0) {
+  if (!user) {
     return <TalentWelcome onContinue={() => setStep(1)} />;
   }
+
+  if (step === 0) {
+    return (
+      <KeyboardAwareScrollViewCompat
+        style={[styles.onboarding, { backgroundColor: colors.background }]}
+        contentContainerStyle={[styles.onboardingScreenContent, { paddingTop: 12, paddingBottom: Math.max(insets.bottom, 24) }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.onboardingTopBar}>
+          <View style={styles.onboardingBack} />
+          <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>ACCOUNT TYPE</Text>
+        </View>
+        <View style={styles.onboardingContent}>
+          <View style={styles.onboardingSlide}>
+            <View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}>
+              <Feather name="users" size={32} color={colors.primary} />
+            </View>
+            <Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>FIRST, CHOOSE YOUR ACCOUNT</Text>
+            <Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>How will you use Experiences.fun?</Text>
+            <Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Your choice sets up the right profile and tools. You can’t change the account type after choosing.</Text>
+            <View style={styles.onboardingChoices}>
+              {([
+                {
+                  value: 'participant' as const,
+                  title: 'Participant',
+                  description: 'Find and join local experiences, track your impact and meet your community.',
+                  icon: 'compass' as IconName,
+                },
+                {
+                  value: 'organisation' as const,
+                  title: 'Organisation',
+                  description: 'Create and manage experiences for your community, and track participation.',
+                  icon: 'briefcase' as IconName,
+                },
+              ]).map((option) => {
+                const selected = selectedAccountType === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    onPress={() => { triggerHaptic(); setSelectedAccountType(option.value); }}
+                    style={[styles.onboardingParticipationCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}
+                  >
+                    <Feather name={option.icon} size={23} color={selected ? colors.primary : colors.mutedForeground} />
+                    <View style={{ flex: 1, marginHorizontal: 12 }}>
+                      <Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{option.title}</Text>
+                      <Text style={[styles.inputHint, { color: colors.mutedForeground, marginTop: 4 }]}>{option.description}</Text>
+                    </View>
+                    <Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} />
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+        <View style={styles.onboardingFooter}>
+          {saveError ? <InlineError message={saveError} /> : null}
+          <Button label={update.isPending ? 'Saving…' : 'Continue'} disabled={!selectedAccountType || update.isPending} onPress={() => void persistAccountType()} />
+        </View>
+      </KeyboardAwareScrollViewCompat>
+    );
+  }
+
+  const stepIsInvalid =
+    (step === 1 && !name.trim()) ||
+    (step === 2 && (accountType === 'participant'
+      ? interests.length === 0
+      : !organisationName.trim() || !organisationDescription.trim())) ||
+    (step === 3 && (!city.trim() || (accountType === 'organisation' && interests.length === 0)));
 
   return (
     <KeyboardAwareScrollViewCompat
@@ -816,19 +930,20 @@ function Onboarding({ user, onDone }: { user: User | null; onDone: () => void })
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.onboardingTopBar}>
-        {step > 0 ? <Pressable accessibilityLabel="Back" onPress={previous} style={[styles.onboardingBack, { backgroundColor: colors.muted }]}><Feather name="arrow-left" size={22} color={colors.foreground} /></Pressable> : <View style={styles.onboardingBack} />}
-        <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>0{step + 1} / 05</Text>
+        {step > 1 ? <Pressable accessibilityLabel="Back" onPress={previous} style={[styles.onboardingBack, { backgroundColor: colors.muted }]}><Feather name="arrow-left" size={22} color={colors.foreground} /></Pressable> : <View style={styles.onboardingBack} />}
+        <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>0{step} / 04</Text>
       </View>
       <View style={styles.onboardingContent}>
-        {step === 1 ? <View style={styles.onboardingSlide}><View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}><Feather name="user" size={32} color={colors.primary} /></View><Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>STEP 01 · YOUR PASSPORT</Text><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Let’s make it yours.</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Tell us what people should call you when you show up. You can change this later.</Text><View style={styles.onboardingForm}><Text style={[styles.onboardingFieldLabel, { color: colors.foreground }]}>Display name</Text><View style={[styles.onboardingInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}><Feather name="smile" size={20} color={colors.mutedForeground} /><TextInput autoFocus value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, { color: colors.foreground }]} /></View><Text style={[styles.inputHint, { color: colors.mutedForeground }]}>Your Telegram username stays connected automatically.</Text></View></View> : null}
-        {step === 2 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>What matters to you?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Pick the causes you'd like to see first.</Text><View style={styles.onboardingChoices}>{categories.slice(1).map((item) => { const selected = interests.includes(item.key as ExperienceCategory); return <Pressable key={item.key} onPress={() => { triggerHaptic(); setInterests((current) => selected ? current.filter((value) => value !== item.key) : [...current, item.key as ExperienceCategory]); }} style={[styles.choiceCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Feather name={item.icon} size={24} color={selected ? colors.primary : colors.mutedForeground} /><Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{item.label}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></View> : null}
-        {step === 3 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Where will you show up?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>We'll use your city to find nearby opportunities.</Text><View style={styles.onboardingForm}><TextInput autoFocus value={city} onChangeText={setCity} placeholder="e.g. London" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, styles.cityInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]} /><Text style={[styles.formLabel, { color: colors.foreground }]}>I want to…</Text><View style={styles.onboardingChoices}>{(['join', 'host', 'both'] as ParticipationType[]).map((value) => { const selected = participationType === value; const labels = { join: 'Join experiences', host: 'Host experiences', both: 'Do both' }; return <Pressable key={value} onPress={() => { triggerHaptic(); setParticipationType(value); }} style={[styles.onboardingParticipationCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{labels[value]}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></View></View> : null}
-        {step === 4 ? <View style={styles.onboardingSlide}><OnboardingArtwork variant="complete" /><Text style={[styles.onboardingSmallTitle, { color: colors.foreground, textAlign: 'center' }]}>We're all set!</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground, textAlign: 'center' }]}>You're ready to find your next good thing, {name.trim() || 'friend'}.</Text><TextInput value={bio} onChangeText={setBio} multiline placeholder="Add a short bio (optional)" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius, marginTop: 24 }]} /></View> : null}
+        {step === 1 ? <View style={styles.onboardingSlide}><View style={[styles.secondScreenIcon, { backgroundColor: colors.primary + '14' }]}><Feather name={accountType === 'organisation' ? 'briefcase' : 'user'} size={32} color={colors.primary} /></View><Text style={[styles.onboardingEyebrow, { color: colors.primary }]}>STEP 01 · {accountType === 'organisation' ? 'ORGANISATION CONTACT' : 'PARTICIPANT PROFILE'}</Text><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>{accountType === 'organisation' ? 'Who will represent your organisation?' : 'Let’s make your profile yours.'}</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>{accountType === 'organisation' ? 'Add the name participants will see when they connect with your organisation.' : 'Tell us what people should call you when you show up.'}</Text><View style={styles.onboardingForm}><Text style={[styles.onboardingFieldLabel, { color: colors.foreground }]}>{accountType === 'organisation' ? 'Contact name' : 'Display name'}</Text><View style={[styles.onboardingInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}><Feather name="smile" size={20} color={colors.mutedForeground} /><TextInput autoFocus value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, { color: colors.foreground }]} /></View><Text style={[styles.inputHint, { color: colors.mutedForeground }]}>{user.email ? `Signed in as ${user.email}` : 'Your Telegram username stays connected automatically.'}</Text></View></View> : null}
+        {step === 2 && accountType === 'participant' ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>What matters to you?</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>Pick the causes you'd like to see first.</Text><View style={styles.onboardingChoices}>{categories.slice(1).map((item) => { const selected = interests.includes(item.key as ExperienceCategory); return <Pressable key={item.key} onPress={() => { triggerHaptic(); setInterests((current) => selected ? current.filter((value) => value !== item.key) : [...current, item.key as ExperienceCategory]); }} style={[styles.choiceCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Feather name={item.icon} size={24} color={selected ? colors.primary : colors.mutedForeground} /><Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{item.label}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></View> : null}
+        {step === 2 && accountType === 'organisation' ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>Tell us about your organisation.</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>This helps participants understand who is hosting their experience.</Text><View style={styles.onboardingForm}><Text style={[styles.onboardingFieldLabel, { color: colors.foreground }]}>Organisation name</Text><TextInput autoFocus value={organisationName} onChangeText={setOrganisationName} placeholder="e.g. The Good Gym" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, styles.cityInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]} /><Text style={[styles.onboardingFieldLabel, { color: colors.foreground, marginTop: 18 }]}>What does your organisation do?</Text><TextInput value={organisationDescription} onChangeText={setOrganisationDescription} multiline maxLength={600} placeholder="Describe your community and the work you do" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]} /></View></View> : null}
+        {step === 3 ? <View style={styles.onboardingSlide}><Text style={[styles.onboardingSmallTitle, { color: colors.foreground }]}>{accountType === 'organisation' ? 'Where is your organisation based?' : 'Where will you show up?'}</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>{accountType === 'organisation' ? 'Set the location participants should associate with your organisation.' : "We'll use your city to find nearby opportunities."}</Text><View style={styles.onboardingForm}><TextInput autoFocus value={city} onChangeText={setCity} placeholder="e.g. London" placeholderTextColor={colors.mutedForeground} style={[styles.onboardingNameInput, styles.cityInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]} />{accountType === 'organisation' ? <><Text style={[styles.formLabel, { color: colors.foreground }]}>Causes your organisation supports</Text><View style={styles.onboardingChoices}>{categories.slice(1).map((item) => { const selected = interests.includes(item.key as ExperienceCategory); return <Pressable key={item.key} onPress={() => { triggerHaptic(); setInterests((current) => selected ? current.filter((value) => value !== item.key) : [...current, item.key as ExperienceCategory]); }} style={[styles.choiceCard, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}><Feather name={item.icon} size={22} color={selected ? colors.primary : colors.mutedForeground} /><Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{item.label}</Text><Feather name={selected ? 'check-circle' : 'circle'} size={20} color={selected ? colors.primary : colors.border} /></Pressable>; })}</View></> : null}</View></View> : null}
+        {step === 4 ? <View style={styles.onboardingSlide}><OnboardingArtwork variant="complete" /><Text style={[styles.onboardingSmallTitle, { color: colors.foreground, textAlign: 'center' }]}>{accountType === 'organisation' ? 'Your organisation is ready.' : "You're all set!"}</Text><Text style={[styles.onboardingBody, { color: colors.mutedForeground, textAlign: 'center' }]}>{accountType === 'organisation' ? `You're ready to bring your next experience to life, ${name.trim() || 'host'}.` : `You're ready to find your next good thing, ${name.trim() || 'friend'}.`}</Text><TextInput value={bio} onChangeText={setBio} multiline maxLength={280} placeholder={accountType === 'organisation' ? 'Add a short contact bio (optional)' : 'Add a short bio (optional)'} placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius, marginTop: 24 }]} /></View> : null}
       </View>
       <View style={styles.onboardingFooter}>
         {saveError ? <InlineError message={saveError} /> : null}
         <View style={styles.onboardingDots}>{dots.map((index) => <View key={index} style={[styles.onboardingDot, { backgroundColor: index === step ? colors.primary : colors.border }]} />)}</View>
-        <Button label={update.isPending ? 'Saving…' : step === totalSteps - 1 ? "Let's go!" : 'Continue'} disabled={update.isPending || (step === 1 && !name.trim()) || (step === 2 && interests.length === 0) || (step === 3 && !city.trim())} onPress={() => void next()} />
+        <Button label={update.isPending ? 'Saving…' : step === totalSteps - 1 ? (accountType === 'organisation' ? 'Create organisation profile' : 'Create participant profile') : 'Continue'} disabled={update.isPending || stepIsInvalid} onPress={() => void next()} />
       </View>
     </KeyboardAwareScrollViewCompat>
   );
@@ -838,15 +953,19 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
   const colors = useColors();
   const { user: authenticatedUser } = useAuth();
   const query = useListExperiences({ availableOnly: true });
-  const participations = useListMyParticipations({ status: 'upcoming' });
+  const participations = useListMyParticipations(
+    { status: 'upcoming' },
+    { query: { enabled: user.userType === 'participant', queryKey: getListMyParticipationsQueryKey({ status: 'upcoming' }) } },
+  );
   const items = query.data ?? [];
   const firstName = user.name.split(' ')[0];
   const upcomingCount = participations.data?.length ?? 0;
   const quickActions: Array<{ label: string; icon: IconName; screen: Screen }> = [
     { label: 'Explore', icon: 'compass', screen: 'explore' },
-    { label: 'Journey', icon: 'calendar', screen: 'experiences' },
-    { label: 'Passport', icon: 'award', screen: 'profile' },
-    ...(user.participationType !== 'join' ? [{ label: 'Host', icon: 'plus-circle' as IconName, screen: 'host' as Screen }] : []),
+    ...(user.userType === 'participant'
+      ? [{ label: 'Journey', icon: 'calendar' as IconName, screen: 'experiences' as Screen }]
+      : [{ label: 'Host tools', icon: 'briefcase' as IconName, screen: 'host' as Screen }]),
+    { label: user.userType === 'organisation' ? 'Organisation' : 'Passport', icon: user.userType === 'organisation' ? 'briefcase' : 'award', screen: 'profile' },
   ];
 
   return (
@@ -1056,6 +1175,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const query = useGetExperience(id, { query: { queryKey: getGetExperienceQueryKey(id), enabled: Number.isSafeInteger(id) && id > 0 } });
   const join = useJoinExperience({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const submit = useSubmitCompletion({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
@@ -1272,7 +1392,15 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
       >
         {query.isError ? <InlineError message="We couldn’t refresh this experience. Your current details are still shown." /> : null}
         {actionError ? <InlineError message={actionError} /> : null}
-        {item.joined && participation ? (
+        {user?.userType === 'organisation' ? (
+          <View style={[styles.joinedBanner, { backgroundColor: colors.primary + '12', borderRadius: colors.radius }]}>
+            <Feather name="briefcase" size={26} color={colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.joinedTitle, { color: colors.primary }]}>Viewing as an Organisation</Text>
+              <Text style={[styles.joinedSub, { color: colors.mutedForeground }]}>Participant accounts can join this experience. Use your organisation account to host experiences.</Text>
+            </View>
+          </View>
+        ) : item.joined && participation ? (
           <View>
             <View style={[styles.joinedBanner, { backgroundColor: colors.success + '15', borderRadius: colors.radius }]}>
               <Feather name="check-circle" size={28} color={colors.success} />
@@ -1852,8 +1980,11 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const { user: authenticatedUser, authError, login, refresh, signOut } = useAuth();
   const queryClient = useQueryClient();
   const profile = useGetMe();
-  const completed = useListMyParticipations({ status: 'completed' });
-  const hosted = useListHostExperiences({ query: { enabled: Boolean(authenticatedUser), queryKey: getListHostExperiencesQueryKey() } });
+  const completed = useListMyParticipations(
+    { status: 'completed' },
+    { query: { enabled: authenticatedUser?.userType === 'participant', queryKey: getListMyParticipationsQueryKey({ status: 'completed' }) } },
+  );
+  const hosted = useListHostExperiences({ query: { enabled: authenticatedUser?.userType === 'organisation', queryKey: getListHostExperiencesQueryKey() } });
   const friends = useListFriends({ query: { queryKey: getListFriendsQueryKey(), enabled: Boolean(authenticatedUser) } });
   const requests = useListFriendRequests({ query: { queryKey: getListFriendRequestsQueryKey(), refetchInterval: 5_000, enabled: Boolean(authenticatedUser) } });
   const sentRequests = useListSentFriendRequests({ query: { queryKey: getListSentFriendRequestsQueryKey(), refetchInterval: 5_000, enabled: Boolean(authenticatedUser) } });
@@ -1866,7 +1997,8 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const [city, setCity] = useState(user.city ?? '');
   const [bio, setBio] = useState(user.bio ?? '');
   const [interests, setInterests] = useState<ExperienceCategory[]>(user.interests ?? []);
-  const [participationType, setParticipationType] = useState<ParticipationType>((user.participationType as ParticipationType) ?? 'join');
+  const [organisationName, setOrganisationName] = useState(user.organisation?.name ?? '');
+  const [organisationDescription, setOrganisationDescription] = useState(user.organisation?.description ?? '');
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
   const [profileMenuError, setProfileMenuError] = useState<string | null>(null);
   const [username, setUsername] = useState('');
@@ -1886,7 +2018,8 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       setCity(current.city ?? '');
       setBio(current.bio ?? '');
       setInterests(current.interests ?? []);
-      setParticipationType((current.participationType as ParticipationType) ?? 'join');
+      setOrganisationName(current.organisation?.name ?? '');
+      setOrganisationDescription(current.organisation?.description ?? '');
       setProfileSaveError(null);
     }
     setEditing((value) => !value);
@@ -1895,7 +2028,19 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const saveProfile = async () => {
     setProfileSaveError(null);
     try {
-      await update.mutateAsync({ data: { name: name.trim(), city: city.trim(), bio: bio.trim() || null, interests, participationType } });
+      const baseData = { name: name.trim(), city: city.trim(), bio: bio.trim() || null, interests };
+      const data = current.userType === 'organisation'
+        ? {
+            ...baseData,
+            organisation: {
+              name: organisationName.trim(),
+              description: organisationDescription.trim(),
+              city: city.trim(),
+              categories: interests,
+            },
+          }
+        : baseData;
+      await update.mutateAsync({ data });
       await refresh();
       setEditing(false);
     } catch (error) {
@@ -1903,31 +2048,9 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
     }
   };
 
-  const openHostTools = async () => {
+  const openHostTools = () => {
     setProfileMenuError(null);
-    try {
-      const mode = authenticatedUser?.participationType;
-      if (mode !== 'host' && mode !== 'both') {
-        await update.mutateAsync({ data: { participationType: 'host' } });
-        await refresh();
-      }
-      go('host');
-    } catch (error) {
-      setProfileMenuError(requestErrorMessage(error, 'Host tools could not be opened. Please try again.'));
-    }
-  };
-
-  const switchToParticipant = async () => {
-    setProfileMenuError(null);
-    try {
-      if (authenticatedUser?.participationType !== 'join') {
-        await update.mutateAsync({ data: { participationType: 'join' } });
-        await refresh();
-      }
-      go('home');
-    } catch (error) {
-      setProfileMenuError(requestErrorMessage(error, 'Could not switch to participant mode. Please try again.'));
-    }
+    go('host');
   };
 
   const handleSignOut = async () => {
@@ -1988,8 +2111,8 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       showsVerticalScrollIndicator={false}
     >
       <Header
-        title="Passport"
-        subtitle="Your contribution identity."
+        title={current.userType === 'organisation' ? 'Organisation profile' : 'Passport'}
+        subtitle={current.userType === 'organisation' ? (current.organisation?.name ?? 'Organisation account') : 'Participant account · Your contribution identity.'}
         menuItems={[
           {
             key: 'edit-profile',
@@ -1997,18 +2120,12 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
             icon: editing ? 'x' : 'edit-2',
             onPress: toggleProfileEditor,
           },
-          {
-            key: 'host-tools',
-            label: 'Host tools',
-            icon: 'briefcase',
-            onPress: () => { void openHostTools(); },
-          },
-          ...(authenticatedUser?.participationType !== 'join'
+          ...(current.userType === 'organisation'
             ? [{
-                key: 'switch-to-participant',
-                label: 'Switch to participant',
-                icon: 'users' as IconName,
-                onPress: () => { void switchToParticipant(); },
+                key: 'host-tools',
+                label: 'Organisation tools',
+                icon: 'briefcase' as IconName,
+                onPress: openHostTools,
               }]
             : []),
           {
@@ -2055,10 +2172,17 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
 
       {editing ? (
         <View style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-          <TextInput value={name} onChangeText={setName} placeholder="Display name" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          {current.userType === 'organisation' ? (
+            <>
+              <Text style={[styles.formLabel, { color: colors.foreground }]}>Organisation</Text>
+              <TextInput value={organisationName} onChangeText={setOrganisationName} placeholder="Organisation name" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+              <TextInput value={organisationDescription} onChangeText={setOrganisationDescription} multiline maxLength={600} placeholder="What your organisation does" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+            </>
+          ) : null}
+          <TextInput value={name} onChangeText={setName} placeholder={current.userType === 'organisation' ? 'Contact name' : 'Display name'} placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
           <TextInput value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
-          <TextInput value={bio} onChangeText={setBio} multiline placeholder="Short bio" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
-          <Text style={[styles.formLabel, { color: colors.foreground }]}>Interests</Text>
+          <TextInput value={bio} onChangeText={setBio} multiline placeholder={current.userType === 'organisation' ? 'Short contact bio' : 'Short bio'} placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          <Text style={[styles.formLabel, { color: colors.foreground }]}>{current.userType === 'organisation' ? 'Causes your organisation supports' : 'Interests'}</Text>
           <View style={styles.onboardingChoices}>
             {categories.slice(1).map((item) => {
               const selected = interests.includes(item.key as ExperienceCategory);
@@ -2071,49 +2195,53 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
               );
             })}
           </View>
-          <Text style={[styles.formLabel, { color: colors.foreground }]}>I want to…</Text>
-          <View style={styles.onboardingChoices}>
-            {(['join', 'host', 'both'] as ParticipationType[]).map((value) => {
-              const selected = participationType === value;
-              const labels = { join: 'Join experiences', host: 'Host experiences', both: 'Do both' };
-              return (
-                <Pressable key={value} onPress={() => setParticipationType(value)} style={[styles.onboardingParticipationCard, { backgroundColor: selected ? colors.primary + '10' : colors.background, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}>
-                  <Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{labels[value]}</Text>
-                  <Feather name={selected ? 'check-circle' : 'circle'} size={22} color={selected ? colors.primary : colors.border} />
-                </Pressable>
-              );
-            })}
-          </View>
           {!name.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add a display name to save your profile.</Text> : null}
           {!city.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add a city to save your profile.</Text> : null}
           {!interests.length ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Choose at least one interest to save your profile.</Text> : null}
+          {current.userType === 'organisation' && !organisationName.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add an organisation name.</Text> : null}
+          {current.userType === 'organisation' && !organisationDescription.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add an organisation description.</Text> : null}
           {profileSaveError ? <InlineError message={profileSaveError} /> : null}
-          <Button label={update.isPending ? 'Saving…' : 'Save profile'} disabled={update.isPending || !name.trim() || !city.trim() || interests.length === 0} onPress={() => void saveProfile()} />
+          <Button
+            label={update.isPending ? 'Saving…' : 'Save profile'}
+            disabled={update.isPending || !name.trim() || !city.trim() || interests.length === 0 || (current.userType === 'organisation' && (!organisationName.trim() || !organisationDescription.trim()))}
+            onPress={() => void saveProfile()}
+          />
         </View>
       ) : null}
 
-      <ContributionDashboard user={current} completed={completed.data} />
-
-      <CommunityXpPanel />
-
-      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent impact</Text>
-      {completed.isLoading ? <LoadingState /> : completed.isError ? (
-        <View>
-          <InlineError message="Your impact history couldn’t be loaded." />
-          <Button label="Try again" variant="secondary" onPress={() => { void completed.refetch(); }} />
+      {current.userType === 'participant' ? (
+        <>
+          <ContributionDashboard user={current} completed={completed.data} />
+          <CommunityXpPanel />
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent impact</Text>
+          {completed.isLoading ? <LoadingState /> : completed.isError ? (
+            <View>
+              <InlineError message="Your impact history couldn’t be loaded." />
+              <Button label="Try again" variant="secondary" onPress={() => { void completed.refetch(); }} />
+            </View>
+          ) : completed.data?.length ? completed.data.slice(0, 3).map((item) => (
+            <View key={item.id} style={[styles.historyRow, { borderBottomColor: colors.border }]}>
+              <View style={[styles.historyDot, { backgroundColor: colors.primary }]} />
+              <View style={styles.historyCopy}>
+                <Text style={[styles.historyTitle, { color: colors.foreground }]}>{item.experience.title}</Text>
+                <Text style={[styles.historySub, { color: colors.mutedForeground }]}>{dateLabel(item.experience.date)}</Text>
+              </View>
+              <View style={[styles.historyRewardPill, { backgroundColor: colors.primary + '15' }]}>
+                <Text style={[styles.historyRewardText, { color: colors.primary }]}>+{item.experience.xpReward} XP</Text>
+              </View>
+            </View>
+          )) : <Text style={[styles.mutedParagraph, { color: colors.mutedForeground }]}>Verified contributions will appear here.</Text>}
+        </>
+      ) : (
+        <View style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>About your organisation</Text>
+          <Text style={[styles.mutedParagraph, { color: colors.mutedForeground }]}>{current.organisation?.description ?? 'Complete your organisation details to introduce your work to participants.'}</Text>
+          <Text style={[styles.inputHint, { color: colors.mutedForeground, marginTop: 10 }]}>
+            {current.organisation?.city ?? current.city ?? 'Location not set'} · {hosted.data?.length ?? 0} experiences hosted
+          </Text>
+          <Button label="Open organisation tools" icon="briefcase" onPress={() => go('host')} style={{ marginTop: 18 }} />
         </View>
-      ) : completed.data?.length ? completed.data.slice(0, 3).map((item) => (
-        <View key={item.id} style={[styles.historyRow, { borderBottomColor: colors.border }]}>
-          <View style={[styles.historyDot, { backgroundColor: colors.primary }]} />
-          <View style={styles.historyCopy}>
-            <Text style={[styles.historyTitle, { color: colors.foreground }]}>{item.experience.title}</Text>
-            <Text style={[styles.historySub, { color: colors.mutedForeground }]}>{dateLabel(item.experience.date)}</Text>
-          </View>
-          <View style={[styles.historyRewardPill, { backgroundColor: colors.primary + '15' }]}>
-            <Text style={[styles.historyRewardText, { color: colors.primary }]}>+{item.experience.xpReward} XP</Text>
-          </View>
-        </View>
-      )) : <Text style={[styles.mutedParagraph, { color: colors.mutedForeground }]}>Verified contributions will appear here.</Text>}
+      )}
 
       <View style={styles.socialHeader}>
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -2368,20 +2496,11 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         </>
       )}
 
-      <View style={{ marginTop: 32 }}>
-        <Button
-          label={current.participationType !== 'join' ? 'Open host tools' : 'Interested in hosting?'}
-          variant="secondary"
-          onPress={() => {
-            triggerHaptic();
-            if (current.participationType !== 'join') go('host');
-            else {
-              if (!editing) toggleProfileEditor();
-              setParticipationType('both');
-            }
-          }}
-        />
-      </View>
+      {current.userType === 'organisation' ? (
+        <View style={{ marginTop: 32 }}>
+          <Button label="Open organisation tools" variant="secondary" icon="briefcase" onPress={() => { triggerHaptic(); go('host'); }} />
+        </View>
+      ) : null}
       <View style={{ height: 120 }} />
     </ScrollView>
   );
@@ -2408,8 +2527,8 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
     }
   };
 
-  if (user?.participationType === 'join') {
-    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Host tools" onBack={() => go('profile')} /><EmptyState title="Hosting isn’t enabled on your profile" body="Update your participation preference to host experiences, then return here." actionLabel="Update profile" onAction={() => go('profile')} /></View>;
+  if (user?.userType !== 'organisation') {
+    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Organisation tools" onBack={() => go('profile')} /><EmptyState title="Organisation account required" body="Participant accounts can explore and join experiences. Only Organisation accounts can create and manage experiences." actionLabel="Go home" onAction={() => go('home')} /></View>;
   }
 
   return (
@@ -2499,8 +2618,10 @@ function Create({
   const [step, setStep] = useState(() => Math.min(totalSteps, Math.max(1, initialStep)));
   const [publishError, setPublishError] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<ExperienceCreateInput>>({
+    organisationName: user?.organisation?.name ?? '',
+    organisationDescription: user?.organisation?.description ?? '',
     category: 'community',
-    city: 'London',
+    city: user?.city ?? 'London',
     capacity: 12,
     xpReward: 150,
     monetaryRewardPence: null,
@@ -2854,12 +2975,20 @@ function Create({
 
 function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => void }) {
   const colors = useColors();
-  const items: Array<{ key: Screen; label: string; icon: IconName }> = [
-    { key: 'home', label: 'Home', icon: 'home' }, 
-    { key: 'explore', label: 'Explore', icon: 'compass' }, 
-    { key: 'experiences', label: 'Experiences', icon: 'calendar' },
-    { key: 'profile', label: 'Profile', icon: 'user' }
-  ];
+  const { user } = useAuth();
+  const items: Array<{ key: Screen; label: string; icon: IconName }> = user?.userType === 'organisation'
+    ? [
+        { key: 'home', label: 'Home', icon: 'home' },
+        { key: 'explore', label: 'Explore', icon: 'compass' },
+        { key: 'host', label: 'Host', icon: 'briefcase' },
+        { key: 'profile', label: 'Organisation', icon: 'user' },
+      ]
+    : [
+        { key: 'home', label: 'Home', icon: 'home' },
+        { key: 'explore', label: 'Explore', icon: 'compass' },
+        { key: 'experiences', label: 'Experiences', icon: 'calendar' },
+        { key: 'profile', label: 'Profile', icon: 'user' },
+      ];
   return (
     <View style={[styles.bottomNav, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: Platform.OS === 'web' ? 34 : 28 }]}>
       {items.map((item) => {
@@ -2935,7 +3064,6 @@ export default function App() {
   const initialScreen = params.screen && screenNames.includes(params.screen as Screen)
     ? params.screen as Screen
     : 'home';
-  const [onboardingCompleteFor, setOnboardingCompleteFor] = useState<number | null>(null);
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [experienceId, setExperienceId] = useState(params.id);
 
@@ -2958,8 +3086,18 @@ export default function App() {
     });
   };
 
+  const organisationProfileIncomplete = user?.userType === 'organisation'
+    && (!user.organisation
+      || !user.organisation.name.trim()
+      || !user.organisation.description?.trim()
+      || !user.organisation.city?.trim()
+      || !user.organisation.categories.length);
   const needsOnboarding = !user
-    || (onboardingCompleteFor !== user.id && (!user.city || !user.interests?.length || !user.participationType));
+    || !user.userType
+    || !user.name.trim()
+    || !user.city?.trim()
+    || !user.interests.length
+    || organisationProfileIncomplete;
 
   if (loading) {
     return (
@@ -2990,21 +3128,20 @@ export default function App() {
     return (
       <AppShell showFeedbackBanner={false}>
         <Onboarding key={user?.id ?? 'signed-out'} user={user} onDone={() => {
-          setOnboardingCompleteFor(user?.id ?? null);
           router.setParams({ screen, id: screen === 'experience' ? experienceId : undefined });
         }} />
       </AppShell>
     );
   }
 
-  if (user.participationType === 'join' && (screen === 'host' || screen === 'create')) {
+  if (user.userType !== 'organisation' && (screen === 'host' || screen === 'create')) {
     return (
       <AppShell>
         <EmptyState
-          title="Hosting isn’t enabled on your profile"
-          body="Update your participation preference to host experiences, then return here."
-          actionLabel="Open profile"
-          onAction={() => go('profile')}
+          title="Organisation account required"
+          body="Participant accounts can explore and join. Only Organisation accounts can create and manage experiences."
+          actionLabel="Go home"
+          onAction={() => go('home')}
         />
       </AppShell>
     );
@@ -3013,16 +3150,17 @@ export default function App() {
   const content = (() => {
     if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
     if (screen === 'explore') return <Explore go={go} />;
-    if (screen === 'experiences') return <Experiences go={go} />;
+    if (screen === 'experiences') return user.userType === 'organisation' ? <Host go={go} /> : <Experiences go={go} />;
     if (screen === 'profile') return <Profile user={user} go={go} />;
     if (screen === 'host') return <Host go={go} />;
     if (screen === 'create') return <Create go={go} initialStep={Number(params.step) || 1} />;
     return <Home user={user} go={go} />;
   })();
 
-  const noNav = ['experience', 'create', 'host'].includes(screen);
+  const noNav = ['experience', 'create'].includes(screen);
+  const navActive = user.userType === 'organisation' && screen === 'experiences' ? 'host' : screen;
   return (
-    <AppShell bottomNav={!noNav ? <BottomNav active={screen} go={go} /> : null}>
+    <AppShell bottomNav={!noNav ? <BottomNav active={navActive} go={go} /> : null}>
       {content}
     </AppShell>
   );

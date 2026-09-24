@@ -32,6 +32,27 @@ export const ExperienceCategory = {
   community: 'community',
 } as const;
 
+export type UserType = typeof UserType[keyof typeof UserType];
+
+
+export const UserType = {
+  participant: 'participant',
+  organisation: 'organisation',
+} as const;
+
+export interface Organisation {
+  id: number;
+  name: string;
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  city: string | null;
+  /** @nullable */
+  country: string | null;
+  categories: ExperienceCategory[];
+  verified: boolean;
+}
+
 export interface User {
   id: number;
   /** @nullable */
@@ -54,6 +75,9 @@ export interface User {
   interests: ExperienceCategory[];
   /** @nullable */
   participationType: string | null;
+  userType: UserType | null;
+  /** @nullable */
+  organisation: Organisation | null;
   xp: number;
   level: string;
   completedCount: number;
@@ -120,6 +144,26 @@ export const RewardStatus = {
   issued: 'issued',
 } as const;
 
+export interface OrganisationProfileInput {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  name: string;
+  /**
+     * @minLength 10
+     * @maxLength 600
+     */
+  description: string;
+  /**
+     * @minLength 2
+     * @maxLength 100
+     */
+  city: string;
+  /** @minItems 1 */
+  categories: ExperienceCategory[];
+}
+
 export interface ProfileUpdateInput {
   /** @minLength 1 */
   name?: string;
@@ -131,6 +175,8 @@ export interface ProfileUpdateInput {
   country?: string | null;
   interests?: ExperienceCategory[];
   participationType?: ParticipationType;
+  userType?: UserType;
+  organisation?: OrganisationProfileInput;
 }
 
 export interface CommunitySummary {
@@ -180,19 +226,6 @@ export interface CommunityDetails {
   community: CommunitySummary;
   leaderboard: CommunityLeaderboardMember[];
   recentContributions: CommunityContribution[];
-}
-
-export interface Organisation {
-  id: number;
-  name: string;
-  /** @nullable */
-  description: string | null;
-  /** @nullable */
-  city: string | null;
-  /** @nullable */
-  country: string | null;
-  categories: ExperienceCategory[];
-  verified: boolean;
 }
 
 export interface Experience {

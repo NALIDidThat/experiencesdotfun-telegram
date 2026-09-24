@@ -3,16 +3,10 @@ import { and, eq, gt, sql } from "drizzle-orm";
 import type { NextFunction, Request, Response } from "express";
 import { db } from "@workspace/db";
 import { emailAccountsTable, usersTable, type User } from "@workspace/db/schema";
+import { verifyTelegramInitData as verifySignedTelegramInitData, type TelegramIdentity } from "./telegram-init-data";
 import { logger } from "./logger";
 
-export type TelegramIdentity = {
-  id: number;
-  first_name?: string;
-  last_name?: string;
-  username?: string;
-  is_bot?: boolean;
-  photo_url?: string;
-};
+export type { TelegramIdentity } from "./telegram-init-data";
 
 export type EmailSignupInput = {
   name: string;
@@ -89,32 +83,55 @@ async function issueEmailSession(userId: number, accountId: number): Promise<str
 
 export async function createEmailAccount(input: EmailSignupInput): Promise<{ user: User; sessionToken: string }> {
   const email = normalizeEmail(input.email);
-  const existing = await db.query.emailAccountsTable.findFirst({
-    where: eq(emailAccountsTable.email, email),
-  });
-  if (existing) throw new Error("EMAIL_ALREADY_REGISTERED");
+  const sessionToken = `email_${crypto.randomBytes(32).toString("base64url")}`;
+  const sessionTokenHash = hashSessionToken(sessionToken);
+  const sessionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const passwordHash = hashPassword(input.password);
 
-  const [user] = await db
-    .insert(usersTable)
-    .values({
-      telegramId: `email:${crypto.randomUUID()}`,
-      name: input.name.trim(),
-      username: null,
-    })
-    .returning();
-  if (!user) throw new Error("Unable to create email user.");
+  try {
+    const user = await db.transaction(async (transaction) => {
+      const existing = await transaction.query.emailAccountsTable.findFirst({
+        where: eq(emailAccountsTable.email, email),
+      });
+      if (existing) throw new Error("EMAIL_ALREADY_REGISTERED");
 
-  const [account] = await db
-    .insert(emailAccountsTable)
-    .values({
-      userId: user.id,
-      email,
-      passwordHash: hashPassword(input.password),
-    })
-    .returning();
-  if (!account) throw new Error("Unable to create email account.");
+      const [createdUser] = await transaction
+        .insert(usersTable)
+        .values({
+          telegramId: `email:${crypto.randomUUID()}`,
+          name: input.name.trim(),
+          username: null,
+        })
+        .returning();
+      if (!createdUser) throw new Error("Unable to create email user.");
 
-  return { user, sessionToken: await issueEmailSession(user.id, account.id) };
+      const [account] = await transaction
+        .insert(emailAccountsTable)
+        .values({
+          userId: createdUser.id,
+          email,
+          passwordHash,
+          sessionTokenHash,
+          sessionExpiresAt,
+        })
+        .returning();
+      if (!account) throw new Error("Unable to create email account.");
+      return createdUser;
+    });
+    return { user, sessionToken };
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "23505" &&
+      "constraint" in error &&
+      error.constraint === "email_accounts_email_idx"
+    ) {
+      throw new Error("EMAIL_ALREADY_REGISTERED");
+    }
+    throw error;
+  }
 }
 
 export async function authenticateEmail(input: EmailLoginInput): Promise<{ user: User; sessionToken: string } | undefined> {
@@ -145,46 +162,7 @@ export async function findUserByEmailSession(sessionToken: string): Promise<User
 }
 
 export function verifyTelegramInitData(initData: string): TelegramIdentity {
-  const params = new URLSearchParams(initData);
-  const hash = params.get("hash");
-  if (!hash) throw new Error("Telegram init data is missing its hash.");
-
-  const dataCheckString = [...params.entries()]
-    .filter(([key]) => key !== "hash")
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, value]) => `${key}=${value}`)
-    .join("\n");
-
-  const secretKey = crypto
-    .createHmac("sha256", "WebAppData")
-    .update(getBotToken())
-    .digest();
-  const expectedHash = crypto
-    .createHmac("sha256", secretKey)
-    .update(dataCheckString)
-    .digest("hex");
-
-  const provided = Buffer.from(hash, "hex");
-  const expected = Buffer.from(expectedHash, "hex");
-  if (
-    provided.length !== expected.length ||
-    !crypto.timingSafeEqual(provided, expected)
-  ) {
-    throw new Error("Telegram init data signature is invalid.");
-  }
-
-  const authDate = Number(params.get("auth_date"));
-  if (!Number.isFinite(authDate) || Date.now() / 1000 - authDate > 86_400) {
-    throw new Error("Telegram init data has expired.");
-  }
-
-  const rawUser = params.get("user");
-  if (!rawUser) throw new Error("Telegram init data is missing its user.");
-  const telegramUser = JSON.parse(rawUser) as TelegramIdentity;
-  if (!Number.isSafeInteger(telegramUser.id)) {
-    throw new Error("Telegram user id is invalid.");
-  }
-  return telegramUser;
+  return verifySignedTelegramInitData(initData, getBotToken());
 }
 
 export async function upsertTelegramUser(identity: TelegramIdentity): Promise<User> {

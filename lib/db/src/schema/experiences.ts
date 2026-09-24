@@ -23,6 +23,7 @@ export const usersTable = pgTable(
     country: text("country"),
     interests: text("interests").array().notNull().default([]),
     participationType: text("participation_type"),
+    userType: text("user_type", { enum: ["participant", "organisation"] }),
     xp: integer("xp").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -151,3 +152,5 @@ export type Friendship = typeof friendshipsTable.$inferSelect;
 
 export const experienceCategorySchema = z.enum(["environmental", "education", "community"]);
 export const participationTypeSchema = z.enum(["join", "host", "both"]);
+export const userTypeSchema = z.enum(["participant", "organisation"]);
+export type UserType = z.infer<typeof userTypeSchema>;

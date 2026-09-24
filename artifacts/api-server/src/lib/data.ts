@@ -59,6 +59,10 @@ export async function userResponse(user: User) {
     .from(emailAccountsTable)
     .where(eq(emailAccountsTable.userId, user.id))
     .limit(1);
+  const organisation = await db.query.organisationsTable.findFirst({
+    where: eq(organisationsTable.ownerUserId, user.id),
+    orderBy: desc(organisationsTable.createdAt),
+  });
 
   const telegramId = Number(user.telegramId);
   return {
@@ -74,6 +78,8 @@ export async function userResponse(user: User) {
     country: user.country,
     interests: user.interests,
     participationType: user.participationType,
+    userType: user.userType,
+    organisation: organisation ? organisationResponse(organisation) : null,
     xp: user.xp,
     level: levelForXp(user.xp),
     completedCount: Number(completed?.value ?? 0),

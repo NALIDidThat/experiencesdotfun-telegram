@@ -1,5 +1,5 @@
 import { and, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import {
   AcceptFriendRequestParams,
   CreateExperienceBody,
@@ -24,6 +24,7 @@ import {
   organisationsTable,
   participationsTable,
   usersTable,
+  type UserType,
 } from "@workspace/db/schema";
 import {
   currentUser,
@@ -104,6 +105,30 @@ function error(res: Parameters<Parameters<IRouter["get"]>[1]>[1], status: number
   res.status(status).json({ message });
 }
 
+function enforceAccountType(req: Request, res: Response, expected: UserType): boolean {
+  const userType = currentUser(req).userType;
+  if (userType === expected) return true;
+  if (userType === null) {
+    res.status(409).json({
+      code: "ACCOUNT_TYPE_REQUIRED",
+      message: "Choose a Participant or Organisation account before continuing.",
+    });
+  } else {
+    res.status(403).json({
+      code: "ACCOUNT_TYPE_FORBIDDEN",
+      message:
+        expected === "organisation"
+          ? "This action is available to Organisation accounts only."
+          : "This action is available to Participant accounts only.",
+    });
+  }
+  return false;
+}
+
+router.use("/host", (req, res, next) => {
+  if (enforceAccountType(req, res, "organisation")) next();
+});
+
 router.get("/me", async (req, res) => {
   res.json(await userResponse(currentUser(req)));
 });
@@ -116,21 +141,64 @@ router.patch("/me", async (req, res) => {
   }
   const patch = parsed.data;
   const user = currentUser(req);
-  const [updated] = await db
-    .update(usersTable)
-    .set({
-      ...(patch.name !== undefined ? { name: patch.name } : {}),
-      ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
-      ...(patch.city !== undefined ? { city: patch.city } : {}),
-      ...(patch.country !== undefined ? { country: patch.country } : {}),
-      ...(patch.interests !== undefined ? { interests: patch.interests } : {}),
-      ...(patch.participationType !== undefined
-        ? { participationType: patch.participationType }
-        : {}),
-      updatedAt: new Date(),
-    })
-    .where(eq(usersTable.id, user.id))
-    .returning();
+  if (patch.userType !== undefined && user.userType !== null && patch.userType !== user.userType) {
+    res.status(409).json({
+      code: "ACCOUNT_TYPE_LOCKED",
+      message: "Account type cannot be changed after selection.",
+    });
+    return;
+  }
+  if (patch.organisation && (patch.userType ?? user.userType) !== "organisation") {
+    res.status(403).json({
+      code: "ACCOUNT_TYPE_FORBIDDEN",
+      message: "Only Organisation accounts can update an organisation profile.",
+    });
+    return;
+  }
+  const updated = await db.transaction(async (transaction) => {
+    const [updatedUser] = await transaction
+      .update(usersTable)
+      .set({
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
+        ...(patch.city !== undefined ? { city: patch.city } : {}),
+        ...(patch.country !== undefined ? { country: patch.country } : {}),
+        ...(patch.interests !== undefined ? { interests: patch.interests } : {}),
+        ...(patch.participationType !== undefined
+          ? { participationType: patch.participationType }
+          : {}),
+        ...(patch.userType !== undefined ? { userType: patch.userType } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(usersTable.id, user.id))
+      .returning();
+
+    if (patch.organisation) {
+      const profile = patch.organisation;
+      const existing = await transaction.query.organisationsTable.findFirst({
+        where: eq(organisationsTable.ownerUserId, user.id),
+        orderBy: desc(organisationsTable.createdAt),
+      });
+      const values = {
+        name: profile.name.trim(),
+        description: profile.description.trim(),
+        city: profile.city.trim(),
+        country: patch.country ?? user.country,
+        categories: profile.categories,
+      };
+      if (existing) {
+        await transaction
+          .update(organisationsTable)
+          .set(values)
+          .where(eq(organisationsTable.id, existing.id));
+      } else {
+        await transaction
+          .insert(organisationsTable)
+          .values({ ownerUserId: user.id, ...values });
+      }
+    }
+    return updatedUser;
+  });
   res.json(await userResponse(updated ?? user));
 });
 
@@ -173,6 +241,7 @@ router.get("/experiences", async (req, res) => {
 });
 
 router.post("/experiences", async (req, res) => {
+  if (!enforceAccountType(req, res, "organisation")) return;
   const parsed = CreateExperienceBody.safeParse(req.body);
   if (!parsed.success) {
     error(res, 400, "Please complete every experience field.");
@@ -180,27 +249,22 @@ router.post("/experiences", async (req, res) => {
   }
   const user = currentUser(req);
   const input = parsed.data;
+  const existingOrganisation = await currentOrganisation(user.id);
+  if (!existingOrganisation) {
+    error(res, 409, "Complete your organisation profile before creating an experience.");
+    return;
+  }
   try {
     const created = await db.transaction(async (transaction) => {
-      let organisation = await transaction.query.organisationsTable.findFirst({
-        where: eq(organisationsTable.ownerUserId, user.id),
-        orderBy: desc(organisationsTable.createdAt),
-      });
-      if (!organisation) {
-        const [createdOrganisation] = await transaction
-          .insert(organisationsTable)
-          .values({
-            ownerUserId: user.id,
-            name: input.organisationName,
-            description: input.organisationDescription,
-            city: input.city,
-            country: user.country,
-            categories: [input.category],
-          })
-          .returning();
-        organisation = createdOrganisation;
-      }
-      if (!organisation) throw new Error("Unable to create organisation.");
+      const [organisation] = await transaction
+        .update(organisationsTable)
+        .set({
+          name: input.organisationName.trim(),
+          description: input.organisationDescription?.trim() || existingOrganisation.description,
+        })
+        .where(eq(organisationsTable.id, existingOrganisation.id))
+        .returning();
+      if (!organisation) throw new Error("Organisation profile is missing.");
 
       const [createdExperience] = await transaction
         .insert(experiencesTable)
@@ -263,6 +327,7 @@ router.get("/experiences/:experienceId", async (req, res) => {
 });
 
 router.post("/experiences/:experienceId/join", async (req, res) => {
+  if (!enforceAccountType(req, res, "participant")) return;
   const parsed = GetExperienceParams.safeParse({
     experienceId: Number(req.params.experienceId),
   });
@@ -325,6 +390,7 @@ router.post("/experiences/:experienceId/join", async (req, res) => {
 });
 
 router.get("/participations", async (req, res) => {
+  if (!enforceAccountType(req, res, "participant")) return;
   const parsed = ListMyParticipationsQueryParams.safeParse({
     status: typeof req.query.status === "string" ? req.query.status : undefined,
   });
@@ -348,6 +414,7 @@ router.get("/participations", async (req, res) => {
 });
 
 router.post("/participations/:participationId/submit", async (req, res) => {
+  if (!enforceAccountType(req, res, "participant")) return;
   const parsed = SubmitCompletionParams.safeParse({
     participationId: Number(req.params.participationId),
   });

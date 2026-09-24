@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ExperienceCategory } from './experienceCategory';
+import type { Organisation } from './organisation';
+import type { UserType } from './userType';
 
 export interface User {
   id: bigint;
@@ -29,6 +31,9 @@ export interface User {
   interests: ExperienceCategory[];
   /** @nullable */
   participationType: string | null;
+  userType: UserType | null;
+  /** @nullable */
+  organisation: Organisation | null;
   xp: number;
   level: string;
   completedCount: number;
