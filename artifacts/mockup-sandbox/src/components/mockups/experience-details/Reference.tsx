@@ -1,7 +1,9 @@
 import {
   ArrowLeft,
   BadgeCheck,
+  BriefcaseBusiness,
   CalendarDays,
+  CheckCircle2,
   MapPin,
   Users,
 } from "lucide-react";
@@ -15,114 +17,140 @@ const experience = {
   time: "10:00 – 12:00",
   city: "London",
   location: "N",
-  description:
-    "Spend time with local people, learn something new, and make a positive difference in your community.",
+  description: "The first experience ever.",
   xpReward: 150,
   cashReward: "£5.00",
   places: 8,
+  whatYouWillDo: "Just join the experience",
+  whatToBring: "Bring commitment.",
 };
 
 export function Reference() {
   return (
     <div className="experience-details-scope min-h-screen bg-[#f7f7f8]">
       <div className="bg-[#f20789] px-3 py-2 text-center text-[12px] font-medium text-white">
-        You&apos;re early!🥳 Please give feedback to <u>@NALIDidThat</u>
+        You&apos;re early! Please give feedback to <u>@NALIDidThat</u>
       </div>
 
-      <main className="mx-auto min-h-screen max-w-[390px] bg-white pb-40">
-        <header className="flex h-[58px] items-center justify-between px-5">
-          <button className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f7f8]" aria-label="Back">
+      <main className="mx-auto min-h-screen max-w-[390px] bg-[#f7f7f8] px-4 pb-40 pt-2">
+        <header className="mb-3 flex h-11 items-center justify-between">
+          <button
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e8e8ed] bg-white"
+            aria-label="Back"
+          >
             <ArrowLeft size={19} />
           </button>
-          <h1 className="text-[15px] font-semibold">Experience details</h1>
-          <button className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f7f8]" aria-label="Share experience">
-            <span className="text-[18px]">↗</span>
-          </button>
+          <h1 className="text-[14px] font-semibold">Experience details</h1>
+          <div className="h-10 w-10" />
         </header>
 
-        <div className="relative h-[190px] overflow-hidden">
+        <section className="relative h-[182px] overflow-hidden rounded-[24px]">
           <img
             src="/__mockup/images/community-cover.jpg"
-            alt="People sharing food at a community gathering"
+            alt="Community category cover art"
             className="h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent" />
-          <div className="absolute bottom-4 left-5 flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.8px] text-[#f20789]">
-            <Users size={14} />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
+          <div className="absolute bottom-3.5 left-4 flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.8px] text-[#f20789]">
+            <Users size={13} />
             {experience.category}
           </div>
-        </div>
+        </section>
 
-        <section className="px-5 pt-5">
-          <div className="mb-2 flex items-center gap-1.5 text-[12px] font-medium text-[#72727c]">
+        <section className="mt-3 rounded-[24px] border border-[#e8e8ed] bg-white p-4">
+          <div className="mb-2 flex items-center gap-1.5 text-[12px] font-medium text-[#666]">
             <span>{experience.organisation}</span>
-            <BadgeCheck size={15} className="text-[#04adbf]" />
+            <BadgeCheck size={15} className="text-[#05727d]" />
           </div>
-          <h2 className="text-[26px] font-bold leading-[1.15] tracking-[-0.7px]">{experience.title}</h2>
-          <p className="mt-2 text-[14px] leading-[1.45] text-[#62626c]">{experience.description}</p>
-
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-[#e8e8ed] bg-white p-3.5">
-              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold tracking-[1px] text-[#72727c]">
-                <CalendarDays size={14} className="text-[#f20789]" />
-                WHEN
-              </div>
-              <p className="text-[14px] font-semibold">{experience.date}</p>
-              <p className="mt-1 text-[12px] text-[#72727c]">{experience.time}</p>
-            </div>
-            <div className="rounded-2xl border border-[#e8e8ed] bg-white p-3.5">
-              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold tracking-[1px] text-[#72727c]">
-                <MapPin size={14} className="text-[#f20789]" />
-                WHERE
-              </div>
-              <p className="text-[14px] font-semibold">{experience.city}</p>
-              <p className="mt-1 truncate text-[12px] text-[#72727c]">{experience.location}</p>
-            </div>
+          <h2 className="text-[25px] font-bold leading-[1.12] tracking-[-0.6px] text-[#111]">
+            {experience.title}
+          </h2>
+          <div className="mt-3 rounded-[17px] bg-[#f7f7f8] p-3">
+            <h3 className="mb-1 text-[11px] font-bold uppercase tracking-[0.8px] text-[#666]">
+              About this experience
+            </h3>
+            <p className="text-[14px] leading-5 text-[#333]">{experience.description}</p>
           </div>
+        </section>
 
-          <div className="mt-5 flex items-center gap-3 rounded-2xl border border-[#e8e8ed] p-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#fce6f3] text-[15px] font-bold text-[#f20789]">E</div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-bold uppercase tracking-[0.8px] text-[#72727c]">Hosted by</p>
-              <p className="mt-1 truncate text-[14px] font-semibold">{experience.organisation}</p>
+        <section className="mt-3 grid grid-cols-[1.2fr_1fr] gap-3">
+          <div className="min-w-0 rounded-[22px] border border-[#e8e8ed] bg-white p-3.5">
+            <div className="mb-3 flex items-center gap-1.5 text-[10px] font-bold tracking-[0.8px] text-[#666]">
+              <CalendarDays size={15} className="text-[#f20789]" />
+              WHEN
             </div>
-            <BadgeCheck size={19} className="shrink-0 text-[#04adbf]" />
+            <p className="text-[14px] font-semibold text-[#17171b]">{experience.date}</p>
+            <p className="mt-1 text-[12px] text-[#666]">{experience.time}</p>
           </div>
-
-          <section className="mt-5 rounded-2xl border border-[#e8e8ed] bg-white px-4 py-3.5">
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <p className="text-[9px] font-bold tracking-[0.8px] text-[#72727c]">YOU&apos;LL EARN</p>
-                <p className="mt-1 text-[15px] font-bold text-[#f20789]">+{experience.xpReward} XP</p>
-              </div>
-              <div>
-                <p className="text-[9px] font-bold tracking-[0.8px] text-[#72727c]">REWARD</p>
-                <p className="mt-1 text-[15px] font-bold text-[#04adbf]">{experience.cashReward}</p>
-              </div>
-              <div>
-                <p className="text-[9px] font-bold tracking-[0.8px] text-[#72727c]">PLACES</p>
-                <p className="mt-1 flex items-center gap-1 text-[15px] font-bold">
-                  <Users size={13} className="text-[#72727c]" />
-                  {experience.places}
-                </p>
-              </div>
+          <div className="min-w-0 rounded-[22px] border border-[#d8f0f0] bg-[#effafa] p-3.5">
+            <div className="mb-3 flex items-center gap-1.5 text-[10px] font-bold tracking-[0.8px] text-[#666]">
+              <MapPin size={15} className="text-[#05727d]" />
+              WHERE
             </div>
-          </section>
+            <p className="text-[14px] font-semibold text-[#17171b]">{experience.city}</p>
+            <p className="mt-1 truncate text-[12px] text-[#666]">{experience.location}</p>
+          </div>
+        </section>
 
-          <section className="mt-5 rounded-2xl bg-[#f7f7f8] p-4">
-            <h3 className="text-[14px] font-semibold">What to expect</h3>
-            <p className="mt-1.5 text-[13px] leading-5 text-[#62626c]">A relaxed, welcoming activity with people from your local community.</p>
-          </section>
+        <section className="mt-3 flex items-center gap-3 rounded-[22px] border border-[#e8e8ed] bg-white p-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-[#fce8f3] text-[15px] font-bold text-[#f20789]">
+            E
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.8px] text-[#666]">Hosted by</p>
+            <p className="mt-1 truncate text-[14px] font-semibold text-[#17171b]">{experience.organisation}</p>
+          </div>
+          <BadgeCheck size={19} className="shrink-0 text-[#05727d]" />
+        </section>
+
+        <section className="mt-3 grid grid-cols-3 gap-2">
+          <div className="flex min-h-[92px] flex-col justify-between rounded-[20px] bg-[#f20789] p-3 text-white">
+            <p className="text-[9px] font-bold tracking-[0.5px] text-white/75">YOU&apos;LL EARN</p>
+            <p className="text-[15px] font-bold">+{experience.xpReward} XP</p>
+          </div>
+          <div className="flex min-h-[92px] flex-col justify-between rounded-[20px] border border-[#d8f0f0] bg-[#effafa] p-3">
+            <p className="text-[9px] font-bold tracking-[0.5px] text-[#666]">REWARD</p>
+            <p className="text-[15px] font-bold text-[#05727d]">{experience.cashReward}</p>
+          </div>
+          <div className="flex min-h-[92px] flex-col justify-between rounded-[20px] border border-[#e8e8ed] bg-white p-3">
+            <p className="text-[9px] font-bold tracking-[0.5px] text-[#666]">PLACES</p>
+            <p className="flex items-center gap-1 text-[15px] font-bold text-[#17171b]">
+              <Users size={13} className="text-[#666]" />
+              {experience.places}
+            </p>
+          </div>
+        </section>
+
+        <section className="mt-3 rounded-[22px] border border-[#e8e8ed] bg-white p-3.5">
+          <div className="mb-2.5 flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-[11px] bg-[#fce8f3]">
+              <CheckCircle2 size={16} className="text-[#f20789]" />
+            </div>
+            <h3 className="text-[14px] font-bold text-[#17171b]">What you&apos;ll do</h3>
+          </div>
+          <p className="text-[13px] leading-5 text-[#555]">{experience.whatYouWillDo}</p>
+        </section>
+
+        <section className="mt-3 rounded-[22px] border border-[#e8e8ed] bg-white p-3.5">
+          <div className="mb-2.5 flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-[11px] bg-[#effafa]">
+              <BriefcaseBusiness size={16} className="text-[#05727d]" />
+            </div>
+            <h3 className="text-[14px] font-bold text-[#17171b]">What to bring</h3>
+          </div>
+          <p className="text-[13px] leading-5 text-[#555]">{experience.whatToBring}</p>
         </section>
       </main>
 
-      <footer className="fixed inset-x-0 bottom-0 border-t border-[#e8e8ed] bg-white/95 px-5 pb-8 pt-3 backdrop-blur">
-        <div className="mx-auto flex max-w-[390px] items-center gap-4">
+      <footer className="fixed inset-x-0 bottom-0 border-t border-[#e8e8ed] bg-white px-4 pb-8 pt-3">
+        <div className="mx-auto flex max-w-[390px] items-center gap-3">
           <div className="min-w-[84px]">
-            <p className="text-[10px] font-bold tracking-[0.8px] text-[#72727c]">YOUR REWARD</p>
-            <p className="mt-1 text-[16px] font-bold text-[#f20789]">+{experience.xpReward} XP</p>
+            <p className="text-[9px] font-bold tracking-[0.6px] text-[#666]">YOUR REWARD</p>
+            <p className="mt-1 text-[15px] font-bold text-[#f20789]">+{experience.xpReward} XP</p>
           </div>
-          <button className="h-12 flex-1 rounded-full bg-[#f20789] text-[14px] font-semibold text-white">Join experience</button>
+          <button className="h-12 flex-1 rounded-full bg-[#f20789] text-[14px] font-semibold text-white">
+            Join experience
+          </button>
         </div>
       </footer>
     </div>

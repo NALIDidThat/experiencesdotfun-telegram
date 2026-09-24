@@ -855,9 +855,9 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
   const gradient = categoryGradients[item.category] || categoryGradients.community;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.muted }}>
       <ScrollView
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: colors.muted }}
         contentContainerStyle={styles.detailScrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -874,7 +874,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           <View style={styles.detailToolbarSpacer} />
         </View>
 
-        <View style={[styles.detailHero, { borderRadius: colors.radius }]}>
+        <View style={[styles.detailHero, { borderRadius: colors.radius + 8 }]}>
           {item.category === 'community' ? (
             <ImageBackground
               source={require('../assets/images/community-cover.jpg')}
@@ -907,20 +907,28 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           )}
         </View>
 
-        <View style={styles.detailIntro}>
+        <View
+          style={[
+            styles.detailIntro,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              borderRadius: colors.radius + 8,
+            },
+          ]}
+        >
           <View style={styles.detailOrganisationLine}>
             <Text style={[styles.detailOrgText, { color: colors.mutedForeground }]}>{item.organisation.name}</Text>
             {item.organisation.verified ? <Feather name="check-circle" size={15} color={colors.success} /> : null}
             {item.organisation.verified ? <Text style={[styles.detailVerifiedText, { color: colors.success }]}>Verified host</Text> : null}
           </View>
           <Text style={[styles.detailTitleText, { color: colors.foreground }]}>{item.title}</Text>
+          <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>About this experience</Text>
+          <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.description}</Text>
         </View>
 
-        <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>About this experience</Text>
-        <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.description}</Text>
-
         <View style={styles.detailMetaGrid}>
-          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
             <View style={styles.metaIconLabel}>
               <Feather name="calendar" size={15} color={colors.primary} />
               <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHEN</Text>
@@ -928,7 +936,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
             <Text style={[styles.metaValue, { color: colors.foreground }]}>{dateLabel(item.date)}</Text>
             <Text style={[styles.metaSub, { color: colors.mutedForeground }]}>{item.startTime} – {item.endTime}</Text>
           </View>
-          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
             <View style={styles.metaIconLabel}>
               <Feather name="map-pin" size={15} color={colors.primary} />
               <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHERE</Text>
@@ -938,7 +946,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           </View>
         </View>
 
-        <View style={[styles.detailHostCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+        <View style={[styles.detailHostCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
           <View style={[styles.detailHostAvatar, { backgroundColor: colors.primary + '18' }]}>
             <Text style={[styles.detailHostInitial, { color: colors.primary }]}>{item.organisation.name.slice(0, 1).toUpperCase()}</Text>
           </View>
@@ -949,33 +957,70 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           {item.organisation.verified ? <Feather name="check-circle" size={19} color={colors.success} /> : null}
         </View>
 
-        <View style={[styles.rewardPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-          <View style={styles.rewardCol}>
-            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>YOU'LL EARN</Text>
-            <Text style={[styles.detailReward, { color: colors.primary }]}>+{item.xpReward} XP</Text>
+        <View style={styles.rewardPanel}>
+          <View
+            style={[
+              styles.rewardCol,
+              {
+                backgroundColor: colors.primary,
+                borderColor: colors.primary,
+                borderRadius: colors.radius + 6,
+              },
+            ]}
+          >
+            <Text style={[styles.metaLabel, { color: colors.primaryForeground + 'B8' }]}>YOU'LL EARN</Text>
+            <Text style={[styles.detailReward, { color: colors.primaryForeground }]}>+{item.xpReward} XP</Text>
           </View>
           {money(item.monetaryRewardPence) ? (
-            <View style={styles.rewardCol}>
+            <View
+              style={[
+                styles.rewardCol,
+                {
+                  backgroundColor: colors.teal + '12',
+                  borderColor: colors.teal + '35',
+                  borderRadius: colors.radius + 6,
+                },
+              ]}
+            >
               <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>REWARD</Text>
-              <Text style={[styles.detailReward, { color: colors.success }]}>{money(item.monetaryRewardPence)}</Text>
+              <Text style={[styles.detailReward, { color: colors.teal }]}>{money(item.monetaryRewardPence)}</Text>
             </View>
           ) : null}
-          <View style={styles.rewardCol}>
+          <View
+            style={[
+              styles.rewardCol,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderRadius: colors.radius + 6,
+              },
+            ]}
+          >
             <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>PLACES LEFT</Text>
             <Text style={[styles.detailReward, { color: colors.foreground }]}>{item.availablePlaces}</Text>
           </View>
         </View>
 
         {item.whatYouWillDo ? (
-          <View style={styles.infoBlock}>
-            <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What you&apos;ll do</Text>
+          <View style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
+            <View style={styles.infoBlockHeading}>
+              <View style={[styles.infoBlockIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name="check-circle" size={16} color={colors.primary} />
+              </View>
+              <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What you&apos;ll do</Text>
+            </View>
             <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatYouWillDo}</Text>
           </View>
         ) : null}
 
         {item.whatToBring ? (
-          <View style={styles.infoBlock}>
-            <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What to bring</Text>
+          <View style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
+            <View style={styles.infoBlockHeading}>
+              <View style={[styles.infoBlockIcon, { backgroundColor: colors.teal + '14' }]}>
+                <Feather name="briefcase" size={16} color={colors.teal} />
+              </View>
+              <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What to bring</Text>
+            </View>
             <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatToBring}</Text>
           </View>
         ) : null}
@@ -2220,12 +2265,12 @@ const styles = StyleSheet.create({
   resultCount: { fontSize: 14, fontFamily: 'Inter_500Medium' },
   
   // Detail
-  detailScrollContent: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 24 },
+  detailScrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 28 },
   detailToolbar: { height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   detailToolbarButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   detailToolbarTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   detailToolbarSpacer: { width: 42 },
-  detailHero: { height: 190, marginBottom: 18, overflow: 'hidden' },
+  detailHero: { height: 186, marginBottom: 12, overflow: 'hidden' },
   detailCoverFill: { flex: 1, justifyContent: 'flex-end' },
   detailCoverBottom: { padding: 16 },
   detailCoverPill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.94)' },
@@ -2233,28 +2278,30 @@ const styles = StyleSheet.create({
   detailCategoryFallback: { flex: 1, justifyContent: 'flex-end', alignItems: 'flex-start', padding: 20 },
   detailHeroIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.2)' },
   detailCategoryText: { color: '#ffffff', fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1, textTransform: 'uppercase' },
-  detailIntro: { marginBottom: 14 },
-  detailOrganisationLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  detailIntro: { padding: 16, borderWidth: 1, marginBottom: 12 },
+  detailOrganisationLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   detailOrgText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
   detailVerifiedText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
-  detailTitleText: { fontSize: 25, fontFamily: 'Inter_700Bold', lineHeight: 31, letterSpacing: -0.4 },
-  detailMetaGrid: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  metaBox: { flex: 1, borderWidth: 1, padding: 13 },
+  detailTitleText: { fontSize: 26, fontFamily: 'Inter_700Bold', lineHeight: 32, letterSpacing: -0.5, marginBottom: 12 },
+  detailMetaGrid: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  metaBox: { flex: 1, minHeight: 112, borderWidth: 1, padding: 13 },
   metaIconLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 },
   metaLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.8 },
   metaValue: { fontSize: 14, fontFamily: 'Inter_600SemiBold', lineHeight: 19, marginBottom: 3 },
   metaSub: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 16 },
-  detailSectionTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 8 },
-  detailBody: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 22, marginBottom: 18 },
-  detailHostCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1, marginBottom: 16 },
+  detailSectionTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', marginBottom: 6 },
+  detailBody: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 21 },
+  detailHostCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderWidth: 1, marginBottom: 12 },
   detailHostAvatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   detailHostInitial: { fontSize: 16, fontFamily: 'Inter_700Bold' },
   detailHostLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.8, marginBottom: 3 },
   detailHostName: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  rewardPanel: { flexDirection: 'row', gap: 8, borderWidth: 1, padding: 14, marginBottom: 20 },
-  rewardCol: { flex: 1 },
-  detailReward: { fontSize: 16, fontFamily: 'Inter_700Bold' },
-  infoBlock: { marginBottom: 12 },
+  rewardPanel: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  rewardCol: { flex: 1, minHeight: 90, borderWidth: 1, padding: 11, justifyContent: 'space-between' },
+  detailReward: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  infoBlock: { borderWidth: 1, padding: 14, marginBottom: 10 },
+  infoBlockHeading: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  infoBlockIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   ctaWrap: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 18, paddingTop: 12 },
   detailActionRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   detailActionSummary: { minWidth: 86 },
