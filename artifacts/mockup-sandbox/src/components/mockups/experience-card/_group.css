@@ -1,0 +1,25 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+.experience-card-scope {
+  --brand-pink: #f20789;
+  --brand-purple: #6805f2;
+  --brand-aqua: #04adbf;
+  --ink: #17171b;
+  --muted: #72727c;
+  --surface: #ffffff;
+  --soft: #f7f7f8;
+  --border: #e8e8ed;
+  font-family: "Inter", sans-serif;
+  color: var(--ink);
+}
+
+.experience-card-scope * {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}

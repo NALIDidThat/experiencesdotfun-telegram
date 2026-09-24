@@ -772,17 +772,55 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
           accessibilityLabel={`View ${item.title}`}
           key={item.id}
           onPress={() => { triggerHaptic(); go('experience', { id: String(item.id) }); }}
-          style={({ pressed }) => [styles.dashboardEventCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.9 : 1 }]}
+          style={({ pressed }) => [styles.dashboardEventCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 8, opacity: pressed ? 0.94 : 1 }]}
         >
-          <LinearGradient colors={categoryGradients[item.category]} style={styles.dashboardEventIcon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-            <Feather name={categoryIcon[item.category]} size={24} color={colors.primaryForeground} />
-          </LinearGradient>
-          <View style={styles.dashboardEventCopy}>
-            <Text style={[styles.dashboardEventTitle, { color: colors.foreground }]} numberOfLines={1}>{item.title}</Text>
-            <Text style={[styles.dashboardEventMeta, { color: colors.mutedForeground }]}>{dateLabel(item.date)} · {item.city}</Text>
+          <View style={styles.dashboardEventPhoto}>
+            {item.category === 'community' ? (
+              <ImageBackground
+                source={require('../assets/images/community-cover.jpg')}
+                accessibilityLabel="Community experience category artwork"
+                resizeMode="cover"
+                style={StyleSheet.absoluteFill}
+              >
+                <LinearGradient
+                  colors={['rgba(0,0,0,0.03)', 'rgba(0,0,0,0.2)']}
+                  style={StyleSheet.absoluteFill}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                />
+              </ImageBackground>
+            ) : (
+              <LinearGradient
+                colors={categoryGradients[item.category] || categoryGradients.community}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Feather name={categoryIcon[item.category]} size={58} color={colors.primaryForeground} style={{ opacity: 0.22 }} />
+              </LinearGradient>
+            )}
+            <View style={styles.dashboardEventPhotoTop}>
+              <View style={[styles.dashboardEventCategory, { backgroundColor: colors.card }]}>
+                <Feather name={categoryIcon[item.category]} size={13} color={colors.primary} />
+                <Text style={[styles.dashboardEventCategoryText, { color: colors.foreground }]}>{categoryLabel[item.category]}</Text>
+              </View>
+            </View>
           </View>
-          <View style={[styles.dashboardXpPill, { backgroundColor: colors.primary + '12' }]}>
-            <Text style={[styles.dashboardXpText, { color: colors.primary }]}>+{item.xpReward} XP</Text>
+          <View style={styles.dashboardEventFooter}>
+            <View style={[styles.dashboardEventDate, { backgroundColor: colors.muted }]}>
+              <Feather name="calendar" size={13} color={colors.primary} />
+              <Text style={[styles.dashboardEventDateText, { color: colors.foreground }]} numberOfLines={1}>{dateLabel(item.date)}</Text>
+            </View>
+            <View style={styles.dashboardEventSummary}>
+              <Text style={[styles.dashboardEventCardTitle, { color: colors.foreground }]} numberOfLines={1}>{item.title}</Text>
+              <View style={styles.dashboardEventLocation}>
+                <Feather name="map-pin" size={12} color={colors.mutedForeground} />
+                <Text style={[styles.dashboardEventCardMeta, { color: colors.mutedForeground }]} numberOfLines={1}>{item.city}</Text>
+              </View>
+            </View>
+            <View style={[styles.dashboardEventXp, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}>
+              <Text style={[styles.dashboardEventXpText, { color: colors.primary }]} numberOfLines={1}>+{item.xpReward} XP</Text>
+            </View>
           </View>
         </Pressable>
       )) : (
@@ -2240,7 +2278,21 @@ const styles = StyleSheet.create({
   dashboardAction: { width: '48%', minHeight: 58, borderWidth: 1, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
   dashboardActionIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   dashboardActionLabel: { flex: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  dashboardEventCard: { minHeight: 76, borderWidth: 1, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+  dashboardEventCard: { borderWidth: 1, overflow: 'hidden', marginBottom: 14 },
+  dashboardEventPhoto: { height: 168, position: 'relative', overflow: 'hidden' },
+  dashboardEventPhotoTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: 12 },
+  dashboardEventCategory: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999 },
+  dashboardEventCategoryText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  dashboardEventFallbackIcon: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  dashboardEventFooter: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12 },
+  dashboardEventDate: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 0, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 12 },
+  dashboardEventDateText: { flexShrink: 1, fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  dashboardEventSummary: { flex: 1, minWidth: 0 },
+  dashboardEventCardTitle: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_700Bold', marginBottom: 3 },
+  dashboardEventLocation: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dashboardEventCardMeta: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  dashboardEventXp: { flexShrink: 0, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 7, borderRadius: 12 },
+  dashboardEventXpText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
   dashboardEmptyEvent: { minHeight: 82, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
   dashboardEventIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   dashboardEventCopy: { flex: 1 },
