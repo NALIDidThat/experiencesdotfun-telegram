@@ -1747,6 +1747,10 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const [selectedProfileMetric, setSelectedProfileMetric] = useState<ProfileMetricKey | null>(null);
   const current = profile.data ?? user;
   const normalizedFriendUsername = username.trim().replace(/^@+/, '').trim();
+  const combinedFriendRequests = [
+    ...(requests.data ?? []).map((request) => ({ ...request, direction: 'incoming' as const })),
+    ...(sentRequests.data ?? []).map((request) => ({ ...request, direction: 'sent' as const })),
+  ];
 
   const toggleProfileEditor = () => {
     if (!editing) {
@@ -2014,39 +2018,62 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
 
           <View style={styles.friendSection}>
             <View style={styles.friendSectionHeader}>
-              <Text style={[styles.friendSectionTitle, { color: colors.foreground }]}>Incoming requests</Text>
-              <View style={[styles.friendSectionCount, { backgroundColor: colors.secondary + '12' }]}>
-                <Text style={[styles.friendSectionCountText, { color: colors.secondary }]}>{requests.data?.length ?? 0}</Text>
+              <Text style={[styles.friendSectionTitle, { color: colors.foreground }]}>Friend requests</Text>
+              <View style={[styles.friendSectionCount, { backgroundColor: colors.teal + '18' }]}>
+                <Text style={[styles.friendSectionCountText, { color: colors.foreground }]}>{combinedFriendRequests.length}</Text>
               </View>
             </View>
-            {requests.isLoading ? (
+            {requests.isLoading || sentRequests.isLoading ? (
               <View style={styles.friendInlineState}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.friendInlineStateText, { color: colors.mutedForeground }]}>Checking for new requests…</Text>
+                <ActivityIndicator size="small" color={colors.teal} />
+                <Text style={[styles.friendInlineStateText, { color: colors.mutedForeground }]}>Loading friend requests…</Text>
               </View>
-            ) : requests.isError ? (
-              <Pressable accessibilityRole="button" onPress={() => void requests.refetch()} style={[styles.friendInlineState, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius }]}>
-                <Feather name="refresh-cw" size={16} color={colors.primary} />
-                <Text style={[styles.friendInlineStateText, { color: colors.foreground }]}>Couldn’t load requests. Tap to retry.</Text>
+            ) : null}
+            {requests.isError || sentRequests.isError ? (
+              <Pressable
+                testID="profile-friend-requests-retry"
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading friend requests"
+                onPress={() => {
+                  if (requests.isError) void requests.refetch();
+                  if (sentRequests.isError) void sentRequests.refetch();
+                }}
+                style={[styles.friendInlineState, { backgroundColor: colors.card, borderColor: colors.teal + '65', borderWidth: 1, borderRadius: colors.radius }]}
+              >
+                <Feather name="refresh-cw" size={16} color={colors.teal} />
+                <Text style={[styles.friendInlineStateText, { color: colors.foreground }]}>Some requests couldn’t be loaded. Tap to retry.</Text>
               </Pressable>
-            ) : requests.data?.length ? (
-              requests.data.map((request) => {
-                const responding = accept.isPending || decline.isPending;
-                return (
-                  <View key={request.id} style={[styles.friendRequestCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-                    <View style={styles.friendPersonHeader}>
-                      <View style={[styles.friendAvatar, { backgroundColor: colors.secondary + '15' }]}>
-                        <Text style={[styles.friendAvatarInitial, { color: colors.secondary }]}>{request.user.name.trim().charAt(0).toUpperCase() || '?'}</Text>
-                      </View>
-                      <View style={styles.friendPersonCopy}>
-                        <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>{request.user.name}</Text>
-                        <Text numberOfLines={1} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>
-                          {request.user.username ? `@${request.user.username}` : 'Experiences.fun member'}
-                        </Text>
-                      </View>
+            ) : null}
+            {combinedFriendRequests.map((request) => {
+              const incoming = request.direction === 'incoming';
+              const directionColor = incoming ? colors.teal : colors.secondary;
+              const responding = accept.isPending || decline.isPending;
+              const actionIsPending = respondingRequest?.id === request.id;
+
+              return (
+                <View
+                  key={`${request.direction}-${request.id}`}
+                  testID={`profile-friend-request-${request.direction}-${request.id}`}
+                  style={[styles.friendRequestCard, { backgroundColor: colors.card, borderColor: directionColor + '55', borderRadius: colors.radius }]}
+                >
+                  <View style={styles.friendPersonHeader}>
+                    <View style={[styles.friendAvatar, { backgroundColor: directionColor + '18' }]}>
+                      <Text style={[styles.friendAvatarInitial, { color: directionColor }]}>{request.user.name.trim().charAt(0).toUpperCase() || '?'}</Text>
                     </View>
+                    <View style={styles.friendPersonCopy}>
+                      <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>{request.user.name}</Text>
+                      <Text numberOfLines={1} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>
+                        {request.user.username ? `@${request.user.username}` : 'Experiences.fun member'}
+                      </Text>
+                    </View>
+                    <View style={[styles.friendRequestDirection, { backgroundColor: directionColor + '18' }]}>
+                      <Text style={[styles.friendRequestDirectionText, { color: colors.foreground }]}>{incoming ? 'Incoming' : 'Sent'}</Text>
+                    </View>
+                  </View>
+                  {incoming ? (
                     <View style={styles.friendRequestActions}>
                       <Pressable
+                        testID={`friend-request-decline-${request.id}`}
                         accessibilityRole="button"
                         accessibilityLabel={`Decline ${request.user.name}'s friend request`}
                         accessibilityState={{ disabled: responding }}
@@ -2054,81 +2081,50 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
                         onPress={() => void respondToFriendRequest(request.id, 'decline')}
                         style={[styles.friendRequestButton, { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 4, opacity: responding ? 0.6 : 1 }]}
                       >
-                        {respondingRequest?.id === request.id && respondingRequest.action === 'decline' ? <ActivityIndicator size="small" color={colors.mutedForeground} /> : null}
+                        {actionIsPending && respondingRequest.action === 'decline' ? <ActivityIndicator size="small" color={colors.mutedForeground} /> : null}
                         <Text style={[styles.friendRequestButtonText, { color: colors.mutedForeground }]}>
-                          {respondingRequest?.id === request.id && respondingRequest.action === 'decline' ? 'Declining…' : 'Decline'}
+                          {actionIsPending && respondingRequest.action === 'decline' ? 'Declining…' : 'Decline'}
                         </Text>
                       </Pressable>
                       <Pressable
+                        testID={`friend-request-accept-${request.id}`}
                         accessibilityRole="button"
                         accessibilityLabel={`Accept ${request.user.name}'s friend request`}
                         accessibilityState={{ disabled: responding }}
                         disabled={responding}
                         onPress={() => void respondToFriendRequest(request.id, 'accept')}
-                        style={[styles.friendRequestButton, { backgroundColor: colors.primary, borderColor: colors.primary, borderRadius: colors.radius - 4, opacity: responding ? 0.6 : 1 }]}
+                        style={[styles.friendRequestButton, { backgroundColor: colors.teal + '18', borderColor: colors.teal, borderRadius: colors.radius - 4, opacity: responding ? 0.6 : 1 }]}
                       >
-                        {respondingRequest?.id === request.id && respondingRequest.action === 'accept'
-                          ? <ActivityIndicator size="small" color={colors.primaryForeground} />
-                          : <Feather name="check" size={15} color={colors.primaryForeground} />}
-                        <Text style={[styles.friendRequestButtonText, { color: colors.primaryForeground }]}>
-                          {respondingRequest?.id === request.id && respondingRequest.action === 'accept' ? 'Accepting…' : 'Accept'}
+                        {actionIsPending && respondingRequest.action === 'accept'
+                          ? <ActivityIndicator size="small" color={colors.teal} />
+                          : <Feather name="check" size={15} color={colors.teal} />}
+                        <Text style={[styles.friendRequestButtonText, { color: colors.foreground }]}>
+                          {actionIsPending && respondingRequest.action === 'accept' ? 'Accepting…' : 'Accept'}
                         </Text>
                       </Pressable>
                     </View>
-                  </View>
-                );
-              })
-            ) : (
-              <View style={[styles.friendEmpty, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-                <View style={[styles.friendEmptyIcon, { backgroundColor: colors.success + '12' }]}>
-                  <Feather name="check" size={16} color={colors.success} />
+                  ) : (
+                    <View style={styles.friendRequestActions}>
+                      <View style={[styles.friendPendingPill, { backgroundColor: directionColor + '18' }]}>
+                        <Feather name="clock" size={12} color={directionColor} />
+                        <Text style={[styles.friendPendingText, { color: colors.foreground }]}>Waiting for reply</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+            {!combinedFriendRequests.length && !requests.isLoading && !sentRequests.isLoading && !requests.isError && !sentRequests.isError ? (
+              <View style={[styles.friendEmpty, { backgroundColor: colors.card, borderColor: colors.teal + '55', borderRadius: colors.radius }]}>
+                <View style={[styles.friendEmptyIcon, { backgroundColor: colors.teal + '18' }]}>
+                  <Feather name="users" size={16} color={colors.teal} />
                 </View>
                 <View style={styles.friendPersonCopy}>
-                  <Text style={[styles.friendPersonName, { color: colors.foreground }]}>You’re all caught up</Text>
-                  <Text style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>New friend requests will appear here.</Text>
+                  <Text style={[styles.friendPersonName, { color: colors.foreground }]}>No friend requests yet</Text>
+                  <Text style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>Incoming and sent requests will appear here.</Text>
                 </View>
               </View>
-            )}
-          </View>
-
-          <View style={styles.friendSection}>
-            <View style={styles.friendSectionHeader}>
-              <Text style={[styles.friendSectionTitle, { color: colors.foreground }]}>Sent requests</Text>
-              <View style={[styles.friendSectionCount, { backgroundColor: colors.primary + '12' }]}>
-                <Text style={[styles.friendSectionCountText, { color: colors.primary }]}>{sentRequests.data?.length ?? 0}</Text>
-              </View>
-            </View>
-            {sentRequests.isLoading ? (
-              <View style={styles.friendInlineState}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.friendInlineStateText, { color: colors.mutedForeground }]}>Loading sent requests…</Text>
-              </View>
-            ) : sentRequests.isError ? (
-              <Pressable accessibilityRole="button" onPress={() => void sentRequests.refetch()} style={[styles.friendInlineState, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius }]}>
-                <Feather name="refresh-cw" size={16} color={colors.primary} />
-                <Text style={[styles.friendInlineStateText, { color: colors.foreground }]}>Couldn’t load sent requests. Tap to retry.</Text>
-              </Pressable>
-            ) : sentRequests.data?.length ? (
-              sentRequests.data.map((request) => (
-                <View key={request.id} style={[styles.friendPersonRow, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-                  <View style={[styles.friendAvatar, { backgroundColor: colors.primary + '12' }]}>
-                    <Text style={[styles.friendAvatarInitial, { color: colors.primary }]}>{request.user.name.trim().charAt(0).toUpperCase() || '?'}</Text>
-                  </View>
-                  <View style={styles.friendPersonCopy}>
-                    <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>{request.user.name}</Text>
-                    <Text numberOfLines={1} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>
-                      {request.user.username ? `@${request.user.username}` : 'Experiences.fun member'}
-                    </Text>
-                  </View>
-                  <View style={[styles.friendPendingPill, { backgroundColor: colors.secondary + '10' }]}>
-                    <Feather name="clock" size={12} color={colors.mutedForeground} />
-                    <Text style={[styles.friendPendingText, { color: colors.mutedForeground }]}>Pending</Text>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <Text style={[styles.friendSectionHint, { color: colors.mutedForeground }]}>Requests you send will stay here until they’re accepted.</Text>
-            )}
+            ) : null}
           </View>
 
           <View style={styles.friendSection}>
@@ -3240,6 +3236,8 @@ const styles = StyleSheet.create({
   friendInlineStateText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium' },
   friendRequestCard: { borderWidth: 1, padding: 12, marginBottom: 8 },
   friendPersonHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  friendRequestDirection: { flexShrink: 0, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999 },
+  friendRequestDirectionText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
   friendAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   friendAvatarInitial: { fontSize: 15, fontFamily: 'Inter_700Bold' },
   friendPersonCopy: { flex: 1, minWidth: 0 },
