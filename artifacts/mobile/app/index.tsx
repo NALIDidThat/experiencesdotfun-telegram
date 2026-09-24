@@ -1331,13 +1331,19 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
   );
 }
 
-function Create({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
+function Create({
+  go,
+  initialStep = 1,
+}: {
+  go: (screen: Screen, params?: Record<string, string>) => void;
+  initialStep?: number;
+}) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const create = useCreateExperience();
-  const [step, setStep] = useState(1);
   const totalSteps = 6;
+  const [step, setStep] = useState(() => Math.min(totalSteps, Math.max(1, initialStep)));
   const [publishError, setPublishError] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<ExperienceCreateInput>>({
     category: 'community',
@@ -1719,7 +1725,7 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; onboarded?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; onboarded?: string; step?: string }>();
   const router = useRouter();
   const { user, loading } = useAuth();
   const colors = useColors();
@@ -1756,7 +1762,7 @@ export default function App() {
     if (screen === 'experiences') return <Experiences go={go} />;
     if (screen === 'profile') return <Profile user={displayUser} go={go} />;
     if (screen === 'host') return <Host go={go} />;
-    if (screen === 'create') return <Create go={go} />;
+    if (screen === 'create') return <Create go={go} initialStep={Number(params.step) || 1} />;
     return <Home user={displayUser} go={go} />;
   })();
 
