@@ -702,7 +702,7 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
           <View style={styles.dashboardGreetingAccent} />
           <View style={styles.dashboardGreetingCopy}>
             <Text style={styles.dashboardWelcome}>Welcome back</Text>
-            <Text style={styles.dashboardName} numberOfLines={1}>{firstName}</Text>
+            <Text style={styles.dashboardName} numberOfLines={1}>{firstName}🎉</Text>
           </View>
         </View>
 
