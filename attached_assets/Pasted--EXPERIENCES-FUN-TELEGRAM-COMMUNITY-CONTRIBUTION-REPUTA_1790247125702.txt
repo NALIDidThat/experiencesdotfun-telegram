@@ -1,0 +1,2023 @@
+# EXPERIENCES.FUN
+
+## TELEGRAM COMMUNITY CONTRIBUTION + REPUTATION SYSTEM
+
+### MVP IMPLEMENTATION SPECIFICATION FOR REPLIT AGENT
+
+---
+
+# 1. PROJECT CONTEXT
+
+You are working on the existing Experiences.fun repository:
+
+https://github.com/NALIDidThat/experiencesdotfun-telegram
+
+Do NOT rebuild the project from scratch.
+
+Do NOT replace the existing architecture unless absolutely necessary.
+
+You must inspect the existing repository and integrate this feature into the current architecture.
+
+The existing project contains:
+
+* Telegram Bot integration
+* Telegram Mini App frontend
+* Express API server
+* PostgreSQL database
+* Drizzle ORM
+* Telegram authentication
+* Existing user profiles
+* Existing XP system
+* Experiences and participation system
+* Existing Telegram commands
+* Existing `/xp` functionality
+* Existing Mini App navigation and profile screens
+
+The goal is to extend Experiences.fun into a community contribution and reputation system.
+
+---
+
+# 2. PRIMARY OBJECTIVE
+
+Implement a new Telegram-native Community Contribution system.
+
+The Experiences.fun bot must be able to:
+
+1. Be added normally to a Telegram group.
+2. Receive ordinary group messages.
+3. Identify the Telegram user who sent each message.
+4. Associate that Telegram user with an Experiences.fun user.
+5. Determine whether the message qualifies for Community XP.
+6. Award Community XP in real time.
+7. Store contribution events in PostgreSQL.
+8. Calculate each user's rank within that specific Telegram community.
+9. Allow users/admins to check ranks directly inside the Telegram group.
+10. Synchronise all contribution data with the Experiences.fun Mini App.
+11. Display community contribution and reputation data inside the Mini App.
+12. Keep Community XP conceptually separate from existing Experience XP.
+
+The final system should feel like:
+
+Telegram Group
+↓
+Experiences.fun Bot
+↓
+Message received
+↓
+Contribution Engine
+↓
+Qualification + anti-abuse checks
+↓
+Contribution Event recorded
+↓
+Community XP updated
+↓
+Rank recalculated dynamically
+↓
+Telegram `/rank`
+↓
+Experiences.fun Mini App
+
+---
+
+# 3. CORE PRODUCT PRINCIPLE
+
+Experiences.fun is building a system where real-world and digital contributions can become measurable reputation.
+
+Do NOT treat Telegram message count as the entire reputation system.
+
+Instead, treat Telegram messages as ONE contribution source.
+
+Future contribution sources may include:
+
+* Community messages
+* Experiences completed
+* Experiences hosted
+* Challenges completed
+* Referrals
+* Education activities
+* Environmental activities
+* Community projects
+* Verified real-world impact
+* Other contribution events
+
+Therefore, the architecture must support a future Contribution Ledger.
+
+Do not hard-code the entire reputation system around Telegram messages.
+
+---
+
+# 4. IMPORTANT EXISTING ARCHITECTURE
+
+The current project already contains:
+
+## API
+
+`artifacts/api-server`
+
+The API uses:
+
+* Express
+* TypeScript
+* PostgreSQL
+* Drizzle ORM
+
+## Telegram
+
+The Telegram integration currently exists in:
+
+`artifacts/api-server/src/lib/telegram.ts`
+
+The bot currently uses Telegram long polling with:
+
+`getUpdates`
+
+The current polling configuration includes:
+
+```ts
+allowed_updates: ["message", "callback_query"]
+```
+
+The bot currently processes commands but does not currently process ordinary group messages as contribution events.
+
+Extend this existing implementation.
+
+Do NOT create a second Telegram bot system.
+
+Do NOT create a second polling system.
+
+Do NOT create a second Telegram authentication system.
+
+---
+
+# 5. EXISTING USER IDENTITY SYSTEM
+
+The repository already has Telegram identity handling.
+
+The current system uses:
+
+```ts
+upsertTelegramUser()
+```
+
+and:
+
+```ts
+findUserByTelegramId()
+```
+
+The database currently contains:
+
+```ts
+usersTable
+```
+
+with fields including:
+
+```text
+id
+telegramId
+name
+username
+xp
+createdAt
+updatedAt
+```
+
+Reuse this identity system.
+
+Every contribution event must be associated with:
+
+```text
+Experiences.fun user ID
++
+Telegram user ID
++
+Telegram chat/group ID
+```
+
+Do not create duplicate user records for people who already exist.
+
+---
+
+# 6. TELEGRAM GROUP MESSAGE INGESTION
+
+Extend the existing Telegram update handling.
+
+Currently the bot effectively does:
+
+```ts
+if (update.message?.text && update.message.from) {
+    handleCommand(...)
+}
+```
+
+Change the architecture so that messages are distinguished between:
+
+### Commands
+
+Examples:
+
+```text
+/start
+/xp
+/profile
+/rank
+/rank @username
+/leaderboard
+```
+
+and:
+
+### Ordinary group messages
+
+Examples:
+
+```text
+I think this would be a useful experience for students in London because...
+```
+
+Ordinary qualifying messages must be passed into the Contribution Engine.
+
+The bot must continue supporting all existing commands.
+
+Do not break existing functionality.
+
+---
+
+# 7. TELEGRAM PRIVACY REQUIREMENT
+
+The bot must be capable of receiving ordinary group messages.
+
+The implementation must account for Telegram Bot API group privacy behaviour.
+
+The documentation and setup should make clear that the bot must either:
+
+* have group privacy disabled, OR
+* have appropriate group administrator permissions
+
+for the bot to receive the messages required by this system.
+
+Do not assume that simply adding the bot to a group guarantees access to every message.
+
+Add an appropriate setup note to the project's documentation.
+
+---
+
+# 8. MVP COMMUNITY XP RULE
+
+Implement the initial Community XP rule exactly as follows:
+
+### QUALIFYING MESSAGE
+
+A message receives:
+
+```text
++1 Community XP
+```
+
+if it contains:
+
+```text
+7 or more words
+```
+
+Examples:
+
+```text
+"hello"
+= 0 XP
+```
+
+```text
+"this is a useful community experience"
+= 1 XP
+```
+
+```text
+"this is a really useful experience for our community"
+= 1 XP
+```
+
+Use whitespace-aware word counting.
+
+A reasonable implementation is:
+
+```ts
+function countWords(text: string): number {
+    return text.trim().split(/\s+/).filter(Boolean).length;
+}
+```
+
+Then:
+
+```ts
+countWords(message.text) >= 7
+```
+
+means the message qualifies.
+
+---
+
+# 9. NON-QUALIFYING MESSAGES
+
+The following should receive 0 Community XP:
+
+### Commands
+
+```text
+/rank
+/xp
+/help
+/start
+etc.
+```
+
+### Empty messages
+
+No text = no XP.
+
+### Bot messages
+
+Ignore messages generated by bots.
+
+### Messages below 7 words
+
+```text
+6 words or fewer = 0 XP
+```
+
+### Duplicate messages
+
+If the same user sends the exact same message repeatedly, do not reward unlimited XP for identical spam.
+
+At minimum, detect duplicate content within a reasonable recent window.
+
+---
+
+# 10. ANTI-SPAM PROTECTION
+
+Implement basic anti-abuse protection in the MVP.
+
+Do NOT build an unnecessarily complicated AI moderation system yet.
+
+The MVP needs simple deterministic rules.
+
+Implement:
+
+### Rule 1: Commands
+
+Commands earn:
+
+```text
+0 XP
+```
+
+### Rule 2: Bots
+
+Bot messages earn:
+
+```text
+0 XP
+```
+
+### Rule 3: Duplicate messages
+
+Repeated identical messages should not repeatedly generate XP within a short time period.
+
+### Rule 4: Rate limiting
+
+Prevent obvious message farming.
+
+For example:
+
+```text
+Maximum 20 qualifying messages per minute
+```
+
+After that threshold:
+
+```text
+additional messages = 0 XP
+```
+
+Do not delete the user's messages.
+
+Simply do not award XP.
+
+### Rule 5: Daily cap
+
+Implement a configurable daily Community XP cap.
+
+Initial default:
+
+```text
+100 Community XP per user per group per day
+```
+
+This should be configurable rather than hard-coded throughout the application.
+
+---
+
+# 11. CONFIGURATION
+
+Create a central configuration for Community XP.
+
+For example:
+
+```ts
+const COMMUNITY_XP_CONFIG = {
+    xpPerMessage: 1,
+    minimumWords: 7,
+    maxXpPerMinute: 20,
+    maxDailyXp: 100,
+    duplicateWindowSeconds: 60,
+};
+```
+
+The values should be easy to modify later.
+
+Do not scatter these values across multiple files.
+
+---
+
+# 12. COMMUNITY CONTRIBUTION DATABASE MODEL
+
+Create a dedicated contribution event table.
+
+Suggested table:
+
+```text
+community_contributions
+```
+
+It should contain at minimum:
+
+```text
+id
+user_id
+chat_id
+telegram_message_id
+word_count
+xp_awarded
+message_hash
+created_at
+```
+
+Recommended additional fields:
+
+```text
+contribution_type
+qualification_reason
+metadata
+```
+
+For example:
+
+```text
+contribution_type = "telegram_message"
+```
+
+This creates a foundation for future contribution types.
+
+---
+
+# 13. DATABASE REQUIREMENTS
+
+Use PostgreSQL + Drizzle.
+
+Do not introduce another database.
+
+Add appropriate indexes.
+
+At minimum consider indexes for:
+
+```text
+user_id
+chat_id
+created_at
+chat_id + user_id
+telegram_message_id + chat_id
+```
+
+Telegram message IDs are scoped to chats, so do not assume a Telegram message ID is globally unique.
+
+Consider a uniqueness constraint on:
+
+```text
+chat_id + telegram_message_id
+```
+
+to prevent accidental double-processing of the same Telegram message.
+
+This is extremely important because Telegram polling can encounter retries/reprocessing scenarios.
+
+The system must be idempotent.
+
+---
+
+# 14. COMMUNITY XP VS EXPERIENCE XP
+
+IMPORTANT:
+
+The existing:
+
+```text
+users.xp
+```
+
+is already used by Experiences.fun for existing XP/reputation behaviour.
+
+Do not blindly use the same field for Telegram message XP.
+
+Create a separate field such as:
+
+```text
+communityXp
+```
+
+or preferably a community reputation model.
+
+The architecture should support:
+
+```text
+Experience XP
++
+Community XP
++
+Future Contribution XP
+```
+
+without destroying the distinction between them.
+
+---
+
+# 15. COMMUNITY-SPECIFIC XP
+
+Community XP MUST be scoped to a Telegram group.
+
+Do not make one global Telegram XP number.
+
+A user could participate in:
+
+```text
+Experiences.fun London
+```
+
+and:
+
+```text
+Experiences.fun Somalia
+```
+
+and:
+
+```text
+Solana community
+```
+
+Their reputation in each community should remain distinguishable.
+
+Conceptually:
+
+```text
+User
+ ├── Community A
+ │     ├── XP
+ │     └── Rank
+ │
+ ├── Community B
+ │     ├── XP
+ │     └── Rank
+ │
+ └── Community C
+       ├── XP
+       └── Rank
+```
+
+Therefore Community XP should be associated with:
+
+```text
+user_id
++
+chat_id
+```
+
+rather than only:
+
+```text
+user_id
+```
+
+---
+
+# 16. COMMUNITY PROFILE / STATS MODEL
+
+Create a community-level aggregation model if useful.
+
+For example:
+
+```text
+community_members
+```
+
+with:
+
+```text
+id
+chat_id
+user_id
+community_xp
+qualifying_messages
+last_contribution_at
+created_at
+updated_at
+```
+
+This makes leaderboard queries efficient.
+
+The contribution ledger remains the source of event history.
+
+The community member record can be the current aggregate.
+
+---
+
+# 17. CONTRIBUTION ENGINE
+
+Create a dedicated service/module.
+
+Suggested location:
+
+```text
+artifacts/api-server/src/lib/contribution.ts
+```
+
+or:
+
+```text
+artifacts/api-server/src/lib/contributions.ts
+```
+
+Do not put all of this logic directly into `telegram.ts`.
+
+Telegram should primarily be responsible for:
+
+```text
+receive update
+→ route update
+```
+
+The contribution service should be responsible for:
+
+```text
+validate message
+→ calculate word count
+→ apply anti-spam rules
+→ award XP
+→ record contribution
+→ update aggregate
+```
+
+Suggested architecture:
+
+```text
+telegram.ts
+    ↓
+handleGroupMessage()
+    ↓
+processCommunityContribution()
+    ↓
+qualifiesForCommunityXp()
+    ↓
+recordContribution()
+    ↓
+updateCommunityMember()
+```
+
+---
+
+# 18. CONTRIBUTION PROCESSING FLOW
+
+Implement this flow:
+
+```text
+Telegram message received
+        ↓
+Does message contain text?
+        ↓
+NO → ignore
+        ↓
+YES
+        ↓
+Is it a command?
+        ↓
+YES → command handler
+        ↓
+NO
+        ↓
+Is sender a bot?
+        ↓
+YES → ignore
+        ↓
+NO
+        ↓
+Is this a private chat?
+        ↓
+YES → do not award community XP
+        ↓
+NO
+        ↓
+Identify Telegram user
+        ↓
+Upsert/find Experiences.fun user
+        ↓
+Count words
+        ↓
+< 7 words?
+        ↓
+YES → 0 XP
+        ↓
+NO
+        ↓
+Duplicate?
+        ↓
+YES → 0 XP
+        ↓
+NO
+        ↓
+Rate limit exceeded?
+        ↓
+YES → 0 XP
+        ↓
+NO
+        ↓
+Daily cap reached?
+        ↓
+YES → 0 XP
+        ↓
+NO
+        ↓
+Award +1 Community XP
+        ↓
+Record contribution event
+        ↓
+Update community aggregate
+```
+
+---
+
+# 19. REAL-TIME REQUIREMENT
+
+XP must be calculated in real time.
+
+A qualifying message should result in the XP record being created immediately after processing the Telegram update.
+
+Do not use a nightly batch job.
+
+Do not require the user to refresh manually for the backend state to update.
+
+The Mini App can fetch the latest state whenever the user opens/reloads the relevant screen.
+
+---
+
+# 20. `/rank` COMMAND
+
+Add a new Telegram command:
+
+```text
+/rank
+```
+
+This should show the rank of the person issuing the command in the current group.
+
+Example:
+
+```text
+⚡ YOUR COMMUNITY RANK
+
+@NALI
+
+Rank #4
+
+Community XP: 300
+Qualifying messages: 300
+
+Keep contributing.
+```
+
+---
+
+# 21. `/rank @username`
+
+Add:
+
+```text
+/rank @username
+```
+
+This should work inside a group.
+
+Example:
+
+```text
+/rank @alex
+```
+
+Response:
+
+```text
+⚡ COMMUNITY RANK
+
+@alex
+
+Rank #7
+
+Community XP: 241
+Qualifying messages: 241
+
+Community: Experiences.fun
+```
+
+If the user cannot be found, respond clearly.
+
+Example:
+
+```text
+I couldn't find @alex in Experiences.fun yet.
+
+Ask them to open the Experiences.fun Mini App first.
+```
+
+---
+
+# 22. GROUP CONTEXT
+
+When `/rank @username` is used in a group:
+
+The rank must be calculated for:
+
+```text
+CURRENT TELEGRAM GROUP
+```
+
+not globally.
+
+Example:
+
+```text
+/rank @alex
+```
+
+inside:
+
+```text
+Community A
+```
+
+means:
+
+```text
+Alex's rank in Community A
+```
+
+not Alex's global Experiences.fun rank.
+
+---
+
+# 23. `/leaderboard`
+
+Add:
+
+```text
+/leaderboard
+```
+
+This should display the top contributors for the current Telegram group.
+
+Example:
+
+```text
+🏆 COMMUNITY LEADERBOARD
+
+1. @alex      892 XP
+2. @maria     744 XP
+3. @nali      621 XP
+4. @sam       509 XP
+5. @jordan    421 XP
+
+💬 Ranked by Community XP
+```
+
+Limit the initial response to the top 10.
+
+Do not create massive Telegram messages.
+
+---
+
+# 24. RANK CALCULATION
+
+Do not permanently store rank numbers.
+
+Rank should be dynamically calculated from current Community XP.
+
+Conceptually:
+
+```text
+ORDER BY community_xp DESC
+```
+
+Use a ranking function where appropriate.
+
+For equal XP, use a deterministic tie-breaker.
+
+Recommended:
+
+1. Higher Community XP
+2. Higher number of qualifying contributions
+3. Earlier achievement of that XP
+
+The rank should therefore be stable and predictable.
+
+---
+
+# 25. COMMUNITY LEVELS
+
+Create a simple level system.
+
+Initial example:
+
+```text
+0–49 XP
+Newcomer
+
+50–199 XP
+Participant
+
+200–499 XP
+Contributor
+
+500–999 XP
+Community Builder
+
+1000+ XP
+Community Leader
+```
+
+These values should be configurable.
+
+Create a reusable function:
+
+```ts
+getCommunityLevel(xp)
+```
+
+Do not duplicate the level logic throughout the app.
+
+---
+
+# 26. MINI APP INTEGRATION
+
+The Telegram Mini App must become the visual interface for the contribution system.
+
+Add Community Reputation information to the user's profile/dashboard.
+
+The user should be able to see:
+
+```text
+Community XP
+Current Level
+Community Rank
+Qualifying Messages
+Recent Contributions
+```
+
+Example:
+
+```text
+COMMUNITY REPUTATION
+
+⚡ 621 XP
+
+Community Builder
+
+#3 in this community
+
+621 qualifying contributions
+
+██████████████░░
+Next level: 1,000 XP
+```
+
+---
+
+# 27. MINI APP COMMUNITY SCREEN
+
+If the existing navigation architecture allows it cleanly, create a dedicated screen:
+
+```text
+Community
+```
+
+or:
+
+```text
+Reputation
+```
+
+Do not unnecessarily redesign the entire application.
+
+Follow the existing Experiences.fun design system.
+
+Use the existing brand system and components.
+
+The UI should feel:
+
+* social
+* energetic
+* human
+* modern
+* community-oriented
+* rewarding
+
+Do not turn it into a generic corporate analytics dashboard.
+
+---
+
+# 28. COMMUNITY LEADERBOARD IN MINI APP
+
+Add a leaderboard view.
+
+Show:
+
+```text
+#1
+Avatar
+Username
+XP
+
+#2
+Avatar
+Username
+XP
+
+#3
+Avatar
+Username
+XP
+```
+
+Highlight the current user's position.
+
+If the current user is #87, do not force them to scroll through 86 users.
+
+Show:
+
+```text
+Top contributors
+
+...
+
+Your rank
+#87 @username
+142 XP
+```
+
+---
+
+# 29. COMMUNITY CONTRIBUTION HISTORY
+
+The Mini App should eventually display contribution history.
+
+For the MVP, show recent events.
+
+Example:
+
+```text
+RECENT CONTRIBUTIONS
+
++1 XP
+Community message
+2 minutes ago
+
++1 XP
+Community message
+6 minutes ago
+
++1 XP
+Community message
+11 minutes ago
+```
+
+Do not display the full message text by default.
+
+Avoid unnecessarily storing/displaying sensitive private conversational content.
+
+The database can store a message hash rather than plaintext if possible.
+
+---
+
+# 30. PRIVACY
+
+Do not expose private Telegram message content through the Mini App.
+
+Community XP is about contribution, not surveillance.
+
+The MVP should primarily expose:
+
+```text
+XP
+rank
+level
+contribution count
+timestamps
+```
+
+rather than the user's actual messages.
+
+If storing message content is unnecessary, prefer storing:
+
+```text
+message_hash
+```
+
+instead.
+
+Only store the minimum data required for contribution verification and anti-abuse.
+
+---
+
+# 31. API ENDPOINTS
+
+Add API endpoints for the Mini App.
+
+Suggested:
+
+```text
+GET /api/community/me
+```
+
+Returns current authenticated user's community information.
+
+Suggested:
+
+```text
+GET /api/community/:chatId/leaderboard
+```
+
+Returns leaderboard data.
+
+Suggested:
+
+```text
+GET /api/community/:chatId/rank/:username
+```
+
+Returns a specific user's rank.
+
+Suggested:
+
+```text
+GET /api/community/:chatId/contributions
+```
+
+Returns contribution history.
+
+Adapt these routes to the existing API conventions.
+
+Do NOT blindly create duplicate routing conventions.
+
+Inspect the existing API architecture first.
+
+---
+
+# 32. AUTHENTICATION
+
+Reuse the existing Telegram authentication system.
+
+The Mini App already uses Telegram signed `initData`.
+
+Do not create another authentication mechanism.
+
+The backend must determine the current Experiences.fun user using the existing authentication flow.
+
+Never trust a client-provided:
+
+```text
+user_id
+telegram_id
+community_xp
+rank
+```
+
+for authoritative operations.
+
+The backend/database is the source of truth.
+
+---
+
+# 33. SECURITY
+
+The following must NEVER be client-authoritative:
+
+```text
+XP
+rank
+level
+contribution count
+```
+
+The client only reads these values.
+
+Only the backend contribution engine can award Community XP.
+
+Do not create a frontend endpoint where users can simply POST:
+
+```json
+{
+  "xp": 100000
+}
+```
+
+and become community gods.
+
+Humans have already invented enough financial systems like that.
+
+---
+
+# 34. IDEMPOTENCY
+
+Telegram updates must be safely processed.
+
+If the same Telegram message is processed twice:
+
+```text
+XP must only be awarded once.
+```
+
+Use:
+
+```text
+chat_id + telegram_message_id
+```
+
+as the event identity.
+
+Before awarding XP:
+
+```text
+check whether contribution already exists
+```
+
+If it exists:
+
+```text
+do nothing
+```
+
+---
+
+# 35. ERROR HANDLING
+
+A failed contribution calculation must NOT crash the Telegram polling loop.
+
+The existing polling architecture already catches errors around updates.
+
+Preserve that behaviour.
+
+Use structured logging for:
+
+```text
+message received
+contribution qualified
+XP awarded
+duplicate detected
+rate limited
+daily cap reached
+database failure
+```
+
+Do not log private message contents unnecessarily.
+
+---
+
+# 36. TELEGRAM RESPONSE BEHAVIOUR
+
+Do NOT reply to every qualifying message.
+
+If someone sends:
+
+```text
+This is a useful message...
+```
+
+do NOT respond:
+
+```text
++1 XP!
+```
+
+That would quickly make the group unbearable.
+
+XP should happen silently.
+
+Only explicit commands should generate Telegram responses.
+
+---
+
+# 37. EXISTING `/xp` COMMAND
+
+Do not break the existing `/xp` command.
+
+Consider updating it to distinguish:
+
+```text
+⚡ EXPERIENCES.FUN XP
+
+Experience XP: 240
+Community XP: 621
+
+Total Contribution XP: 861
+```
+
+But be careful not to falsely imply that these different XP systems are identical.
+
+Use clear labels.
+
+---
+
+# 38. PROFILE INTEGRATION
+
+Update the existing profile response where appropriate.
+
+Potential:
+
+```text
+@username
+
+Contributor
+621 Community XP
+
+#3 Community Rank
+```
+
+Do not remove existing:
+
+```text
+completed experiences
+hosted experiences
+existing XP
+```
+
+The new information should complement the existing profile.
+
+---
+
+# 39. TESTING REQUIREMENTS
+
+Implement tests for at least:
+
+### Word counting
+
+```text
+0 words → 0
+6 words → 0
+7 words → 1
+20 words → 1
+```
+
+### Commands
+
+```text
+/rank @user → 0 XP
+```
+
+### Duplicate messages
+
+```text
+same message twice
+→ only first qualifies
+```
+
+### Rate limiting
+
+```text
+21 qualifying messages/minute
+→ maximum 20 XP
+```
+
+### Daily cap
+
+```text
+101 qualifying messages/day
+→ maximum 100 XP
+```
+
+### Idempotency
+
+Processing the same Telegram message twice:
+
+```text
+→ only 1 contribution event
+→ only 1 XP
+```
+
+### Group isolation
+
+User:
+
+```text
+100 XP in Group A
+```
+
+must not automatically have:
+
+```text
+100 XP in Group B
+```
+
+### Rank calculation
+
+Verify:
+
+```text
+highest XP = rank #1
+```
+
+and deterministic tie handling.
+
+---
+
+# 40. DOCUMENTATION
+
+Update project documentation with:
+
+### Telegram bot setup
+
+Explain:
+
+* add bot to group
+* required permissions
+* privacy mode requirement
+* how group message collection works
+
+### Community XP
+
+Explain:
+
+```text
+7+ words
+=
+1 Community XP
+```
+
+### Anti-abuse
+
+Document:
+
+```text
+20 qualifying messages/minute
+100 XP/day
+duplicate protection
+```
+
+### Commands
+
+Document:
+
+```text
+/rank
+/rank @username
+/leaderboard
+```
+
+---
+
+# 41. DO NOT BREAK EXISTING FEATURES
+
+Before making changes, inspect the existing implementation carefully.
+
+Existing functionality includes:
+
+* `/start`
+* `/onboarding`
+* `/menu`
+* `/create`
+* `/experiences`
+* `/xp`
+* `/add`
+* `/profile`
+* `/friends`
+* `/requests`
+* `/host`
+* `/help`
+* friend requests
+* Telegram authentication
+* Mini App navigation
+* experience participation
+* existing XP
+* existing database schema
+
+Everything above must continue functioning.
+
+---
+
+# 42. CODE QUALITY REQUIREMENTS
+
+Use:
+
+* TypeScript
+* existing project conventions
+* Drizzle ORM
+* existing logging
+* existing API patterns
+* existing authentication
+* existing Telegram utilities
+
+Avoid:
+
+* unnecessary dependencies
+* duplicated Telegram clients
+* duplicated authentication
+* hard-coded secrets
+* client-authoritative XP
+* giant functions
+* putting all logic into `telegram.ts`
+
+Prefer small reusable functions.
+
+---
+
+# 43. RECOMMENDED FILE STRUCTURE
+
+Aim for something conceptually similar to:
+
+```text
+artifacts/
+  api-server/
+    src/
+      lib/
+        telegram.ts
+        contribution.ts
+        reputation.ts
+        auth.ts
+        data.ts
+
+      routes/
+        bot.ts
+        community.ts
+        experiences.ts
+
+lib/
+  db/
+    src/
+      schema/
+        experiences.ts
+        community.ts
+        index.ts
+
+artifacts/
+  mobile/
+    app/
+      ...
+```
+
+Adapt this to the repository's actual conventions.
+
+Do not force this structure if the existing project uses a better pattern.
+
+---
+
+# 44. CONTRIBUTION SERVICE API
+
+The contribution service should expose reusable functions conceptually similar to:
+
+```ts
+processCommunityMessage(...)
+```
+
+```ts
+calculateMessageContribution(...)
+```
+
+```ts
+recordContribution(...)
+```
+
+```ts
+getCommunityMember(...)
+```
+
+```ts
+getCommunityRank(...)
+```
+
+```ts
+getCommunityLeaderboard(...)
+```
+
+```ts
+getCommunityLevel(...)
+```
+
+The exact implementation is up to you.
+
+---
+
+# 45. REPUTATION MODEL
+
+The long-term model should be extensible.
+
+Think of the system as:
+
+```text
+Contribution Event
+        ↓
+Contribution Type
+        ↓
+XP / Reputation Value
+        ↓
+Community Profile
+        ↓
+Rank
+```
+
+Future examples:
+
+```text
+telegram_message
+experience_completed
+experience_hosted
+challenge_completed
+referral
+environmental_action
+education_action
+verified_impact
+```
+
+Do not implement all of these now.
+
+Only create architecture that makes future implementation possible.
+
+---
+
+# 46. MVP SUCCESS CRITERIA
+
+The feature is considered complete when the following works end-to-end:
+
+## TEST 1
+
+Add the Experiences.fun bot to a Telegram group.
+
+Bot receives ordinary group messages.
+
+---
+
+## TEST 2
+
+User sends:
+
+```text
+This is a genuinely useful contribution to the community today.
+```
+
+Backend identifies:
+
+```text
+Telegram user
+Telegram group
+Message
+Word count
+```
+
+and awards:
+
+```text
++1 Community XP
+```
+
+---
+
+## TEST 3
+
+User sends:
+
+```text
+hello
+```
+
+Result:
+
+```text
+0 XP
+```
+
+---
+
+## TEST 4
+
+User sends:
+
+```text
+/rank
+```
+
+Bot responds with their rank in that group.
+
+---
+
+## TEST 5
+
+User sends:
+
+```text
+/rank @username
+```
+
+Bot responds with that user's rank in the current group.
+
+---
+
+## TEST 6
+
+User sends:
+
+```text
+/leaderboard
+```
+
+Bot displays top 10 contributors.
+
+---
+
+## TEST 7
+
+User opens Experiences.fun Mini App.
+
+Their Community XP and rank are visible.
+
+---
+
+## TEST 8
+
+Another user sends messages.
+
+Leaderboard updates.
+
+---
+
+## TEST 9
+
+The same Telegram update is processed twice.
+
+XP is only awarded once.
+
+---
+
+## TEST 10
+
+The user reaches the daily XP cap.
+
+Additional messages do not generate additional XP.
+
+---
+
+# 47. IMPORTANT PRODUCT DECISION
+
+Do NOT describe the system as:
+
+"Users earn XP for talking."
+
+The product concept is:
+
+> "Experiences.fun recognises meaningful community contribution."
+
+Telegram messages are simply the first measurable contribution signal.
+
+This distinction should be reflected in UI copy and architecture.
+
+---
+
+# 48. FUTURE EXPANSION
+
+Do not build these now, but ensure the architecture can eventually support:
+
+### Contribution quality
+
+Instead of only:
+
+```text
+7 words = 1 XP
+```
+
+future versions may consider:
+
+```text
+message relevance
+helpfulness
+replies received
+reactions
+peer validation
+community votes
+AI quality assessment
+```
+
+### Social contribution
+
+```text
+helped another user
+answered a question
+introduced a member
+organised an event
+```
+
+### Real-world contribution
+
+```text
+attended experience
+hosted experience
+volunteered
+completed educational activity
+completed environmental activity
+```
+
+### Reputation
+
+Eventually:
+
+```text
+Community XP
++
+Verified Experience XP
++
+Impact
++
+Trust
+=
+Experiences.fun Reputation
+```
+
+Again, do NOT implement this entire future system now.
+
+Build the MVP cleanly enough that it can evolve into it.
+
+---
+
+# 49. DESIGN PRINCIPLE
+
+The MVP should be:
+
+```text
+Simple to understand
+Simple to operate
+Hard to exploit
+Easy to extend
+```
+
+Avoid overengineering.
+
+The first version should prove one hypothesis:
+
+> Can Experiences.fun turn participation in a Telegram community into a measurable, visible reputation signal?
+
+That is the experiment.
+
+---
+
+# 50. IMPLEMENTATION PROCESS
+
+Before writing code:
+
+1. Inspect the current Telegram implementation.
+2. Inspect the current database schema.
+3. Inspect the current API routes.
+4. Inspect the current Mini App profile/dashboard.
+5. Identify existing XP logic.
+6. Identify existing generated API types.
+7. Determine where new schema files should live.
+8. Determine whether API code generation must be updated.
+
+Then implement the feature.
+
+After implementation:
+
+1. Run type checking.
+2. Run existing tests.
+3. Run new contribution tests.
+4. Run the build.
+5. Fix all TypeScript errors.
+6. Verify database migrations/schema changes.
+7. Verify Telegram command handling.
+8. Verify Mini App API calls.
+9. Verify the existing application still works.
+
+Do not stop after writing code.
+
+The feature must be integrated and working.
+
+---
+
+# 51. FINAL ACCEPTANCE CHECKLIST
+
+Before considering this task complete, verify:
+
+[ ] Bot can receive ordinary Telegram group messages.
+
+[ ] Existing Telegram commands still work.
+
+[ ] Commands do not award Community XP.
+
+[ ] Private chat messages do not award Community XP.
+
+[ ] Bot messages do not award Community XP.
+
+[ ] Messages under 7 words do not award XP.
+
+[ ] Messages of 7+ words award 1 XP.
+
+[ ] Duplicate messages are protected.
+
+[ ] Rate limiting works.
+
+[ ] Daily XP cap works.
+
+[ ] Contribution events are stored.
+
+[ ] Contribution events are idempotent.
+
+[ ] Community XP is scoped to a Telegram group.
+
+[ ] `/rank` works.
+
+[ ] `/rank @username` works.
+
+[ ] `/leaderboard` works.
+
+[ ] Dynamic rank calculation works.
+
+[ ] Community levels work.
+
+[ ] Mini App displays Community XP.
+
+[ ] Mini App displays Community Rank.
+
+[ ] Mini App displays Community Level.
+
+[ ] Mini App displays contribution history.
+
+[ ] Existing Experience XP remains intact.
+
+[ ] Existing `/xp` behaviour remains intact or is cleanly extended.
+
+[ ] API authentication is secure.
+
+[ ] XP cannot be manually manipulated by the frontend.
+
+[ ] Database indexes exist for common leaderboard queries.
+
+[ ] TypeScript passes.
+
+[ ] Build passes.
+
+[ ] Documentation is updated.
+
+---
+
+# 52. FINAL ARCHITECTURAL PRINCIPLE
+
+The system should ultimately look like this:
+
+```text
+                         EXPERIENCES.FUN
+                               │
+                     CONTRIBUTION LEDGER
+                               │
+          ┌────────────────────┼────────────────────┐
+          │                    │                    │
+     Telegram            Real-World           Experiences
+     Community            Actions              Platform
+          │                    │                    │
+          ▼                    ▼                    ▼
+      Messages            Verified Impact       Participation
+          │                    │                    │
+          └────────────────────┼────────────────────┘
+                               ▼
+                         REPUTATION ENGINE
+                               │
+                ┌──────────────┼──────────────┐
+                │              │              │
+               XP            LEVEL           RANK
+                │              │              │
+                └──────────────┼──────────────┘
+                               ▼
+                    EXPERIENCES.FUN IDENTITY
+                               │
+                 ┌─────────────┴─────────────┐
+                 │                           │
+          Telegram Mini App             Telegram Bot
+```
+
+Build the first version around Telegram message contributions, but do not trap Experiences.fun inside a "message counter" architecture.
+
+The objective is to establish the first working layer of a broader **contribution reputation protocol**.
+
+Implement this directly into the existing repository, preserve existing functionality, and make the smallest clean architectural changes necessary to get the entire system working end-to-end.

@@ -1,0 +1,714 @@
+### 53. ADMIN-GRANTED COMMUNITY XP
+
+Add a moderator/admin XP mechanism that allows verified Telegram group admins to reward users directly for valuable contributions.
+
+The interaction should be extremely simple:
+
+* An admin replies to a user's message with `+1`
+* The user receives **1 Community XP**
+* An admin replies to a user's message with `+10`
+* The user receives **10 Community XP**
+* The number after `+` determines exactly how much XP is awarded.
+
+Examples:
+
+```text
+User:
+"Here is a useful resource for everyone: https://example.com"
+
+Admin replies:
++1
+
+Result:
+User receives +1 Community XP
+```
+
+```text
+User:
+"I've organised a local workshop for 30 students and secured a venue."
+
+Admin replies:
++10
+
+Result:
+User receives +10 Community XP
+```
+
+This should be treated as a distinct contribution type:
+
+```text
+contribution_type = "admin_reward"
+```
+
+The system should record:
+
+* Admin who awarded the XP
+* Recipient user
+* Telegram group/chat ID
+* Original Telegram message ID
+* XP amount awarded
+* Timestamp
+* Contribution type
+* Optional reason/metadata if available
+
+### 54. ADMIN XP PERMISSIONS
+
+Only Telegram users who are actual administrators of the current Telegram group may issue admin XP rewards.
+
+Before processing `+1`, `+2`, `+5`, `+10`, etc., verify that the sender has administrator privileges in the current chat using Telegram's appropriate membership/admin API.
+
+Do NOT trust client-side information or usernames to determine admin status.
+
+The bot should verify:
+
+```text
+sender → current Telegram chat → Telegram admin status
+```
+
+If the sender is not an administrator:
+
+* Do not award XP.
+* Do not create a contribution record.
+* Do not modify the recipient's Community XP.
+* Do not expose internal permission details.
+
+The system should silently ignore invalid admin reward attempts unless an explicit error response is useful.
+
+### 55. ADMIN XP COMMAND FORMAT
+
+Support the following format when replying directly to a message:
+
+```text
++1
++2
++5
++10
+...
+```
+
+The command must be a **reply to another user's message**.
+
+The number following `+` is the XP amount.
+
+Valid examples:
+
+```text
++1
++2
++5
++10
+```
+
+Invalid examples:
+
+```text
+1
+10
++xp
+++1
++ 10
++10xp
++1000
+```
+
+Only the exact `+<integer>` format should be interpreted as an admin XP reward.
+
+The system should not process a standalone `+1` or `+10` as an XP reward unless it is replying to another user's message.
+
+### 56. ADMIN XP LIMITS
+
+Each group administrator may award a maximum of:
+
+**20 Community XP per recipient per day.**
+
+This limit is scoped to:
+
+```text
+group + admin + recipient + calendar day
+```
+
+For example:
+
+Admin A can give User B:
+
+```text
++10
++10
+```
+
+in the same day.
+
+After that, Admin A cannot give User B additional XP that day.
+
+The system must reject:
+
+```text
++1
+```
+
+after the admin has already awarded that recipient 20 XP that day.
+
+The limit must be enforced server-side.
+
+Do not rely on the Telegram client or Mini App to enforce the limit.
+
+Recommended configuration:
+
+```ts
+const ADMIN_REWARD_CONFIG = {
+  maxXpPerRecipientPerAdminPerDay: 20,
+  minimumXp: 1,
+  maximumXpPerReward: 20,
+};
+```
+
+The `maximumXpPerReward` should remain configurable.
+
+### 57. ADMIN XP DATABASE MODEL
+
+Extend the Community Contribution Ledger so admin rewards are first-class contribution events.
+
+Recommended fields:
+
+```text
+id
+recipient_user_id
+admin_user_id
+chat_id
+telegram_message_id
+xp_awarded
+contribution_type
+created_at
+metadata
+```
+
+Use:
+
+```text
+contribution_type = "admin_reward"
+```
+
+The original message being rewarded should be identifiable through:
+
+```text
+telegram_message_id
+```
+
+Recommended indexes:
+
+```text
+(chat_id, admin_user_id, recipient_user_id, created_at)
+(chat_id, recipient_user_id, created_at)
+(recipient_user_id, created_at)
+```
+
+This allows efficient calculation of the daily admin reward limit.
+
+### 58. ADMIN XP IDEMPOTENCY
+
+Admin XP rewards must be idempotent.
+
+A Telegram update must never result in the same reward being processed twice.
+
+Use a unique identifier based on the Telegram update/message context.
+
+At minimum, ensure the combination of:
+
+```text
+chat_id
+telegram_message_id
+```
+
+cannot create duplicate contribution events.
+
+If Telegram retries an update, the original reward must remain unchanged.
+
+Example:
+
+```text
+Admin replies +10
+→ +10 XP awarded
+
+Telegram retries same update
+→ 0 additional XP
+```
+
+### 59. ADMIN SELF-REWARD PROTECTION
+
+Admins must not be able to use the admin reward mechanism to reward themselves.
+
+If:
+
+```text
+admin_user_id === recipient_user_id
+```
+
+then:
+
+* Award 0 XP
+* Create no reward contribution
+* Do not modify Community XP
+
+This prevents trivial self-farming.
+
+### 60. ADMIN XP + EXISTING COMMUNITY XP
+
+Admin rewards must contribute to **Community XP**.
+
+They must NOT directly modify the existing global `users.xp` field unless the existing architecture explicitly determines that Community XP and Experience XP are intentionally unified.
+
+The preferred architecture remains:
+
+```text
+Experience XP
+    +
+Community XP
+    +
+Future contribution types
+    ↓
+Experiences.fun Reputation
+```
+
+For the current MVP:
+
+```text
+Community XP
+├── Message contribution XP
+└── Admin-granted XP
+```
+
+Keep the underlying contribution events separate so the reputation system can evolve later.
+
+### 61. ADMIN XP TELEGRAM RESPONSE
+
+When a valid admin reward is processed, the bot should avoid unnecessary spam.
+
+Preferred behaviour:
+
+```text
+Admin replies:
++10
+```
+
+The bot silently processes the reward.
+
+Optionally, if product UX requires confirmation, use a concise reply such as:
+
+```text
++10 XP → @username
+```
+
+Do not send large automated messages into the group for every reward.
+
+The goal is to make the feature feel native to the conversation rather than turning the group into a notification feed from a robot accountant.
+
+### 62. ADMIN XP LIMIT RESPONSE
+
+If an admin has already awarded the recipient their daily 20 XP allowance, the bot should not award additional XP.
+
+If a response is shown, keep it concise:
+
+```text
+Daily admin XP limit reached for this user.
+```
+
+Do not reveal unnecessary internal accounting information.
+
+### 63. ADMIN XP MINI APP INTEGRATION
+
+The Mini App should display admin-granted XP as part of the user's Community XP history.
+
+Example:
+
+```text
+Community XP
+
++10  Admin recognition
++1   Meaningful contribution
++1   Meaningful contribution
++5   Admin recognition
+```
+
+The UI should distinguish between:
+
+```text
+Message Contribution
+Admin Recognition
+Experience Completed
+Experience Hosted
+Challenge Completed
+```
+
+This creates a transparent contribution history rather than presenting XP as an unexplained number.
+
+### 64. ADMIN XP LEADERBOARD INTEGRATION
+
+Admin-granted XP must count toward the user's Community XP leaderboard.
+
+Example:
+
+```text
+COMMUNITY LEADERBOARD
+
+1. @alice       247 XP
+2. @bob         198 XP
+3. @charlie     174 XP
+```
+
+The leaderboard should not need to know whether XP came from:
+
+* qualifying messages
+* admin rewards
+* future contribution types
+
+It should simply aggregate valid Community XP contribution events.
+
+### 65. ADMIN REWARD AUDITABILITY
+
+Every admin reward must be traceable.
+
+The backend should be able to answer:
+
+```text
+Who awarded the XP?
+Who received it?
+Which group was it awarded in?
+Which message was rewarded?
+How much XP was awarded?
+When was it awarded?
+What type of contribution was it?
+```
+
+This is important because Community XP is intended to become part of an eventual portable reputation system.
+
+Do not implement Community XP as an opaque integer that gets incremented without an event history.
+
+The ledger is the source of truth.
+
+### 66. ADMIN XP SECURITY PRINCIPLE
+
+Never trust:
+
+* Telegram usernames
+* client-side requests
+* Mini App state
+* locally calculated XP
+* frontend admin flags
+
+The backend must independently verify:
+
+```text
+Telegram identity
++
+Telegram chat
++
+Telegram admin status
++
+recipient
++
+original message
++
+daily reward allowance
+```
+
+before awarding XP.
+
+### 67. UPDATED COMMUNITY CONTRIBUTION MODEL
+
+The Community Contribution Engine should now support at least two contribution sources:
+
+```text
+                    COMMUNITY CONTRIBUTION ENGINE
+                              │
+             ┌────────────────┴────────────────┐
+             │                                 │
+      AUTOMATIC CONTRIBUTION              ADMIN RECOGNITION
+             │                                 │
+   Message > 7 words                     Reply +1 / +10
+             │                                 │
+             └────────────────┬────────────────┘
+                              │
+                       CONTRIBUTION LEDGER
+                              │
+                       COMMUNITY XP
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+                 LEVEL                RANK
+                    │                   │
+                    └─────────┬─────────┘
+                              │
+                    EXPERIENCES.FUN IDENTITY
+```
+
+### 68. UPDATED FUTURE CONTRIBUTION MODEL
+
+Design the system so additional contribution types can later be added without rewriting the reputation engine.
+
+Potential future events:
+
+```text
+message_contribution
+admin_reward
+experience_completed
+experience_hosted
+challenge_completed
+challenge_created
+friend_referral
+community_event
+education_action
+environmental_action
+verified_impact
+node_contribution
+```
+
+Each should eventually become an event in the same contribution ledger.
+
+The long-term model should be:
+
+```text
+REAL-WORLD ACTION
+       ↓
+VERIFICATION
+       ↓
+CONTRIBUTION EVENT
+       ↓
+REPUTATION ENGINE
+       ↓
+XP / LEVEL / RANK / REPUTATION
+```
+
+### 69. IMPLEMENTATION REQUIREMENT
+
+Implement this feature without breaking:
+
+* Existing Telegram bot commands
+* Existing `/xp`
+* Existing user profiles
+* Existing Experience XP
+* Existing Mini App authentication
+* Existing Telegram Mini App functionality
+* Existing database schema and migrations
+* Existing polling/update architecture
+
+Do not create:
+
+* A second Telegram bot
+* A second Telegram polling system
+* A second authentication system
+* A second XP system
+* A separate admin database
+* Client-side XP calculations
+
+Extend the existing architecture.
+
+### 70. ACCEPTANCE TESTS FOR ADMIN XP
+
+The implementation is complete only when all of the following work:
+
+#### Test 1: Admin +1
+
+```text
+Admin replies to User A's message:
+
++1
+```
+
+Expected:
+
+```text
+User A Community XP = +1
+```
+
+#### Test 2: Admin +10
+
+```text
+Admin replies:
+
++10
+```
+
+Expected:
+
+```text
+User A Community XP = +10
+```
+
+#### Test 3: Non-admin
+
+```text
+Regular user replies:
+
++10
+```
+
+Expected:
+
+```text
+0 XP
+```
+
+#### Test 4: No reply
+
+```text
+Admin sends:
+
++10
+```
+
+Expected:
+
+```text
+0 XP
+```
+
+because there is no target message/user.
+
+#### Test 5: Self reward
+
+```text
+Admin replies to their own message:
+
++10
+```
+
+Expected:
+
+```text
+0 XP
+```
+
+#### Test 6: Daily limit
+
+Admin awards:
+
+```text
++10
++10
+```
+
+to the same recipient.
+
+Expected:
+
+```text
+20 XP total
+```
+
+A subsequent:
+
+```text
++1
+```
+
+must award:
+
+```text
+0 XP
+```
+
+#### Test 7: Multiple admins
+
+Admin A gives User B:
+
+```text
++20
+```
+
+Admin B gives User B:
+
+```text
++20
+```
+
+Expected:
+
+Each admin has their own daily allowance.
+
+Do not accidentally create a global 20 XP limit unless product requirements are later changed.
+
+#### Test 8: Different recipients
+
+Admin A gives:
+
+```text
+User B → +20
+User C → +20
+```
+
+Expected:
+
+Both rewards succeed.
+
+The limit is per recipient, per admin, per group, per day.
+
+#### Test 9: Different groups
+
+The same admin/recipient combination can receive the configured allowance independently in different groups.
+
+Community XP remains scoped to each community.
+
+#### Test 10: Duplicate Telegram update
+
+The same Telegram reward update is processed twice.
+
+Expected:
+
+Only one reward is recorded.
+
+#### Test 11: Mini App
+
+After awarding `+10`:
+
+```text
+Mini App Community XP
+```
+
+must reflect the additional 10 XP without requiring a manual database change.
+
+#### Test 12: Leaderboard
+
+After awarding XP:
+
+```text
+/leaderboard
+```
+
+must immediately reflect the updated Community XP.
+
+### 71. FINAL PRODUCT PRINCIPLE
+
+Admin XP should feel like **community recognition**, not a financial reward mechanism.
+
+The purpose is to allow trusted community leaders to recognise:
+
+* useful contributions
+* helpful answers
+* organising
+* mentorship
+* resources
+* collaboration
+* real-world impact
+* exceptional participation
+
+The product should therefore frame this internally as:
+
+> **Admin Recognition**
+
+rather than simply:
+
+> **XP Farming**
+
+The underlying philosophy of Experiences.fun remains:
+
+**Make meaningful contribution visible, measurable and portable.**
+
+Telegram messages are simply the first low-friction signal.
+
+Admin recognition is a second signal.
+
+The eventual goal is to connect these signals with verified real-world experiences and impact.
+
+Do not optimise the system for generating the most messages.
+
+Optimise it for identifying and rewarding **meaningful contribution**.
