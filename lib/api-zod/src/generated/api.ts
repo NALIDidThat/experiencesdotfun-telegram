@@ -43,6 +43,7 @@ export const AuthenticateTelegramResponse = zod.object({
   "email": zod.string().email().nullable(),
   "name": zod.string(),
   "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable(),
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
@@ -81,6 +82,7 @@ export const SignUpWithEmailResponse = zod.object({
   "email": zod.string().email().nullable(),
   "name": zod.string(),
   "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable(),
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
@@ -116,6 +118,7 @@ export const LoginWithEmailResponse = zod.object({
   "email": zod.string().email().nullable(),
   "name": zod.string(),
   "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable(),
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
@@ -142,6 +145,7 @@ export const GetMeResponse = zod.object({
   "email": zod.string().email().nullable(),
   "name": zod.string(),
   "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable(),
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
@@ -177,6 +181,7 @@ export const UpdateMeResponse = zod.object({
   "email": zod.string().email().nullable(),
   "name": zod.string(),
   "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable(),
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
@@ -412,7 +417,8 @@ export const GetExperienceResponse = zod.object({
   "participant": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 }),
   "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
   "joinedAt": zod.coerce.date(),
@@ -462,7 +468,8 @@ export const JoinExperienceResponse = zod.object({
   "participant": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 }),
   "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
   "joinedAt": zod.coerce.date(),
@@ -511,7 +518,8 @@ export const ListMyParticipationsResponseItem = zod.object({
   "participant": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 }),
   "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
   "joinedAt": zod.coerce.date(),
@@ -561,7 +569,8 @@ export const SubmitCompletionResponse = zod.object({
   "participant": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 }),
   "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
   "joinedAt": zod.coerce.date(),
@@ -662,7 +671,8 @@ export const ListExperienceParticipantsResponseItem = zod.object({
   "participant": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 }),
   "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
   "joinedAt": zod.coerce.date(),
@@ -712,7 +722,8 @@ export const MarkAttendanceResponse = zod.object({
   "participant": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 }),
   "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
   "joinedAt": zod.coerce.date(),
@@ -761,7 +772,8 @@ export const VerifyParticipationResponse = zod.object({
   "participant": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 }),
   "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
   "joinedAt": zod.coerce.date(),
@@ -810,7 +822,8 @@ export const RejectParticipationResponse = zod.object({
   "participant": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 }),
   "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
   "joinedAt": zod.coerce.date(),
@@ -827,7 +840,8 @@ export const RejectParticipationResponse = zod.object({
 export const ListFriendsResponseItem = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 })
 export const ListFriendsResponse = zod.array(ListFriendsResponseItem)
 
@@ -840,7 +854,8 @@ export const ListFriendRequestsResponseItem = zod.object({
   "user": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 }),
   "status": zod.enum(['pending', 'accepted', 'declined']),
   "createdAt": zod.coerce.date()
@@ -863,7 +878,8 @@ export const CreateFriendRequestResponse = zod.object({
   "user": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 }),
   "status": zod.enum(['pending', 'accepted', 'declined']),
   "createdAt": zod.coerce.date()
@@ -878,7 +894,8 @@ export const ListSentFriendRequestsResponseItem = zod.object({
   "user": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 }),
   "status": zod.enum(['pending', 'accepted', 'declined']),
   "createdAt": zod.coerce.date()
@@ -898,7 +915,8 @@ export const AcceptFriendRequestResponse = zod.object({
   "user": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 }),
   "status": zod.enum(['pending', 'accepted', 'declined']),
   "createdAt": zod.coerce.date()
@@ -917,7 +935,8 @@ export const DeclineFriendRequestResponse = zod.object({
   "user": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "username": zod.string().nullable()
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
 }),
   "status": zod.enum(['pending', 'accepted', 'declined']),
   "createdAt": zod.coerce.date()

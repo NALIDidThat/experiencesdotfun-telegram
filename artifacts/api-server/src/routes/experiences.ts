@@ -569,7 +569,12 @@ router.get("/friends", async (req, res) => {
       ),
     )
     .where(eq(friendshipsTable.status, "accepted"));
-  res.json(rows.map(({ user: friend }) => ({ id: friend.id, name: friend.name, username: friend.username })));
+  res.json(rows.map(({ user: friend }) => ({
+    id: friend.id,
+    name: friend.name,
+    username: friend.username,
+    avatarUrl: friend.avatarUrl,
+  })));
 });
 
 router.get("/friends/requests", async (req, res) => {
@@ -586,7 +591,7 @@ router.get("/friends/requests", async (req, res) => {
   res.json(
     rows.map(({ friendship, user }) => ({
       id: friendship.id,
-      user: { id: user.id, name: user.name, username: user.username },
+      user: { id: user.id, name: user.name, username: user.username, avatarUrl: user.avatarUrl },
       status: friendship.status,
       createdAt: friendship.createdAt.toISOString(),
     })),
@@ -607,7 +612,7 @@ router.get("/friends/requests/sent", async (req, res) => {
   res.json(
     rows.map(({ friendship, user }) => ({
       id: friendship.id,
-      user: { id: user.id, name: user.name, username: user.username },
+      user: { id: user.id, name: user.name, username: user.username, avatarUrl: user.avatarUrl },
       status: friendship.status,
       createdAt: friendship.createdAt.toISOString(),
     })),

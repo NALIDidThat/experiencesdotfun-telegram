@@ -68,6 +68,7 @@ export async function userResponse(user: User) {
     email: emailAccount?.email ?? null,
     name: user.name,
     username: user.username,
+    avatarUrl: user.avatarUrl,
     bio: user.bio,
     city: user.city,
     country: user.country,

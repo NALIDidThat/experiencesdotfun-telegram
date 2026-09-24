@@ -11,4 +11,6 @@ export interface ParticipantSummary {
   name: string;
   /** @nullable */
   username: string | null;
+  /** @nullable */
+  avatarUrl?: string | null;
 }

@@ -44,6 +44,8 @@ export interface User {
   /** @nullable */
   username: string | null;
   /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
   bio: string | null;
   /** @nullable */
   city: string | null;
@@ -218,6 +220,8 @@ export interface ParticipantSummary {
   name: string;
   /** @nullable */
   username: string | null;
+  /** @nullable */
+  avatarUrl?: string | null;
 }
 
 export interface Participation {

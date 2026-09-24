@@ -19,6 +19,8 @@ export interface User {
   /** @nullable */
   username: string | null;
   /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
   bio: string | null;
   /** @nullable */
   city: string | null;

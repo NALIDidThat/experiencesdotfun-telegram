@@ -11,6 +11,7 @@ export type TelegramIdentity = {
   last_name?: string;
   username?: string;
   is_bot?: boolean;
+  photo_url?: string;
 };
 
 export type EmailSignupInput = {
@@ -60,6 +61,17 @@ function verifyPassword(password: string, encodedHash: string): boolean {
 
 function hashSessionToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function validatedTelegramPhotoUrl(photoUrl?: string): string | undefined {
+  if (!photoUrl?.trim()) return undefined;
+  try {
+    const parsed = new URL(photoUrl);
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password) return undefined;
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
 }
 
 async function issueEmailSession(userId: number, accountId: number): Promise<string> {
@@ -177,17 +189,20 @@ export function verifyTelegramInitData(initData: string): TelegramIdentity {
 
 export async function upsertTelegramUser(identity: TelegramIdentity): Promise<User> {
   const name = [identity.first_name, identity.last_name].filter(Boolean).join(" ") || "Telegram user";
+  const avatarUrl = validatedTelegramPhotoUrl(identity.photo_url);
   const [user] = await db
     .insert(usersTable)
     .values({
       telegramId: String(identity.id),
       name,
       username: identity.username ?? null,
+      avatarUrl: avatarUrl ?? null,
     })
     .onConflictDoUpdate({
       target: usersTable.telegramId,
       set: {
         username: identity.username ?? null,
+        ...(avatarUrl ? { avatarUrl } : {}),
         updatedAt: new Date(),
       },
     })

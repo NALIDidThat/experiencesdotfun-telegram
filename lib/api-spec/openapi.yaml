@@ -686,6 +686,9 @@ components:
           type: string
         username:
           type: [string, "null"]
+        avatarUrl:
+          type: [string, "null"]
+          format: uri
         bio:
           type: [string, "null"]
         city:
@@ -717,6 +720,7 @@ components:
         - email
         - name
         - username
+        - avatarUrl
         - bio
         - city
         - country
@@ -1016,6 +1020,9 @@ components:
           type: string
         username:
           type: [string, "null"]
+        avatarUrl:
+          type: [string, "null"]
+          format: uri
       required: [id, name, username]
     HostOverview:
       type: object

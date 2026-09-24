@@ -62,6 +62,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
+import { UserAvatar } from '@/components/UserAvatar';
 
 type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'experience' | 'host' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
@@ -1364,9 +1365,12 @@ function SocialProfileHeader({
     <View style={styles.profileFeatureCard}>
       <View style={[styles.profileIdentityCard, { backgroundColor: colors.primary, borderRadius: colors.radius + 4 }]}>
         <View style={[styles.profileAvatarRing, { backgroundColor: colors.primaryForeground, borderColor: colors.primary + '75' }]}>
-          <View style={[styles.profileAvatar, { backgroundColor: colors.primary + '12' }]}>
-            <Text style={[styles.profileAvatarText, { color: colors.primary }]}>{user.name.charAt(0).toUpperCase()}</Text>
-          </View>
+          <UserAvatar
+            avatarUrl={user.avatarUrl}
+            name={user.name}
+            containerStyle={[styles.profileAvatar, { backgroundColor: colors.primary + '12' }]}
+            initialStyle={[styles.profileAvatarText, { color: colors.primary }]}
+          />
         </View>
         <View style={styles.profileIdentity}>
           <View style={styles.profileNameRow}>
@@ -1496,7 +1500,7 @@ function SocialProfileHeader({
   );
 }
 
-type ProfileMetricFriend = { id: number; name: string; username: string | null };
+type ProfileMetricFriend = { id: number; name: string; username: string | null; avatarUrl?: string | null };
 
 function ProfileMetricDetailsSheet({
   metric,
@@ -1693,9 +1697,12 @@ function ProfileMetricDetailsSheet({
             ) : metric === 'friends' && friends?.length ? (
               friends.map((friend) => (
                 <View key={friend.id} style={[styles.profileMetricFriend, { borderBottomColor: colors.border }]}>
-                  <View style={[styles.profileMetricFriendAvatar, { backgroundColor: colors.primary + '12' }]}>
-                    <Text style={[styles.profileMetricFriendInitial, { color: colors.primary }]}>{friend.name.charAt(0).toUpperCase()}</Text>
-                  </View>
+                  <UserAvatar
+                    avatarUrl={friend.avatarUrl}
+                    name={friend.name}
+                    containerStyle={[styles.profileMetricFriendAvatar, { backgroundColor: colors.primary + '12' }]}
+                    initialStyle={[styles.profileMetricFriendInitial, { color: colors.primary }]}
+                  />
                   <View style={styles.profileMetricRecordCopy}>
                     <Text numberOfLines={1} style={[styles.profileMetricRecordTitle, { color: colors.foreground }]}>{friend.name}</Text>
                     <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
@@ -2057,9 +2064,12 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
                   style={[styles.friendRequestCard, { backgroundColor: colors.card, borderColor: directionColor + '55', borderRadius: colors.radius }]}
                 >
                   <View style={styles.friendPersonHeader}>
-                    <View style={[styles.friendAvatar, { backgroundColor: directionColor + '18' }]}>
-                      <Text style={[styles.friendAvatarInitial, { color: directionColor }]}>{request.user.name.trim().charAt(0).toUpperCase() || '?'}</Text>
-                    </View>
+                    <UserAvatar
+                      avatarUrl={request.user.avatarUrl}
+                      name={request.user.name}
+                      containerStyle={[styles.friendAvatar, { backgroundColor: directionColor + '18' }]}
+                      initialStyle={[styles.friendAvatarInitial, { color: directionColor }]}
+                    />
                     <View style={styles.friendPersonCopy}>
                       <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>{request.user.name}</Text>
                       <Text numberOfLines={1} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>
@@ -2147,9 +2157,12 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
             ) : friends.data?.length ? (
               friends.data.map((friend) => (
                 <View key={friend.id} style={[styles.friendPersonRow, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-                  <View style={[styles.friendAvatar, { backgroundColor: colors.primary + '12' }]}>
-                    <Text style={[styles.friendAvatarInitial, { color: colors.primary }]}>{friend.name.trim().charAt(0).toUpperCase() || '?'}</Text>
-                  </View>
+                  <UserAvatar
+                    avatarUrl={friend.avatarUrl}
+                    name={friend.name}
+                    containerStyle={[styles.friendAvatar, { backgroundColor: colors.primary + '12' }]}
+                    initialStyle={[styles.friendAvatarInitial, { color: colors.primary }]}
+                  />
                   <View style={styles.friendPersonCopy}>
                     <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>{friend.name}</Text>
                     <Text numberOfLines={1} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>

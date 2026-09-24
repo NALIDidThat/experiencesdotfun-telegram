@@ -17,6 +17,7 @@ export const usersTable = pgTable(
     telegramId: text("telegram_id").notNull(),
     name: text("name").notNull(),
     username: text("username"),
+    avatarUrl: text("avatar_url"),
     bio: text("bio"),
     city: text("city"),
     country: text("country"),
