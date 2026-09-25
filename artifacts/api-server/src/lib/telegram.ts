@@ -28,10 +28,25 @@ import {
   parseAdminRewardAmount,
 } from "./community-rules";
 import {
+  buildWelcomeKeyboard,
+  escapeTelegramHtml,
+  formatWelcomeMessage,
+  formatCompletionSubmittedNotice,
+  formatContributionRejectedNotice,
+  formatContributionVerifiedNotice,
+  formatExperienceJoinedNotice,
+  formatFriendRequestAcceptedNotice,
+  formatFriendRequestDeclinedNotice,
+  formatFriendRequestNotice,
+  formatFriendRequestSentNotice,
+  formatFriendshipConnectedNotice,
+  formatHostNewParticipantNotice,
   makeChatCompatibleKeyboard,
   parseTelegramCommand,
   type TelegramButton,
+  type TelegramExperienceNotice,
 } from "./telegram-utils";
+export { escapeTelegramHtml } from "./telegram-utils";
 
 type TelegramUpdate = {
   update_id: number;
@@ -94,13 +109,6 @@ function formatCommunityXp(value: number): string {
   return value.toLocaleString("en-GB");
 }
 
-export function escapeTelegramHtml(value: string | number | null | undefined): string {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
 function miniAppUrl(path = "/"): string {
   const configured = process.env.TELEGRAM_MINI_APP_URL;
   if (configured) return `${configured.replace(/\/$/, "")}${path}`;
@@ -146,16 +154,118 @@ export async function sendTelegramMessage(
   });
 }
 
+export async function sendExperienceJoinedNotification(
+  recipientTelegramId: number | string,
+  experience: TelegramExperienceNotice,
+) {
+  return sendTelegramMessage(
+    recipientTelegramId,
+    formatExperienceJoinedNotice(experience),
+    [[openButton("View experience", `/?screen=experience&id=${experience.id}`)]],
+  );
+}
+
+export async function sendHostNewParticipantNotification(
+  hostTelegramId: number | string,
+  participantName: string,
+  experience: TelegramExperienceNotice,
+) {
+  return sendTelegramMessage(
+    hostTelegramId,
+    formatHostNewParticipantNotice(participantName, experience),
+    [[openButton("Review participants", "/?screen=host")]],
+  );
+}
+
+export async function sendCompletionSubmittedNotification(
+  hostTelegramId: number | string,
+  participantName: string,
+  experience: TelegramExperienceNotice,
+) {
+  return sendTelegramMessage(
+    hostTelegramId,
+    formatCompletionSubmittedNotice(participantName, experience),
+    [[openButton("Review contribution", "/?screen=host")]],
+  );
+}
+
+export async function sendContributionVerifiedNotification(
+  participantTelegramId: number | string,
+  experience: TelegramExperienceNotice,
+) {
+  return sendTelegramMessage(
+    participantTelegramId,
+    formatContributionVerifiedNotice(experience),
+    [[openButton("View profile", "/?screen=profile"), openButton("Find another experience", "/?screen=explore")]],
+  );
+}
+
+export async function sendContributionRejectedNotification(
+  participantTelegramId: number | string,
+  experience: TelegramExperienceNotice,
+) {
+  return sendTelegramMessage(
+    participantTelegramId,
+    formatContributionRejectedNotice(experience),
+    [[openButton("View experience", `/?screen=experience&id=${experience.id}`)]],
+  );
+}
+
+export async function sendFriendRequestSentNotification(
+  requesterTelegramId: number | string,
+  recipientName: string,
+  recipientUsername: string | null,
+) {
+  return sendTelegramMessage(
+    requesterTelegramId,
+    formatFriendRequestSentNotice(recipientName, recipientUsername),
+    [[openButton("Open friends", "/?screen=profile")]],
+  );
+}
+
+export async function sendFriendRequestAcceptedNotification(
+  requesterTelegramId: number | string,
+  recipientName: string,
+  recipientUsername: string | null,
+) {
+  return sendTelegramMessage(
+    requesterTelegramId,
+    formatFriendRequestAcceptedNotice(recipientName, recipientUsername),
+    [[openButton("Open friends", "/?screen=profile")]],
+  );
+}
+
+export async function sendFriendshipConnectedNotification(
+  recipientTelegramId: number | string,
+  requesterName: string,
+  requesterUsername: string | null,
+) {
+  return sendTelegramMessage(
+    recipientTelegramId,
+    formatFriendshipConnectedNotice(requesterName, requesterUsername),
+    [[openButton("Open friends", "/?screen=profile")]],
+  );
+}
+
+export async function sendFriendRequestDeclinedNotification(
+  recipientTelegramId: number | string,
+) {
+  return sendTelegramMessage(
+    recipientTelegramId,
+    formatFriendRequestDeclinedNotice(),
+    [[openButton("Open friends", "/?screen=profile")]],
+  );
+}
+
 export async function sendFriendRequestNotification(
   recipientTelegramId: number | string,
   requesterName: string,
   requesterUsername: string | null,
   requestId: number,
 ) {
-  const requesterLabel = escapeTelegramHtml(requesterUsername ? `@${requesterUsername}` : requesterName);
   return sendTelegramMessage(
     recipientTelegramId,
-    `<b>New friend request</b>\n${requesterLabel} wants to connect with you.`,
+    formatFriendRequestNotice(requesterName, requesterUsername),
     [[
       { text: "Accept", callback_data: `friend:accept:${requestId}` },
       { text: "Decline", callback_data: `friend:decline:${requestId}` },
@@ -200,30 +310,12 @@ function callbackButton(text: string, data: string): TelegramButton {
   return { text, callback_data: data };
 }
 
-function displayName(identity: TelegramIdentity): string {
-  return escapeTelegramHtml(identity.first_name || identity.username || "there");
-}
-
 function hasCompletedOnboarding(user: {
   city: string | null;
   interests: string[];
   participationType: string | null;
 }): boolean {
   return Boolean(user.city?.trim() && user.interests.length > 0 && user.participationType);
-}
-
-function onboardingKeyboard(): TelegramButton[][] {
-  return [
-    [openButton("Open Experiences.fun", "/?screen=home")],
-    [
-      callbackButton("How it works", "onboarding:how"),
-      callbackButton("I want to join", "onboarding:join"),
-    ],
-    [
-      callbackButton("I want to host", "onboarding:host"),
-      callbackButton("More options", "menu:open"),
-    ],
-  ];
 }
 
 function menuKeyboard(): TelegramButton[][] {
@@ -241,16 +333,12 @@ function menuKeyboard(): TelegramButton[][] {
   ];
 }
 
-async function sendOnboarding(
-  chatId: number,
-  identity: TelegramIdentity,
-  complete: boolean,
-) {
-  const name = displayName(identity);
-  const message = complete
-    ? `<b>👋 Welcome back, ${name}.</b>\n\n<i>Your passport is ready for its next adventure.</i>\n\n<b>What would you like to do?</b>\n🔎 <b>Discover</b> a local experience\n🎤 <b>Host</b> something useful for your community\n⚡ <b>Track</b> your XP, progress, and rewards\n\nPick a route below and let’s get moving.`
-    : `<b>🌈 Welcome to Experiences.fun, ${name}.</b>\n\n<i>Real people. Real things. Real local impact.</i>\n\nTurn a little time into something meaningful:\n\n🌱 <b>Join</b> community, education, and environmental experiences\n🤝 <b>Meet</b> people who care about the same things\n⚡ <b>Earn</b> verified XP and available rewards\n🎤 <b>Host</b> an opportunity others can take part in\n\n<b>Your first three steps</b>\n① Open the Mini App\n② Add your interests and city\n③ Choose whether you want to join, host, or do both\n\n<i>Your next good thing is probably closer than you think.</i>`;
-  return sendTelegramMessage(chatId, message, onboardingKeyboard());
+async function sendOnboarding(chatId: number) {
+  return sendTelegramMessage(
+    chatId,
+    formatWelcomeMessage(),
+    buildWelcomeKeyboard(miniAppUrl),
+  );
 }
 
 async function sendHowItWorks(chatId: number) {
@@ -287,7 +375,7 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
   }
   switch (command) {
     case "/start":
-      await sendOnboarding(chatId, identity, hasCompletedOnboarding(user));
+      await sendOnboarding(chatId);
       break;
     case "/onboarding":
       await sendTelegramMessage(
@@ -520,13 +608,11 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
         await sendTelegramMessage(chatId, "No pending friend requests.");
       } else {
         for (const row of rows) {
-          await sendTelegramMessage(
+          await sendFriendRequestNotification(
             chatId,
-            `<b>Friend request</b>\n@${escapeTelegramHtml(row.user.username ?? row.user.name)} wants to connect with you.`,
-            [[
-              { text: "Accept", callback_data: `friend:accept:${row.friendship.id}` },
-              { text: "Decline", callback_data: `friend:decline:${row.friendship.id}` },
-            ]],
+            row.user.name,
+            row.user.username,
+            row.friendship.id,
           );
         }
       }
@@ -553,7 +639,7 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
         await sendTelegramMessage(chatId, "A request or friendship already exists for this participant.");
         break;
       }
-      await sendTelegramMessage(chatId, `Friend request sent to @${escapeTelegramHtml(friend.username ?? friend.name)}.`);
+      await sendFriendRequestSentNotification(chatId, friend.name, friend.username);
       await sendFriendRequestNotification(
         friend.telegramId,
         user.name,
@@ -722,12 +808,17 @@ async function handleCallback(update: NonNullable<TelegramUpdate["callback_query
     )
     .returning();
   if (!updated) return;
-  await sendTelegramMessage(update.message?.chat.id ?? user.telegramId, accepted ? "You're now connected." : "Friend request declined.");
   const requester = await db.query.usersTable.findFirst({
     where: eq(usersTable.id, request.requesterUserId),
   });
-  if (accepted && requester) {
-    await sendTelegramMessage(requester.telegramId, `@${escapeTelegramHtml(user.username ?? user.name)} accepted your friend request.`);
+  const recipientChatId = update.message?.chat.id ?? user.telegramId;
+  if (!accepted) {
+    await sendFriendRequestDeclinedNotification(recipientChatId);
+  } else if (requester) {
+    await sendFriendshipConnectedNotification(recipientChatId, requester.name, requester.username);
+    await sendFriendRequestAcceptedNotification(requester.telegramId, user.name, user.username);
+  } else {
+    await sendTelegramMessage(recipientChatId, "<b>Friend request accepted</b>\n\nYou’re now connected.");
   }
 }
 

@@ -44,7 +44,15 @@ import {
   participationResponse,
   userResponse,
 } from "../lib/data";
-import { escapeTelegramHtml, sendFriendRequestNotification, sendTelegramMessage } from "../lib/telegram";
+import {
+  sendCompletionSubmittedNotification,
+  sendContributionRejectedNotification,
+  sendContributionVerifiedNotification,
+  sendExperienceJoinedNotification,
+  sendFriendRequestAcceptedNotification,
+  sendFriendRequestNotification,
+  sendHostNewParticipantNotification,
+} from "../lib/telegram";
 import { createOrReopenFriendRequest } from "../lib/friends";
 
 const router: IRouter = Router();
@@ -389,17 +397,13 @@ router.post("/experiences/:experienceId/join", async (req, res) => {
   const organisation = await db.query.organisationsTable.findFirst({
     where: eq(organisationsTable.id, experience.organisationId),
   });
-  await sendTelegramMessage(
-    user.telegramId,
-    `<b>You're in</b>\n\nYou've joined <b>${escapeTelegramHtml(experience.title)}</b>.\n${escapeTelegramHtml(experience.date)} · ${escapeTelegramHtml(experience.city)}\n+${experience.xpReward} XP${experience.monetaryRewardPence ? ` · £${(experience.monetaryRewardPence / 100).toFixed(2)}` : ""}`,
-    [[{ text: "View experience", web_app: { url: `https://${process.env.REPLIT_DOMAINS?.split(",")[0] ?? process.env.REPLIT_DEV_DOMAIN}/?screen=experience&id=${experience.id}` } }]],
-  );
+  await sendExperienceJoinedNotification(user.telegramId, experience);
   if (organisation) {
     const host = await db.query.usersTable.findFirst({
       where: eq(usersTable.id, organisation.ownerUserId),
     });
     if (host && host.id !== user.id) {
-      await sendTelegramMessage(host.telegramId, `<b>New participant</b>\n${escapeTelegramHtml(user.name)} joined <b>${escapeTelegramHtml(experience.title)}</b>.`);
+      await sendHostNewParticipantNotification(host.telegramId, user.name, experience);
     }
   }
   res.status(201).json(await participationResponse(created));
@@ -468,7 +472,7 @@ router.post("/participations/:participationId/submit", async (req, res) => {
     const host = organisation
       ? await db.query.usersTable.findFirst({ where: eq(usersTable.id, organisation.ownerUserId) })
       : undefined;
-    if (host) await sendTelegramMessage(host.telegramId, `<b>Verification required</b>\n${escapeTelegramHtml(user.name)} submitted completion for <b>${escapeTelegramHtml(experience.title)}</b>.`);
+    if (host) await sendCompletionSubmittedNotification(host.telegramId, user.name, experience);
   }
   res.json(await participationResponse(updated));
 });
@@ -592,14 +596,27 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
     error(res, 404, "Participation not found.");
     return;
   }
+  if (participation.status !== "submitted") {
+    error(res, 409, "This contribution is no longer awaiting review.");
+    return;
+  }
   const experience = await db.query.experiencesTable.findFirst({
     where: eq(experiencesTable.id, participation.experienceId),
   });
   const [updated] = await db
     .update(participationsTable)
     .set({ status: "verified", verifiedAt: new Date(), rewardStatus: "issued" })
-    .where(eq(participationsTable.id, participation.id))
+    .where(
+      and(
+        eq(participationsTable.id, participation.id),
+        eq(participationsTable.status, "submitted"),
+      ),
+    )
     .returning();
+  if (!updated) {
+    error(res, 409, "This contribution is no longer awaiting review.");
+    return;
+  }
   if (experience) {
     const existingParticipant = await db.query.usersTable.findFirst({
       where: eq(usersTable.id, participation.userId),
@@ -610,11 +627,7 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
       .where(eq(usersTable.id, participation.userId))
       .returning();
     if (participant) {
-      await sendTelegramMessage(
-        participant.telegramId,
-        `<b>Contribution verified</b>\n\n${escapeTelegramHtml(experience.title)}\n+${experience.xpReward} XP${experience.monetaryRewardPence ? ` · £${(experience.monetaryRewardPence / 100).toFixed(2)}` : ""}\n\nYour progress has been updated.`,
-        [[{ text: "View progress", web_app: { url: `https://${process.env.REPLIT_DOMAINS?.split(",")[0] ?? process.env.REPLIT_DEV_DOMAIN}/?screen=profile` } }]],
-      );
+      await sendContributionVerifiedNotification(participant.telegramId, experience);
     }
   }
   res.json(await participationResponse(updated));
@@ -631,11 +644,35 @@ router.post("/host/participations/:participationId/reject", async (req, res) => 
     error(res, 404, "Participation not found.");
     return;
   }
+  if (participation.status !== "submitted") {
+    error(res, 409, "This contribution is no longer awaiting review.");
+    return;
+  }
   const [updated] = await db
     .update(participationsTable)
     .set({ status: "rejected", rewardStatus: "pending" })
-    .where(eq(participationsTable.id, participation.id))
+    .where(
+      and(
+        eq(participationsTable.id, participation.id),
+        eq(participationsTable.status, "submitted"),
+      ),
+    )
     .returning();
+  if (!updated) {
+    error(res, 409, "This contribution is no longer awaiting review.");
+    return;
+  }
+  const [experience, participant] = await Promise.all([
+    db.query.experiencesTable.findFirst({
+      where: eq(experiencesTable.id, participation.experienceId),
+    }),
+    db.query.usersTable.findFirst({
+      where: eq(usersTable.id, participation.userId),
+    }),
+  ]);
+  if (experience && participant) {
+    await sendContributionRejectedNotification(participant.telegramId, experience);
+  }
   res.json(await participationResponse(updated));
 });
 
@@ -769,7 +806,13 @@ router.post("/friends/requests/:requestId/accept", async (req, res) => {
   }
   const requester = await db.query.usersTable.findFirst({ where: eq(usersTable.id, updated.requesterUserId) });
   const recipient = currentUser(req);
-  if (requester) await sendTelegramMessage(requester.telegramId, `${escapeTelegramHtml(recipient.name)} accepted your friend request.`);
+  if (requester) {
+    await sendFriendRequestAcceptedNotification(
+      requester.telegramId,
+      recipient.name,
+      recipient.username,
+    );
+  }
   res.json({
     id: updated.id,
     user: { id: requester?.id ?? updated.requesterUserId, name: requester?.name ?? "Participant", username: requester?.username ?? null },
