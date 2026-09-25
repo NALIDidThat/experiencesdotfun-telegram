@@ -321,6 +321,28 @@ export interface HostOverview {
 
 export type Friend = ParticipantSummary;
 
+export interface FriendProfile {
+  id: number;
+  name: string;
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  bio: string | null;
+  /** @nullable */
+  city: string | null;
+  interests: ExperienceCategory[];
+  userType: UserType | null;
+  /** @nullable */
+  organisation: Organisation | null;
+  xp: number;
+  level: string;
+  completedCount: number;
+  hostedCount: number;
+  memberSince: string;
+}
+
 export type FriendRequestStatus = typeof FriendRequestStatus[keyof typeof FriendRequestStatus];
 
 

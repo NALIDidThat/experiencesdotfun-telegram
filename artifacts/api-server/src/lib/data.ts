@@ -88,6 +88,47 @@ export async function userResponse(user: User) {
   };
 }
 
+export async function friendProfileResponse(user: User) {
+  const [completed] = await db
+    .select({ value: count() })
+    .from(participationsTable)
+    .where(
+      and(
+        eq(participationsTable.userId, user.id),
+        eq(participationsTable.status, "verified"),
+      ),
+    );
+  const [hosted] = await db
+    .select({ value: count() })
+    .from(experiencesTable)
+    .innerJoin(
+      organisationsTable,
+      eq(experiencesTable.organisationId, organisationsTable.id),
+    )
+    .where(eq(organisationsTable.ownerUserId, user.id));
+  const organisation = await db.query.organisationsTable.findFirst({
+    where: eq(organisationsTable.ownerUserId, user.id),
+    orderBy: desc(organisationsTable.createdAt),
+  });
+
+  return {
+    id: user.id,
+    name: user.name,
+    username: user.username,
+    avatarUrl: user.avatarUrl,
+    bio: user.bio,
+    city: user.city,
+    interests: user.interests,
+    userType: user.userType,
+    organisation: organisation ? organisationResponse(organisation) : null,
+    xp: user.xp,
+    level: levelForXp(user.xp),
+    completedCount: Number(completed?.value ?? 0),
+    hostedCount: Number(hosted?.value ?? 0),
+    memberSince: user.createdAt.toISOString(),
+  };
+}
+
 export function organisationResponse(organisation: Organisation) {
   return {
     id: organisation.id,

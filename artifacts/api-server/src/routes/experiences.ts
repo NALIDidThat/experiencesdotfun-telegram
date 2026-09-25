@@ -4,6 +4,7 @@ import {
   AcceptFriendRequestParams,
   CreateExperienceBody,
   CreateFriendRequestBody,
+  GetFriendProfileParams,
   GetExperienceParams,
   ListExperiencesQueryParams,
   ListExperienceParticipantsParams,
@@ -40,6 +41,7 @@ import { logger } from "../lib/logger";
 import {
   currentOrganisation,
   experienceResponse,
+  friendProfileResponse,
   organisationResponse,
   participationResponse,
   userResponse,
@@ -695,6 +697,46 @@ router.get("/friends", async (req, res) => {
     username: friend.username,
     avatarUrl: friend.avatarUrl,
   })));
+});
+
+router.get("/friends/:friendId/profile", async (req, res) => {
+  const parsed = GetFriendProfileParams.safeParse({ friendId: req.params.friendId });
+  if (!parsed.success) {
+    error(res, 404, "Friend profile not found.");
+    return;
+  }
+
+  const viewer = currentUser(req);
+  const friendId = parsed.data.friendId;
+  const friendship = await db.query.friendshipsTable.findFirst({
+    where: and(
+      eq(friendshipsTable.status, "accepted"),
+      or(
+        and(
+          eq(friendshipsTable.requesterUserId, viewer.id),
+          eq(friendshipsTable.recipientUserId, friendId),
+        ),
+        and(
+          eq(friendshipsTable.recipientUserId, viewer.id),
+          eq(friendshipsTable.requesterUserId, friendId),
+        ),
+      ),
+    ),
+  });
+  if (!friendship) {
+    error(res, 404, "Friend profile not found.");
+    return;
+  }
+
+  const friend = await db.query.usersTable.findFirst({
+    where: eq(usersTable.id, friendId),
+  });
+  if (!friend) {
+    error(res, 404, "Friend profile not found.");
+    return;
+  }
+
+  res.json(await friendProfileResponse(friend));
 });
 
 router.get("/friends/requests", async (req, res) => {

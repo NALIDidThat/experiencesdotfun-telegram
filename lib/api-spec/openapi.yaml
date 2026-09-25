@@ -436,6 +436,30 @@ paths:
                   $ref: "#/components/schemas/Friend"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /friends/{friendId}/profile:
+    get:
+      operationId: getFriendProfile
+      tags: [friends]
+      summary: Get the profile of an accepted friend
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: friendId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Friend profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /friends/requests:
     get:
       operationId: listFriendRequests
@@ -1081,6 +1105,60 @@ components:
       required: [organisation, upcomingExperiences, participantCount, pendingVerifications, totalExperiences]
     Friend:
       $ref: "#/components/schemas/ParticipantSummary"
+    FriendProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        username:
+          type: [string, "null"]
+        avatarUrl:
+          type: [string, "null"]
+          format: uri
+        bio:
+          type: [string, "null"]
+        city:
+          type: [string, "null"]
+        interests:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExperienceCategory"
+        userType:
+          oneOf:
+            - $ref: "#/components/schemas/UserType"
+            - type: "null"
+        organisation:
+          type: [object, "null"]
+          allOf:
+            - $ref: "#/components/schemas/Organisation"
+        xp:
+          type: integer
+        level:
+          type: string
+        completedCount:
+          type: integer
+        hostedCount:
+          type: integer
+        memberSince:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - username
+        - avatarUrl
+        - bio
+        - city
+        - interests
+        - userType
+        - organisation
+        - xp
+        - level
+        - completedCount
+        - hostedCount
+        - memberSince
     FriendRequest:
       type: object
       properties:

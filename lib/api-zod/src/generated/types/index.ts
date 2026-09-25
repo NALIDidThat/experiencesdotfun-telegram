@@ -25,6 +25,7 @@ export * from './experienceCreateInput';
 export * from './experienceDetail';
 export * from './experienceStatus';
 export * from './friend';
+export * from './friendProfile';
 export * from './friendRequest';
 export * from './friendRequestCreateInput';
 export * from './friendRequestStatus';

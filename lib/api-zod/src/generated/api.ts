@@ -914,6 +914,42 @@ export const ListFriendsResponse = zod.array(ListFriendsResponseItem)
 
 
 /**
+ * @summary Get the profile of an accepted friend
+ */
+
+
+
+export const GetFriendProfileParams = zod.object({
+  "friendId": zod.coerce.number().int().min(1)
+})
+
+export const GetFriendProfileResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable(),
+  "bio": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "verified": zod.boolean()
+}).nullable(),
+  "xp": zod.number().int(),
+  "level": zod.string(),
+  "completedCount": zod.number().int(),
+  "hostedCount": zod.number().int(),
+  "memberSince": zod.coerce.date()
+})
+
+
+/**
  * @summary List incoming friend requests
  */
 export const ListFriendRequestsResponseItem = zod.object({
