@@ -628,22 +628,6 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
           { minHeight: Math.max(0, screenHeight - topInset - bottomInset), paddingTop: topInset, paddingBottom: bottomInset },
         ]}
       >
-        {isWeb ? (
-          <View style={styles.welcomeStatusBar} accessibilityLabel="Status bar">
-            <Text style={[styles.welcomeStatusTime, { color: welcome.foreground }]}>9:41</Text>
-            <View style={styles.welcomeStatusIcons}>
-              <View style={styles.welcomeSignal}>
-                <View style={[styles.welcomeSignalBar, { height: 4, backgroundColor: welcome.foreground }]} />
-                <View style={[styles.welcomeSignalBar, { height: 6, backgroundColor: welcome.foreground }]} />
-                <View style={[styles.welcomeSignalBar, { height: 8, backgroundColor: welcome.foreground }]} />
-                <View style={[styles.welcomeSignalBar, { height: 10, backgroundColor: welcome.foreground }]} />
-              </View>
-              <Feather name="wifi" size={15} color={welcome.foreground} />
-              <Feather name="battery" size={17} color={welcome.foreground} />
-            </View>
-          </View>
-        ) : null}
-
         <View style={[styles.welcomeHeader, { paddingHorizontal: 26 }]}>
           <Text style={styles.welcomeBrand} accessibilityLabel="Experiences dot fun">
             <Text style={{ color: welcome.foreground }}>experiences</Text>
@@ -3668,11 +3652,6 @@ const styles = StyleSheet.create({
   welcomeOverlay: { position: 'absolute', top: 0, left: 0, right: 0, width: '100%', zIndex: 0 },
   welcomeScroll: { flex: 1, zIndex: 1 },
   welcomeScrollContent: { flexGrow: 1, alignItems: 'center' },
-  welcomeStatusBar: { width: '100%', height: 24, paddingHorizontal: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  welcomeStatusTime: { fontSize: 12, fontFamily: 'Inter_600SemiBold', letterSpacing: 0.2 },
-  welcomeStatusIcons: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  welcomeSignal: { height: 12, flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
-  welcomeSignalBar: { width: 2, borderRadius: 1 },
   welcomeHeader: { width: '100%', height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   welcomeBrand: { fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: -0.7 },
   welcomeSkipButton: { minWidth: 54, minHeight: 32, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: 16, zIndex: 1 },
