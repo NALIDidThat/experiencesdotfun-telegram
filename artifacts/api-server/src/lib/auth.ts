@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { and, eq, gt, sql } from "drizzle-orm";
 import type { NextFunction, Request, Response } from "express";
 import { db } from "@workspace/db";
-import { emailAccountsTable, usersTable, type User } from "@workspace/db/schema";
+import { emailAccountsTable, usersTable, type User, type UserType } from "@workspace/db/schema";
 import { verifyTelegramInitData as verifySignedTelegramInitData, type TelegramIdentity } from "./telegram-init-data";
 import { logger } from "./logger";
 
@@ -12,6 +12,7 @@ export type EmailSignupInput = {
   name: string;
   email: string;
   password: string;
+  userType: UserType;
 };
 
 export type EmailLoginInput = {
@@ -101,6 +102,7 @@ export async function createEmailAccount(input: EmailSignupInput): Promise<{ use
           telegramId: `email:${crypto.randomUUID()}`,
           name: input.name.trim(),
           username: null,
+          userType: input.userType,
         })
         .returning();
       if (!createdUser) throw new Error("Unable to create email user.");
@@ -165,7 +167,7 @@ export function verifyTelegramInitData(initData: string): TelegramIdentity {
   return verifySignedTelegramInitData(initData, getBotToken());
 }
 
-export async function upsertTelegramUser(identity: TelegramIdentity): Promise<User> {
+export async function upsertTelegramUser(identity: TelegramIdentity, selectedUserType?: UserType): Promise<User> {
   const name = [identity.first_name, identity.last_name].filter(Boolean).join(" ") || "Telegram user";
   const avatarUrl = validatedTelegramPhotoUrl(identity.photo_url);
   const [user] = await db
@@ -175,12 +177,16 @@ export async function upsertTelegramUser(identity: TelegramIdentity): Promise<Us
       name,
       username: identity.username ?? null,
       avatarUrl: avatarUrl ?? null,
+      userType: selectedUserType ?? null,
     })
     .onConflictDoUpdate({
       target: usersTable.telegramId,
       set: {
         username: identity.username ?? null,
         ...(avatarUrl ? { avatarUrl } : {}),
+        ...(selectedUserType
+          ? { userType: sql`COALESCE(${usersTable.userType}, ${selectedUserType})` }
+          : {}),
         updatedAt: new Date(),
       },
     })

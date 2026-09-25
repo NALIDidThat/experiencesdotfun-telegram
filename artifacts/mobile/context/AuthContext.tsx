@@ -7,6 +7,7 @@ import {
   useSignUpWithEmail,
   type AuthResponse,
   type User,
+  type UserType,
 } from '@workspace/api-client-react';
 import {
   getTelegramInitData,
@@ -25,9 +26,9 @@ type AuthContextValue = {
   clearAuthError: () => void;
   refresh: () => Promise<boolean>;
   signOut: () => Promise<void>;
-  login: () => Promise<boolean>;
+  login: (accountType?: UserType) => Promise<boolean>;
   loginWithEmail: (email: string, password: string) => Promise<boolean>;
-  signUpWithEmail: (name: string, email: string, password: string) => Promise<boolean>;
+  signUpWithEmail: (name: string, email: string, password: string, accountType: UserType) => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextValue>({
@@ -82,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     candidate: string | null,
     reportMissing = true,
     preserveExistingSession = false,
+    accountType?: UserType,
   ) => {
     if (!candidate) {
       if (reportMissing) {
@@ -95,7 +97,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setAuthError(null);
     try {
-      const response = await authenticateRef.current.mutateAsync({ data: { initData: candidate } });
+      const response = await authenticateRef.current.mutateAsync({
+        data: { initData: candidate, ...(accountType ? { userType: accountType } : {}) },
+      });
       await saveAuthToken(candidate);
       setInitData(candidate);
       setUser(response.user);
@@ -160,11 +164,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [completeEmailAuth]);
 
-  const signUpWithEmail = useCallback(async (name: string, email: string, password: string) => {
+  const signUpWithEmail = useCallback(async (name: string, email: string, password: string, accountType: UserType) => {
     setLoading(true);
     setAuthError(null);
     try {
-      return await completeEmailAuth(await emailSignupRef.current.mutateAsync({ data: { name, email, password } }));
+      return await completeEmailAuth(await emailSignupRef.current.mutateAsync({
+        data: { name, email, password, userType: accountType },
+      }));
     } catch (error) {
       const message = (error as { data?: { message?: string } })?.data?.message;
       setAuthError(message ?? 'We could not create your account. Please try again.');
@@ -173,14 +179,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [completeEmailAuth]);
 
-  const login = useCallback(async () => {
+  const login = useCallback(async (accountType?: UserType) => {
     await loadTelegramWebApp();
     const liveData = getTelegramInitData();
     const storedData = liveData ? null : await getStoredAuthToken();
     if (!liveData && storedData?.startsWith('email_')) {
       return restoreEmailSession();
     }
-    return authenticateWith(liveData ?? storedData, true, Boolean(user));
+    return authenticateWith(liveData ?? storedData, true, Boolean(user), accountType);
   }, [authenticateWith, restoreEmailSession, user]);
 
   useEffect(() => {

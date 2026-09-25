@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { UserType } from './userType';
 
 export interface EmailSignupInput {
   /** @minLength 1 */
@@ -12,4 +13,5 @@ export interface EmailSignupInput {
   email: string;
   /** @minLength 8 */
   password: string;
+  userType: UserType;
 }

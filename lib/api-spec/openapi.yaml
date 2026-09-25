@@ -642,6 +642,8 @@ components:
         initData:
           type: string
           minLength: 1
+        userType:
+          $ref: "#/components/schemas/UserType"
       required: [initData]
     AuthResponse:
       type: object
@@ -665,7 +667,9 @@ components:
         password:
           type: string
           minLength: 8
-      required: [name, email, password]
+        userType:
+          $ref: "#/components/schemas/UserType"
+      required: [name, email, password, userType]
     EmailLoginInput:
       type: object
       properties:

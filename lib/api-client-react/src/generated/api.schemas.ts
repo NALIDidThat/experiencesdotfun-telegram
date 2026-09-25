@@ -18,9 +18,18 @@ export interface BotInfo {
   username: string | null;
 }
 
+export type UserType = typeof UserType[keyof typeof UserType];
+
+
+export const UserType = {
+  participant: 'participant',
+  organisation: 'organisation',
+} as const;
+
 export interface TelegramAuthInput {
   /** @minLength 1 */
   initData: string;
+  userType?: UserType;
 }
 
 export type ExperienceCategory = typeof ExperienceCategory[keyof typeof ExperienceCategory];
@@ -30,14 +39,6 @@ export const ExperienceCategory = {
   environmental: 'environmental',
   education: 'education',
   community: 'community',
-} as const;
-
-export type UserType = typeof UserType[keyof typeof UserType];
-
-
-export const UserType = {
-  participant: 'participant',
-  organisation: 'organisation',
 } as const;
 
 export interface Organisation {
@@ -98,6 +99,7 @@ export interface EmailSignupInput {
   email: string;
   /** @minLength 8 */
   password: string;
+  userType: UserType;
 }
 
 export interface EmailLoginInput {

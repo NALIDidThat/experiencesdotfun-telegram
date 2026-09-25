@@ -5,8 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { UserType } from './userType';
 
 export interface TelegramAuthInput {
   /** @minLength 1 */
   initData: string;
+  userType?: UserType;
 }

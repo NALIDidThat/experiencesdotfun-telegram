@@ -448,9 +448,16 @@ function EmailAuthPanel({
       setLocalError('Your passwords do not match.');
       return;
     }
-    const authenticated = isSignup
-      ? await signUpWithEmail(name.trim(), email.trim(), password)
-      : await loginWithEmail(email.trim(), password);
+    let authenticated: boolean;
+    if (isSignup) {
+      if (!accountType) {
+        setLocalError('Choose an account type before creating your account.');
+        return;
+      }
+      authenticated = await signUpWithEmail(name.trim(), email.trim(), password, accountType);
+    } else {
+      authenticated = await loginWithEmail(email.trim(), password);
+    }
     if (authenticated) onSuccess();
   };
 
@@ -558,7 +565,7 @@ function EmailAuthPanel({
             {localError || authError ? <Text accessibilityRole="alert" style={[styles.emailError, { color: colors.destructive }]}>{localError ?? authError}</Text> : null}
             <Button
               label={loading ? (isSignup ? 'Creating account…' : 'Logging in…') : (isSignup ? 'Create account' : 'Log in')}
-              disabled={loading || !email.trim() || !password || (isSignup && (!name.trim() || !confirmPassword))}
+              disabled={loading || !email.trim() || !password || (isSignup && (!accountType || !name.trim() || !confirmPassword))}
               onPress={() => { void submit(); }}
               icon={isSignup ? 'user-plus' : 'log-in'}
               color={colors.primary}
@@ -3729,7 +3736,7 @@ export default function App() {
             accountType={selectedAccountType}
             onBack={() => setEntryStage('account-type')}
             onEmail={() => go('email')}
-            onTelegram={() => { void login(); }}
+            onTelegram={() => { void login(selectedAccountType); }}
           />
         )}
       </AppShell>

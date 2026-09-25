@@ -84,7 +84,7 @@ router.post("/auth/telegram", async (req, res) => {
 
   try {
     const existing = await findUserByTelegramId(identity.id);
-    const user = await upsertTelegramUser(identity);
+    const user = await upsertTelegramUser(identity, parsed.data.userType);
     res.json({ user: await userResponse(user), isNew: !existing, sessionToken: null });
   } catch (accountError) {
     logger.error({ err: accountError }, "Telegram account initialization failed");

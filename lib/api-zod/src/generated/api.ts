@@ -32,7 +32,8 @@ export const GetBotInfoResponse = zod.object({
 
 
 export const AuthenticateTelegramBody = zod.object({
-  "initData": zod.string().min(1)
+  "initData": zod.string().min(1),
+  "userType": zod.enum(['participant', 'organisation']).optional()
 })
 
 export const AuthenticateTelegramResponse = zod.object({
@@ -81,7 +82,8 @@ export const signUpWithEmailBodyPasswordMin = 8;
 export const SignUpWithEmailBody = zod.object({
   "name": zod.string().min(1),
   "email": zod.string().email(),
-  "password": zod.string().min(signUpWithEmailBodyPasswordMin)
+  "password": zod.string().min(signUpWithEmailBodyPasswordMin),
+  "userType": zod.enum(['participant', 'organisation'])
 })
 
 export const SignUpWithEmailResponse = zod.object({
