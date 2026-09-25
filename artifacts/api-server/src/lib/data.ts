@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import {
   emailAccountsTable,
   experiencesTable,
+  friendshipsTable,
   organisationsTable,
   participationsTable,
   usersTable,
@@ -106,6 +107,18 @@ export async function friendProfileResponse(user: User) {
       eq(experiencesTable.organisationId, organisationsTable.id),
     )
     .where(eq(organisationsTable.ownerUserId, user.id));
+  const [friends] = await db
+    .select({ value: count() })
+    .from(friendshipsTable)
+    .where(
+      and(
+        eq(friendshipsTable.status, "accepted"),
+        or(
+          eq(friendshipsTable.requesterUserId, user.id),
+          eq(friendshipsTable.recipientUserId, user.id),
+        ),
+      ),
+    );
   const organisation = await db.query.organisationsTable.findFirst({
     where: eq(organisationsTable.ownerUserId, user.id),
     orderBy: desc(organisationsTable.createdAt),
@@ -125,6 +138,7 @@ export async function friendProfileResponse(user: User) {
     level: levelForXp(user.xp),
     completedCount: Number(completed?.value ?? 0),
     hostedCount: Number(hosted?.value ?? 0),
+    friendsCount: Number(friends?.value ?? 0),
     memberSince: user.createdAt.toISOString(),
   };
 }

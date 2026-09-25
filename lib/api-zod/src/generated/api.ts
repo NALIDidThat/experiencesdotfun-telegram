@@ -945,6 +945,7 @@ export const GetFriendProfileResponse = zod.object({
   "level": zod.string(),
   "completedCount": zod.number().int(),
   "hostedCount": zod.number().int(),
+  "friendsCount": zod.number().int(),
   "memberSince": zod.coerce.date()
 })
 

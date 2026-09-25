@@ -340,6 +340,7 @@ export interface FriendProfile {
   level: string;
   completedCount: number;
   hostedCount: number;
+  friendsCount: number;
   memberSince: string;
 }
 

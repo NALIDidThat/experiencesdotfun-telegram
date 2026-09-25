@@ -1928,14 +1928,52 @@ function ContributionDashboard({ user, completed }: { user: User; completed: Par
 
 type ProfileMetricKey = 'completed' | 'hosted' | 'friends';
 
+type SocialProfileUser = Pick<
+  User,
+  'name' | 'username' | 'avatarUrl' | 'createdAt' | 'level' | 'completedCount' | 'hostedCount' | 'xp' | 'bio' | 'city' | 'interests'
+>;
+
+function ProfileDashboardMetric({
+  style,
+  onPress,
+  accessibilityLabel,
+  accessibilityHint,
+  testID,
+  children,
+}: {
+  style: React.ComponentProps<typeof View>['style'];
+  onPress?: () => void;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  testID?: string;
+  children: React.ReactNode;
+}) {
+  if (!onPress) {
+    return <View testID={testID} style={style}>{children}</View>;
+  }
+
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      onPress={() => { triggerHaptic(); onPress(); }}
+      style={({ pressed }) => [style, { opacity: pressed ? 0.76 : 1 }]}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
 function SocialProfileHeader({
   user,
   friendsCount,
   onMetricPress,
 }: {
-  user: User;
+  user: SocialProfileUser;
   friendsCount: number;
-  onMetricPress: (metric: ProfileMetricKey) => void;
+  onMetricPress?: (metric: ProfileMetricKey) => void;
 }) {
   const colors = useColors();
   const interests = user.interests?.map((interest) => categoryLabel[interest]).join(' · ');
@@ -1976,35 +2014,33 @@ function SocialProfileHeader({
       </View>
 
       <View style={styles.profileBentoRow}>
-        <Pressable
-          accessibilityRole="button"
+        <ProfileDashboardMetric
           accessibilityLabel={`View ${user.completedCount} completed experiences`}
-          accessibilityHint="Opens a summary of your completed experiences."
-          onPress={() => { triggerHaptic(); onMetricPress('completed'); }}
-          style={({ pressed }) => [
+          accessibilityHint="Opens a summary of completed experiences."
+          onPress={onMetricPress ? () => onMetricPress('completed') : undefined}
+          style={[
             styles.profileCompletedTile,
-            { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.76 : 1 },
+            { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
           ]}
         >
           <View style={styles.profileMetricTopRow}>
             <View style={[styles.profileMetricIcon, { backgroundColor: colors.primary + '20' }]}>
               <Feather name="check-circle" size={16} color={colors.primary} />
             </View>
-            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+            {onMetricPress ? <Feather name="chevron-right" size={16} color={colors.mutedForeground} /> : null}
           </View>
           <Text style={[styles.profileFeatureMetricValue, { color: colors.primary }]}>{user.completedCount}</Text>
           <Text style={[styles.profileTileLabel, { color: colors.mutedForeground }]}>Completed</Text>
-        </Pressable>
+        </ProfileDashboardMetric>
         <View style={styles.profileBentoStack}>
-          <Pressable
+          <ProfileDashboardMetric
             testID="profile-metric-friends"
-            accessibilityRole="button"
             accessibilityLabel={`View ${user.hostedCount} hosted experiences`}
-            accessibilityHint="Opens a summary of your hosted experiences."
-            onPress={() => { triggerHaptic(); onMetricPress('hosted'); }}
-            style={({ pressed }) => [
+            accessibilityHint="Opens a summary of hosted experiences."
+            onPress={onMetricPress ? () => onMetricPress('hosted') : undefined}
+            style={[
               styles.profileCompactTile,
-              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.76 : 1 },
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
             ]}
           >
             <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.primary + '12' }]}>
@@ -2014,16 +2050,15 @@ function SocialProfileHeader({
               <Text style={[styles.profileCompactMetricValue, { color: colors.primary }]}>{user.hostedCount}</Text>
               <Text style={[styles.profileTileLabel, { color: colors.mutedForeground }]}>Hosted</Text>
             </View>
-            <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
+            {onMetricPress ? <Feather name="chevron-right" size={14} color={colors.mutedForeground} /> : null}
+          </ProfileDashboardMetric>
+          <ProfileDashboardMetric
             accessibilityLabel={`View ${friendsCount} friends`}
-            accessibilityHint="Opens your friends list."
-            onPress={() => { triggerHaptic(); onMetricPress('friends'); }}
-            style={({ pressed }) => [
+            accessibilityHint="Opens the friends list."
+            onPress={onMetricPress ? () => onMetricPress('friends') : undefined}
+            style={[
               styles.profileCompactTile,
-              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.76 : 1 },
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
             ]}
           >
             <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.primary + '12' }]}>
@@ -2033,8 +2068,8 @@ function SocialProfileHeader({
               <Text style={[styles.profileCompactMetricValue, { color: colors.primary }]}>{friendsCount}</Text>
               <Text style={[styles.profileTileLabel, { color: colors.mutedForeground }]}>Friends</Text>
             </View>
-            <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
-          </Pressable>
+            {onMetricPress ? <Feather name="chevron-right" size={14} color={colors.mutedForeground} /> : null}
+          </ProfileDashboardMetric>
         </View>
       </View>
 
@@ -2344,21 +2379,20 @@ function FriendProfileScreen({
     },
   });
   const friend = profile.data;
-  const interests = friend?.interests.map((interest) => categoryLabel[interest]) ?? [];
-  const joinedAt = friend?.memberSince ? new Date(friend.memberSince) : null;
-  const memberSince = joinedAt && !Number.isNaN(joinedAt.getTime())
-    ? joinedAt.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-    : null;
 
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={[styles.scrollContent, styles.friendProfileScrollContent]}
+      contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
       <Header
-        title={friend?.name ?? 'Friend profile'}
-        subtitle={friend?.username ? `@${friend.username}` : 'Your Experiences.fun friend'}
+        title={friend?.userType === 'organisation' ? 'Organisation profile' : 'Passport'}
+        subtitle={friend
+          ? friend.userType === 'organisation'
+            ? friend.organisation?.name ?? 'Organisation account'
+            : `Friend profile · ${friend.username ? `@${friend.username}` : 'Experiences.fun'}`
+          : 'Friend profile'}
         onBack={onBack}
       />
 
@@ -2382,121 +2416,22 @@ function FriendProfileScreen({
           onAction={() => { void profile.refetch(); }}
         />
       ) : friend ? (
-        <View style={styles.friendProfileContent}>
-          <View style={styles.profileFeatureCard}>
-            <View style={[styles.profileIdentityCard, { backgroundColor: colors.primary, borderRadius: colors.radius + 4 }]}>
-              <View style={[styles.profileAvatarRing, { backgroundColor: colors.primaryForeground, borderColor: colors.primary + '75' }]}>
-                <UserAvatar
-                  avatarUrl={friend.avatarUrl}
-                  name={friend.name}
-                  containerStyle={[styles.profileAvatar, { backgroundColor: colors.primary + '12' }]}
-                  initialStyle={[styles.profileAvatarText, { color: colors.primary }]}
-                />
-              </View>
-              <View style={styles.profileIdentity}>
-                <Text numberOfLines={2} style={[styles.profileName, { color: colors.primaryForeground }]}>{friend.name}</Text>
-                <View style={styles.profileIdentityFooter}>
-                  <View style={[styles.profileBadge, { backgroundColor: colors.primaryForeground, borderColor: colors.primaryForeground }]}>
-                    <Feather name="users" size={12} color={colors.primary} />
-                    <Text style={[styles.profileBadgeText, { color: colors.primary }]}>Friend</Text>
-                  </View>
-                  <View style={[styles.profileBadge, { backgroundColor: colors.primaryForeground, borderColor: colors.primaryForeground }]}>
-                    <Feather name="award" size={12} color={colors.primary} />
-                    <Text numberOfLines={1} style={[styles.profileBadgeText, { color: colors.primary }]}>{friend.level}</Text>
-                  </View>
-                  {friend.userType === 'organisation' ? (
-                    <View style={[styles.profileBadge, { backgroundColor: colors.primaryForeground, borderColor: colors.primaryForeground }]}>
-                      <Feather name="briefcase" size={12} color={colors.primary} />
-                      <Text style={[styles.profileBadgeText, { color: colors.primary }]}>Organisation</Text>
-                    </View>
-                  ) : null}
-                </View>
-              </View>
-            </View>
-
-            <View style={[styles.profileXpTile, { backgroundColor: colors.muted, borderRadius: colors.radius }]}>
-              <View style={styles.profileXpCopy}>
-                <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.primary + '12' }]}>
-                  <Feather name="zap" size={14} color={colors.primary} />
-                </View>
-                <View>
-                  <Text style={[styles.profileXpTitle, { color: colors.foreground }]}>Experience points</Text>
-                  <Text style={[styles.profileXpCaption, { color: colors.mutedForeground }]}>Earned through participation</Text>
-                </View>
-              </View>
-              <Text style={[styles.profileXpValue, { color: colors.primary }]}>
-                {friend.xp}<Text style={[styles.profileXpUnit, { color: colors.primary }]}> XP</Text>
-              </Text>
-            </View>
-
-            <View style={styles.profileBentoRow}>
-              <View style={[styles.friendProfileStat, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-                <View style={[styles.profileMetricIcon, { backgroundColor: colors.primary + '12' }]}>
-                  <Feather name="check-circle" size={16} color={colors.primary} />
-                </View>
-                <Text style={[styles.friendProfileStatValue, { color: colors.primary }]}>{friend.completedCount}</Text>
-                <Text style={[styles.profileTileLabel, { color: colors.mutedForeground }]}>Completed</Text>
-              </View>
-              <View style={[styles.friendProfileStat, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-                <View style={[styles.profileMetricIcon, { backgroundColor: colors.teal + '18' }]}>
-                  <Feather name="calendar" size={16} color={colors.teal} />
-                </View>
-                <Text style={[styles.friendProfileStatValue, { color: colors.teal }]}>{friend.hostedCount}</Text>
-                <Text style={[styles.profileTileLabel, { color: colors.mutedForeground }]}>Hosted</Text>
-              </View>
-            </View>
-
-            {friend.bio ? (
-              <View style={[styles.profileBioTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-                <Text style={[styles.profileTileOverline, { color: colors.mutedForeground }]}>ABOUT</Text>
-                <Text style={[styles.profileBio, { color: colors.foreground }]}>{friend.bio}</Text>
-              </View>
-            ) : null}
-
-            {friend.city || interests.length ? (
-              <View style={styles.profileBentoRow}>
-                {friend.city ? (
-                  <View style={[styles.profileDetailTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-                    <View style={[styles.profileMetricIcon, { backgroundColor: colors.primary + '12' }]}>
-                      <Feather name="map-pin" size={15} color={colors.primary} />
-                    </View>
-                    <Text style={[styles.profileTileOverline, { color: colors.mutedForeground }]}>BASED IN</Text>
-                    <Text numberOfLines={2} style={[styles.profileDetailText, { color: colors.foreground }]}>{friend.city}</Text>
-                  </View>
-                ) : null}
-                {interests.length ? (
-                  <View style={[styles.profileDetailTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-                    <View style={[styles.profileMetricIcon, { backgroundColor: colors.primary + '12' }]}>
-                      <Feather name="heart" size={15} color={colors.primary} />
-                    </View>
-                    <Text style={[styles.profileTileOverline, { color: colors.mutedForeground }]}>INTERESTS</Text>
-                    <Text style={[styles.profileDetailText, { color: colors.foreground }]}>{interests.join(' · ')}</Text>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-
-            {friend.organisation ? (
-              <View style={[styles.profileBioTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-                <View style={styles.friendProfileOrganisationHeader}>
-                  <Text style={[styles.profileTileOverline, { color: colors.mutedForeground }]}>ORGANISATION</Text>
-                  {friend.organisation.verified ? <Feather name="check-circle" size={15} color={colors.teal} /> : null}
-                </View>
-                <Text style={[styles.friendProfileOrganisationName, { color: colors.foreground }]}>{friend.organisation.name}</Text>
-                {friend.organisation.description ? (
-                  <Text style={[styles.profileBio, { color: colors.mutedForeground }]}>{friend.organisation.description}</Text>
-                ) : null}
-              </View>
-            ) : null}
-          </View>
-
-          {memberSince ? (
-            <View style={[styles.friendProfileMemberSince, { borderTopColor: colors.border }]}>
-              <Feather name="calendar" size={14} color={colors.mutedForeground} />
-              <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>Member since {memberSince}</Text>
-            </View>
-          ) : null}
-        </View>
+        <SocialProfileHeader
+          user={{
+            name: friend.name,
+            username: friend.username,
+            avatarUrl: friend.avatarUrl,
+            createdAt: friend.memberSince,
+            level: friend.level,
+            completedCount: friend.completedCount,
+            hostedCount: friend.hostedCount,
+            xp: friend.xp,
+            bio: friend.bio,
+            city: friend.city,
+            interests: friend.interests,
+          }}
+          friendsCount={friend.friendsCount}
+        />
       ) : null}
     </ScrollView>
   );
@@ -4188,14 +4123,7 @@ const styles = StyleSheet.create({
   contributionLegendCell: { width: 11, height: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 2 },
 
   profileFeatureCard: { gap: 10, marginBottom: 28 },
-  friendProfileScrollContent: { paddingBottom: 28 },
-  friendProfileContent: { gap: 10, marginTop: 4 },
   friendProfileLoading: { minHeight: 260, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  friendProfileStat: { flex: 1, minHeight: 126, justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, padding: 13, borderWidth: 1 },
-  friendProfileStatValue: { fontSize: 34, lineHeight: 38, fontFamily: 'Inter_700Bold' },
-  friendProfileOrganisationHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  friendProfileOrganisationName: { fontSize: 16, lineHeight: 21, fontFamily: 'Inter_700Bold' },
-  friendProfileMemberSince: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 14, paddingBottom: 8, borderTopWidth: 1 },
   profileIdentityCard: { flexDirection: 'row', alignItems: 'center', gap: 13, padding: 16, minHeight: 132, overflow: 'hidden' },
   profileAvatarRing: { width: 68, height: 68, borderRadius: 34, borderWidth: 2, alignItems: 'center', justifyContent: 'center', padding: 3 },
   profileAvatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },

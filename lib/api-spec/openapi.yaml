@@ -1141,6 +1141,8 @@ components:
           type: integer
         hostedCount:
           type: integer
+        friendsCount:
+          type: integer
         memberSince:
           type: string
           format: date-time
@@ -1158,6 +1160,7 @@ components:
         - level
         - completedCount
         - hostedCount
+        - friendsCount
         - memberSince
     FriendRequest:
       type: object
