@@ -382,6 +382,191 @@ export interface FriendRequestCreateInput {
   username: string;
 }
 
+export interface AccountabilityInvitation {
+  id: number;
+  user: ParticipantSummary;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface AccountabilityActivePartner {
+  partnershipId: number;
+  partner: ParticipantSummary;
+  acceptedAt: string;
+}
+
+export type AccountabilityCheckInStatus = typeof AccountabilityCheckInStatus[keyof typeof AccountabilityCheckInStatus];
+
+
+export const AccountabilityCheckInStatus = {
+  completed: 'completed',
+  partial: 'partial',
+  missed: 'missed',
+  rescheduled: 'rescheduled',
+} as const;
+
+export type AccountabilityCheckInVerificationStatus = typeof AccountabilityCheckInVerificationStatus[keyof typeof AccountabilityCheckInVerificationStatus];
+
+
+export const AccountabilityCheckInVerificationStatus = {
+  self_reported: 'self_reported',
+  partner_confirmed: 'partner_confirmed',
+  experience_verified: 'experience_verified',
+} as const;
+
+export interface AccountabilityCheckIn {
+  id: number;
+  commitmentId: number;
+  userId: number;
+  status: AccountabilityCheckInStatus;
+  /** @nullable */
+  note: string | null;
+  verificationStatus: AccountabilityCheckInVerificationStatus;
+  confirmedBy: ParticipantSummary | null;
+  createdAt: string;
+}
+
+export type AccountabilityCommitmentStatus = typeof AccountabilityCommitmentStatus[keyof typeof AccountabilityCommitmentStatus];
+
+
+export const AccountabilityCommitmentStatus = {
+  active: 'active',
+  completed: 'completed',
+  missed: 'missed',
+  cancelled: 'cancelled',
+} as const;
+
+export type AccountabilityCommitmentVerificationStatus = typeof AccountabilityCommitmentVerificationStatus[keyof typeof AccountabilityCommitmentVerificationStatus];
+
+
+export const AccountabilityCommitmentVerificationStatus = {
+  self_reported: 'self_reported',
+  partner_confirmed: 'partner_confirmed',
+  experience_verified: 'experience_verified',
+} as const;
+
+export interface AccountabilityCommitment {
+  id: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  createdBy: ParticipantSummary;
+  assignedTo: ParticipantSummary;
+  targetValue: number;
+  currentValue: number;
+  /** @nullable */
+  deadline: string | null;
+  status: AccountabilityCommitmentStatus;
+  verificationStatus: AccountabilityCommitmentVerificationStatus;
+  latestCheckIn: AccountabilityCheckIn | null;
+  createdAt: string;
+  /** @nullable */
+  completedAt: string | null;
+}
+
+export type AccountabilityActivityType = typeof AccountabilityActivityType[keyof typeof AccountabilityActivityType];
+
+
+export const AccountabilityActivityType = {
+  partner_invite: 'partner_invite',
+  partner_accepted: 'partner_accepted',
+  partner_declined: 'partner_declined',
+  partnership_ended: 'partnership_ended',
+  commitment_created: 'commitment_created',
+  check_in_completed: 'check_in_completed',
+  check_in_partial: 'check_in_partial',
+  check_in_missed: 'check_in_missed',
+  check_in_rescheduled: 'check_in_rescheduled',
+  check_in_confirmed: 'check_in_confirmed',
+  encouragement_received: 'encouragement_received',
+} as const;
+
+export interface AccountabilityActivity {
+  id: number;
+  type: AccountabilityActivityType;
+  title: string;
+  message: string;
+  actor: ParticipantSummary;
+  /** @nullable */
+  commitmentId: number | null;
+  /** @nullable */
+  commitmentTitle: string | null;
+  checkIn: AccountabilityCheckIn | null;
+  /** @nullable */
+  readAt: string | null;
+  isUnread: boolean;
+  createdAt: string;
+}
+
+export interface AccountabilityDashboard {
+  activePartner: AccountabilityActivePartner | null;
+  incomingInvitations: AccountabilityInvitation[];
+  outgoingInvitations: AccountabilityInvitation[];
+  commitments: AccountabilityCommitment[];
+  activity: AccountabilityActivity[];
+  notifications: AccountabilityActivity[];
+  unreadCount: number;
+}
+
+export interface AccountabilityMutationResult {
+  success: boolean;
+  message: string;
+}
+
+export interface AccountabilityInvitationInput {
+  /** @minimum 1 */
+  friendUserId: number;
+}
+
+export interface AccountabilityCommitmentInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title: string;
+  /** @maxLength 500 */
+  description?: string;
+  /** @minimum 1 */
+  assignedUserId: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  targetValue?: number;
+  deadline?: string;
+}
+
+export type AccountabilityCheckInInputStatus = typeof AccountabilityCheckInInputStatus[keyof typeof AccountabilityCheckInInputStatus];
+
+
+export const AccountabilityCheckInInputStatus = {
+  completed: 'completed',
+  partial: 'partial',
+  missed: 'missed',
+  rescheduled: 'rescheduled',
+} as const;
+
+export interface AccountabilityCheckInInput {
+  status: AccountabilityCheckInInputStatus;
+  /** @maxLength 500 */
+  note?: string;
+}
+
+export type AccountabilityEncouragementInputMessage = typeof AccountabilityEncouragementInputMessage[keyof typeof AccountabilityEncouragementInputMessage];
+
+
+export const AccountabilityEncouragementInputMessage = {
+  keep_going: 'keep_going',
+  nearly_there: 'nearly_there',
+  proud_of_you: 'proud_of_you',
+  lets_do_this: 'lets_do_this',
+  join_me: 'join_me',
+} as const;
+
+export interface AccountabilityEncouragementInput {
+  message: AccountabilityEncouragementInputMessage;
+}
+
 /**
  * Telegram identity is missing or invalid
  */

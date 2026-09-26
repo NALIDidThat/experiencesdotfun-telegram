@@ -1070,3 +1070,363 @@ export const DeclineFriendRequestResponse = zod.object({
 })
 
 
+/**
+ * @summary Get the signed-in participant's accountability dashboard
+ */
+export const GetAccountabilityDashboardResponse = zod.object({
+  "activePartner": zod.union([zod.object({
+  "partnershipId": zod.number().int(),
+  "partner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "acceptedAt": zod.coerce.date()
+}),zod.null()]),
+  "incomingInvitations": zod.array(zod.object({
+  "id": zod.number().int(),
+  "user": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date()
+})),
+  "outgoingInvitations": zod.array(zod.object({
+  "id": zod.number().int(),
+  "user": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date()
+})),
+  "commitments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "createdBy": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "assignedTo": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "targetValue": zod.number().int(),
+  "currentValue": zod.number().int(),
+  "deadline": zod.coerce.date().nullable(),
+  "status": zod.enum(['active', 'completed', 'missed', 'cancelled']),
+  "verificationStatus": zod.enum(['self_reported', 'partner_confirmed', 'experience_verified']),
+  "latestCheckIn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "commitmentId": zod.number().int(),
+  "userId": zod.number().int(),
+  "status": zod.enum(['completed', 'partial', 'missed', 'rescheduled']),
+  "note": zod.string().nullable(),
+  "verificationStatus": zod.enum(['self_reported', 'partner_confirmed', 'experience_verified']),
+  "confirmedBy": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),zod.null()]),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable()
+})),
+  "activity": zod.array(zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['partner_invite', 'partner_accepted', 'partner_declined', 'partnership_ended', 'commitment_created', 'check_in_completed', 'check_in_partial', 'check_in_missed', 'check_in_rescheduled', 'check_in_confirmed', 'encouragement_received']),
+  "title": zod.string(),
+  "message": zod.string(),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "commitmentId": zod.number().int().nullable(),
+  "commitmentTitle": zod.string().nullable(),
+  "checkIn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "commitmentId": zod.number().int(),
+  "userId": zod.number().int(),
+  "status": zod.enum(['completed', 'partial', 'missed', 'rescheduled']),
+  "note": zod.string().nullable(),
+  "verificationStatus": zod.enum(['self_reported', 'partner_confirmed', 'experience_verified']),
+  "confirmedBy": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),zod.null()]),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
+  "readAt": zod.coerce.date().nullable(),
+  "isUnread": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})),
+  "notifications": zod.array(zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['partner_invite', 'partner_accepted', 'partner_declined', 'partnership_ended', 'commitment_created', 'check_in_completed', 'check_in_partial', 'check_in_missed', 'check_in_rescheduled', 'check_in_confirmed', 'encouragement_received']),
+  "title": zod.string(),
+  "message": zod.string(),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "commitmentId": zod.number().int().nullable(),
+  "commitmentTitle": zod.string().nullable(),
+  "checkIn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "commitmentId": zod.number().int(),
+  "userId": zod.number().int(),
+  "status": zod.enum(['completed', 'partial', 'missed', 'rescheduled']),
+  "note": zod.string().nullable(),
+  "verificationStatus": zod.enum(['self_reported', 'partner_confirmed', 'experience_verified']),
+  "confirmedBy": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),zod.null()]),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
+  "readAt": zod.coerce.date().nullable(),
+  "isUnread": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})),
+  "unreadCount": zod.number().int()
+})
+
+
+/**
+ * @summary Invite an accepted friend to become an accountability partner
+ */
+
+
+
+export const CreateAccountabilityInvitationBody = zod.object({
+  "friendUserId": zod.number().int().min(1)
+})
+
+export const CreateAccountabilityInvitationResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Accept an accountability partnership invitation
+ */
+
+
+
+export const AcceptAccountabilityInvitationParams = zod.object({
+  "invitationId": zod.coerce.number().int().min(1)
+})
+
+export const AcceptAccountabilityInvitationResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Decline an accountability partnership invitation
+ */
+
+
+
+export const DeclineAccountabilityInvitationParams = zod.object({
+  "invitationId": zod.coerce.number().int().min(1)
+})
+
+export const DeclineAccountabilityInvitationResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary End the signed-in participant's active partnership
+ */
+
+
+
+export const EndAccountabilityPartnershipParams = zod.object({
+  "partnershipId": zod.coerce.number().int().min(1)
+})
+
+export const EndAccountabilityPartnershipResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Create a shared commitment for an active partnership
+ */
+export const createAccountabilityCommitmentBodyTitleMax = 120;
+
+export const createAccountabilityCommitmentBodyDescriptionMax = 500;
+
+
+export const createAccountabilityCommitmentBodyTargetValueMax = 100;
+
+
+
+export const CreateAccountabilityCommitmentBody = zod.object({
+  "title": zod.string().min(1).max(createAccountabilityCommitmentBodyTitleMax),
+  "description": zod.string().max(createAccountabilityCommitmentBodyDescriptionMax).optional(),
+  "assignedUserId": zod.number().int().min(1),
+  "targetValue": zod.number().int().min(1).max(createAccountabilityCommitmentBodyTargetValueMax).optional(),
+  "deadline": zod.coerce.date().optional()
+})
+
+export const CreateAccountabilityCommitmentResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "createdBy": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "assignedTo": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "targetValue": zod.number().int(),
+  "currentValue": zod.number().int(),
+  "deadline": zod.coerce.date().nullable(),
+  "status": zod.enum(['active', 'completed', 'missed', 'cancelled']),
+  "verificationStatus": zod.enum(['self_reported', 'partner_confirmed', 'experience_verified']),
+  "latestCheckIn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "commitmentId": zod.number().int(),
+  "userId": zod.number().int(),
+  "status": zod.enum(['completed', 'partial', 'missed', 'rescheduled']),
+  "note": zod.string().nullable(),
+  "verificationStatus": zod.enum(['self_reported', 'partner_confirmed', 'experience_verified']),
+  "confirmedBy": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),zod.null()]),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Record a self-reported commitment check-in
+ */
+
+
+
+export const CreateAccountabilityCheckInParams = zod.object({
+  "commitmentId": zod.coerce.number().int().min(1)
+})
+
+export const createAccountabilityCheckInBodyNoteMax = 500;
+
+
+
+export const CreateAccountabilityCheckInBody = zod.object({
+  "status": zod.enum(['completed', 'partial', 'missed', 'rescheduled']),
+  "note": zod.string().max(createAccountabilityCheckInBodyNoteMax).optional()
+})
+
+export const CreateAccountabilityCheckInResponse = zod.object({
+  "id": zod.number().int(),
+  "commitmentId": zod.number().int(),
+  "userId": zod.number().int(),
+  "status": zod.enum(['completed', 'partial', 'missed', 'rescheduled']),
+  "note": zod.string().nullable(),
+  "verificationStatus": zod.enum(['self_reported', 'partner_confirmed', 'experience_verified']),
+  "confirmedBy": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),zod.null()]),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Confirm a partner's self-reported completion
+ */
+
+
+
+export const ConfirmAccountabilityCheckInParams = zod.object({
+  "checkInId": zod.coerce.number().int().min(1)
+})
+
+export const ConfirmAccountabilityCheckInResponse = zod.object({
+  "id": zod.number().int(),
+  "commitmentId": zod.number().int(),
+  "userId": zod.number().int(),
+  "status": zod.enum(['completed', 'partial', 'missed', 'rescheduled']),
+  "note": zod.string().nullable(),
+  "verificationStatus": zod.enum(['self_reported', 'partner_confirmed', 'experience_verified']),
+  "confirmedBy": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),zod.null()]),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Send a prewritten encouragement to the active partner
+ */
+export const SendAccountabilityEncouragementBody = zod.object({
+  "message": zod.enum(['keep_going', 'nearly_there', 'proud_of_you', 'lets_do_this', 'join_me'])
+})
+
+export const SendAccountabilityEncouragementResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Mark an accountability notification as read
+ */
+
+
+
+export const MarkAccountabilityNotificationReadParams = zod.object({
+  "notificationId": zod.coerce.number().int().min(1)
+})
+
+export const MarkAccountabilityNotificationReadResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+

@@ -1,0 +1,1486 @@
+You are working on the current Experiences.fun application.
+
+Your task is to implement a complete ACCOUNTABILITY PARTNER SYSTEM.
+
+This system should allow two or more people to voluntarily become accountability partners, define shared goals/experiences, see each other's progress, send encouragement, receive milestone updates, and interact with the system through Telegram.
+
+IMPORTANT:
+This is NOT a generic friend system.
+
+The purpose of accountability partners inside Experiences.fun is to help people actually participate in experiences, complete goals, maintain consistency, and contribute to their communities.
+
+The system should connect:
+
+USER
+↓
+GOALS / EXPERIENCES
+↓
+ACCOUNTABILITY PARTNER
+↓
+PROGRESS
+↓
+VERIFICATION / CHECK-INS
+↓
+NOTIFICATIONS
+↓
+TELEGRAM
+↓
+XP / REPUTATION
+↓
+SOCIAL FEED
+
+==================================================
+1. PRODUCT THESIS
+==================================================
+
+The core idea:
+
+"People are more likely to follow through when someone else can see whether they did."
+
+Experiences.fun should turn accountability into a native part of the product.
+
+An accountability partner should not just be someone you can message.
+
+They should be able to:
+
+- See agreed goals
+- See upcoming commitments
+- See progress
+- See completed experiences
+- Receive milestone notifications
+- Encourage the other person
+- Check in with them
+- Celebrate wins
+- Notice missed commitments
+- Help keep momentum
+
+The relationship should be based on ACTION.
+
+Not empty social engagement.
+
+==================================================
+2. USE THE OLD NALILOVABLEV2 REPO AS REFERENCE
+==================================================
+
+There is an older version of this product:
+
+https://github.com/NALIDidThat/NALILovableV2
+
+Before implementing anything, inspect that repository for useful prior functionality and architecture.
+
+Important existing concepts to study include:
+
+- Accountability partner flows
+- Partner notifications
+- Milestone tracking
+- Activity lifecycle
+- Partnership dashboard
+- Partnership chat
+- Partnership activity feed
+- Telegram bot integration
+- Telegram authentication
+- Telegram group/member functionality
+- XP and streak systems
+- Goal/activity completion flows
+
+Relevant old files include concepts represented by:
+
+client/src/components/ActivityLifecycleManager.tsx
+client/src/components/PartnerNotificationCenter.tsx
+client/src/pages/PartnershipDashboard.tsx
+client/src/pages/PartnershipChat.tsx
+client/src/pages/PartnershipActivityFeed.tsx
+client/src/pages/PartnerMilestones.tsx
+server/telegramAuth.ts
+server/telegramBot.ts
+server/routes-activity-hub.ts
+shared/schema.ts
+
+DO NOT blindly copy the old repository.
+
+Use it as product and implementation reference.
+
+Identify what worked conceptually and rebuild it cleanly within the architecture of the CURRENT Experiences.fun application.
+
+==================================================
+3. ACCOUNTABILITY PARTNER MODEL
+==================================================
+
+An accountability partnership should represent an explicit relationship between users.
+
+Minimum structure:
+
+Accountability Partnership
+
+id
+initiator_user_id
+partner_user_id
+status
+created_at
+accepted_at
+ended_at
+created_via
+settings
+
+Status:
+
+pending
+active
+declined
+paused
+ended
+
+created_via:
+
+app
+telegram
+invite_link
+
+A user should be able to have multiple accountability partners eventually.
+
+For MVP:
+
+Support at least one active primary accountability partner.
+
+Architect the database so multiple partners can exist later.
+
+==================================================
+4. PARTNER INVITATION FLOW
+==================================================
+
+Users should be able to invite another user.
+
+Entry points:
+
+Profile
+Dashboard
+Accountability page
+Experience detail
+Goal detail
+
+CTA:
+
+"Add Accountability Partner"
+
+Flow:
+
+1. User selects "Add Accountability Partner"
+2. Search by:
+   - username
+   - invite link
+   - Telegram username where available
+3. Select person
+4. Preview person
+5. Send invitation
+6. Partner receives notification
+7. Partner accepts or declines
+8. Partnership becomes ACTIVE
+
+Create a shareable invitation link.
+
+Example:
+
+experiences.fun/accountability/invite/ABC123
+
+Do not use predictable sequential invite codes.
+
+Use secure random invitation tokens.
+
+==================================================
+5. PARTNERSHIP DASHBOARD
+==================================================
+
+Create a dedicated Accountability section.
+
+Example navigation:
+
+Home
+Explore
+Feed
+Experiences
+Accountability
+Map
+AI
+Profile
+
+The Accountability page should show:
+
+MY PARTNERS
+
+[Avatar] Sarah
+Accountability Partner
+🔥 6 day streak
+
+CURRENT COMMITMENTS
+
+Complete:
+"Photography Workshop"
+Saturday
+
+Progress:
+80%
+
+PARTNER ACTIVITY
+
+Sarah completed:
+"Community Photography Session"
+
++25 XP
+
+RECENT CHECK-INS
+
+Sarah checked in today.
+
+QUICK ACTIONS
+
+[Check In]
+[Send Encouragement]
+[View Progress]
+
+==================================================
+6. PARTNER PROFILE
+==================================================
+
+When viewing an accountability partner, show:
+
+Name
+Profile photo
+Location
+XP
+Level
+Current streak
+Active experiences
+Completed experiences
+Current goals
+Recent milestones
+Recent contribution activity
+
+Respect privacy settings.
+
+Do not expose private activity or sensitive information.
+
+==================================================
+7. SHARED COMMITMENTS
+==================================================
+
+This is the heart of the feature.
+
+Partners should be able to create shared commitments.
+
+Example:
+
+"Complete 2 community experiences this month."
+
+or:
+
+"Attend the photography workshop on Saturday."
+
+or:
+
+"Complete one volunteering experience this week."
+
+A commitment should contain:
+
+id
+partnership_id
+created_by
+title
+description
+experience_id
+goal_type
+target_value
+current_value
+deadline
+status
+created_at
+completed_at
+
+Statuses:
+
+active
+completed
+missed
+cancelled
+
+==================================================
+8. COMMITMENT TYPES
+==================================================
+
+Support these initial commitment types:
+
+EXPERIENCE
+
+"Attend X experience"
+
+COUNT
+
+"Complete X activities"
+
+XP
+
+"Earn X XP"
+
+STREAK
+
+"Maintain X day streak"
+
+CUSTOM
+
+A flexible commitment that can be manually marked complete.
+
+For MVP, EXPERIENCE and CUSTOM are the most important.
+
+==================================================
+9. SHARED EXPERIENCE ACCOUNTABILITY
+==================================================
+
+A partner should be able to assign an experience to another partner.
+
+Example:
+
+Sarah:
+
+"I think you should join this photography workshop with me."
+
+[Invite to Experience]
+
+The recipient gets:
+
+"Sarah invited you to join her for Photography Workshop."
+
+[Accept]
+[Decline]
+
+Once accepted, the experience appears under:
+
+Shared Commitments
+
+==================================================
+10. CHECK-IN SYSTEM
+==================================================
+
+Users need an extremely simple check-in mechanism.
+
+Example:
+
+"Did you complete your commitment?"
+
+[✅ Yes, I did]
+[⏳ Not yet]
+
+Optional:
+
+"What happened?"
+
+Free text.
+
+Check-ins should record:
+
+user_id
+partnership_id
+commitment_id
+status
+note
+created_at
+
+Statuses:
+
+completed
+partial
+missed
+rescheduled
+
+A successful check-in should update commitment progress where appropriate.
+
+==================================================
+11. ACCOUNTABILITY PARTNER VERIFICATION
+==================================================
+
+Eventually Experiences.fun can support stronger verification.
+
+For MVP:
+
+The system should distinguish between:
+
+SELF-REPORTED
+VERIFIED
+PARTNER-CONFIRMED
+EXPERIENCE-VERIFIED
+
+Do NOT pretend something is verified when it is only self-reported.
+
+A partner may confirm another user's completion.
+
+Example:
+
+Alex:
+"I completed the community cleanup."
+
+Sarah receives:
+
+"Alex marked this commitment complete."
+
+[Confirm Completion]
+[Ask for Update]
+
+Once confirmed:
+
+verification_status = partner_confirmed
+
+This can later connect to verified Experiences.fun Nodes.
+
+==================================================
+12. EXPERIENCE-BASED VERIFICATION
+==================================================
+
+If a user completes a real Experiences.fun experience and the platform already has a legitimate completion signal, automatically update relevant accountability commitments.
+
+Example:
+
+Commitment:
+"Attend Saturday Photography Workshop"
+
+User completes workshop.
+
+System:
+
+1. Marks commitment complete
+2. Adds XP
+3. Creates activity event
+4. Notifies partner
+5. Creates social feed activity where appropriate
+
+Do not force users to manually verify activity that the system already knows happened.
+
+==================================================
+13. PARTNER NOTIFICATIONS
+==================================================
+
+Create a proper notification system.
+
+Types:
+
+partner_invite
+partner_accepted
+commitment_created
+commitment_due
+commitment_completed
+commitment_missed
+check_in_completed
+milestone_completed
+achievement_unlocked
+xp_milestone
+encouragement_received
+verification_requested
+verification_completed
+
+Notifications should have:
+
+id
+recipient_user_id
+type
+title
+message
+data
+read_at
+created_at
+
+Allow notifications to be marked read.
+
+==================================================
+14. PARTNER ENCOURAGEMENT
+==================================================
+
+A partner should be able to send lightweight encouragement.
+
+Examples:
+
+"Keep going 🔥"
+"You're nearly there."
+"Proud of the consistency."
+"Let's get this done."
+"Want to do this experience together?"
+
+Provide quick response buttons.
+
+Avoid building a full messaging platform for MVP.
+
+A lightweight encouragement layer is enough.
+
+==================================================
+15. TELEGRAM INTEGRATION
+==================================================
+
+THIS IS A MAJOR REQUIREMENT.
+
+I specifically liked the Telegram sync from the old NALILovableV2 implementation.
+
+Recreate that principle in Experiences.fun.
+
+Telegram should act as an accountability companion.
+
+The app remains the source of truth.
+
+Telegram becomes the interaction layer.
+
+==================================================
+16. TELEGRAM ACCOUNT LINKING
+==================================================
+
+Users should be able to connect their Experiences.fun account to Telegram.
+
+Support:
+
+Telegram Login / Telegram Mini App authentication
+
+Use secure server-side validation.
+
+The old implementation used Telegram Web App authentication with:
+
+- Telegram user ID
+- first name
+- last name
+- username
+- photo URL
+- auth timestamp
+- HMAC validation
+
+Use the official Telegram authentication verification approach.
+
+Do NOT trust client-provided Telegram identity.
+
+Link:
+
+experiences_user_id
+telegram_user_id
+telegram_username
+linked_at
+
+Ensure one Telegram account cannot be linked to multiple unrelated accounts.
+
+==================================================
+17. TELEGRAM ACCOUNTABILITY NOTIFICATIONS
+==================================================
+
+Once Telegram is linked, send useful accountability notifications.
+
+Examples:
+
+"🔥 Daily accountability check-in
+
+You committed to:
+Complete Photography Workshop
+
+Deadline:
+Today
+
+Have you completed it?"
+
+Buttons:
+
+[✅ Completed]
+[⏳ Not Yet]
+[📱 Open Experiences.fun]
+
+==================================================
+18. TELEGRAM PARTNER UPDATES
+==================================================
+
+When a partner completes a meaningful action:
+
+Send Telegram notification.
+
+Example:
+
+"🎉 Sarah just completed her commitment:
+
+Photography Workshop
+
++25 XP
+
+Send encouragement?"
+
+Buttons:
+
+[🔥 Encourage]
+[👏 Celebrate]
+[📱 View Progress]
+
+This should be event-driven.
+
+Do not poll the database unnecessarily.
+
+==================================================
+19. TELEGRAM PARTNER INVITATION
+==================================================
+
+Users should be able to invite accountability partners through Telegram.
+
+Example:
+
+"🤝 Alex invited you to become accountability partners on Experiences.fun.
+
+You'll be able to:
+
+• Track shared commitments
+• See progress
+• Check in
+• Encourage each other
+• Complete experiences together
+
+[Accept]
+[Decline]
+
+[Open Experiences.fun]"
+
+Use secure invitation tokens.
+
+==================================================
+20. TELEGRAM COMMANDS
+==================================================
+
+Implement a concise command system.
+
+Suggested commands:
+
+/start
+/accountability
+/checkin
+/progress
+/commitments
+/partner
+/encourage
+
+Examples:
+
+/progress
+
+Response:
+
+"📊 Your Progress
+
+🔥 Streak: 6 days
+⭐ XP: 340
+🎯 Active Commitments: 3
+✅ Completed This Week: 4
+
+Next:
+Photography Workshop
+Saturday"
+
+==================================================
+21. TELEGRAM QUICK CHECK-IN
+==================================================
+
+One of the most important features.
+
+Users should be able to check in directly from Telegram without opening the app.
+
+Example:
+
+NALI BOT:
+
+"How did you do today?"
+
+[✅ Completed]
+[🟡 Partial]
+[❌ Missed]
+
+After selecting:
+
+"Check-in recorded.
+
++5 XP
+
+🔥 7 day consistency streak"
+
+The backend should process the event and update Experiences.fun.
+
+==================================================
+22. TELEGRAM GROUP SYNC
+==================================================
+
+The old repo also had Telegram group functionality.
+
+Preserve the concept, but DO NOT make group functionality a dependency for individual accountability.
+
+If a user invites the Experiences.fun bot into an accountability/community group:
+
+The bot can optionally:
+
+- Announce milestones
+- Announce completed experiences
+- Support group check-ins
+- Show group progress
+- Celebrate achievements
+
+However:
+
+Do not expose private accountability information to groups.
+
+Only post information explicitly configured as group-visible.
+
+==================================================
+23. PRIVACY MODEL
+==================================================
+
+This system involves personal goals and behavioural information.
+
+Privacy must be deliberate.
+
+Visibility options:
+
+private
+partner_only
+community
+public
+
+Default accountability details:
+
+partner_only
+
+Never expose:
+
+private notes
+private goals
+private check-ins
+private conversations
+
+to the public feed.
+
+==================================================
+24. SOCIAL FEED INTEGRATION
+==================================================
+
+Accountability should connect directly to the social feed previously implemented.
+
+Meaningful partner events can create activity posts.
+
+Examples:
+
+"NALI completed a commitment."
+
+"Sarah completed a community experience."
+
+"NALI and Sarah completed an experience together."
+
+"Alex reached a 7-day accountability streak."
+
+Only create public feed events when:
+
+- The activity is public
+- The user has opted into public sharing
+- The event is genuinely meaningful
+
+Do not turn every check-in into a public post.
+
+==================================================
+25. XP INTEGRATION
+==================================================
+
+Accountability should feed into the existing XP system.
+
+Examples:
+
+Daily check-in:
++5 XP
+
+Completed commitment:
++10 to +50 XP depending on activity
+
+Partner-confirmed completion:
+Potential additional reputation signal
+
+Completed Experience:
+Use existing Experience XP logic
+
+IMPORTANT:
+
+Do not create a duplicate XP accounting system.
+
+Find the existing XP/reward implementation and integrate with it.
+
+XP should come from a single source of truth.
+
+==================================================
+26. REPUTATION
+==================================================
+
+Accountability should eventually contribute to portable reputation.
+
+Track signals such as:
+
+commitments_created
+commitments_completed
+commitments_missed
+checkins_completed
+partner_confirmations
+experiences_completed
+consistency_streak
+
+Do NOT create a simplistic "good person score."
+
+These should be structured activity signals that can later inform reputation.
+
+==================================================
+27. MATCHING / DISCOVERY
+==================================================
+
+Do not build an elaborate partner marketplace for MVP.
+
+Start with:
+
+Invite someone you already know.
+
+Later, we can build:
+
+"Find an accountability partner"
+
+based on:
+
+Goals
+Location
+Experience interests
+Availability
+Experience history
+
+Architect the data so this is possible later.
+
+==================================================
+28. PARTNER HEALTH / STATUS
+==================================================
+
+Show a simple relationship status:
+
+ON TRACK
+NEEDS ATTENTION
+PAUSED
+
+This should be based on actual commitments.
+
+Example:
+
+ON TRACK
+"3 commitments completed this week."
+
+NEEDS ATTENTION
+"2 commitments are overdue."
+
+Do not use manipulative or judgmental language.
+
+==================================================
+29. STREAKS
+==================================================
+
+Integrate with existing streak logic if it exists.
+
+Examples:
+
+3 day streak
+7 day streak
+30 day streak
+
+Allow partner-facing streak visibility according to privacy settings.
+
+Do not create a second streak system.
+
+==================================================
+30. PARTNERSHIP CHAT
+==================================================
+
+The old NALILovableV2 repository contained PartnershipChat functionality.
+
+For the MVP:
+
+Do NOT immediately build a full real-time chat system unless the current Experiences.fun infrastructure already supports it.
+
+Instead:
+
+Build lightweight partner messaging/encouragement.
+
+Architect the data layer so full chat can be added later.
+
+If a real-time messaging system already exists in Experiences.fun, reuse it.
+
+==================================================
+31. ACCOUNTABILITY PAGE UX
+==================================================
+
+Create an excellent primary Accountability page.
+
+Suggested structure:
+
+HEADER
+
+Accountability
+
+"Stay consistent with someone who has your back."
+
+PRIMARY PARTNER CARD
+
+[Avatar]
+Sarah
+
+🔥 7 day streak
+⭐ 540 XP
+
+"On Track"
+
+[View Progress]
+
+CURRENT COMMITMENTS
+
+━━━━━━━━━━━━━━━━━━
+
+📸 Photography Workshop
+Saturday
+
+████████░░ 80%
+
+━━━━━━━━━━━━━━━━━━
+
+🎯 Complete 2 experiences this month
+1 / 2 completed
+
+━━━━━━━━━━━━━━━━━━
+
+ACTIVITY
+
+✅ Sarah completed Photography Workshop
+🔥 Sarah reached a 7 day streak
+⭐ Sarah earned 25 XP
+
+QUICK ACTIONS
+
+[Check In]
+[Encourage]
+[Add Commitment]
+
+==================================================
+32. PARTNER ACTIVITY FEED
+==================================================
+
+Create a dedicated activity timeline for a partnership.
+
+Example:
+
+TODAY
+
+9:42 AM
+✅ Sarah completed Photography Workshop
++25 XP
+
+8:00 AM
+🔥 Sarah checked in
+7 day streak
+
+YESTERDAY
+
+6:15 PM
+🎯 Commitment created
+"Complete 2 experiences this week"
+
+This should be chronological and easy to scan.
+
+==================================================
+33. UPCOMING COMMITMENTS
+==================================================
+
+Show upcoming deadlines.
+
+Example:
+
+TODAY
+Photography Workshop
+
+TOMORROW
+Volunteer at Food Bank
+
+SATURDAY
+Community Coding Session
+
+Add deadline states.
+
+Avoid anxiety-inducing countdown mechanics.
+
+==================================================
+34. MISSED COMMITMENTS
+==================================================
+
+A missed commitment should not punish users excessively.
+
+Example:
+
+"This commitment was not completed."
+
+Actions:
+
+[Reschedule]
+[Mark Complete]
+[Talk to Partner]
+
+The goal is accountability, not shame.
+
+==================================================
+35. DATABASE DESIGN
+==================================================
+
+Inspect the current database before creating anything.
+
+Do not duplicate existing:
+
+users
+experiences
+XP
+activities
+notifications
+Telegram accounts
+profiles
+streaks
+
+Potential new tables:
+
+accountability_partnerships
+accountability_invitations
+accountability_commitments
+accountability_checkins
+accountability_verifications
+accountability_encouragements
+accountability_events
+telegram_links
+
+Adapt names to the existing schema conventions.
+
+==================================================
+36. API
+==================================================
+
+Create clean authenticated APIs.
+
+Examples:
+
+GET /api/accountability
+GET /api/accountability/partners
+POST /api/accountability/invite
+POST /api/accountability/invitations/:id/accept
+POST /api/accountability/invitations/:id/decline
+
+POST /api/accountability/commitments
+GET /api/accountability/commitments
+PATCH /api/accountability/commitments/:id
+
+POST /api/accountability/checkins
+POST /api/accountability/commitments/:id/verify
+
+POST /api/accountability/encouragement
+
+GET /api/accountability/activity
+GET /api/accountability/notifications
+
+PATCH /api/accountability/notifications/:id/read
+
+Telegram endpoints/webhook handling should remain server-side.
+
+==================================================
+37. SECURITY
+==================================================
+
+Do not trust:
+
+userId
+partnerId
+telegramId
+
+from the client.
+
+Derive identity from authenticated sessions/tokens.
+
+Verify the requesting user belongs to the partnership before accessing private data.
+
+Ensure users can only:
+
+- View their own partnerships
+- View partner-only data when explicitly permitted
+- Create commitments within their partnership
+- Check in as themselves
+- Confirm partner activity when authorised
+- Send encouragement
+- End their own partnership
+
+==================================================
+38. TELEGRAM WEBHOOK
+==================================================
+
+Reuse the architectural idea from the old repository:
+
+Telegram webhook
+↓
+Parse update
+↓
+Authenticate/link user
+↓
+Resolve Experiences.fun user
+↓
+Process command/callback
+↓
+Update database
+↓
+Emit application event
+↓
+Notify relevant users
+
+Make this event-driven where possible.
+
+==================================================
+39. TELEGRAM CALLBACK BUTTONS
+==================================================
+
+Prefer inline buttons for important actions.
+
+Examples:
+
+[✅ Completed]
+[⏳ Not Yet]
+
+[🔥 Encourage]
+[👏 Celebrate]
+
+[Accept Partnership]
+[Decline]
+
+[View Progress]
+
+This reduces friction dramatically.
+
+==================================================
+40. EVENT SYSTEM
+==================================================
+
+Create a central accountability event model.
+
+Examples:
+
+ACCOUNTABILITY_INVITED
+ACCOUNTABILITY_ACCEPTED
+COMMITMENT_CREATED
+COMMITMENT_COMPLETED
+COMMITMENT_MISSED
+CHECKIN_COMPLETED
+PARTNER_VERIFICATION
+ENCOURAGEMENT_SENT
+EXPERIENCE_COMPLETED
+XP_MILESTONE_REACHED
+
+These events should be usable by:
+
+App notifications
+Telegram
+Social feed
+Analytics
+XP/reputation
+Future AI systems
+
+This is important.
+
+Do not tightly couple Telegram directly to every feature.
+
+Use domain events where practical.
+
+==================================================
+41. AI INTEGRATION
+==================================================
+
+Experiences.fun already has an AI layer.
+
+Make the accountability system compatible with future AI assistance.
+
+Potential future examples:
+
+"You've missed two commitments this week. Want to reschedule them?"
+
+"Sarah has completed 4 experiences this month. You have 1. Want to book one together?"
+
+"Your partner tends to complete activities on weekends. Here are three experiences you could do together."
+
+For MVP:
+
+Do NOT build the full AI accountability coach.
+
+Simply expose clean structured data and events so the AI can use it later.
+
+==================================================
+42. ANALYTICS
+==================================================
+
+Track:
+
+accountability_invite_sent
+accountability_invite_accepted
+accountability_commitment_created
+accountability_checkin_completed
+accountability_commitment_completed
+accountability_commitment_missed
+accountability_partner_verified
+accountability_encouragement_sent
+telegram_account_linked
+telegram_checkin_completed
+telegram_notification_clicked
+shared_experience_joined
+
+Critical metric:
+
+% of users with an accountability partner who complete at least one meaningful Experience.
+
+The goal is not to maximise messages.
+
+The goal is to increase real-world participation and consistency.
+
+==================================================
+43. MVP PRIORITY
+==================================================
+
+PHASE 1
+
+- Partner invitations
+- Accept/decline
+- Accountability dashboard
+- One active partner
+- Shared commitments
+- Check-ins
+- Partner activity timeline
+- In-app notifications
+
+PHASE 2
+
+- Telegram account linking
+- Telegram check-ins
+- Telegram notifications
+- Telegram partner invitations
+- Telegram inline buttons
+- Partner verification
+
+PHASE 3
+
+- Experience-based automatic completion
+- Social feed integration
+- XP/reputation integration
+- Shared experience invitations
+- Lightweight encouragement
+
+PHASE 4
+
+- AI accountability coach
+- Partner discovery
+- Matching
+- Group accountability
+- Advanced verification
+
+==================================================
+44. UX PRINCIPLES
+==================================================
+
+The product should feel:
+
+Human
+Supportive
+Action-oriented
+Simple
+Trustworthy
+Social
+Local
+
+Avoid:
+
+Shame
+Aggressive gamification
+Constant reminders
+Notification spam
+Complex dashboards
+Corporate project-management aesthetics
+
+This is about humans helping humans follow through.
+
+==================================================
+45. COMPLETE USER JOURNEY
+==================================================
+
+Test this exact flow.
+
+USER A:
+
+1. Opens Experiences.fun
+2. Opens Accountability
+3. Selects "Add Partner"
+4. Invites USER B
+5. USER B receives invitation
+6. USER B accepts
+7. Partnership becomes active
+8. USER A creates commitment:
+   "Attend Photography Workshop"
+9. USER B receives notification
+10. USER B accepts
+11. Both see commitment
+12. USER B attends/completes experience
+13. Experience completion automatically updates commitment
+14. USER A receives notification
+15. USER B receives XP
+16. Partner can congratulate USER B
+17. Activity appears in partnership timeline
+18. Public social feed event appears only if permitted
+
+THEN TEST TELEGRAM:
+
+1. USER B links Telegram
+2. Telegram receives confirmation
+3. Next commitment reminder is sent
+4. User clicks:
+   [✅ Completed]
+5. Telegram webhook processes action
+6. Experiences.fun updates commitment
+7. XP/reputation updates
+8. Partner notification is triggered
+9. Telegram confirmation is sent
+10. App reflects the same state
+
+There must be ONE source of truth.
+
+If the app says completed and Telegram says incomplete, the system is broken.
+
+==================================================
+46. IMPORTANT ARCHITECTURAL PRINCIPLE
+==================================================
+
+Experiences.fun is the source of truth.
+
+Telegram is an interface.
+
+The social feed is an output.
+
+XP is a reward/reputation layer.
+
+The accountability system is the behavioural coordination layer.
+
+Do NOT make Telegram its own independent database or state system.
+
+==================================================
+47. REUSE EXISTING SYSTEMS
+==================================================
+
+Before implementing:
+
+Inspect:
+
+- Authentication
+- Users
+- Profiles
+- Experiences
+- XP
+- Activities
+- Streaks
+- Notifications
+- Social Feed
+- Telegram integration
+- Routing
+- Design system
+- Database schema
+
+Extend existing systems.
+
+Do not create duplicate:
+
+XP systems
+notification systems
+user systems
+experience systems
+streak systems
+Telegram identity systems
+
+==================================================
+48. DESIGN LANGUAGE
+==================================================
+
+Use the current Experiences.fun design system.
+
+Existing brand:
+
+#F20789
+#6805F2
+#04ADBF
+#1A98E5
+
+Do not overuse gradients.
+
+Use colour to communicate:
+
+progress
+status
+actions
+achievements
+
+Maintain strong accessibility and mobile readability.
+
+==================================================
+49. EMPTY STATES
+==================================================
+
+Examples:
+
+No partner:
+
+"Accountability works better together."
+
+"Invite someone you trust to keep you accountable."
+
+[Add Accountability Partner]
+
+No commitments:
+
+"You don't have any active commitments."
+
+[Create Commitment]
+
+No activity:
+
+"Your partnership is just getting started."
+
+"Set your first commitment together."
+
+==================================================
+50. FINAL DEVELOPMENT RULES
+==================================================
+
+First audit the current Experiences.fun repository.
+
+Then compare it against the old NALILovableV2 architecture.
+
+Identify what can be reused conceptually.
+
+Do not copy obsolete architecture.
+
+Do not rewrite unrelated application functionality.
+
+Do not introduce unnecessary dependencies.
+
+Do not use mock data in production flows.
+
+Do not hard-code Telegram IDs.
+
+Do not hard-code users.
+
+Do not fabricate XP.
+
+Do not fabricate verification.
+
+Do not expose private accountability information publicly.
+
+Build this as a real product feature.
+
+Most importantly:
+
+ACCOUNTABILITY → ACTION → EXPERIENCE → VERIFICATION → REPUTATION
+
+The feature should ultimately make Experiences.fun better at getting people out of the app and into the real world.
+
+Start by auditing the current codebase and producing a concise implementation map.
+
+Then implement the MVP end-to-end.

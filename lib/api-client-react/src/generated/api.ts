@@ -20,6 +20,14 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AccountabilityCheckIn,
+  AccountabilityCheckInInput,
+  AccountabilityCommitment,
+  AccountabilityCommitmentInput,
+  AccountabilityDashboard,
+  AccountabilityEncouragementInput,
+  AccountabilityInvitationInput,
+  AccountabilityMutationResult,
   AuthResponse,
   BotInfo,
   CommunityDetails,
@@ -2288,5 +2296,805 @@ export const useDeclineFriendRequest = <TError = ErrorType<UnauthorizedResponse 
         TContext
       > => {
       return useMutation(getDeclineFriendRequestMutationOptions(options));
+    }
+
+export const getGetAccountabilityDashboardUrl = () => {
+
+
+
+
+  return `/api/accountability`
+}
+
+/**
+ * @summary Get the signed-in participant's accountability dashboard
+ */
+export const getAccountabilityDashboard = async ( options?: Parameters<typeof customFetch>[1]): Promise<AccountabilityDashboard> => {
+
+  return customFetch<AccountabilityDashboard>(getGetAccountabilityDashboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAccountabilityDashboardQueryKey = () => {
+    return [
+    `/api/accountability`
+    ] as const;
+    }
+
+
+export const getGetAccountabilityDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getAccountabilityDashboard>>, TError = ErrorType<UnauthorizedResponse | ConflictResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAccountabilityDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAccountabilityDashboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAccountabilityDashboard>>> = ({ signal }) => getAccountabilityDashboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAccountabilityDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAccountabilityDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getAccountabilityDashboard>>>
+export type GetAccountabilityDashboardQueryError = ErrorType<UnauthorizedResponse | ConflictResponse>
+
+
+/**
+ * @summary Get the signed-in participant's accountability dashboard
+ */
+
+export function useGetAccountabilityDashboard<TData = Awaited<ReturnType<typeof getAccountabilityDashboard>>, TError = ErrorType<UnauthorizedResponse | ConflictResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAccountabilityDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAccountabilityDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAccountabilityInvitationUrl = () => {
+
+
+
+
+  return `/api/accountability/invitations`
+}
+
+/**
+ * @summary Invite an accepted friend to become an accountability partner
+ */
+export const createAccountabilityInvitation = async (accountabilityInvitationInput: AccountabilityInvitationInput, options?: Parameters<typeof customFetch>[1]): Promise<AccountabilityMutationResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AccountabilityMutationResult>(getCreateAccountabilityInvitationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(accountabilityInvitationInput)
+  }
+);}
+
+
+
+
+
+export const getCreateAccountabilityInvitationMutationKey = () => ['createAccountabilityInvitation'] as const;
+
+export const getCreateAccountabilityInvitationMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityInvitation>>, TError,CreateAccountabilityInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityInvitation>>, TError,CreateAccountabilityInvitationMutationVariables, TContext> => {
+
+const mutationKey = getCreateAccountabilityInvitationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAccountabilityInvitation>>, CreateAccountabilityInvitationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAccountabilityInvitation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAccountabilityInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof createAccountabilityInvitation>>>
+    export type CreateAccountabilityInvitationMutationBody = BodyType<AccountabilityInvitationInput>
+    export type CreateAccountabilityInvitationMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type CreateAccountabilityInvitationMutationVariables = {data: BodyType<AccountabilityInvitationInput>}
+
+    /**
+ * @summary Invite an accepted friend to become an accountability partner
+ */
+export const useCreateAccountabilityInvitation = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityInvitation>>, TError,CreateAccountabilityInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAccountabilityInvitation>>,
+        TError,
+        CreateAccountabilityInvitationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAccountabilityInvitationMutationOptions(options));
+    }
+
+export const getAcceptAccountabilityInvitationUrl = (invitationId: number,) => {
+
+
+
+
+  return `/api/accountability/invitations/${invitationId}/accept`
+}
+
+/**
+ * @summary Accept an accountability partnership invitation
+ */
+export const acceptAccountabilityInvitation = async (invitationId: number, options?: Parameters<typeof customFetch>[1]): Promise<AccountabilityMutationResult> => {
+
+  return customFetch<AccountabilityMutationResult>(getAcceptAccountabilityInvitationUrl(invitationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAcceptAccountabilityInvitationMutationKey = () => ['acceptAccountabilityInvitation'] as const;
+
+export const getAcceptAccountabilityInvitationMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptAccountabilityInvitation>>, TError,AcceptAccountabilityInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptAccountabilityInvitation>>, TError,AcceptAccountabilityInvitationMutationVariables, TContext> => {
+
+const mutationKey = getAcceptAccountabilityInvitationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptAccountabilityInvitation>>, AcceptAccountabilityInvitationMutationVariables> = (props) => {
+          const {invitationId} = props ?? {};
+
+          return  acceptAccountabilityInvitation(invitationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptAccountabilityInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof acceptAccountabilityInvitation>>>
+
+    export type AcceptAccountabilityInvitationMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type AcceptAccountabilityInvitationMutationVariables = {invitationId: number}
+
+    /**
+ * @summary Accept an accountability partnership invitation
+ */
+export const useAcceptAccountabilityInvitation = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptAccountabilityInvitation>>, TError,AcceptAccountabilityInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acceptAccountabilityInvitation>>,
+        TError,
+        AcceptAccountabilityInvitationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAcceptAccountabilityInvitationMutationOptions(options));
+    }
+
+export const getDeclineAccountabilityInvitationUrl = (invitationId: number,) => {
+
+
+
+
+  return `/api/accountability/invitations/${invitationId}/decline`
+}
+
+/**
+ * @summary Decline an accountability partnership invitation
+ */
+export const declineAccountabilityInvitation = async (invitationId: number, options?: Parameters<typeof customFetch>[1]): Promise<AccountabilityMutationResult> => {
+
+  return customFetch<AccountabilityMutationResult>(getDeclineAccountabilityInvitationUrl(invitationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeclineAccountabilityInvitationMutationKey = () => ['declineAccountabilityInvitation'] as const;
+
+export const getDeclineAccountabilityInvitationMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineAccountabilityInvitation>>, TError,DeclineAccountabilityInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof declineAccountabilityInvitation>>, TError,DeclineAccountabilityInvitationMutationVariables, TContext> => {
+
+const mutationKey = getDeclineAccountabilityInvitationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof declineAccountabilityInvitation>>, DeclineAccountabilityInvitationMutationVariables> = (props) => {
+          const {invitationId} = props ?? {};
+
+          return  declineAccountabilityInvitation(invitationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeclineAccountabilityInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof declineAccountabilityInvitation>>>
+
+    export type DeclineAccountabilityInvitationMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+    export type DeclineAccountabilityInvitationMutationVariables = {invitationId: number}
+
+    /**
+ * @summary Decline an accountability partnership invitation
+ */
+export const useDeclineAccountabilityInvitation = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineAccountabilityInvitation>>, TError,DeclineAccountabilityInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof declineAccountabilityInvitation>>,
+        TError,
+        DeclineAccountabilityInvitationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeclineAccountabilityInvitationMutationOptions(options));
+    }
+
+export const getEndAccountabilityPartnershipUrl = (partnershipId: number,) => {
+
+
+
+
+  return `/api/accountability/partnerships/${partnershipId}/end`
+}
+
+/**
+ * @summary End the signed-in participant's active partnership
+ */
+export const endAccountabilityPartnership = async (partnershipId: number, options?: Parameters<typeof customFetch>[1]): Promise<AccountabilityMutationResult> => {
+
+  return customFetch<AccountabilityMutationResult>(getEndAccountabilityPartnershipUrl(partnershipId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEndAccountabilityPartnershipMutationKey = () => ['endAccountabilityPartnership'] as const;
+
+export const getEndAccountabilityPartnershipMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endAccountabilityPartnership>>, TError,EndAccountabilityPartnershipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof endAccountabilityPartnership>>, TError,EndAccountabilityPartnershipMutationVariables, TContext> => {
+
+const mutationKey = getEndAccountabilityPartnershipMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof endAccountabilityPartnership>>, EndAccountabilityPartnershipMutationVariables> = (props) => {
+          const {partnershipId} = props ?? {};
+
+          return  endAccountabilityPartnership(partnershipId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EndAccountabilityPartnershipMutationResult = NonNullable<Awaited<ReturnType<typeof endAccountabilityPartnership>>>
+
+    export type EndAccountabilityPartnershipMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type EndAccountabilityPartnershipMutationVariables = {partnershipId: number}
+
+    /**
+ * @summary End the signed-in participant's active partnership
+ */
+export const useEndAccountabilityPartnership = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endAccountabilityPartnership>>, TError,EndAccountabilityPartnershipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof endAccountabilityPartnership>>,
+        TError,
+        EndAccountabilityPartnershipMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEndAccountabilityPartnershipMutationOptions(options));
+    }
+
+export const getCreateAccountabilityCommitmentUrl = () => {
+
+
+
+
+  return `/api/accountability/commitments`
+}
+
+/**
+ * @summary Create a shared commitment for an active partnership
+ */
+export const createAccountabilityCommitment = async (accountabilityCommitmentInput: AccountabilityCommitmentInput, options?: Parameters<typeof customFetch>[1]): Promise<AccountabilityCommitment> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AccountabilityCommitment>(getCreateAccountabilityCommitmentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(accountabilityCommitmentInput)
+  }
+);}
+
+
+
+
+
+export const getCreateAccountabilityCommitmentMutationKey = () => ['createAccountabilityCommitment'] as const;
+
+export const getCreateAccountabilityCommitmentMutationOptions = <TError = ErrorType<UnauthorizedResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityCommitment>>, TError,CreateAccountabilityCommitmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityCommitment>>, TError,CreateAccountabilityCommitmentMutationVariables, TContext> => {
+
+const mutationKey = getCreateAccountabilityCommitmentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAccountabilityCommitment>>, CreateAccountabilityCommitmentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAccountabilityCommitment(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAccountabilityCommitmentMutationResult = NonNullable<Awaited<ReturnType<typeof createAccountabilityCommitment>>>
+    export type CreateAccountabilityCommitmentMutationBody = BodyType<AccountabilityCommitmentInput>
+    export type CreateAccountabilityCommitmentMutationError = ErrorType<UnauthorizedResponse | ConflictResponse>
+    export type CreateAccountabilityCommitmentMutationVariables = {data: BodyType<AccountabilityCommitmentInput>}
+
+    /**
+ * @summary Create a shared commitment for an active partnership
+ */
+export const useCreateAccountabilityCommitment = <TError = ErrorType<UnauthorizedResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityCommitment>>, TError,CreateAccountabilityCommitmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAccountabilityCommitment>>,
+        TError,
+        CreateAccountabilityCommitmentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAccountabilityCommitmentMutationOptions(options));
+    }
+
+export const getCreateAccountabilityCheckInUrl = (commitmentId: number,) => {
+
+
+
+
+  return `/api/accountability/commitments/${commitmentId}/check-ins`
+}
+
+/**
+ * @summary Record a self-reported commitment check-in
+ */
+export const createAccountabilityCheckIn = async (commitmentId: number,
+    accountabilityCheckInInput: AccountabilityCheckInInput, options?: Parameters<typeof customFetch>[1]): Promise<AccountabilityCheckIn> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AccountabilityCheckIn>(getCreateAccountabilityCheckInUrl(commitmentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(accountabilityCheckInInput)
+  }
+);}
+
+
+
+
+
+export const getCreateAccountabilityCheckInMutationKey = () => ['createAccountabilityCheckIn'] as const;
+
+export const getCreateAccountabilityCheckInMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityCheckIn>>, TError,CreateAccountabilityCheckInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityCheckIn>>, TError,CreateAccountabilityCheckInMutationVariables, TContext> => {
+
+const mutationKey = getCreateAccountabilityCheckInMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAccountabilityCheckIn>>, CreateAccountabilityCheckInMutationVariables> = (props) => {
+          const {commitmentId,data} = props ?? {};
+
+          return  createAccountabilityCheckIn(commitmentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAccountabilityCheckInMutationResult = NonNullable<Awaited<ReturnType<typeof createAccountabilityCheckIn>>>
+    export type CreateAccountabilityCheckInMutationBody = BodyType<AccountabilityCheckInInput>
+    export type CreateAccountabilityCheckInMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type CreateAccountabilityCheckInMutationVariables = {commitmentId: number;data: BodyType<AccountabilityCheckInInput>}
+
+    /**
+ * @summary Record a self-reported commitment check-in
+ */
+export const useCreateAccountabilityCheckIn = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityCheckIn>>, TError,CreateAccountabilityCheckInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAccountabilityCheckIn>>,
+        TError,
+        CreateAccountabilityCheckInMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAccountabilityCheckInMutationOptions(options));
+    }
+
+export const getConfirmAccountabilityCheckInUrl = (checkInId: number,) => {
+
+
+
+
+  return `/api/accountability/check-ins/${checkInId}/confirm`
+}
+
+/**
+ * @summary Confirm a partner's self-reported completion
+ */
+export const confirmAccountabilityCheckIn = async (checkInId: number, options?: Parameters<typeof customFetch>[1]): Promise<AccountabilityCheckIn> => {
+
+  return customFetch<AccountabilityCheckIn>(getConfirmAccountabilityCheckInUrl(checkInId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getConfirmAccountabilityCheckInMutationKey = () => ['confirmAccountabilityCheckIn'] as const;
+
+export const getConfirmAccountabilityCheckInMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmAccountabilityCheckIn>>, TError,ConfirmAccountabilityCheckInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmAccountabilityCheckIn>>, TError,ConfirmAccountabilityCheckInMutationVariables, TContext> => {
+
+const mutationKey = getConfirmAccountabilityCheckInMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmAccountabilityCheckIn>>, ConfirmAccountabilityCheckInMutationVariables> = (props) => {
+          const {checkInId} = props ?? {};
+
+          return  confirmAccountabilityCheckIn(checkInId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmAccountabilityCheckInMutationResult = NonNullable<Awaited<ReturnType<typeof confirmAccountabilityCheckIn>>>
+
+    export type ConfirmAccountabilityCheckInMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type ConfirmAccountabilityCheckInMutationVariables = {checkInId: number}
+
+    /**
+ * @summary Confirm a partner's self-reported completion
+ */
+export const useConfirmAccountabilityCheckIn = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmAccountabilityCheckIn>>, TError,ConfirmAccountabilityCheckInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmAccountabilityCheckIn>>,
+        TError,
+        ConfirmAccountabilityCheckInMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConfirmAccountabilityCheckInMutationOptions(options));
+    }
+
+export const getSendAccountabilityEncouragementUrl = () => {
+
+
+
+
+  return `/api/accountability/encouragement`
+}
+
+/**
+ * @summary Send a prewritten encouragement to the active partner
+ */
+export const sendAccountabilityEncouragement = async (accountabilityEncouragementInput: AccountabilityEncouragementInput, options?: Parameters<typeof customFetch>[1]): Promise<AccountabilityMutationResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AccountabilityMutationResult>(getSendAccountabilityEncouragementUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(accountabilityEncouragementInput)
+  }
+);}
+
+
+
+
+
+export const getSendAccountabilityEncouragementMutationKey = () => ['sendAccountabilityEncouragement'] as const;
+
+export const getSendAccountabilityEncouragementMutationOptions = <TError = ErrorType<UnauthorizedResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAccountabilityEncouragement>>, TError,SendAccountabilityEncouragementMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendAccountabilityEncouragement>>, TError,SendAccountabilityEncouragementMutationVariables, TContext> => {
+
+const mutationKey = getSendAccountabilityEncouragementMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendAccountabilityEncouragement>>, SendAccountabilityEncouragementMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendAccountabilityEncouragement(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendAccountabilityEncouragementMutationResult = NonNullable<Awaited<ReturnType<typeof sendAccountabilityEncouragement>>>
+    export type SendAccountabilityEncouragementMutationBody = BodyType<AccountabilityEncouragementInput>
+    export type SendAccountabilityEncouragementMutationError = ErrorType<UnauthorizedResponse | ConflictResponse>
+    export type SendAccountabilityEncouragementMutationVariables = {data: BodyType<AccountabilityEncouragementInput>}
+
+    /**
+ * @summary Send a prewritten encouragement to the active partner
+ */
+export const useSendAccountabilityEncouragement = <TError = ErrorType<UnauthorizedResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAccountabilityEncouragement>>, TError,SendAccountabilityEncouragementMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendAccountabilityEncouragement>>,
+        TError,
+        SendAccountabilityEncouragementMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendAccountabilityEncouragementMutationOptions(options));
+    }
+
+export const getMarkAccountabilityNotificationReadUrl = (notificationId: number,) => {
+
+
+
+
+  return `/api/accountability/notifications/${notificationId}/read`
+}
+
+/**
+ * @summary Mark an accountability notification as read
+ */
+export const markAccountabilityNotificationRead = async (notificationId: number, options?: Parameters<typeof customFetch>[1]): Promise<AccountabilityMutationResult> => {
+
+  return customFetch<AccountabilityMutationResult>(getMarkAccountabilityNotificationReadUrl(notificationId),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkAccountabilityNotificationReadMutationKey = () => ['markAccountabilityNotificationRead'] as const;
+
+export const getMarkAccountabilityNotificationReadMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markAccountabilityNotificationRead>>, TError,MarkAccountabilityNotificationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markAccountabilityNotificationRead>>, TError,MarkAccountabilityNotificationReadMutationVariables, TContext> => {
+
+const mutationKey = getMarkAccountabilityNotificationReadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markAccountabilityNotificationRead>>, MarkAccountabilityNotificationReadMutationVariables> = (props) => {
+          const {notificationId} = props ?? {};
+
+          return  markAccountabilityNotificationRead(notificationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkAccountabilityNotificationReadMutationResult = NonNullable<Awaited<ReturnType<typeof markAccountabilityNotificationRead>>>
+
+    export type MarkAccountabilityNotificationReadMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+    export type MarkAccountabilityNotificationReadMutationVariables = {notificationId: number}
+
+    /**
+ * @summary Mark an accountability notification as read
+ */
+export const useMarkAccountabilityNotificationRead = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markAccountabilityNotificationRead>>, TError,MarkAccountabilityNotificationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markAccountabilityNotificationRead>>,
+        TError,
+        MarkAccountabilityNotificationReadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkAccountabilityNotificationReadMutationOptions(options));
     }
 

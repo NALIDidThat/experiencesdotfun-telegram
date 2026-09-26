@@ -68,6 +68,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
+import { AccountabilitySection } from '@/components/AccountabilitySection';
 import { UserAvatar } from '@/components/UserAvatar';
 import { openTelegramBot } from '@/lib/telegram';
 
@@ -2776,6 +2777,16 @@ function FriendsOverviewScreen({
 
       {!user ? <TelegramConnectCard /> : (
         <>
+          {user.userType === 'participant' ? (
+            <AccountabilitySection friends={friends.data ?? []} />
+          ) : (
+            <View style={{ backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, borderWidth: 1, gap: 5, marginBottom: 16, padding: 14 }}>
+              <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '700' }}>Accountability partners</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
+                This feature is for participant profiles. Switch to your participant profile to make commitments with a friend.
+              </Text>
+            </View>
+          )}
           <View style={[styles.friendComposer, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 4 }]}>
             <View style={styles.friendComposerHeader}>
               <View style={[styles.friendComposerIcon, { backgroundColor: colors.primary + '12' }]}>

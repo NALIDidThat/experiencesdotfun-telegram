@@ -554,6 +554,222 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /accountability:
+    get:
+      operationId: getAccountabilityDashboard
+      tags: [friends]
+      summary: Get the signed-in participant's accountability dashboard
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Accountability dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountabilityDashboard"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /accountability/invitations:
+    post:
+      operationId: createAccountabilityInvitation
+      tags: [friends]
+      summary: Invite an accepted friend to become an accountability partner
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountabilityInvitationInput"
+      responses:
+        "201":
+          description: Accountability invitation sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountabilityMutationResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /accountability/invitations/{invitationId}/accept:
+    post:
+      operationId: acceptAccountabilityInvitation
+      tags: [friends]
+      summary: Accept an accountability partnership invitation
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AccountabilityInvitationId"
+      responses:
+        "200":
+          description: Partnership activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountabilityMutationResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /accountability/invitations/{invitationId}/decline:
+    post:
+      operationId: declineAccountabilityInvitation
+      tags: [friends]
+      summary: Decline an accountability partnership invitation
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AccountabilityInvitationId"
+      responses:
+        "200":
+          description: Invitation declined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountabilityMutationResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /accountability/partnerships/{partnershipId}/end:
+    post:
+      operationId: endAccountabilityPartnership
+      tags: [friends]
+      summary: End the signed-in participant's active partnership
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AccountabilityPartnershipId"
+      responses:
+        "200":
+          description: Partnership ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountabilityMutationResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /accountability/commitments:
+    post:
+      operationId: createAccountabilityCommitment
+      tags: [friends]
+      summary: Create a shared commitment for an active partnership
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountabilityCommitmentInput"
+      responses:
+        "201":
+          description: Shared commitment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountabilityCommitment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /accountability/commitments/{commitmentId}/check-ins:
+    post:
+      operationId: createAccountabilityCheckIn
+      tags: [friends]
+      summary: Record a self-reported commitment check-in
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AccountabilityCommitmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountabilityCheckInInput"
+      responses:
+        "201":
+          description: Check-in recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountabilityCheckIn"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /accountability/check-ins/{checkInId}/confirm:
+    post:
+      operationId: confirmAccountabilityCheckIn
+      tags: [friends]
+      summary: Confirm a partner's self-reported completion
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AccountabilityCheckInId"
+      responses:
+        "200":
+          description: Check-in confirmed by partner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountabilityCheckIn"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /accountability/encouragement:
+    post:
+      operationId: sendAccountabilityEncouragement
+      tags: [friends]
+      summary: Send a prewritten encouragement to the active partner
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountabilityEncouragementInput"
+      responses:
+        "201":
+          description: Encouragement sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountabilityMutationResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /accountability/notifications/{notificationId}/read:
+    patch:
+      operationId: markAccountabilityNotificationRead
+      tags: [friends]
+      summary: Mark an accountability notification as read
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AccountabilityNotificationId"
+      responses:
+        "200":
+          description: Notification marked read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountabilityMutationResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   securitySchemes:
     telegramInitData:
@@ -582,6 +798,41 @@ components:
       schema:
         type: integer
         format: int64
+    AccountabilityInvitationId:
+      name: invitationId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    AccountabilityPartnershipId:
+      name: partnershipId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    AccountabilityCommitmentId:
+      name: commitmentId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    AccountabilityCheckInId:
+      name: checkInId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    AccountabilityNotificationId:
+      name: notificationId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
     Category:
       name: category
       in: query
@@ -1199,4 +1450,247 @@ components:
           type: string
           minLength: 1
       required: [username]
+    AccountabilityInvitation:
+      type: object
+      properties:
+        id:
+          type: integer
+        user:
+          $ref: "#/components/schemas/ParticipantSummary"
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+      required: [id, user, createdAt, expiresAt]
+    AccountabilityActivePartner:
+      type: object
+      properties:
+        partnershipId:
+          type: integer
+        partner:
+          $ref: "#/components/schemas/ParticipantSummary"
+        acceptedAt:
+          type: string
+          format: date-time
+      required: [partnershipId, partner, acceptedAt]
+    AccountabilityCheckIn:
+      type: object
+      properties:
+        id:
+          type: integer
+        commitmentId:
+          type: integer
+        userId:
+          type: integer
+        status:
+          type: string
+          enum: [completed, partial, missed, rescheduled]
+        note:
+          type: [string, "null"]
+        verificationStatus:
+          type: string
+          enum: [self_reported, partner_confirmed, experience_verified]
+        confirmedBy:
+          anyOf:
+            - $ref: "#/components/schemas/ParticipantSummary"
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, commitmentId, userId, status, note, verificationStatus, confirmedBy, createdAt]
+    AccountabilityCommitment:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: [string, "null"]
+        createdBy:
+          $ref: "#/components/schemas/ParticipantSummary"
+        assignedTo:
+          $ref: "#/components/schemas/ParticipantSummary"
+        targetValue:
+          type: integer
+        currentValue:
+          type: integer
+        deadline:
+          type: [string, "null"]
+          format: date
+        status:
+          type: string
+          enum: [active, completed, missed, cancelled]
+        verificationStatus:
+          type: string
+          enum: [self_reported, partner_confirmed, experience_verified]
+        latestCheckIn:
+          anyOf:
+            - $ref: "#/components/schemas/AccountabilityCheckIn"
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: [string, "null"]
+          format: date-time
+      required:
+        - id
+        - title
+        - description
+        - createdBy
+        - assignedTo
+        - targetValue
+        - currentValue
+        - deadline
+        - status
+        - verificationStatus
+        - latestCheckIn
+        - createdAt
+        - completedAt
+    AccountabilityActivity:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum:
+            - partner_invite
+            - partner_accepted
+            - partner_declined
+            - partnership_ended
+            - commitment_created
+            - check_in_completed
+            - check_in_partial
+            - check_in_missed
+            - check_in_rescheduled
+            - check_in_confirmed
+            - encouragement_received
+        title:
+          type: string
+        message:
+          type: string
+        actor:
+          $ref: "#/components/schemas/ParticipantSummary"
+        commitmentId:
+          type: [integer, "null"]
+        commitmentTitle:
+          type: [string, "null"]
+        checkIn:
+          anyOf:
+            - $ref: "#/components/schemas/AccountabilityCheckIn"
+            - type: "null"
+        readAt:
+          type: [string, "null"]
+          format: date-time
+        isUnread:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - title
+        - message
+        - actor
+        - commitmentId
+        - commitmentTitle
+        - checkIn
+        - readAt
+        - isUnread
+        - createdAt
+    AccountabilityDashboard:
+      type: object
+      properties:
+        activePartner:
+          anyOf:
+            - $ref: "#/components/schemas/AccountabilityActivePartner"
+            - type: "null"
+        incomingInvitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountabilityInvitation"
+        outgoingInvitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountabilityInvitation"
+        commitments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountabilityCommitment"
+        activity:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountabilityActivity"
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountabilityActivity"
+        unreadCount:
+          type: integer
+      required:
+        - activePartner
+        - incomingInvitations
+        - outgoingInvitations
+        - commitments
+        - activity
+        - notifications
+        - unreadCount
+    AccountabilityMutationResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required: [success, message]
+    AccountabilityInvitationInput:
+      type: object
+      properties:
+        friendUserId:
+          type: integer
+          minimum: 1
+      required: [friendUserId]
+    AccountabilityCommitmentInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 500
+        assignedUserId:
+          type: integer
+          minimum: 1
+        targetValue:
+          type: integer
+          minimum: 1
+          maximum: 100
+        deadline:
+          type: string
+          format: date
+      required: [title, assignedUserId]
+    AccountabilityCheckInInput:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [completed, partial, missed, rescheduled]
+        note:
+          type: string
+          maxLength: 500
+      required: [status]
+    AccountabilityEncouragementInput:
+      type: object
+      properties:
+        message:
+          type: string
+          enum: [keep_going, nearly_there, proud_of_you, lets_do_this, join_me]
+      required: [message]
 
