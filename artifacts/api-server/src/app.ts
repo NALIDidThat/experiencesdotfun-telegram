@@ -31,6 +31,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
-void startTelegramBot();
+if (process.env.NODE_ENV === "development") {
+  void startTelegramBot();
+} else {
+  logger.info(
+    { nodeEnv: process.env.NODE_ENV ?? "unset" },
+    "Telegram polling is disabled outside development.",
+  );
+}
 
 export default app;

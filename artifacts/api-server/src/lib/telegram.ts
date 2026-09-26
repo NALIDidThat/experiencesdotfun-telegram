@@ -100,6 +100,12 @@ const rankNumberEmojis = ["", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️�
 const token = () => process.env.TELEGRAM_BOT_TOKEN;
 let botUsername: string | null = null;
 let botRunning = false;
+let consecutivePollingFailures = 0;
+
+function nextPollingRetryDelay(): number {
+  consecutivePollingFailures += 1;
+  return Math.min(1_000 * 2 ** (consecutivePollingFailures - 1), 60_000);
+}
 
 function rankNumber(rank: number): string {
   return rankNumberEmojis[rank] ?? `${rank}.`;
@@ -824,12 +830,18 @@ async function handleCallback(update: NonNullable<TelegramUpdate["callback_query
 
 async function poll(offset: number): Promise<void> {
   let nextOffset = offset;
+  let retryDelayMs = 500;
   try {
     const updates = await telegramCall<TelegramUpdate[]>("getUpdates", {
       offset,
       timeout: 25,
       allowed_updates: ["message", "callback_query"],
     });
+    if (updates === null) {
+      retryDelayMs = nextPollingRetryDelay();
+      return;
+    }
+    consecutivePollingFailures = 0;
     for (const update of updates ?? []) {
       nextOffset = Math.max(nextOffset, update.update_id + 1);
       try {
@@ -844,9 +856,10 @@ async function poll(offset: number): Promise<void> {
     }
   } catch (error) {
     logger.error({ err: error }, "Telegram polling iteration failed");
+    retryDelayMs = nextPollingRetryDelay();
   } finally {
     if (token() && botRunning) {
-      setTimeout(() => void poll(nextOffset), 500);
+      setTimeout(() => void poll(nextOffset), retryDelayMs);
     }
   }
 }
