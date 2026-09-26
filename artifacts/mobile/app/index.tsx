@@ -3974,6 +3974,7 @@ export default function App() {
     return (
       <AppShell showFeedbackBanner={false}>
         <EmailAuthPanel
+          key={`${params.mode ?? 'login'}:${params.accountType ?? ''}`}
           accountType={selectedAccountType ?? (
             params.accountType === 'organisation' || params.accountType === 'participant'
               ? params.accountType
