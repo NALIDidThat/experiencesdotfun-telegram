@@ -582,22 +582,24 @@ function EmailAuthPanel({
                 }}
                 style={styles.emailBack}
               >
-                <View style={[styles.emailBackIcon, { backgroundColor: colors.secondary + '14' }]}>
-                  <Feather name="arrow-left" size={18} color={colors.secondary} />
+                <View style={[styles.emailBackIcon, { backgroundColor: colors.primary + '14' }]}>
+                  <Feather name="arrow-left" size={18} color={colors.primary} />
                 </View>
-                <Text style={[styles.emailBackText, { color: colors.foreground }]}>Back</Text>
+                <Text style={[styles.emailBackText, { color: colors.primary }]}>Back</Text>
               </Pressable>
-              <View style={[styles.emailIllustration, { backgroundColor: colors.secondary + '14' }]} accessible={false}>
-                <Feather name={activeSignupField.icon} size={30} color={colors.secondary} />
-              </View>
-              <View style={styles.emailCardIntro}>
-                <Text style={[styles.emailHeroEyebrow, { color: colors.secondary }]}>EXPERIENCES.FUN</Text>
-                <Text style={[styles.emailCardTitle, { color: colors.foreground }]}>{activeSignupField.title}</Text>
-                <Text style={[styles.emailCardBody, { color: colors.mutedForeground }]}>{activeSignupField.description}</Text>
+              <View style={styles.emailSignupIntroRow}>
+                <View style={[styles.emailIllustration, { backgroundColor: colors.primary + '14' }]} accessible={false}>
+                  <Feather name={activeSignupField.icon} size={27} color={colors.primary} />
+                </View>
+                <View style={styles.emailCardIntro}>
+                  <Text style={[styles.emailHeroEyebrow, { color: colors.primary }]}>EXPERIENCES.FUN</Text>
+                  <Text style={[styles.emailCardTitle, { color: colors.foreground }]}>{activeSignupField.title}</Text>
+                  <Text style={[styles.emailCardBody, { color: colors.mutedForeground }]}>{activeSignupField.description}</Text>
+                </View>
               </View>
               <View style={styles.emailSignupProgress}>
                 <View style={styles.emailSignupProgressMeta}>
-                  <Text style={[styles.emailSignupProgressLabel, { color: colors.secondary }]}>
+                  <Text style={[styles.emailSignupProgressLabel, { color: colors.primary }]}>
                     STEP {signupStep + 1} OF {signupFields.length}
                   </Text>
                   <Text style={[styles.emailSignupProgressHint, { color: colors.mutedForeground }]}>
@@ -610,7 +612,7 @@ function EmailAuthPanel({
                       key={field.label}
                       style={[
                         styles.emailSignupProgressSegment,
-                        { backgroundColor: index <= signupStep ? colors.secondary : colors.border },
+                        { backgroundColor: index <= signupStep ? colors.primary : colors.border },
                       ]}
                     />
                   ))}
@@ -4187,21 +4189,22 @@ const styles = StyleSheet.create({
   emailLoginHeroTitle: { fontSize: 32, lineHeight: 37, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, marginTop: 1 },
   emailLoginHeroBody: { maxWidth: 310, fontSize: 14, lineHeight: 20, fontFamily: 'Inter_500Medium', opacity: 0.92 },
   emailLoginFields: { paddingHorizontal: 22, paddingTop: 21, paddingBottom: 18 },
-  emailAuthHeader: { gap: 12 },
+  emailAuthHeader: { gap: 18 },
+  emailSignupIntroRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   emailAuthFields: { gap: 14 },
-  emailSignupProgress: { gap: 9 },
-  emailSignupProgressMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  emailSignupProgress: { gap: 8, marginTop: 2 },
+  emailSignupProgressMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   emailSignupProgressLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.1 },
-  emailSignupProgressHint: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
-  emailSignupProgressTrack: { flexDirection: 'row', gap: 6 },
-  emailSignupProgressSegment: { flex: 1, height: 4, borderRadius: 2 },
+  emailSignupProgressHint: { flexShrink: 1, fontSize: 10, fontFamily: 'Inter_600SemiBold', textAlign: 'right' },
+  emailSignupProgressTrack: { flexDirection: 'row', gap: 5 },
+  emailSignupProgressSegment: { flex: 1, height: 5, borderRadius: 3 },
   emailSignupPrevious: { alignItems: 'center', paddingVertical: 6 },
   emailSignupPreviousText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  emailIllustration: { width: 70, height: 70, borderRadius: 35, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
-  emailCardIntro: { gap: 5, alignItems: 'center', marginTop: 0, marginBottom: 2 },
-  emailHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.5, marginBottom: 2 },
-  emailCardTitle: { fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, textAlign: 'center' },
-  emailCardBody: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  emailIllustration: { width: 56, height: 56, flexShrink: 0, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  emailCardIntro: { flex: 1, minWidth: 0, gap: 5, alignItems: 'flex-start' },
+  emailHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.3, marginBottom: 1 },
+  emailCardTitle: { fontSize: 25, lineHeight: 30, fontFamily: 'Inter_700Bold', letterSpacing: -0.5, textAlign: 'left' },
+  emailCardBody: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular', textAlign: 'left' },
   emailSwitchRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 0, marginBottom: 0 },
   emailLoginSwitch: { minHeight: 58, paddingHorizontal: 18, borderTopWidth: 1 },
   emailSwitchPrompt: { fontSize: 13, fontFamily: 'Inter_500Medium' },
