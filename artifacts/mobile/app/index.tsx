@@ -68,15 +68,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
-import { AccountabilitySection } from '@/components/AccountabilitySection';
-import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
-import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { UserAvatar } from '@/components/UserAvatar';
 import { openTelegramBot } from '@/lib/telegram';
 
-type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'friends' | 'friend-profile' | 'notifications' | 'experience' | 'host' | 'create' | 'email';
+type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
-const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'friends', 'friend-profile', 'notifications', 'experience', 'host', 'create', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -324,7 +321,7 @@ function TelegramConnectCard() {
       </View>
       <View style={styles.telegramCopy}>
         <Text style={[styles.telegramTitle, { color: colors.foreground }]}>Log in with Telegram</Text>
-        <Text style={[styles.telegramBody, { color: colors.mutedForeground }]}>Use your Telegram account to sync your profile, friends, and hosted experiences.</Text>
+        <Text style={[styles.telegramBody, { color: colors.mutedForeground }]}>Use your Telegram profile to sync your passport, friends, and hosted experiences.</Text>
       </View>
       <Pressable
         accessibilityRole="button"
@@ -551,11 +548,10 @@ function EmailAuthPanel({
     <View style={[styles.emailAuthScreen, { backgroundColor: colors.muted }]}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.muted} />
       <KeyboardAwareScrollViewCompat
-        testID="email-auth-scroll"
         style={[styles.emailAuthScroll, { backgroundColor: colors.muted }]}
         contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 24) }]}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="none"
+        keyboardDismissMode="on-drag"
         bottomOffset={24}
       >
         <View
@@ -748,7 +744,6 @@ function EmailAuthPanel({
             )}
             {localError || authError ? <Text accessibilityRole="alert" style={[styles.emailError, { color: colors.destructive }]}>{localError ?? authError}</Text> : null}
             <Button
-              testID="email-auth-submit"
               label={loading ? (isSignup ? 'Creating account…' : 'Logging in…') : (isSignup && signupStep < signupFields.length - 1 ? 'Continue' : isSignup ? 'Create account' : 'Log in')}
               disabled={loading || (isSignup
                 ? !activeSignupValue.trim() || !accountType
@@ -775,7 +770,6 @@ function EmailAuthPanel({
           </View>
           <Pressable
             accessibilityRole="button"
-            testID="email-auth-mode-switch"
             onPress={() => {
               setMode(isSignup ? 'login' : 'signup');
               setSignupStep(0);
@@ -1174,7 +1168,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
         { label: 'YOUR PROFILE', eyebrow: 'FIRST, THE BASICS', title: 'A name people will recognise.', description: 'This is how you’ll appear to people you meet through Experiences.fun.', icon: 'user' as IconName },
         { label: 'YOUR INTERESTS', eyebrow: 'WHAT YOU CARE ABOUT', title: 'What would you like to do more of?', description: 'Choose the causes you want to see first. Select at least one.', icon: 'heart' as IconName },
         { label: 'YOUR AREA', eyebrow: 'MAKE IT LOCAL', title: 'Where do you want to get involved?', description: 'We’ll use your city to surface experiences and opportunities nearby.', icon: 'map-pin' as IconName },
-        { label: 'PROFILE PREVIEW', eyebrow: 'READY TO BEGIN', title: 'Your profile is taking shape.', description: 'Review the essentials before creating your profile.', icon: 'award' as IconName },
+        { label: 'PROFILE PREVIEW', eyebrow: 'READY TO BEGIN', title: 'Your passport is taking shape.', description: 'Review the essentials before creating your profile.', icon: 'award' as IconName },
       ];
   const activeStep = steps[step - 1];
 
@@ -1306,7 +1300,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
       style={[styles.onboarding, { backgroundColor: colors.background }]}
       contentContainerStyle={[styles.flowScreenContent, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 24) }]}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="none"
+      keyboardDismissMode="on-drag"
       bottomOffset={24}
       showsVerticalScrollIndicator={false}
     >
@@ -1448,7 +1442,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
                   <Feather name={accountType === 'organisation' ? 'briefcase' : 'award'} size={18} color={colors.primaryForeground} />
                 </View>
                 <Text style={[styles.profilePreviewEyebrow, { color: colors.primaryForeground }]}>
-                  {accountType === 'organisation' ? 'ORGANISATION PROFILE' : 'PARTICIPANT PROFILE'}
+                  {accountType === 'organisation' ? 'ORGANISATION PROFILE' : 'EXPERIENCES PASSPORT'}
                 </Text>
               </View>
               <Text style={[styles.profilePreviewTitle, { color: colors.primaryForeground }]} numberOfLines={2}>
@@ -1518,7 +1512,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
       <View style={[styles.flowFooter, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         {saveError ? <InlineError message={saveError} /> : null}
         <Button
-          label={update.isPending ? 'Saving profile…' : step === totalSteps ? (accountType === 'organisation' ? 'Create organisation profile' : 'Create my profile') : 'Continue'}
+          label={update.isPending ? 'Saving profile…' : step === totalSteps ? (accountType === 'organisation' ? 'Create organisation profile' : 'Create my passport') : 'Continue'}
           disabled={update.isPending || stepIsInvalid}
           onPress={() => { void next(); }}
           icon={step === totalSteps ? 'check' : 'arrow-right'}
@@ -1544,7 +1538,7 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
     ...(user.userType === 'participant'
       ? [{ label: 'Journey', icon: 'calendar' as IconName, screen: 'experiences' as Screen }]
       : [{ label: 'Host tools', icon: 'briefcase' as IconName, screen: 'host' as Screen }]),
-    { label: user.userType === 'organisation' ? 'Organisation' : 'Profile', icon: user.userType === 'organisation' ? 'briefcase' : 'user', screen: 'profile' },
+    { label: user.userType === 'organisation' ? 'Organisation' : 'Passport', icon: user.userType === 'organisation' ? 'briefcase' : 'award', screen: 'profile' },
   ];
 
   return (
@@ -1584,10 +1578,10 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
       </View>
       {participations.isError ? <InlineError message="Your upcoming bookings couldn’t be loaded. Pull down to try again." /> : null}
 
-      <Pressable accessibilityRole="button" accessibilityLabel="Open your profile" onPress={() => { triggerHaptic(); go('profile'); }} style={[styles.dashboardPassportCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open your experience passport" onPress={() => { triggerHaptic(); go('profile'); }} style={[styles.dashboardPassportCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
         <View style={styles.dashboardPassportTop}>
           <View>
-            <Text style={[styles.dashboardCardEyebrow, { color: colors.primary }]}>YOUR PROFILE</Text>
+            <Text style={[styles.dashboardCardEyebrow, { color: colors.primary }]}>EXPERIENCE PASSPORT</Text>
             <Text style={[styles.dashboardPassportTitle, { color: colors.foreground }]}>{user.level}</Text>
             <View style={styles.dashboardPassportMeta}>
               <Feather name="zap" size={16} color={colors.primary} />
@@ -2452,7 +2446,7 @@ function ProfileMetricDetailsSheet({
           <View style={[styles.profileMetricHandle, { backgroundColor: colors.border }]} />
           <View style={styles.profileMetricSheetHeader}>
             <View style={styles.profileMetricSheetTitleWrap}>
-              <Text style={[styles.profileMetricEyebrow, { color: colors.primary }]}>PROFILE SUMMARY</Text>
+              <Text style={[styles.profileMetricEyebrow, { color: colors.primary }]}>PASSPORT SUMMARY</Text>
               <Text style={[styles.profileMetricSheetTitle, { color: colors.foreground }]}>{title}</Text>
             </View>
             <Pressable
@@ -2630,7 +2624,7 @@ function FriendProfileScreen({
       showsVerticalScrollIndicator={false}
     >
       <Header
-        title={friend?.userType === 'organisation' ? 'Organisation profile' : 'Profile'}
+        title={friend?.userType === 'organisation' ? 'Organisation profile' : 'Passport'}
         subtitle={friend
           ? friend.userType === 'organisation'
             ? friend.organisation?.name ?? 'Organisation account'
@@ -2757,12 +2751,11 @@ function FriendsOverviewScreen({
   };
 
   return (
-    <KeyboardAwareScrollViewCompat
-      style={{ flex: 1, minHeight: 0, backgroundColor: colors.background }}
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="none"
-      bottomOffset={24}
+      keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
     >
       <Header
@@ -2783,16 +2776,6 @@ function FriendsOverviewScreen({
 
       {!user ? <TelegramConnectCard /> : (
         <>
-          {user.userType === 'participant' ? (
-            <AccountabilitySection friends={friends.data ?? []} />
-          ) : (
-            <View style={{ backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, borderWidth: 1, gap: 5, marginBottom: 16, padding: 14 }}>
-              <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '700' }}>Accountability partners</Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
-                This feature is for participant profiles. Switch to your participant profile to make commitments with a friend.
-              </Text>
-            </View>
-          )}
           <View style={[styles.friendComposer, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 4 }]}>
             <View style={styles.friendComposerHeader}>
               <View style={[styles.friendComposerIcon, { backgroundColor: colors.primary + '12' }]}>
@@ -3048,7 +3031,7 @@ function FriendsOverviewScreen({
         </>
       )}
       <View style={{ height: 120 }} />
-    </KeyboardAwareScrollViewCompat>
+    </ScrollView>
   );
 }
 
@@ -3138,27 +3121,17 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   };
 
   return (
-    <KeyboardAwareScrollViewCompat
-      testID="profile-edit-scroll"
+    <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="none"
-      bottomOffset={24}
+      keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
     >
       <Header
-        title={current.userType === 'organisation' ? 'Organisation profile' : 'Profile'}
+        title={current.userType === 'organisation' ? 'Organisation profile' : 'Passport'}
         subtitle={current.userType === 'organisation' ? (current.organisation?.name ?? 'Organisation account') : 'Participant account · Your contribution identity.'}
         menuItems={[
-          ...(current.userType === 'participant'
-            ? [{
-                key: 'notifications',
-                label: 'Notifications',
-                icon: 'bell' as IconName,
-                onPress: () => go('notifications'),
-              }]
-            : []),
           {
             key: 'friends',
             label: 'Friends & Partners',
@@ -3248,9 +3221,9 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
               <TextInput value={organisationDescription} onChangeText={setOrganisationDescription} multiline maxLength={600} placeholder="What your organisation does" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
             </>
           ) : null}
-          <TextInput testID="profile-edit-name" value={name} onChangeText={setName} placeholder={current.userType === 'organisation' ? 'Contact name' : 'Display name'} placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
-          <TextInput testID="profile-edit-city" value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
-          <TextInput testID="profile-edit-bio" value={bio} onChangeText={setBio} multiline placeholder={current.userType === 'organisation' ? 'Short contact bio' : 'Short bio'} placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          <TextInput value={name} onChangeText={setName} placeholder={current.userType === 'organisation' ? 'Contact name' : 'Display name'} placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          <TextInput value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          <TextInput value={bio} onChangeText={setBio} multiline placeholder={current.userType === 'organisation' ? 'Short contact bio' : 'Short bio'} placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
           <Text style={[styles.formLabel, { color: colors.foreground }]}>{current.userType === 'organisation' ? 'Causes your organisation supports' : 'Interests'}</Text>
           <View style={styles.onboardingChoices}>
             {categories.slice(1).map((item) => {
@@ -3342,7 +3315,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         </View>
       ) : null}
       <View style={{ height: 120 }} />
-    </KeyboardAwareScrollViewCompat>
+    </ScrollView>
   );
 }
 
@@ -3552,7 +3525,6 @@ function Create({
     <View style={styles.createField}>
       <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>{label.toUpperCase()}</Text>
       <TextInput
-        testID={`create-field-${key}`}
         accessibilityLabel={label}
         value={form[key] == null ? '' : String(form[key])}
         onChangeText={(value) => set(key, value)}
@@ -3583,7 +3555,6 @@ function Create({
       <View style={styles.createSceneFieldBody}>
         <Text style={[styles.createSceneFieldLabel, { color: colors.foreground }]}>{label}</Text>
         <TextInput
-          testID={`create-field-${key}`}
           accessibilityLabel={label}
           value={form[key] == null ? '' : String(form[key])}
           onChangeText={(value) => set(key, value)}
@@ -3608,14 +3579,13 @@ function Create({
 
   return (
     <KeyboardAwareScrollViewCompat
-      testID="create-experience-scroll"
       style={[styles.screen, { backgroundColor: colors.background }]}
       contentContainerStyle={[
         styles.createContent,
         { flexGrow: 1, paddingTop: 12, paddingBottom: insets.bottom + 40 },
       ]}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="none"
+      keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
     >
         <View style={styles.createTopBar}>
@@ -3889,35 +3859,9 @@ function AppShell({
   showFeedbackBanner?: boolean;
 }) {
   const colors = useColors();
-  const [webViewportHeight, setWebViewportHeight] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-    const syncViewportHeight = () => {
-      const height = window.visualViewport?.height ?? window.innerHeight;
-      setWebViewportHeight((current) => current === height ? current : height);
-    };
-    const visualViewport = window.visualViewport;
-    syncViewportHeight();
-    window.addEventListener('resize', syncViewportHeight);
-    visualViewport?.addEventListener('resize', syncViewportHeight);
-    return () => {
-      window.removeEventListener('resize', syncViewportHeight);
-      visualViewport?.removeEventListener('resize', syncViewportHeight);
-    };
-  }, []);
 
   return (
-    <View
-      testID="app-shell"
-      style={[
-        styles.app,
-        { backgroundColor: colors.background },
-        Platform.OS === 'web' && webViewportHeight !== null
-          ? { height: webViewportHeight }
-          : null,
-      ]}
-    >
+    <View style={[styles.app, { backgroundColor: colors.background }]}>
       {showFeedbackBanner ? <FeedbackBanner /> : null}
       <View style={styles.appContent}>{children}</View>
       {bottomNav}
@@ -3926,7 +3870,7 @@ function AppShell({
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; step?: string; keyboardTest?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; step?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -3981,59 +3925,6 @@ export default function App() {
     || !user.interests.length
     || organisationProfileIncomplete
   ));
-
-  if (__DEV__ && params.keyboardTest === '1') {
-    return (
-      <AppShell showFeedbackBanner={false}>
-        <KeyboardInteractionHarness />
-      </AppShell>
-    );
-  }
-
-  if (__DEV__ && params.keyboardTest === 'signup') {
-    return (
-      <AppShell showFeedbackBanner={false}>
-        <EmailAuthPanel accountType="participant" onBack={() => {}} onSuccess={() => {}} />
-      </AppShell>
-    );
-  }
-
-  if (__DEV__ && params.keyboardTest === 'profile') {
-    const testUser: User = {
-      id: -1,
-      createdAt: null,
-      telegramId: null,
-      email: null,
-      name: 'Keyboard Test Participant',
-      username: 'keyboard_test',
-      avatarUrl: null,
-      bio: null,
-      city: 'London',
-      country: 'United Kingdom',
-      interests: ['community'],
-      participationType: null,
-      userType: 'participant',
-      organisation: null,
-      xp: 0,
-      level: '1',
-      completedCount: 0,
-      hostedCount: 0,
-      rewardsPence: 0,
-    };
-    return (
-      <AppShell showFeedbackBanner={false}>
-        <Profile user={testUser} go={() => {}} />
-      </AppShell>
-    );
-  }
-
-  if (__DEV__ && params.keyboardTest === 'create') {
-    return (
-      <AppShell showFeedbackBanner={false}>
-        <Create go={() => {}} />
-      </AppShell>
-    );
-  }
 
   if (loading) {
     return (
@@ -4146,7 +4037,6 @@ export default function App() {
     if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
     if (screen === 'friend-profile') return <FriendProfileScreen friendId={Number(params.friendId)} onBack={() => go('friends')} />;
     if (screen === 'friends') return <FriendsOverviewScreen go={go} onBack={() => go('profile')} />;
-    if (screen === 'notifications') return <NotificationsScreen onBack={() => go('profile')} onOpenFriends={() => go('friends')} />;
     if (screen === 'explore') return <Explore go={go} />;
     if (screen === 'experiences') return user.userType === 'organisation' ? <Host go={go} /> : <Experiences go={go} />;
     if (screen === 'profile') return <Profile user={user} go={go} />;
@@ -4158,7 +4048,7 @@ export default function App() {
   const noNav = ['experience', 'create'].includes(screen);
   const navActive = user.userType === 'organisation' && screen === 'experiences'
     ? 'host'
-    : screen === 'friends' || screen === 'friend-profile' || screen === 'notifications'
+    : screen === 'friends' || screen === 'friend-profile'
       ? 'profile'
       : screen;
   return (
@@ -4169,8 +4059,8 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  app: { flex: 1, minHeight: 0 },
-  appContent: { flex: 1, minHeight: 0 },
+  app: { flex: 1 },
+  appContent: { flex: 1 },
   feedbackBanner: { alignItems: 'center', paddingHorizontal: 14, paddingBottom: 8 },
   feedbackBannerText: { width: '100%', textAlign: 'center', fontSize: 13, lineHeight: 19, fontFamily: 'Inter_500Medium' },
   feedbackBannerLink: { fontFamily: 'Inter_700Bold', textDecorationLine: 'underline' },
