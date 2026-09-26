@@ -323,7 +323,7 @@ function TelegramConnectCard() {
       </View>
       <View style={styles.telegramCopy}>
         <Text style={[styles.telegramTitle, { color: colors.foreground }]}>Log in with Telegram</Text>
-        <Text style={[styles.telegramBody, { color: colors.mutedForeground }]}>Use your Telegram profile to sync your passport, friends, and hosted experiences.</Text>
+        <Text style={[styles.telegramBody, { color: colors.mutedForeground }]}>Use your Telegram account to sync your profile, friends, and hosted experiences.</Text>
       </View>
       <Pressable
         accessibilityRole="button"
@@ -1170,7 +1170,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
         { label: 'YOUR PROFILE', eyebrow: 'FIRST, THE BASICS', title: 'A name people will recognise.', description: 'This is how you’ll appear to people you meet through Experiences.fun.', icon: 'user' as IconName },
         { label: 'YOUR INTERESTS', eyebrow: 'WHAT YOU CARE ABOUT', title: 'What would you like to do more of?', description: 'Choose the causes you want to see first. Select at least one.', icon: 'heart' as IconName },
         { label: 'YOUR AREA', eyebrow: 'MAKE IT LOCAL', title: 'Where do you want to get involved?', description: 'We’ll use your city to surface experiences and opportunities nearby.', icon: 'map-pin' as IconName },
-        { label: 'PROFILE PREVIEW', eyebrow: 'READY TO BEGIN', title: 'Your passport is taking shape.', description: 'Review the essentials before creating your profile.', icon: 'award' as IconName },
+        { label: 'PROFILE PREVIEW', eyebrow: 'READY TO BEGIN', title: 'Your profile is taking shape.', description: 'Review the essentials before creating your profile.', icon: 'award' as IconName },
       ];
   const activeStep = steps[step - 1];
 
@@ -1444,7 +1444,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
                   <Feather name={accountType === 'organisation' ? 'briefcase' : 'award'} size={18} color={colors.primaryForeground} />
                 </View>
                 <Text style={[styles.profilePreviewEyebrow, { color: colors.primaryForeground }]}>
-                  {accountType === 'organisation' ? 'ORGANISATION PROFILE' : 'EXPERIENCES PASSPORT'}
+                  {accountType === 'organisation' ? 'ORGANISATION PROFILE' : 'PARTICIPANT PROFILE'}
                 </Text>
               </View>
               <Text style={[styles.profilePreviewTitle, { color: colors.primaryForeground }]} numberOfLines={2}>
@@ -1514,7 +1514,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
       <View style={[styles.flowFooter, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         {saveError ? <InlineError message={saveError} /> : null}
         <Button
-          label={update.isPending ? 'Saving profile…' : step === totalSteps ? (accountType === 'organisation' ? 'Create organisation profile' : 'Create my passport') : 'Continue'}
+          label={update.isPending ? 'Saving profile…' : step === totalSteps ? (accountType === 'organisation' ? 'Create organisation profile' : 'Create my profile') : 'Continue'}
           disabled={update.isPending || stepIsInvalid}
           onPress={() => { void next(); }}
           icon={step === totalSteps ? 'check' : 'arrow-right'}
@@ -1540,7 +1540,7 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
     ...(user.userType === 'participant'
       ? [{ label: 'Journey', icon: 'calendar' as IconName, screen: 'experiences' as Screen }]
       : [{ label: 'Host tools', icon: 'briefcase' as IconName, screen: 'host' as Screen }]),
-    { label: user.userType === 'organisation' ? 'Organisation' : 'Passport', icon: user.userType === 'organisation' ? 'briefcase' : 'award', screen: 'profile' },
+    { label: user.userType === 'organisation' ? 'Organisation' : 'Profile', icon: user.userType === 'organisation' ? 'briefcase' : 'user', screen: 'profile' },
   ];
 
   return (
@@ -1580,10 +1580,10 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
       </View>
       {participations.isError ? <InlineError message="Your upcoming bookings couldn’t be loaded. Pull down to try again." /> : null}
 
-      <Pressable accessibilityRole="button" accessibilityLabel="Open your experience passport" onPress={() => { triggerHaptic(); go('profile'); }} style={[styles.dashboardPassportCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open your profile" onPress={() => { triggerHaptic(); go('profile'); }} style={[styles.dashboardPassportCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
         <View style={styles.dashboardPassportTop}>
           <View>
-            <Text style={[styles.dashboardCardEyebrow, { color: colors.primary }]}>EXPERIENCE PASSPORT</Text>
+            <Text style={[styles.dashboardCardEyebrow, { color: colors.primary }]}>YOUR PROFILE</Text>
             <Text style={[styles.dashboardPassportTitle, { color: colors.foreground }]}>{user.level}</Text>
             <View style={styles.dashboardPassportMeta}>
               <Feather name="zap" size={16} color={colors.primary} />
@@ -2448,7 +2448,7 @@ function ProfileMetricDetailsSheet({
           <View style={[styles.profileMetricHandle, { backgroundColor: colors.border }]} />
           <View style={styles.profileMetricSheetHeader}>
             <View style={styles.profileMetricSheetTitleWrap}>
-              <Text style={[styles.profileMetricEyebrow, { color: colors.primary }]}>PASSPORT SUMMARY</Text>
+              <Text style={[styles.profileMetricEyebrow, { color: colors.primary }]}>PROFILE SUMMARY</Text>
               <Text style={[styles.profileMetricSheetTitle, { color: colors.foreground }]}>{title}</Text>
             </View>
             <Pressable
@@ -2626,7 +2626,7 @@ function FriendProfileScreen({
       showsVerticalScrollIndicator={false}
     >
       <Header
-        title={friend?.userType === 'organisation' ? 'Organisation profile' : 'Passport'}
+        title={friend?.userType === 'organisation' ? 'Organisation profile' : 'Profile'}
         subtitle={friend
           ? friend.userType === 'organisation'
             ? friend.organisation?.name ?? 'Organisation account'
@@ -3141,7 +3141,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       showsVerticalScrollIndicator={false}
     >
       <Header
-        title={current.userType === 'organisation' ? 'Organisation profile' : 'Passport'}
+        title={current.userType === 'organisation' ? 'Organisation profile' : 'Profile'}
         subtitle={current.userType === 'organisation' ? (current.organisation?.name ?? 'Organisation account') : 'Participant account · Your contribution identity.'}
         menuItems={[
           ...(current.userType === 'participant'
