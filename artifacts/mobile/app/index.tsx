@@ -69,6 +69,7 @@ import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { AccountabilitySection } from '@/components/AccountabilitySection';
+import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { UserAvatar } from '@/components/UserAvatar';
 import { openTelegramBot } from '@/lib/telegram';
@@ -553,7 +554,7 @@ function EmailAuthPanel({
         style={[styles.emailAuthScroll, { backgroundColor: colors.muted }]}
         contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 24) }]}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        keyboardDismissMode="none"
         bottomOffset={24}
       >
         <View
@@ -1302,7 +1303,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
       style={[styles.onboarding, { backgroundColor: colors.background }]}
       contentContainerStyle={[styles.flowScreenContent, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 24) }]}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
+      keyboardDismissMode="none"
       bottomOffset={24}
       showsVerticalScrollIndicator={false}
     >
@@ -2753,11 +2754,12 @@ function FriendsOverviewScreen({
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
+    <KeyboardAwareScrollViewCompat
+      style={{ flex: 1, minHeight: 0, backgroundColor: colors.background }}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
+      keyboardDismissMode="none"
+      bottomOffset={24}
       showsVerticalScrollIndicator={false}
     >
       <Header
@@ -3043,7 +3045,7 @@ function FriendsOverviewScreen({
         </>
       )}
       <View style={{ height: 120 }} />
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -3137,7 +3139,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
+      keyboardDismissMode="none"
       showsVerticalScrollIndicator={false}
     >
       <Header
@@ -3879,9 +3881,35 @@ function AppShell({
   showFeedbackBanner?: boolean;
 }) {
   const colors = useColors();
+  const [webViewportHeight, setWebViewportHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const syncViewportHeight = () => {
+      const height = window.visualViewport?.height ?? window.innerHeight;
+      setWebViewportHeight((current) => current === height ? current : height);
+    };
+    const visualViewport = window.visualViewport;
+    syncViewportHeight();
+    window.addEventListener('resize', syncViewportHeight);
+    visualViewport?.addEventListener('resize', syncViewportHeight);
+    return () => {
+      window.removeEventListener('resize', syncViewportHeight);
+      visualViewport?.removeEventListener('resize', syncViewportHeight);
+    };
+  }, []);
 
   return (
-    <View style={[styles.app, { backgroundColor: colors.background }]}>
+    <View
+      testID="app-shell"
+      style={[
+        styles.app,
+        { backgroundColor: colors.background },
+        Platform.OS === 'web' && webViewportHeight !== null
+          ? { height: webViewportHeight }
+          : null,
+      ]}
+    >
       {showFeedbackBanner ? <FeedbackBanner /> : null}
       <View style={styles.appContent}>{children}</View>
       {bottomNav}
@@ -3890,7 +3918,7 @@ function AppShell({
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; step?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; step?: string; keyboardTest?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -3945,6 +3973,14 @@ export default function App() {
     || !user.interests.length
     || organisationProfileIncomplete
   ));
+
+  if (__DEV__ && params.keyboardTest === '1') {
+    return (
+      <AppShell showFeedbackBanner={false}>
+        <KeyboardInteractionHarness />
+      </AppShell>
+    );
+  }
 
   if (loading) {
     return (
@@ -4080,8 +4116,8 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  app: { flex: 1 },
-  appContent: { flex: 1 },
+  app: { flex: 1, minHeight: 0 },
+  appContent: { flex: 1, minHeight: 0 },
   feedbackBanner: { alignItems: 'center', paddingHorizontal: 14, paddingBottom: 8 },
   feedbackBannerText: { width: '100%', textAlign: 'center', fontSize: 13, lineHeight: 19, fontFamily: 'Inter_500Medium' },
   feedbackBannerLink: { fontFamily: 'Inter_700Bold', textDecorationLine: 'underline' },
