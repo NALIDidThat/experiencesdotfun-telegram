@@ -1,20 +1,25 @@
 {
   "expo": {
-    "name": "Experiences.fun",
-    "slug": "mobile",
+    "name": "experiences.fun",
+    "slug": "experiencesfun",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "experiencesfun",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.experiencesfun.app"
     },
-    "android": {},
+    "android": {
+      "package": "com.experiencesfun.app"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
