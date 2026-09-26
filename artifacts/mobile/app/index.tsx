@@ -551,6 +551,7 @@ function EmailAuthPanel({
     <View style={[styles.emailAuthScreen, { backgroundColor: colors.muted }]}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.muted} />
       <KeyboardAwareScrollViewCompat
+        testID="email-auth-scroll"
         style={[styles.emailAuthScroll, { backgroundColor: colors.muted }]}
         contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 24) }]}
         keyboardShouldPersistTaps="handled"
@@ -747,6 +748,7 @@ function EmailAuthPanel({
             )}
             {localError || authError ? <Text accessibilityRole="alert" style={[styles.emailError, { color: colors.destructive }]}>{localError ?? authError}</Text> : null}
             <Button
+              testID="email-auth-submit"
               label={loading ? (isSignup ? 'Creating account…' : 'Logging in…') : (isSignup && signupStep < signupFields.length - 1 ? 'Continue' : isSignup ? 'Create account' : 'Log in')}
               disabled={loading || (isSignup
                 ? !activeSignupValue.trim() || !accountType
@@ -773,6 +775,7 @@ function EmailAuthPanel({
           </View>
           <Pressable
             accessibilityRole="button"
+            testID="email-auth-mode-switch"
             onPress={() => {
               setMode(isSignup ? 'login' : 'signup');
               setSignupStep(0);
@@ -3135,11 +3138,13 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   };
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollViewCompat
+      testID="profile-edit-scroll"
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="none"
+      bottomOffset={24}
       showsVerticalScrollIndicator={false}
     >
       <Header
@@ -3243,9 +3248,9 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
               <TextInput value={organisationDescription} onChangeText={setOrganisationDescription} multiline maxLength={600} placeholder="What your organisation does" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
             </>
           ) : null}
-          <TextInput value={name} onChangeText={setName} placeholder={current.userType === 'organisation' ? 'Contact name' : 'Display name'} placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
-          <TextInput value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
-          <TextInput value={bio} onChangeText={setBio} multiline placeholder={current.userType === 'organisation' ? 'Short contact bio' : 'Short bio'} placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          <TextInput testID="profile-edit-name" value={name} onChangeText={setName} placeholder={current.userType === 'organisation' ? 'Contact name' : 'Display name'} placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          <TextInput testID="profile-edit-city" value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          <TextInput testID="profile-edit-bio" value={bio} onChangeText={setBio} multiline placeholder={current.userType === 'organisation' ? 'Short contact bio' : 'Short bio'} placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
           <Text style={[styles.formLabel, { color: colors.foreground }]}>{current.userType === 'organisation' ? 'Causes your organisation supports' : 'Interests'}</Text>
           <View style={styles.onboardingChoices}>
             {categories.slice(1).map((item) => {
@@ -3337,7 +3342,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         </View>
       ) : null}
       <View style={{ height: 120 }} />
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -3547,6 +3552,7 @@ function Create({
     <View style={styles.createField}>
       <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>{label.toUpperCase()}</Text>
       <TextInput
+        testID={`create-field-${key}`}
         accessibilityLabel={label}
         value={form[key] == null ? '' : String(form[key])}
         onChangeText={(value) => set(key, value)}
@@ -3577,6 +3583,7 @@ function Create({
       <View style={styles.createSceneFieldBody}>
         <Text style={[styles.createSceneFieldLabel, { color: colors.foreground }]}>{label}</Text>
         <TextInput
+          testID={`create-field-${key}`}
           accessibilityLabel={label}
           value={form[key] == null ? '' : String(form[key])}
           onChangeText={(value) => set(key, value)}
@@ -3601,13 +3608,14 @@ function Create({
 
   return (
     <KeyboardAwareScrollViewCompat
+      testID="create-experience-scroll"
       style={[styles.screen, { backgroundColor: colors.background }]}
       contentContainerStyle={[
         styles.createContent,
         { flexGrow: 1, paddingTop: 12, paddingBottom: insets.bottom + 40 },
       ]}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
+      keyboardDismissMode="none"
       showsVerticalScrollIndicator={false}
     >
         <View style={styles.createTopBar}>
@@ -3978,6 +3986,51 @@ export default function App() {
     return (
       <AppShell showFeedbackBanner={false}>
         <KeyboardInteractionHarness />
+      </AppShell>
+    );
+  }
+
+  if (__DEV__ && params.keyboardTest === 'signup') {
+    return (
+      <AppShell showFeedbackBanner={false}>
+        <EmailAuthPanel accountType="participant" onBack={() => {}} onSuccess={() => {}} />
+      </AppShell>
+    );
+  }
+
+  if (__DEV__ && params.keyboardTest === 'profile') {
+    const testUser: User = {
+      id: -1,
+      createdAt: null,
+      telegramId: null,
+      email: null,
+      name: 'Keyboard Test Participant',
+      username: 'keyboard_test',
+      avatarUrl: null,
+      bio: null,
+      city: 'London',
+      country: 'United Kingdom',
+      interests: ['community'],
+      participationType: null,
+      userType: 'participant',
+      organisation: null,
+      xp: 0,
+      level: '1',
+      completedCount: 0,
+      hostedCount: 0,
+      rewardsPence: 0,
+    };
+    return (
+      <AppShell showFeedbackBanner={false}>
+        <Profile user={testUser} go={() => {}} />
+      </AppShell>
+    );
+  }
+
+  if (__DEV__ && params.keyboardTest === 'create') {
+    return (
+      <AppShell showFeedbackBanner={false}>
+        <Create go={() => {}} />
       </AppShell>
     );
   }

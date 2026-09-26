@@ -99,6 +99,248 @@ async function waitForValue(client, expression, predicate, description, timeoutM
   throw new Error(`Timed out waiting for ${description}. Last value: ${JSON.stringify(lastValue)}`);
 }
 
+async function launchBrowser(t) {
+  const profileDir = await mkdtemp(join(tmpdir(), "experiences-keyboard-test-"));
+  const chromium = spawn(chromiumPath, [
+    "--headless=new",
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    "--ignore-certificate-errors",
+    "--remote-debugging-port=0",
+    "--remote-allow-origins=*",
+    `--user-data-dir=${profileDir}`,
+    "about:blank",
+  ], { stdio: ["ignore", "ignore", "pipe"], detached: true });
+  let chromiumErrors = "";
+  chromium.stderr.setEncoding("utf8");
+  chromium.stderr.on("data", (chunk) => { chromiumErrors += chunk; });
+  let client;
+
+  t.after(async () => {
+    client?.close();
+    const waitForExit = () => {
+      if (chromium.exitCode !== null || chromium.signalCode !== null) return Promise.resolve();
+      return new Promise((resolve) => chromium.once("exit", resolve));
+    };
+    try {
+      process.kill(-chromium.pid, "SIGTERM");
+    } catch {
+      chromium.kill("SIGTERM");
+    }
+    await Promise.race([waitForExit(), delay(3_000)]);
+    if (chromium.exitCode === null && chromium.signalCode === null) {
+      try {
+        process.kill(-chromium.pid, "SIGKILL");
+      } catch {
+        chromium.kill("SIGKILL");
+      }
+      await waitForExit();
+    }
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await rm(profileDir, { recursive: true, force: true });
+        break;
+      } catch (error) {
+        if (!["ENOTEMPTY", "EBUSY", "EPERM"].includes(error.code) || attempt >= 5) throw error;
+        await delay(150);
+      }
+    }
+  });
+
+  const activePortFile = join(profileDir, "DevToolsActivePort");
+  let activePortContents;
+  try {
+    activePortContents = await waitForFile(activePortFile, chromium);
+  } catch (error) {
+    throw new Error(`${error.message}\n${chromiumErrors}`);
+  }
+  const [port] = activePortContents.trim().split("\n");
+  const targetResponse = await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, {
+    method: "PUT",
+  });
+  assert.equal(targetResponse.status, 200, "Chromium should open a DevTools page target.");
+  const target = await targetResponse.json();
+  client = await DevToolsClient.connect(target.webSocketDebuggerUrl);
+  await client.send("Page.enable");
+  await client.send("Runtime.enable");
+  return client;
+}
+
+async function setViewport(client, height) {
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: initialViewport.width,
+    height,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+}
+
+function screenStateExpression(scrollerTestId, targetTestId) {
+  const scrollerSelector = JSON.stringify(`[data-testid="${scrollerTestId}"]`);
+  const targetSelector = JSON.stringify(`[data-testid="${targetTestId}"]`);
+  return `(() => {
+    const shell = document.querySelector('[data-testid="app-shell"]');
+    const scroller = document.querySelector(${scrollerSelector});
+    const target = document.querySelector(${targetSelector});
+    const shellRect = shell?.getBoundingClientRect();
+    const scrollerRect = scroller?.getBoundingClientRect();
+    const targetRect = target?.getBoundingClientRect();
+    return {
+      viewportHeight: window.visualViewport?.height ?? window.innerHeight,
+      shellHeight: shellRect?.height ?? null,
+      scrollClientHeight: scroller?.clientHeight ?? null,
+      scrollHeight: scroller?.scrollHeight ?? null,
+      scrollTop: scroller?.scrollTop ?? null,
+      scrollTopEdge: scrollerRect?.top ?? null,
+      scrollBottomEdge: scrollerRect?.bottom ?? null,
+      targetTop: targetRect?.top ?? null,
+      targetBottom: targetRect?.bottom ?? null,
+      targetVisible: Boolean(targetRect && scrollerRect
+        && targetRect.top >= scrollerRect.top - 2
+        && targetRect.bottom <= scrollerRect.bottom + 2),
+      windowScrollTop: window.scrollY,
+      scrollOverflowY: scroller ? getComputedStyle(scroller).overflowY : null,
+      activeTag: document.activeElement?.tagName ?? null,
+      activeTestId: document.activeElement?.getAttribute("data-testid") ?? null,
+      scrollerFound: Boolean(scroller),
+      targetFound: Boolean(target),
+    };
+  })()`;
+}
+
+async function tapTestId(client, testId) {
+  const selector = JSON.stringify(`[data-testid="${testId}"]`);
+  const position = await client.evaluate(`(() => {
+    const element = document.querySelector(${selector});
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return {
+      x: Math.round(rect.left + rect.width / 2),
+      y: Math.round(rect.top + rect.height / 2),
+      visible: rect.width > 0 && rect.height > 0
+        && rect.top >= 0
+        && rect.bottom <= (window.visualViewport?.height ?? window.innerHeight),
+      disabled: Boolean(element.disabled || element.getAttribute('aria-disabled') === 'true'),
+    };
+  })()`);
+  assert.ok(position, `Expected test control "${testId}" to be present.`);
+  assert.ok(!position.disabled, `Expected test control "${testId}" to be enabled.`);
+  assert.ok(position.visible, `Expected test control "${testId}" to be visible in the current viewport.`);
+  const { disabled: _disabled, visible: _visible, ...point } = position;
+  await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", ...point });
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    ...point,
+    button: "left",
+    clickCount: 1,
+  });
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    ...point,
+    button: "left",
+    clickCount: 1,
+  });
+}
+
+async function enterText(client, testId, text) {
+  await tapTestId(client, testId);
+  await client.send("Input.insertText", { text });
+  const selector = JSON.stringify(`[data-testid="${testId}"]`);
+  await waitForValue(
+    client,
+    `document.querySelector(${selector})?.value ?? null`,
+    (value) => value === text,
+    `text to appear in "${testId}"`,
+  );
+}
+
+async function checkRealFormKeyboardBehavior(client, {
+  scrollerTestId,
+  focusInputTestId,
+  targetInputTestId,
+  description,
+  requireScroll = true,
+  scrollDeltaY,
+}) {
+  const stateExpression = screenStateExpression(scrollerTestId, targetInputTestId);
+  const initial = await waitForValue(
+    client,
+    stateExpression,
+    (state) => state.scrollerFound && state.targetFound && state.shellHeight !== null,
+    `${description} to render its real input fields`,
+  );
+  assert.ok(Math.abs(initial.shellHeight - initialViewport.height) <= 4,
+    `${description} should start at the full mobile viewport height.`);
+
+  await tapTestId(client, focusInputTestId);
+  await waitForValue(
+    client,
+    `document.activeElement?.getAttribute("data-testid") ?? null`,
+    (activeTestId) => activeTestId === focusInputTestId,
+    `${description}'s first field to receive focus`,
+  );
+
+  await setViewport(client, keyboardViewportHeight);
+  const keyboardOpen = await waitForValue(
+    client,
+    stateExpression,
+    (state) => Math.abs(state.shellHeight - keyboardViewportHeight) <= 4
+      && state.activeTestId === focusInputTestId,
+    `${description} to resize without dropping focus`,
+  );
+  assert.ok(keyboardOpen.scrollHeight > keyboardOpen.scrollClientHeight,
+    `${description} should expose a scrollable region while the keyboard is open.`);
+
+  let scrolled = keyboardOpen;
+  if (requireScroll) {
+    const wheelY = Math.round((scrolled.scrollTopEdge + scrolled.scrollBottomEdge) / 2);
+    const effectiveScrollDelta = scrollDeltaY ?? await client.evaluate(`(() => {
+      const scroller = document.querySelector('[data-testid="${scrollerTestId}"]');
+      const target = document.querySelector('[data-testid="${targetInputTestId}"]');
+      const scrollRect = scroller?.getBoundingClientRect();
+      const targetRect = target?.getBoundingClientRect();
+      return Math.max(120, Math.round((targetRect?.bottom ?? 0) - (scrollRect?.bottom ?? 0) + 40));
+    })()`);
+    await client.send("Input.dispatchMouseEvent", {
+      type: "mouseWheel",
+      x: Math.round(initialViewport.width / 2),
+      y: wheelY,
+      deltaX: 0,
+      deltaY: effectiveScrollDelta,
+    });
+    await delay(100);
+    scrolled = await client.evaluate(stateExpression);
+    assert.equal(scrolled.activeTestId, focusInputTestId,
+      `Scrolling ${description} should preserve the previously focused field.`);
+    assert.ok(scrolled.scrollTop > keyboardOpen.scrollTop + 1,
+      `Scrolling ${description} should move its form content.`);
+  }
+  assert.ok(scrolled.targetVisible,
+    `${description}'s lower input should be reachable by scrolling; last state: ${JSON.stringify(scrolled)}.`);
+
+  if (targetInputTestId !== focusInputTestId) {
+    await tapTestId(client, targetInputTestId);
+    await waitForValue(
+      client,
+      `document.activeElement?.getAttribute("data-testid") ?? null`,
+      (activeTestId) => activeTestId === targetInputTestId,
+      `${description}'s lower input to receive focus`,
+    );
+  }
+
+  await setViewport(client, initialViewport.height);
+  const restored = await waitForValue(
+    client,
+    stateExpression,
+    (state) => Math.abs(state.shellHeight - initialViewport.height) <= 4
+      && state.activeTestId === targetInputTestId,
+    `${description} to restore its full height and keep focus`,
+  );
+  assert.ok(Math.abs(restored.viewportHeight - initialViewport.height) <= 4,
+    `${description} should return to the full visual viewport height.`);
+}
+
 const readFormState = `(() => {
   const shell = document.querySelector('[data-testid="app-shell"]');
   const scroller = document.querySelector('[data-testid="keyboard-test-scroll"]');
@@ -126,61 +368,12 @@ const readFormState = `(() => {
   };
 })()`;
 
-test("form remains scrollable and focused across a mobile keyboard resize", async (t) => {
+test("shared form harness remains scrollable across a mobile keyboard resize", async (t) => {
   const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
   assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile preview interaction test.");
 
-  const profileDir = await mkdtemp(join(tmpdir(), "experiences-keyboard-test-"));
-  const chromium = spawn(chromiumPath, [
-    "--headless=new",
-    "--no-sandbox",
-    "--disable-gpu",
-    "--disable-dev-shm-usage",
-    "--ignore-certificate-errors",
-    "--remote-debugging-port=0",
-    "--remote-allow-origins=*",
-    `--user-data-dir=${profileDir}`,
-    "about:blank",
-  ], { stdio: ["ignore", "ignore", "pipe"] });
-  let chromiumErrors = "";
-  chromium.stderr.setEncoding("utf8");
-  chromium.stderr.on("data", (chunk) => { chromiumErrors += chunk; });
-  let client;
-
-  t.after(async () => {
-    client?.close();
-    chromium.kill("SIGTERM");
-    await Promise.race([
-      new Promise((resolve) => chromium.once("exit", resolve)),
-      delay(3_000),
-    ]);
-    if (chromium.exitCode === null) chromium.kill("SIGKILL");
-    await rm(profileDir, { recursive: true, force: true });
-  });
-
-  const activePortFile = join(profileDir, "DevToolsActivePort");
-  let activePortContents;
-  try {
-    activePortContents = await waitForFile(activePortFile, chromium);
-  } catch (error) {
-    throw new Error(`${error.message}\n${chromiumErrors}`);
-  }
-  const [port] = activePortContents.trim().split("\n");
-  const targetResponse = await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, {
-    method: "PUT",
-  });
-  assert.equal(targetResponse.status, 200, "Chromium should open a DevTools page target.");
-  const target = await targetResponse.json();
-  client = await DevToolsClient.connect(target.webSocketDebuggerUrl);
-
-  await client.send("Page.enable");
-  await client.send("Runtime.enable");
-  await client.send("Emulation.setDeviceMetricsOverride", {
-    width: initialViewport.width,
-    height: initialViewport.height,
-    deviceScaleFactor: 1,
-    mobile: true,
-  });
+  const client = await launchBrowser(t);
+  await setViewport(client, initialViewport.height);
   await client.send("Page.navigate", {
     url: `https://${domain}/?keyboardTest=1`,
   });
@@ -204,12 +397,7 @@ test("form remains scrollable and focused across a mobile keyboard resize", asyn
     "the first form field to receive focus",
   );
 
-  await client.send("Emulation.setDeviceMetricsOverride", {
-    width: initialViewport.width,
-    height: keyboardViewportHeight,
-    deviceScaleFactor: 1,
-    mobile: true,
-  });
+  await setViewport(client, keyboardViewportHeight);
   const keyboardOpen = await waitForValue(
     client,
     readFormState,
@@ -265,12 +453,7 @@ test("form remains scrollable and focused across a mobile keyboard resize", asyn
     "the last form field to receive a tap after scrolling",
   );
 
-  await client.send("Emulation.setDeviceMetricsOverride", {
-    width: initialViewport.width,
-    height: initialViewport.height,
-    deviceScaleFactor: 1,
-    mobile: true,
-  });
+  await setViewport(client, initialViewport.height);
   const restored = await waitForValue(
     client,
     readFormState,
@@ -281,4 +464,102 @@ test("form remains scrollable and focused across a mobile keyboard resize", asyn
     "Restoring the full viewport should not drop focus from the lower field.");
   assert.ok(Math.abs(restored.viewportHeight - initialViewport.height) <= 4,
     `The visual viewport should return to ${initialViewport.height}px; got ${restored.viewportHeight}px.`);
+});
+
+test("actual signup, profile, and experience forms stay usable with the keyboard open", async (t) => {
+  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile preview interaction test.");
+
+  const client = await launchBrowser(t);
+
+  await t.test("email signup keeps the username field reachable", async () => {
+    await setViewport(client, initialViewport.height);
+    await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=signup` });
+    await waitForValue(
+      client,
+      `Boolean(document.querySelector('[data-testid="email-auth-mode-switch"]'))`,
+      Boolean,
+      "the real email sign-in screen",
+    );
+    await tapTestId(client, "email-auth-mode-switch");
+
+    const signupSteps = [
+      ["email-signup-name", "Keyboard QA"],
+      ["email-signup-email", "keyboard.qa@example.test"],
+      ["email-signup-password", "KeyboardPass123!"],
+      ["email-signup-confirm-password", "KeyboardPass123!"],
+      ["email-signup-username", "keyboard_tester"],
+    ];
+    for (let index = 0; index < signupSteps.length; index += 1) {
+      const [inputTestId, value] = signupSteps[index];
+      await waitForValue(
+        client,
+        `Boolean(document.querySelector('[data-testid="${inputTestId}"]'))`,
+        Boolean,
+        `signup step ${index + 1}`,
+      );
+      await enterText(client, inputTestId, value);
+      if (index < signupSteps.length - 1) {
+        await tapTestId(client, "email-auth-submit");
+      }
+    }
+
+    await checkRealFormKeyboardBehavior(client, {
+      scrollerTestId: "email-auth-scroll",
+      focusInputTestId: "email-signup-username",
+      targetInputTestId: "email-signup-username",
+      description: "Email signup",
+      requireScroll: false,
+    });
+  });
+
+  await t.test("profile editing scrolls to the bio field without losing focus", async () => {
+    await setViewport(client, initialViewport.height);
+    await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=profile` });
+    await waitForValue(
+      client,
+      `Boolean(document.querySelector('[data-testid="profile-menu-toggle"]'))`,
+      Boolean,
+      "the real profile screen",
+    );
+    await tapTestId(client, "profile-menu-toggle");
+    await waitForValue(
+      client,
+      `Boolean(document.querySelector('[data-testid="profile-menu-edit-profile"]'))`,
+      Boolean,
+      "the profile edit menu action",
+    );
+    await tapTestId(client, "profile-menu-edit-profile");
+    await waitForValue(
+      client,
+      `Boolean(document.querySelector('[data-testid="profile-edit-bio"]'))`,
+      Boolean,
+      "the real profile editor",
+    );
+
+    await checkRealFormKeyboardBehavior(client, {
+      scrollerTestId: "profile-edit-scroll",
+      focusInputTestId: "profile-edit-name",
+      targetInputTestId: "profile-edit-bio",
+      description: "Profile editing",
+    });
+  });
+
+  await t.test("experience creation scrolls to the organisation description field", async () => {
+    await setViewport(client, initialViewport.height);
+    await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=create` });
+    await waitForValue(
+      client,
+      `Boolean(document.querySelector('[data-testid="create-field-organisationDescription"]'))`,
+      Boolean,
+      "the real experience creation form",
+    );
+
+    await checkRealFormKeyboardBehavior(client, {
+      scrollerTestId: "create-experience-scroll",
+      focusInputTestId: "create-field-organisationName",
+      targetInputTestId: "create-field-organisationDescription",
+      description: "Experience creation",
+    });
+  });
 });
