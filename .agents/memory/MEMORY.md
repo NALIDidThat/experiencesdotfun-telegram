@@ -8,4 +8,4 @@
 - [Query invalidation cancellation](query-invalidation-cancellation.md) — treat expected AbortErrors from mutation-triggered query refreshes as cancellation, not app failure.
 - [Build-first UI iteration](build-first-ui.md) — implement mobile visual references in the app directly; make substantial layout changes when the reference calls for them.
 - [Auth unit-test boundaries](auth-unit-test-boundaries.md) — keep Telegram init-data verification testable without importing database-bound API modules into Node's test runner.
-- [Web keyboard focus](web-keyboard-provider.md) — keep the keyboard-controller provider native-only; its web mounting can disrupt React Native Web text-input focus.
+- [Web keyboard focus and scrolling](web-keyboard-provider.md) — provider gating and keyboard-overlap scrolling are separate; web layouts also need viewport-aware, shrinkable scroll regions.

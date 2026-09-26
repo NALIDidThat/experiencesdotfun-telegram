@@ -551,7 +551,6 @@ function EmailAuthPanel({
         style={[styles.emailAuthScroll, { backgroundColor: colors.muted }]}
         contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 24) }]}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
         bottomOffset={24}
       >
         <View style={[styles.emailAuthForm, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius + 8, paddingHorizontal: 22, paddingTop: 22, paddingBottom: 20 }]}>
@@ -1225,7 +1224,6 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
       style={[styles.onboarding, { backgroundColor: colors.background }]}
       contentContainerStyle={[styles.flowScreenContent, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 24) }]}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
       bottomOffset={24}
       showsVerticalScrollIndicator={false}
     >
@@ -1636,7 +1634,11 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: true });
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
+    <KeyboardAwareScrollViewCompat
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+    >
       <Header title="Explore" subtitle="Find your next way to contribute." />
 
       <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
@@ -1665,7 +1667,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         <EmptyState title="Experiences didn’t load" body="Check your connection and try again." actionLabel="Try again" onAction={() => { void query.refetch(); }} />
       ) : query.data?.length ? query.data.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title="No experiences match" body="Try another category or come back when local hosts publish something new." />}
       <View style={{ height: 120 }} />
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -2676,11 +2678,10 @@ function FriendsOverviewScreen({
   };
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollViewCompat
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
     >
       <Header
@@ -2956,7 +2957,7 @@ function FriendsOverviewScreen({
         </>
       )}
       <View style={{ height: 120 }} />
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -3046,11 +3047,10 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   };
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollViewCompat
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
     >
       <Header
@@ -3240,7 +3240,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         </View>
       ) : null}
       <View style={{ height: 120 }} />
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -3510,7 +3510,6 @@ function Create({
         { flexGrow: 1, paddingTop: 12, paddingBottom: insets.bottom + 40 },
       ]}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
     >
         <View style={styles.createTopBar}>
@@ -3784,9 +3783,34 @@ function AppShell({
   showFeedbackBanner?: boolean;
 }) {
   const colors = useColors();
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const visualViewport = window.visualViewport;
+    const updateViewportHeight = () => {
+      const nextHeight = visualViewport?.height ?? window.innerHeight;
+      if (nextHeight > 0) {
+        setViewportHeight((current) => current === nextHeight ? current : nextHeight);
+      }
+    };
+
+    updateViewportHeight();
+    window.addEventListener('resize', updateViewportHeight);
+    visualViewport?.addEventListener('resize', updateViewportHeight);
+    return () => {
+      window.removeEventListener('resize', updateViewportHeight);
+      visualViewport?.removeEventListener('resize', updateViewportHeight);
+    };
+  }, []);
+
+  const viewportStyle = Platform.OS === 'web' && viewportHeight
+    ? { height: viewportHeight }
+    : undefined;
 
   return (
-    <View style={[styles.app, { backgroundColor: colors.background }]}>
+    <View style={[styles.app, { backgroundColor: colors.background }, viewportStyle]}>
       {showFeedbackBanner ? <FeedbackBanner /> : null}
       <View style={styles.appContent}>{children}</View>
       {bottomNav}
@@ -3984,12 +4008,12 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  app: { flex: 1 },
-  appContent: { flex: 1 },
+  app: { flex: 1, minHeight: 0 },
+  appContent: { flex: 1, minHeight: 0 },
   feedbackBanner: { alignItems: 'center', paddingHorizontal: 14, paddingBottom: 8 },
   feedbackBannerText: { width: '100%', textAlign: 'center', fontSize: 13, lineHeight: 19, fontFamily: 'Inter_500Medium' },
   feedbackBannerLink: { fontFamily: 'Inter_700Bold', textDecorationLine: 'underline' },
-  screen: { flex: 1 },
+  screen: { flex: 1, minHeight: 0 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingHorizontal: 20 },
   header: { paddingBottom: 24, flexDirection: 'row', alignItems: 'flex-start' },
@@ -4093,8 +4117,8 @@ const styles = StyleSheet.create({
   welcomeHomeIndicator: { width: 104, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4, opacity: 0.92 },
   emailLoginLink: { alignItems: 'center', paddingVertical: 2 },
   emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  emailAuthScreen: { flex: 1 },
-  emailAuthScroll: { flex: 1 },
+  emailAuthScreen: { flex: 1, minHeight: 0 },
+  emailAuthScroll: { flex: 1, minHeight: 0 },
   emailAuthContent: { flexGrow: 1, paddingHorizontal: 22, justifyContent: 'center' },
   emailBack: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, alignSelf: 'flex-start' },
   emailBackIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
@@ -4127,7 +4151,7 @@ const styles = StyleSheet.create({
   emailSecureNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: -1 },
   emailSecureNoteText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   
-  onboarding: { flex: 1 },
+  onboarding: { flex: 1, minHeight: 0 },
   flowScreenContent: { flexGrow: 1 },
   flowHeader: { paddingHorizontal: 24, paddingBottom: 8 },
   flowHeaderTop: { height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

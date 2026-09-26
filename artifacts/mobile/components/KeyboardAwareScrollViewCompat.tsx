@@ -1,4 +1,4 @@
-import { Platform, ScrollView, ScrollViewProps } from 'react-native';
+import { Platform, ScrollView, ScrollViewProps, StyleSheet } from 'react-native';
 import {
   KeyboardAwareScrollView,
   KeyboardAwareScrollViewProps,
@@ -8,12 +8,14 @@ type Props = KeyboardAwareScrollViewProps & ScrollViewProps;
 
 export function KeyboardAwareScrollViewCompat({
   children,
+  style,
   keyboardShouldPersistTaps = 'handled',
   ...props
 }: Props) {
   if (Platform.OS === 'web') {
     return (
       <ScrollView
+        style={[style, styles.webScroll]}
         keyboardShouldPersistTaps={keyboardShouldPersistTaps}
         {...props}
       >
@@ -23,6 +25,7 @@ export function KeyboardAwareScrollViewCompat({
   }
   return (
     <KeyboardAwareScrollView
+      style={style}
       keyboardShouldPersistTaps={keyboardShouldPersistTaps}
       {...props}
     >
@@ -30,3 +33,10 @@ export function KeyboardAwareScrollViewCompat({
     </KeyboardAwareScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  webScroll: {
+    flexShrink: 1,
+    minHeight: 0,
+  },
+});
