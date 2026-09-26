@@ -17,6 +17,7 @@ export type { TelegramIdentity } from "./telegram-init-data";
 
 export type EmailSignupInput = {
   name: string;
+  username: string;
   email: string;
   password: string;
   userType: UserType;
@@ -101,6 +102,7 @@ export async function issueTelegramSession(userId: number): Promise<string> {
 
 export async function createEmailAccount(input: EmailSignupInput): Promise<{ user: User; sessionToken: string }> {
   const email = normalizeEmail(input.email);
+  const username = input.username.trim().replace(/^@+/, "").toLowerCase();
   const sessionToken = `email_${crypto.randomBytes(32).toString("base64url")}`;
   const sessionTokenHash = hashSessionToken(sessionToken);
   const sessionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -113,12 +115,18 @@ export async function createEmailAccount(input: EmailSignupInput): Promise<{ use
       });
       if (existing) throw new Error("EMAIL_ALREADY_REGISTERED");
 
+      await transaction.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${username}, 0))`);
+      const usernameOwner = await transaction.query.usersTable.findFirst({
+        where: sql`lower(${usersTable.username}) = ${username}`,
+      });
+      if (usernameOwner) throw new Error("USERNAME_ALREADY_TAKEN");
+
       const [createdUser] = await transaction
         .insert(usersTable)
         .values({
           telegramId: `email:${crypto.randomUUID()}`,
           name: input.name.trim(),
-          username: null,
+          username,
           userType: input.userType,
         })
         .returning();

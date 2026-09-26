@@ -431,33 +431,116 @@ function EmailAuthPanel({
   const { loginWithEmail, signUpWithEmail, loading, authError, clearAuthError } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [signupStep, setSignupStep] = useState(0);
   const [localError, setLocalError] = useState<string | null>(null);
+  const inputRef = useRef<TextInput>(null);
   const isSignup = mode === 'signup';
+  const normalizedUsername = username.trim().replace(/^@+/, '').toLowerCase();
+  const signupFields = [
+    {
+      label: 'Name',
+      title: 'What should we call you?',
+      description: 'This is the name people will see on your profile.',
+      placeholder: 'Your name',
+      icon: 'user' as const,
+      autoCapitalize: 'words' as const,
+      returnKeyType: 'next' as const,
+    },
+    {
+      label: 'Email',
+      title: 'What’s your email?',
+      description: 'We’ll use it to sign you in.',
+      placeholder: 'you@example.com',
+      icon: 'mail' as const,
+      autoCapitalize: 'none' as const,
+      autoComplete: 'email' as const,
+      keyboardType: 'email-address' as const,
+      returnKeyType: 'next' as const,
+    },
+    {
+      label: 'Password',
+      title: 'Create a password',
+      description: 'Use at least 8 characters.',
+      placeholder: 'At least 8 characters',
+      icon: 'lock' as const,
+      autoCapitalize: 'none' as const,
+      secureTextEntry: true,
+      returnKeyType: 'next' as const,
+    },
+    {
+      label: 'Confirm password',
+      title: 'Confirm your password',
+      description: 'Enter the same password again.',
+      placeholder: 'Repeat your password',
+      icon: 'check-circle' as const,
+      autoCapitalize: 'none' as const,
+      secureTextEntry: true,
+      returnKeyType: 'next' as const,
+    },
+    {
+      label: 'Username',
+      title: 'Choose your username',
+      description: 'Your unique username helps friends find you.',
+      placeholder: 'yourname',
+      icon: 'at-sign' as const,
+      autoCapitalize: 'none' as const,
+      autoComplete: 'username' as const,
+      returnKeyType: 'done' as const,
+    },
+  ];
+  const activeSignupField = signupFields[signupStep];
+  const activeSignupValue = [name, email, password, confirmPassword, username][signupStep];
 
   useEffect(() => {
     clearAuthError();
   }, [clearAuthError]);
 
-  const submit = async () => {
+  const updateActiveSignupValue = (value: string) => {
+    if (signupStep === 0) setName(value);
+    else if (signupStep === 1) setEmail(value);
+    else if (signupStep === 2) setPassword(value);
+    else if (signupStep === 3) setConfirmPassword(value);
+    else setUsername(value);
+  };
+
+  const continueSignup = async () => {
+    setLocalError(null);
+    clearAuthError();
+    if (signupStep === 0 && !name.trim()) {
+      setLocalError('Enter your name to continue.');
+    } else if (signupStep === 1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setLocalError('Enter a valid email address.');
+    } else if (signupStep === 2 && password.length < 8) {
+      setLocalError('Use at least 8 characters for your password.');
+    } else if (signupStep === 3 && password !== confirmPassword) {
+      setLocalError('Your passwords do not match.');
+    } else if (signupStep === 4 && !/^[a-z0-9_]{5,32}$/.test(normalizedUsername)) {
+      setLocalError('Use 5–32 letters, numbers, or underscores.');
+    } else if (!accountType) {
+      setLocalError('Choose an account type before creating your account.');
+    } else if (signupStep < signupFields.length - 1) {
+      setSignupStep((current) => current + 1);
+    } else {
+      Keyboard.dismiss();
+      const authenticated = await signUpWithEmail(
+        name.trim(),
+        normalizedUsername,
+        email.trim(),
+        password,
+        accountType,
+      );
+      if (authenticated) onSuccess();
+    }
+  };
+
+  const submitLogin = async () => {
     Keyboard.dismiss();
     setLocalError(null);
-    if (isSignup && password !== confirmPassword) {
-      setLocalError('Your passwords do not match.');
-      return;
-    }
-    let authenticated: boolean;
-    if (isSignup) {
-      if (!accountType) {
-        setLocalError('Choose an account type before creating your account.');
-        return;
-      }
-      authenticated = await signUpWithEmail(name.trim(), email.trim(), password, accountType);
-    } else {
-      authenticated = await loginWithEmail(email.trim(), password);
-    }
+    const authenticated = await loginWithEmail(email.trim(), password);
     if (authenticated) onSuccess();
   };
 
@@ -471,102 +554,140 @@ function EmailAuthPanel({
         keyboardDismissMode="on-drag"
         bottomOffset={24}
       >
-          <View style={[styles.emailAuthForm, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius + 8, paddingHorizontal: 22, paddingTop: 22, paddingBottom: 20 }]}>
+        <View style={[styles.emailAuthForm, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius + 8, paddingHorizontal: 22, paddingTop: 22, paddingBottom: 20 }]}>
           <View style={styles.emailAuthHeader}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Back to sign-in options" onPress={onBack} style={styles.emailBack}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={isSignup && signupStep > 0 ? 'Previous signup step' : 'Back to sign-in options'}
+              onPress={() => {
+                setLocalError(null);
+                clearAuthError();
+                if (isSignup && signupStep > 0) setSignupStep((current) => current - 1);
+                else onBack();
+              }}
+              style={styles.emailBack}
+            >
               <View style={[styles.emailBackIcon, { backgroundColor: colors.secondary + '14' }]}>
                 <Feather name="arrow-left" size={18} color={colors.secondary} />
               </View>
               <Text style={[styles.emailBackText, { color: colors.foreground }]}>Back</Text>
             </Pressable>
             <View style={[styles.emailIllustration, { backgroundColor: colors.secondary + '14' }]} accessible={false}>
-              <Feather name="users" size={34} color={colors.secondary} />
+              <Feather name={isSignup ? activeSignupField.icon : 'users'} size={30} color={colors.secondary} />
             </View>
             <View style={styles.emailCardIntro}>
               <Text style={[styles.emailHeroEyebrow, { color: colors.secondary }]}>EXPERIENCES.FUN</Text>
-              <Text style={[styles.emailCardTitle, { color: colors.foreground }]}>{isSignup ? 'Create account' : 'Log in'}</Text>
+              <Text style={[styles.emailCardTitle, { color: colors.foreground }]}>
+                {isSignup ? activeSignupField.title : 'Log in'}
+              </Text>
               <Text style={[styles.emailCardBody, { color: colors.mutedForeground }]}>
                 {isSignup
-                  ? `Start your ${accountType === 'organisation' ? 'organisation profile' : 'passport'} with a few details.`
+                  ? activeSignupField.description
                   : 'Welcome back. Enter your details below.'}
               </Text>
             </View>
+            {isSignup ? (
+              <View style={styles.emailSignupProgress}>
+                <View style={styles.emailSignupProgressMeta}>
+                  <Text style={[styles.emailSignupProgressLabel, { color: colors.secondary }]}>
+                    STEP {signupStep + 1} OF {signupFields.length}
+                  </Text>
+                  <Text style={[styles.emailSignupProgressHint, { color: colors.mutedForeground }]}>
+                    {signupStep === signupFields.length - 1 ? 'Almost done' : 'One detail at a time'}
+                  </Text>
+                </View>
+                <View style={styles.emailSignupProgressTrack}>
+                  {signupFields.map((field, index) => (
+                    <View
+                      key={field.label}
+                      style={[
+                        styles.emailSignupProgressSegment,
+                        { backgroundColor: index <= signupStep ? colors.secondary : colors.border },
+                      ]}
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.emailAuthFields}>
             {isSignup ? (
-              <View style={styles.emailField}>
-                <Text style={[styles.emailLabel, { color: colors.foreground }]}>Name</Text>
+                <View style={styles.emailField}>
+                <Text style={[styles.emailLabel, { color: colors.foreground }]}>{activeSignupField.label}</Text>
                 <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
-                  <Feather name="user" size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
+                  <Feather name={activeSignupField.icon} size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
                   <TextInput
-                    accessibilityLabel="Name"
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="Your name"
+                    key={`signup-${signupStep}`}
+                    ref={inputRef}
+                    testID={`email-signup-${activeSignupField.label.toLowerCase().replaceAll(' ', '-')}`}
+                    accessibilityLabel={activeSignupField.label}
+                    value={activeSignupValue}
+                    onChangeText={updateActiveSignupValue}
+                    onSubmitEditing={() => { void continueSignup(); }}
+                    autoFocus={isSignup}
+                    placeholder={activeSignupField.placeholder}
                     placeholderTextColor={colors.mutedForeground}
-                    autoCapitalize="words"
+                    autoCapitalize={activeSignupField.autoCapitalize}
+                    autoComplete={activeSignupField.autoComplete}
+                    keyboardType={activeSignupField.keyboardType}
+                    returnKeyType={activeSignupField.returnKeyType}
+                    secureTextEntry={activeSignupField.secureTextEntry}
                     style={[styles.emailInput, { color: colors.foreground }]}
                   />
                 </View>
+                <Text style={[styles.emailFieldHint, { color: colors.mutedForeground }]}>
+                  {signupStep === 4
+                    ? '5–32 characters. Letters, numbers and underscores only.'
+                    : signupStep === 2
+                      ? 'Choose a password with at least 8 characters.'
+                      : activeSignupField.description}
+                </Text>
               </View>
-            ) : null}
-            <View style={styles.emailField}>
-              <Text style={[styles.emailLabel, { color: colors.foreground }]}>Email</Text>
-              <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
-                <Feather name="mail" size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
-                <TextInput
-                  accessibilityLabel="Email"
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="you@example.com"
-                  placeholderTextColor={colors.mutedForeground}
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  keyboardType="email-address"
-                  style={[styles.emailInput, { color: colors.foreground }]}
-                />
-              </View>
-            </View>
-            <View style={styles.emailField}>
-              <Text style={[styles.emailLabel, { color: colors.foreground }]}>Password</Text>
-              <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
-                <Feather name="lock" size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
-                <TextInput
-                  accessibilityLabel="Password"
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder={isSignup ? 'At least 8 characters' : 'Your password'}
-                  placeholderTextColor={colors.mutedForeground}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  style={[styles.emailInput, { color: colors.foreground }]}
-                />
-              </View>
-            </View>
-            {isSignup ? (
-              <View style={styles.emailField}>
-                <Text style={[styles.emailLabel, { color: colors.foreground }]}>Confirm password</Text>
-                <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
-                  <Feather name="check-circle" size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
-                  <TextInput
-                    accessibilityLabel="Confirm password"
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    placeholder="Repeat your password"
-                    placeholderTextColor={colors.mutedForeground}
-                    secureTextEntry
-                    autoCapitalize="none"
-                    style={[styles.emailInput, { color: colors.foreground }]}
-                  />
+            ) : (
+              <>
+                <View style={styles.emailField}>
+                  <Text style={[styles.emailLabel, { color: colors.foreground }]}>Email</Text>
+                  <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
+                    <Feather name="mail" size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
+                    <TextInput
+                      accessibilityLabel="Email"
+                      value={email}
+                      onChangeText={setEmail}
+                      placeholder="you@example.com"
+                      placeholderTextColor={colors.mutedForeground}
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      keyboardType="email-address"
+                      style={[styles.emailInput, { color: colors.foreground }]}
+                    />
+                  </View>
                 </View>
-              </View>
-            ) : null}
+              <View style={styles.emailField}>
+                  <Text style={[styles.emailLabel, { color: colors.foreground }]}>Password</Text>
+                  <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
+                    <Feather name="lock" size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
+                    <TextInput
+                      accessibilityLabel="Password"
+                      value={password}
+                      onChangeText={setPassword}
+                      placeholder="Your password"
+                      placeholderTextColor={colors.mutedForeground}
+                      secureTextEntry
+                      autoCapitalize="none"
+                      style={[styles.emailInput, { color: colors.foreground }]}
+                    />
+                  </View>
+                </View>
+              </>
+            )}
             {localError || authError ? <Text accessibilityRole="alert" style={[styles.emailError, { color: colors.destructive }]}>{localError ?? authError}</Text> : null}
             <Button
-              label={loading ? (isSignup ? 'Creating account…' : 'Logging in…') : (isSignup ? 'Create account' : 'Log in')}
-              disabled={loading || !email.trim() || !password || (isSignup && (!accountType || !name.trim() || !confirmPassword))}
-              onPress={() => { void submit(); }}
+              label={loading ? (isSignup ? 'Creating account…' : 'Logging in…') : (isSignup && signupStep < signupFields.length - 1 ? 'Continue' : isSignup ? 'Create account' : 'Log in')}
+              disabled={loading || (isSignup
+                ? !activeSignupValue.trim() || !accountType
+                : !email.trim() || !password)}
+              onPress={() => { void (isSignup ? continueSignup() : submitLogin()); }}
               icon={isSignup ? 'user-plus' : 'log-in'}
               color={colors.primary}
               style={styles.emailSubmitButton}
@@ -578,7 +699,12 @@ function EmailAuthPanel({
           </View>
           <Pressable
             accessibilityRole="button"
-            onPress={() => { setMode(isSignup ? 'login' : 'signup'); setLocalError(null); clearAuthError(); }}
+            onPress={() => {
+              setMode(isSignup ? 'login' : 'signup');
+              setSignupStep(0);
+              setLocalError(null);
+              clearAuthError();
+            }}
             style={styles.emailSwitchRow}
           >
             <Text style={[styles.emailSwitchPrompt, { color: colors.mutedForeground }]}>{isSignup ? 'Already have an account?' : 'New to Experiences.fun?'}</Text>
@@ -3976,6 +4102,12 @@ const styles = StyleSheet.create({
   emailAuthForm: { width: '100%', maxWidth: 430, alignSelf: 'center', gap: 18 },
   emailAuthHeader: { gap: 12 },
   emailAuthFields: { gap: 14 },
+  emailSignupProgress: { gap: 8, marginTop: 2 },
+  emailSignupProgressMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  emailSignupProgressLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1 },
+  emailSignupProgressHint: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  emailSignupProgressTrack: { flexDirection: 'row', gap: 5 },
+  emailSignupProgressSegment: { flex: 1, height: 4, borderRadius: 2 },
   emailIllustration: { width: 70, height: 70, borderRadius: 35, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   emailCardIntro: { gap: 5, alignItems: 'center', marginTop: 0, marginBottom: 2 },
   emailHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.5, marginBottom: 2 },
@@ -3985,6 +4117,7 @@ const styles = StyleSheet.create({
   emailSwitchPrompt: { fontSize: 13, fontFamily: 'Inter_500Medium' },
   emailSwitchLink: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   emailField: { gap: 8 },
+  emailFieldHint: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
   emailLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 0.55 },
   emailInputRow: { height: 54, flexDirection: 'row', alignItems: 'center', borderWidth: 1 },
   emailInputIcon: { marginLeft: 14, marginRight: 10 },

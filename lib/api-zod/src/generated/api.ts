@@ -78,12 +78,18 @@ export const AuthenticateTelegramResponse = zod.object({
  * @summary Create an email account
  */
 
+export const signUpWithEmailBodyUsernameMin = 5;
+export const signUpWithEmailBodyUsernameMax = 32;
+
+
+export const signUpWithEmailBodyUsernameRegExp = new RegExp('^[a-z0-9_]{5,32}$');
 export const signUpWithEmailBodyPasswordMin = 8;
 
 
 
 export const SignUpWithEmailBody = zod.object({
   "name": zod.string().min(1),
+  "username": zod.string().min(signUpWithEmailBodyUsernameMin).max(signUpWithEmailBodyUsernameMax).regex(signUpWithEmailBodyUsernameRegExp),
   "email": zod.string().email(),
   "password": zod.string().min(signUpWithEmailBodyPasswordMin),
   "userType": zod.enum(['participant', 'organisation'])

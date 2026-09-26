@@ -87,7 +87,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
         "409":
-          description: Email already registered
+          description: Email already registered or username already in use
           content:
             application/json:
               schema:
@@ -663,6 +663,11 @@ components:
         name:
           type: string
           minLength: 1
+        username:
+          type: string
+          minLength: 5
+          maxLength: 32
+          pattern: "^[a-z0-9_]{5,32}$"
         email:
           type: string
           format: email
@@ -671,7 +676,7 @@ components:
           minLength: 8
         userType:
           $ref: "#/components/schemas/UserType"
-      required: [name, email, password, userType]
+      required: [name, username, email, password, userType]
     EmailLoginInput:
       type: object
       properties:

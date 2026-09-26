@@ -122,7 +122,7 @@ router.post("/auth/telegram", async (req, res) => {
 router.post("/auth/email/signup", async (req, res) => {
   const parsed = SignUpWithEmailBody.safeParse(req.body);
   if (!parsed.success) {
-    error(res, 400, "Enter a name, valid email address, and password of at least 8 characters.");
+    error(res, 400, "Enter your name, a valid email, a username with 5–32 letters, numbers, or underscores, and a password of at least 8 characters.");
     return;
   }
   try {
@@ -131,6 +131,10 @@ router.post("/auth/email/signup", async (req, res) => {
   } catch (signupError) {
     if (signupError instanceof Error && signupError.message === "EMAIL_ALREADY_REGISTERED") {
       error(res, 409, "That email is already registered. Log in instead.");
+      return;
+    }
+    if (signupError instanceof Error && signupError.message === "USERNAME_ALREADY_TAKEN") {
+      error(res, 409, "That username is already in use. Choose a different one.");
       return;
     }
     logger.error({ err: signupError }, "Email signup failed");

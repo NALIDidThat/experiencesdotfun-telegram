@@ -10,6 +10,12 @@ import type { UserType } from './userType';
 export interface EmailSignupInput {
   /** @minLength 1 */
   name: string;
+  /**
+     * @minLength 5
+     * @maxLength 32
+     * @pattern ^[a-z0-9_]{5,32}$
+     */
+  username: string;
   email: string;
   /** @minLength 8 */
   password: string;

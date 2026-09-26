@@ -28,7 +28,7 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   login: (accountType?: UserType) => Promise<boolean>;
   loginWithEmail: (email: string, password: string) => Promise<boolean>;
-  signUpWithEmail: (name: string, email: string, password: string, accountType: UserType) => Promise<boolean>;
+  signUpWithEmail: (name: string, username: string, email: string, password: string, accountType: UserType) => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextValue>({
@@ -168,12 +168,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [completeEmailAuth]);
 
-  const signUpWithEmail = useCallback(async (name: string, email: string, password: string, accountType: UserType) => {
+  const signUpWithEmail = useCallback(async (name: string, username: string, email: string, password: string, accountType: UserType) => {
     setLoading(true);
     setAuthError(null);
     try {
       return await completeEmailAuth(await emailSignupRef.current.mutateAsync({
-        data: { name, email, password, userType: accountType },
+        data: { name, username, email, password, userType: accountType },
       }));
     } catch (error) {
       const message = (error as { data?: { message?: string } })?.data?.message;
