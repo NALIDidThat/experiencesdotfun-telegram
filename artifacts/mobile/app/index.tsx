@@ -69,12 +69,13 @@ import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { AccountabilitySection } from '@/components/AccountabilitySection';
+import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { UserAvatar } from '@/components/UserAvatar';
 import { openTelegramBot } from '@/lib/telegram';
 
-type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'create' | 'email';
+type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'friends' | 'friend-profile' | 'notifications' | 'experience' | 'host' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
-const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'friends', 'friend-profile', 'notifications', 'experience', 'host', 'create', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -3143,6 +3144,14 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         title={current.userType === 'organisation' ? 'Organisation profile' : 'Passport'}
         subtitle={current.userType === 'organisation' ? (current.organisation?.name ?? 'Organisation account') : 'Participant account · Your contribution identity.'}
         menuItems={[
+          ...(current.userType === 'participant'
+            ? [{
+                key: 'notifications',
+                label: 'Notifications',
+                icon: 'bell' as IconName,
+                onPress: () => go('notifications'),
+              }]
+            : []),
           {
             key: 'friends',
             label: 'Friends & Partners',
@@ -4048,6 +4057,7 @@ export default function App() {
     if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
     if (screen === 'friend-profile') return <FriendProfileScreen friendId={Number(params.friendId)} onBack={() => go('friends')} />;
     if (screen === 'friends') return <FriendsOverviewScreen go={go} onBack={() => go('profile')} />;
+    if (screen === 'notifications') return <NotificationsScreen onBack={() => go('profile')} onOpenFriends={() => go('friends')} />;
     if (screen === 'explore') return <Explore go={go} />;
     if (screen === 'experiences') return user.userType === 'organisation' ? <Host go={go} /> : <Experiences go={go} />;
     if (screen === 'profile') return <Profile user={user} go={go} />;
@@ -4059,7 +4069,7 @@ export default function App() {
   const noNav = ['experience', 'create'].includes(screen);
   const navActive = user.userType === 'organisation' && screen === 'experiences'
     ? 'host'
-    : screen === 'friends' || screen === 'friend-profile'
+    : screen === 'friends' || screen === 'friend-profile' || screen === 'notifications'
       ? 'profile'
       : screen;
   return (
