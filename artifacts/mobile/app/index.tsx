@@ -687,16 +687,23 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Get started"
+                accessibilityHint="Continue to choose a Participant or Organisation account"
                 testID="welcome-start"
                 onPressIn={triggerHaptic}
                 onPress={onContinue}
                 style={({ pressed }) => [
                   styles.welcomeTelegramButton,
-                  { width: '100%', backgroundColor: colors.primary, borderRadius: colors.radius, opacity: pressed ? 0.86 : 1 },
+                  {
+                    width: '100%',
+                    backgroundColor: colors.primary,
+                    borderRadius: colors.radius,
+                    opacity: pressed ? 0.9 : 1,
+                    transform: [{ scale: pressed ? 0.98 : 1 }],
+                  },
                 ]}
               >
                 <Text style={[styles.welcomeTelegramLabel, { color: colors.primaryForeground }]}>Get started</Text>
-                <Feather name="arrow-right" size={17} color={colors.primaryForeground} />
+                <Feather name="arrow-right" size={20} color={colors.primaryForeground} />
               </Pressable>
             </View>
 
@@ -3912,7 +3919,7 @@ const styles = StyleSheet.create({
   welcomeError: { textAlign: 'center', fontSize: 12, lineHeight: 18, fontFamily: 'Inter_600SemiBold', marginTop: 10 },
   welcomeAuthActions: { flexDirection: 'row', gap: 10 },
   welcomeTelegramButton: { flex: 0, alignSelf: 'stretch', height: 62, minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 18 },
-  welcomeTelegramLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  welcomeTelegramLabel: { fontSize: 16, fontFamily: 'Inter_700Bold' },
   welcomeEmailButton: { flex: 1, height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 10, borderWidth: 1 },
   welcomeTelegramNote: { alignSelf: 'center', textAlign: 'center', fontSize: 10, lineHeight: 15, fontFamily: 'Inter_400Regular' },
   welcomeEmailLinkText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
