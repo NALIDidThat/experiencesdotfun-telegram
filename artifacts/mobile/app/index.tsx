@@ -701,7 +701,7 @@ function EmailAuthPanel({
                 <View style={styles.emailField}>
                   <Text style={[styles.emailLabel, { color: colors.foreground }]}>{activeSignupField.label}</Text>
                   <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
-                    <Feather name={activeSignupField.icon} size={17} color={colors.secondary} style={styles.emailInputIcon} />
+                    <Feather name={activeSignupField.icon} size={17} color={colors.primary} style={styles.emailInputIcon} />
                     <TextInput
                       key={`signup-${signupStep}`}
                       ref={inputRef}
