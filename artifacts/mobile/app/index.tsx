@@ -421,15 +421,17 @@ function EmailAuthPanel({
   onBack,
   onSuccess,
   accountType,
+  initialMode = 'login',
 }: {
   onBack: () => void;
   onSuccess: () => void;
   accountType: UserType | null;
+  initialMode?: 'login' | 'signup';
 }) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { loginWithEmail, signUpWithEmail, loading, authError, clearAuthError } = useAuth();
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -3892,7 +3894,14 @@ function AppShell({
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; step?: string }>();
+  const params = useLocalSearchParams<{
+    screen?: string;
+    id?: string;
+    friendId?: string;
+    step?: string;
+    mode?: string;
+    accountType?: string;
+  }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -3930,6 +3939,8 @@ export default function App() {
       screen: next,
       id: next === 'experience' ? nextParams?.id : undefined,
       friendId: next === 'friend-profile' ? nextParams?.friendId : undefined,
+      mode: undefined,
+      accountType: undefined,
     });
   };
 
@@ -3963,16 +3974,21 @@ export default function App() {
     return (
       <AppShell showFeedbackBanner={false}>
         <EmailAuthPanel
-          accountType={selectedAccountType}
+          accountType={selectedAccountType ?? (
+            params.accountType === 'organisation' || params.accountType === 'participant'
+              ? params.accountType
+              : null
+          )}
+          initialMode={params.mode === 'signup' ? 'signup' : 'login'}
           onBack={() => {
             clearAuthError();
             setScreen('home');
             setEntryStage('login');
-            router.setParams({ screen: 'home' });
+            router.setParams({ screen: 'home', mode: undefined, accountType: undefined });
           }}
           onSuccess={() => {
             setScreen('home');
-            router.setParams({ screen: 'home' });
+            router.setParams({ screen: 'home', mode: undefined, accountType: undefined });
           }}
         />
       </AppShell>
