@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 import { db } from "@workspace/db";
 import {
   emailAccountsTable,
+  emailSessionsTable,
   telegramSessionsTable,
   usersTable,
   type User,
@@ -30,6 +31,8 @@ export type EmailLoginInput = {
 
 export type AuthenticatedRequest = Request & {
   telegramUser?: User;
+  authProvider?: "email" | "telegram";
+  emailAccountId?: number;
 };
 
 function getBotToken(): string {
@@ -79,14 +82,12 @@ function validatedTelegramPhotoUrl(photoUrl?: string): string | undefined {
 
 async function issueEmailSession(userId: number, accountId: number): Promise<string> {
   const token = `email_${crypto.randomBytes(32).toString("base64url")}`;
-  await db
-    .update(emailAccountsTable)
-    .set({
-      sessionTokenHash: hashSessionToken(token),
-      sessionExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(),
-    })
-    .where(eq(emailAccountsTable.id, accountId));
+  await db.insert(emailSessionsTable).values({
+    emailAccountId: accountId,
+    userId,
+    tokenHash: hashSessionToken(token),
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  });
   return token;
 }
 
@@ -98,6 +99,20 @@ export async function issueTelegramSession(userId: number): Promise<string> {
     expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   });
   return token;
+}
+
+export async function issueProfileSession(req: Request, profile: User): Promise<string> {
+  const owner = currentUser(req);
+  if (owner.telegramId !== profile.telegramId) {
+    throw new Error("PROFILE_NOT_OWNED");
+  }
+
+  const authenticated = req as AuthenticatedRequest;
+  if (authenticated.authProvider === "email") {
+    if (!authenticated.emailAccountId) throw new Error("EMAIL_SESSION_REQUIRED");
+    return issueEmailSession(profile.id, authenticated.emailAccountId);
+  }
+  return issueTelegramSession(profile.id);
 }
 
 export async function createEmailAccount(input: EmailSignupInput): Promise<{ user: User; sessionToken: string }> {
@@ -138,11 +153,15 @@ export async function createEmailAccount(input: EmailSignupInput): Promise<{ use
           userId: createdUser.id,
           email,
           passwordHash,
-          sessionTokenHash,
-          sessionExpiresAt,
         })
         .returning();
       if (!account) throw new Error("Unable to create email account.");
+      await transaction.insert(emailSessionsTable).values({
+        emailAccountId: account.id,
+        userId: createdUser.id,
+        tokenHash: sessionTokenHash,
+        expiresAt: sessionExpiresAt,
+      });
       return createdUser;
     });
     return { user, sessionToken };
@@ -175,17 +194,47 @@ export async function authenticateEmail(input: EmailLoginInput): Promise<{ user:
   return { user, sessionToken: await issueEmailSession(user.id, account.id) };
 }
 
-export async function findUserByEmailSession(sessionToken: string): Promise<User | undefined> {
-  const account = await db.query.emailAccountsTable.findFirst({
+export async function findEmailSession(
+  sessionToken: string,
+): Promise<{ user: User; emailAccountId: number } | undefined> {
+  const tokenHash = hashSessionToken(sessionToken);
+  const session = await db.query.emailSessionsTable.findFirst({
     where: and(
-      eq(emailAccountsTable.sessionTokenHash, hashSessionToken(sessionToken)),
+      eq(emailSessionsTable.tokenHash, tokenHash),
+      gt(emailSessionsTable.expiresAt, new Date()),
+    ),
+  });
+  if (session) {
+    const account = await db.query.emailAccountsTable.findFirst({
+      where: eq(emailAccountsTable.id, session.emailAccountId),
+    });
+    if (!account) return undefined;
+    const accountOwner = await db.query.usersTable.findFirst({
+      where: eq(usersTable.id, account.userId),
+    });
+    const user = await db.query.usersTable.findFirst({
+      where: eq(usersTable.id, session.userId),
+    });
+    if (!accountOwner || !user || user.telegramId !== accountOwner.telegramId) return undefined;
+    return { user, emailAccountId: account.id };
+  }
+
+  // Continue accepting existing profile-bound email sessions until they expire.
+  const legacyAccount = await db.query.emailAccountsTable.findFirst({
+    where: and(
+      eq(emailAccountsTable.sessionTokenHash, tokenHash),
       gt(emailAccountsTable.sessionExpiresAt, new Date()),
     ),
   });
-  if (!account) return undefined;
-  return db.query.usersTable.findFirst({
-    where: eq(usersTable.id, account.userId),
+  if (!legacyAccount) return undefined;
+  const user = await db.query.usersTable.findFirst({
+    where: eq(usersTable.id, legacyAccount.userId),
   });
+  return user ? { user, emailAccountId: legacyAccount.id } : undefined;
+}
+
+export async function findUserByEmailSession(sessionToken: string): Promise<User | undefined> {
+  return (await findEmailSession(sessionToken))?.user;
 }
 
 export async function findUserByTelegramSession(sessionToken: string): Promise<User | undefined> {
@@ -209,66 +258,53 @@ export async function upsertTelegramUser(identity: TelegramIdentity, selectedUse
   const name = [identity.first_name, identity.last_name].filter(Boolean).join(" ") || "Telegram user";
   const avatarUrl = validatedTelegramPhotoUrl(identity.photo_url);
   const telegramId = String(identity.id);
-  const profiles = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.telegramId, telegramId))
-    .orderBy(asc(usersTable.id));
+  return db.transaction(async (transaction) => {
+    // Multiple profiles per role are now valid. Serialize sign-in upserts so
+    // concurrent logins still reuse the existing profile instead of creating
+    // duplicate profiles unintentionally.
+    await transaction.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`telegram:${telegramId}`}, 0))`,
+    );
+    const profiles = await transaction
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.telegramId, telegramId))
+      .orderBy(asc(usersTable.id));
+    const existing = selectTelegramProfile(profiles, selectedUserType);
 
-  const existing = selectTelegramProfile(profiles, selectedUserType);
+    if (existing) {
+      const claimUnassignedProfile = existing.userType === null && selectedUserType !== undefined;
+      const [updated] = await transaction
+        .update(usersTable)
+        .set({
+          ...(claimUnassignedProfile ? { userType: selectedUserType } : {}),
+          ...(avatarUrl && existing.avatarUrl !== avatarUrl ? { avatarUrl } : {}),
+          updatedAt: new Date(),
+        })
+        .where(
+          claimUnassignedProfile
+            ? and(eq(usersTable.id, existing.id), isNull(usersTable.userType))
+            : eq(usersTable.id, existing.id),
+        )
+        .returning();
+      return updated ?? existing;
+    }
 
-  if (existing) {
-    const claimUnassignedProfile = existing.userType === null && selectedUserType !== undefined;
-    const [updated] = await db
-      .update(usersTable)
-      .set({
-        ...(claimUnassignedProfile ? { userType: selectedUserType } : {}),
-        ...(avatarUrl && existing.avatarUrl !== avatarUrl ? { avatarUrl } : {}),
-        updatedAt: new Date(),
+    const [created] = await transaction
+      .insert(usersTable)
+      .values({
+        telegramId,
+        name,
+        // Each profile owns its public username. Do not reuse Telegram's
+        // username for a second profile under the same identity.
+        username: null,
+        avatarUrl: avatarUrl ?? null,
+        userType: selectedUserType ?? null,
       })
-      .where(
-        claimUnassignedProfile
-          ? and(eq(usersTable.id, existing.id), isNull(usersTable.userType))
-          : eq(usersTable.id, existing.id),
-      )
       .returning();
-    if (updated) return updated;
-    if (claimUnassignedProfile) return upsertTelegramUser(identity, selectedUserType);
-    return existing;
-  }
-
-  const [created] = await db
-    .insert(usersTable)
-    .values({
-      telegramId,
-      name,
-      // Each profile owns its public username. Do not reuse Telegram's
-      // username for a second profile under the same identity.
-      username: null,
-      avatarUrl: avatarUrl ?? null,
-      userType: selectedUserType ?? null,
-    })
-    .onConflictDoNothing()
-    .returning();
-  if (created) return created;
-
-  // A concurrent sign-in may have created the same profile after our read.
-  const [racedProfile] = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.telegramId, telegramId))
-    .orderBy(asc(usersTable.id));
-  if (racedProfile) {
-    if (!selectedUserType || racedProfile.userType === selectedUserType) return racedProfile;
-    const matchingProfile = await db.query.usersTable.findFirst({
-      where: and(
-        eq(usersTable.telegramId, telegramId),
-        eq(usersTable.userType, selectedUserType),
-      ),
-    });
-    if (matchingProfile) return matchingProfile;
-  }
-  throw new Error("Unable to create Telegram profile.");
+    if (!created) throw new Error("Unable to create Telegram profile.");
+    return created;
+  });
 }
 
 export async function requireTelegramUser(
@@ -287,12 +323,15 @@ export async function requireTelegramUser(
 
   try {
     if (initData.startsWith("email_")) {
-      const user = await findUserByEmailSession(initData);
-      if (!user) {
+      const emailSession = await findEmailSession(initData);
+      if (!emailSession) {
         res.status(401).json({ message: "Your email session is invalid or expired." });
         return;
       }
-      (req as AuthenticatedRequest).telegramUser = user;
+      const authenticated = req as AuthenticatedRequest;
+      authenticated.telegramUser = emailSession.user;
+      authenticated.authProvider = "email";
+      authenticated.emailAccountId = emailSession.emailAccountId;
       next();
       return;
     }
@@ -302,13 +341,17 @@ export async function requireTelegramUser(
         res.status(401).json({ message: "Your Telegram session is invalid or expired." });
         return;
       }
-      (req as AuthenticatedRequest).telegramUser = user;
+      const authenticated = req as AuthenticatedRequest;
+      authenticated.telegramUser = user;
+      authenticated.authProvider = "telegram";
       next();
       return;
     }
     const identity = verifyTelegramInitData(initData);
     const user = await upsertTelegramUser(identity);
-    (req as AuthenticatedRequest).telegramUser = user;
+    const authenticated = req as AuthenticatedRequest;
+    authenticated.telegramUser = user;
+    authenticated.authProvider = "telegram";
     next();
   } catch (error) {
     logger.warn({ err: error }, "Telegram authentication rejected");

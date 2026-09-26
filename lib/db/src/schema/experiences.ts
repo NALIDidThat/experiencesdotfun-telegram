@@ -31,10 +31,7 @@ export const usersTable = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    telegramUserTypeIndex: uniqueIndex("users_telegram_user_type_idx").on(
-      table.telegramId,
-      table.userType,
-    ),
+    telegramIdentityIndex: index("users_telegram_id_idx").on(table.telegramId),
     unassignedTelegramIndex: uniqueIndex("users_telegram_unassigned_idx")
       .on(table.telegramId)
       .where(sql`${table.userType} IS NULL`),
@@ -60,6 +57,27 @@ export const emailAccountsTable = pgTable(
     userIdIndex: uniqueIndex("email_accounts_user_id_idx").on(table.userId),
     emailIndex: uniqueIndex("email_accounts_email_idx").on(table.email),
     sessionTokenIndex: uniqueIndex("email_accounts_session_token_idx").on(table.sessionTokenHash),
+  }),
+);
+
+export const emailSessionsTable = pgTable(
+  "email_sessions",
+  {
+    id: serial("id").primaryKey(),
+    emailAccountId: integer("email_account_id")
+      .notNull()
+      .references(() => emailAccountsTable.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => usersTable.id),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    tokenHashIndex: uniqueIndex("email_sessions_token_hash_idx").on(table.tokenHash),
+    userIdIndex: index("email_sessions_user_id_idx").on(table.userId),
+    emailAccountIdIndex: index("email_sessions_email_account_id_idx").on(table.emailAccountId),
   }),
 );
 

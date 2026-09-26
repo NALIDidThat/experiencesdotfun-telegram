@@ -26,7 +26,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import {
+  useActivateAccountProfile,
   useAcceptFriendRequest,
+  useCreateAccountProfile,
   useCreateExperience,
   useCreateFriendRequest,
   useDeclineFriendRequest,
@@ -39,6 +41,7 @@ import {
   useListExperiences,
   useListFriendRequests,
   useListFriends,
+  useListAccountProfiles,
   useListHostExperiences,
   useListMyParticipations,
   useListSentFriendRequests,
@@ -49,6 +52,7 @@ import {
   useVerifyParticipation,
   getGetExperienceQueryKey,
   getGetFriendProfileQueryKey,
+  getListAccountProfilesQueryKey,
   getListMyParticipationsQueryKey,
   getListHostExperiencesQueryKey,
   getListExperienceParticipantsQueryKey,
@@ -68,12 +72,13 @@ import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
+import { AccountsCenter } from '@/components/AccountsCenter';
 import { UserAvatar } from '@/components/UserAvatar';
 import { openTelegramBot } from '@/lib/telegram';
 
-type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'create' | 'email';
+type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'create' | 'email' | 'accounts' | 'new-account';
 type IconName = keyof typeof Feather.glyphMap;
-const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email', 'accounts', 'new-account'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -978,11 +983,15 @@ function AccountTypeSelection({
   onSelect,
   onBack,
   onContinue,
+  isSubmitting = false,
+  error = null,
 }: {
   selectedType: UserType | null;
   onSelect: (value: UserType) => void;
   onBack?: () => void;
   onContinue: () => void;
+  isSubmitting?: boolean;
+  error?: string | null;
 }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -1058,7 +1067,13 @@ function AccountTypeSelection({
         </View>
       </View>
       <View style={[styles.flowFooter, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-        <Button label="Continue" disabled={!selectedType} onPress={onContinue} icon="arrow-right" />
+        {error ? <InlineError message={error} /> : null}
+        <Button
+          label={isSubmitting ? 'Creating…' : 'Continue'}
+          disabled={!selectedType || isSubmitting}
+          onPress={onContinue}
+          icon={isSubmitting ? undefined : 'arrow-right'}
+        />
       </View>
     </KeyboardAwareScrollViewCompat>
   );
@@ -3035,6 +3050,93 @@ function FriendsOverviewScreen({
   );
 }
 
+function AccountsCenterScreen({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
+  const { user, activateProfileSession } = useAuth();
+  const profiles = useListAccountProfiles({
+    query: {
+      queryKey: getListAccountProfilesQueryKey(),
+      enabled: Boolean(user),
+    },
+  });
+  const activateAccount = useActivateAccountProfile();
+  const [switchingAccountId, setSwitchingAccountId] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const selectAccount = async (accountId: number) => {
+    if (!user) return;
+    if (accountId === user.id) {
+      go('home');
+      return;
+    }
+
+    setActionError(null);
+    setSwitchingAccountId(accountId);
+    try {
+      const response = await activateAccount.mutateAsync({ accountId });
+      const activated = await activateProfileSession(response);
+      if (!activated) {
+        throw new Error('The selected profile could not be activated.');
+      }
+      go('home');
+    } catch (error) {
+      setActionError(requestErrorMessage(error, 'We couldn’t switch profiles. Your current account is still active—please try again.'));
+    } finally {
+      setSwitchingAccountId(null);
+    }
+  };
+
+  const profileError = profiles.isError
+    ? requestErrorMessage(profiles.error, 'Your profiles could not be loaded. Please try again.')
+    : null;
+
+  return (
+    <AccountsCenter
+      accounts={profiles.data?.accounts ?? []}
+      activeAccountId={user?.id ?? 0}
+      loading={profiles.isLoading}
+      switchingAccountId={switchingAccountId}
+      error={profileError}
+      actionError={actionError}
+      onBack={() => go('profile')}
+      onSelectAccount={(accountId) => { void selectAccount(accountId); }}
+      onCreateProfile={() => go('new-account')}
+    />
+  );
+}
+
+function CreateAccountProfileScreen({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
+  const { activateProfileSession } = useAuth();
+  const createProfile = useCreateAccountProfile();
+  const [selectedType, setSelectedType] = useState<UserType | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const createAccount = async () => {
+    if (!selectedType) return;
+    setError(null);
+    try {
+      const response = await createProfile.mutateAsync({ data: { userType: selectedType } });
+      const activated = await activateProfileSession(response);
+      if (!activated) {
+        throw new Error('The new profile could not be activated.');
+      }
+      go('home');
+    } catch (createError) {
+      setError(requestErrorMessage(createError, 'We couldn’t create that profile. Please try again.'));
+    }
+  };
+
+  return (
+    <AccountTypeSelection
+      selectedType={selectedType}
+      onSelect={(value) => { setSelectedType(value); setError(null); }}
+      onBack={() => go('accounts')}
+      onContinue={() => { void createAccount(); }}
+      isSubmitting={createProfile.isPending}
+      error={error}
+    />
+  );
+}
+
 function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
   const { user: authenticatedUser, authError, login, refresh, signOut } = useAuth();
@@ -3100,16 +3202,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
     go('host');
   };
 
-  const handleSwitchProfile = async () => {
-    if (!current.userType) return;
-    setProfileMenuError(null);
-    const nextType: UserType = current.userType === 'organisation' ? 'participant' : 'organisation';
-    const switched = await login(nextType);
-    if (!switched) {
-      setProfileMenuError('We couldn’t switch profiles. Your current account is still active—please try again.');
-    }
-  };
-
   const handleSignOut = async () => {
     setProfileMenuError(null);
     try {
@@ -3139,6 +3231,12 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
             onPress: () => go('friends'),
           },
           {
+            key: 'accounts',
+            label: 'Accounts Center',
+            icon: 'users',
+            onPress: () => go('accounts'),
+          },
+          {
             key: 'edit-profile',
             label: editing ? 'Close edit form' : 'Edit profile',
             icon: editing ? 'x' : 'edit-2',
@@ -3150,14 +3248,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
                 label: 'Organisation tools',
                 icon: 'briefcase' as IconName,
                 onPress: openHostTools,
-              }]
-            : []),
-          ...(authenticatedUser?.telegramId != null && current.userType
-            ? [{
-                key: 'switch-profile',
-                label: current.userType === 'organisation' ? 'Switch to Participant' : 'Switch to Organisation',
-                icon: 'repeat' as IconName,
-                onPress: () => { void handleSwitchProfile(); },
               }]
             : []),
           {
@@ -3949,8 +4039,7 @@ export default function App() {
             router.setParams({ screen: 'home' });
           }}
           onSuccess={() => {
-            setScreen('home');
-            router.setParams({ screen: 'home' });
+            go('accounts');
           }}
         />
       </AppShell>
@@ -3985,7 +4074,12 @@ export default function App() {
             accountType={selectedAccountType}
             onBack={() => setEntryStage('account-type')}
             onEmail={() => go('email')}
-            onTelegram={() => { void login(selectedAccountType); }}
+            onTelegram={() => {
+              if (!selectedAccountType) return;
+              void login(selectedAccountType).then((signedIn) => {
+                if (signedIn) go('accounts');
+              });
+            }}
           />
         )}
       </AppShell>
@@ -4037,6 +4131,8 @@ export default function App() {
     if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
     if (screen === 'friend-profile') return <FriendProfileScreen friendId={Number(params.friendId)} onBack={() => go('friends')} />;
     if (screen === 'friends') return <FriendsOverviewScreen go={go} onBack={() => go('profile')} />;
+    if (screen === 'accounts') return <AccountsCenterScreen go={go} />;
+    if (screen === 'new-account') return <CreateAccountProfileScreen go={go} />;
     if (screen === 'explore') return <Explore go={go} />;
     if (screen === 'experiences') return user.userType === 'organisation' ? <Host go={go} /> : <Experiences go={go} />;
     if (screen === 'profile') return <Profile user={user} go={go} />;
@@ -4045,7 +4141,7 @@ export default function App() {
     return <Home user={user} go={go} />;
   })();
 
-  const noNav = ['experience', 'create'].includes(screen);
+  const noNav = ['experience', 'create', 'accounts', 'new-account'].includes(screen);
   const navActive = user.userType === 'organisation' && screen === 'experiences'
     ? 'host'
     : screen === 'friends' || screen === 'friend-profile'

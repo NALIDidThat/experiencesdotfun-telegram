@@ -16,6 +16,8 @@ tags:
     description: Volunteering discovery and participation
   - name: profile
     description: Participant profile and rewards
+  - name: accounts
+    description: Profiles owned by the signed-in identity
   - name: host
     description: Host and organisation management
   - name: friends
@@ -112,6 +114,65 @@ paths:
                 $ref: "#/components/schemas/AuthResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /accounts:
+    get:
+      operationId: listAccountProfiles
+      tags: [accounts]
+      summary: List profiles owned by the signed-in identity
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Profiles available under the current login
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountProfilesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createAccountProfile
+      tags: [accounts]
+      summary: Create a new profile under the signed-in identity
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccountProfileInput"
+      responses:
+        "201":
+          description: New profile and its profile-bound session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /accounts/{accountId}/activate:
+    post:
+      operationId: activateAccountProfile
+      tags: [accounts]
+      summary: Activate one of the signed-in identity's profiles
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Selected profile and its profile-bound session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /me:
     get:
       operationId: getMe
@@ -908,6 +969,20 @@ components:
           type: string
           minLength: 1
       required: [user, isNew, sessionToken]
+    AccountProfilesResponse:
+      type: object
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+      required: [accounts]
+    CreateAccountProfileInput:
+      type: object
+      properties:
+        userType:
+          $ref: "#/components/schemas/UserType"
+      required: [userType]
     EmailSignupInput:
       type: object
       properties:

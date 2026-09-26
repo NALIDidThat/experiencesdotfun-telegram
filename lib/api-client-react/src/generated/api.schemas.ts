@@ -96,6 +96,14 @@ export interface AuthResponse {
   sessionToken: string;
 }
 
+export interface AccountProfilesResponse {
+  accounts: User[];
+}
+
+export interface CreateAccountProfileInput {
+  userType: UserType;
+}
+
 export interface EmailSignupInput {
   /** @minLength 1 */
   name: string;

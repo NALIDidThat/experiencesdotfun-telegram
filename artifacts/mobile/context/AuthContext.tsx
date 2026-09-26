@@ -27,6 +27,7 @@ type AuthContextValue = {
   refresh: () => Promise<boolean>;
   signOut: () => Promise<void>;
   login: (accountType?: UserType) => Promise<boolean>;
+  activateProfileSession: (response: AuthResponse) => Promise<boolean>;
   loginWithEmail: (email: string, password: string) => Promise<boolean>;
   signUpWithEmail: (name: string, username: string, email: string, password: string, accountType: UserType) => Promise<boolean>;
 };
@@ -42,6 +43,7 @@ const AuthContext = createContext<AuthContextValue>({
   refresh: async () => false,
   signOut: async () => {},
   login: async () => false,
+  activateProfileSession: async () => false,
   loginWithEmail: async () => false,
   signUpWithEmail: async () => false,
 });
@@ -136,6 +138,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, []);
 
+  const activateProfileSession = useCallback(async (response: AuthResponse) => {
+    if (!response.sessionToken) {
+      setAuthError('Profile switching did not return a valid session. Please try again.');
+      return false;
+    }
+    queryClient.clear();
+    await saveAuthToken(response.sessionToken);
+    setInitData(null);
+    setUser(response.user);
+    setAuthError(null);
+    return true;
+  }, [queryClient]);
+
   const restoreStoredSession = useCallback(async () => {
     setLoading(true);
     try {
@@ -226,10 +241,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refresh,
       signOut,
       login,
+      activateProfileSession,
       loginWithEmail,
       signUpWithEmail,
     }),
-    [user, initData, loading, authError, clearAuthError, refresh, signOut, login, loginWithEmail, signUpWithEmail],
+    [user, initData, loading, authError, clearAuthError, refresh, signOut, login, activateProfileSession, loginWithEmail, signUpWithEmail],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -183,6 +183,135 @@ export const LoginWithEmailResponse = zod.object({
 
 
 /**
+ * @summary List profiles owned by the signed-in identity
+ */
+export const ListAccountProfilesResponse = zod.object({
+  "accounts": zod.array(zod.object({
+  "id": zod.number().int(),
+  "createdAt": zod.coerce.date().nullable(),
+  "telegramId": zod.number().int().nullable(),
+  "email": zod.string().email().nullable(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable(),
+  "bio": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "participationType": zod.enum(['join', 'host', 'both']).nullable(),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "verified": zod.boolean()
+}).nullable(),
+  "xp": zod.number().int(),
+  "level": zod.string(),
+  "completedCount": zod.number().int(),
+  "hostedCount": zod.number().int(),
+  "rewardsPence": zod.number().int()
+}))
+})
+
+
+/**
+ * @summary Create a new profile under the signed-in identity
+ */
+export const CreateAccountProfileBody = zod.object({
+  "userType": zod.enum(['participant', 'organisation'])
+})
+
+
+
+
+export const CreateAccountProfileResponse = zod.object({
+  "user": zod.object({
+  "id": zod.number().int(),
+  "createdAt": zod.coerce.date().nullable(),
+  "telegramId": zod.number().int().nullable(),
+  "email": zod.string().email().nullable(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable(),
+  "bio": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "participationType": zod.enum(['join', 'host', 'both']).nullable(),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "verified": zod.boolean()
+}).nullable(),
+  "xp": zod.number().int(),
+  "level": zod.string(),
+  "completedCount": zod.number().int(),
+  "hostedCount": zod.number().int(),
+  "rewardsPence": zod.number().int()
+}),
+  "isNew": zod.boolean(),
+  "sessionToken": zod.string().min(1)
+})
+
+
+/**
+ * @summary Activate one of the signed-in identity's profiles
+ */
+
+
+
+export const ActivateAccountProfileParams = zod.object({
+  "accountId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const ActivateAccountProfileResponse = zod.object({
+  "user": zod.object({
+  "id": zod.number().int(),
+  "createdAt": zod.coerce.date().nullable(),
+  "telegramId": zod.number().int().nullable(),
+  "email": zod.string().email().nullable(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable(),
+  "bio": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "participationType": zod.enum(['join', 'host', 'both']).nullable(),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "verified": zod.boolean()
+}).nullable(),
+  "xp": zod.number().int(),
+  "level": zod.string(),
+  "completedCount": zod.number().int(),
+  "hostedCount": zod.number().int(),
+  "rewardsPence": zod.number().int()
+}),
+  "isNew": zod.boolean(),
+  "sessionToken": zod.string().min(1)
+})
+
+
+/**
  * @summary Get the current Telegram user's profile
  */
 export const GetMeResponse = zod.object({
