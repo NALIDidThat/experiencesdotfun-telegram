@@ -421,17 +421,15 @@ function EmailAuthPanel({
   onBack,
   onSuccess,
   accountType,
-  initialMode = 'login',
 }: {
   onBack: () => void;
   onSuccess: () => void;
   accountType: UserType | null;
-  initialMode?: 'login' | 'signup';
 }) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { loginWithEmail, signUpWithEmail, loading, authError, clearAuthError } = useAuth();
-  const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -442,18 +440,6 @@ function EmailAuthPanel({
   const inputRef = useRef<TextInput>(null);
   const isSignup = mode === 'signup';
   const normalizedUsername = username.trim().replace(/^@+/, '').toLowerCase();
-  const authHeroCaption = accountType === 'organisation'
-    ? 'FOR ORGANISATIONS'
-    : accountType === 'participant'
-      ? 'FOR PEOPLE'
-      : isSignup
-        ? 'FOR PEOPLE'
-        : 'SIGN IN';
-  const authHeroBody = isSignup
-    ? accountType === 'organisation'
-      ? 'Start your organisation profile with a few details.'
-      : 'Find your people and discover what you can do together.'
-    : 'Welcome back. Enter your details below.';
   const signupFields = [
     {
       label: 'Name',
@@ -558,111 +544,56 @@ function EmailAuthPanel({
     if (authenticated) onSuccess();
   };
 
-  const handleBack = () => {
-    setLocalError(null);
-    clearAuthError();
-    if (isSignup && signupStep > 0) setSignupStep((current) => current - 1);
-    else onBack();
-  };
-
   return (
     <View style={[styles.emailAuthScreen, { backgroundColor: colors.muted }]}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.muted} />
       <KeyboardAwareScrollViewCompat
         style={[styles.emailAuthScroll, { backgroundColor: colors.muted }]}
-        contentContainerStyle={[
-          styles.emailAuthContent,
-          isSignup && styles.emailSignupContent,
-          {
-            paddingTop: Math.max(insets.top, 16),
-            paddingBottom: Math.max(insets.bottom, 24),
-          },
-        ]}
+        contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 24) }]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         bottomOffset={24}
       >
-        <View
-          style={[
-            styles.emailAuthForm,
-            styles.emailBrandedForm,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              borderWidth: 1,
-              borderRadius: colors.radius + 12,
-              paddingHorizontal: 0,
-              paddingTop: 0,
-              paddingBottom: 0,
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={[colors.secondary, colors.primary]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.emailAuthHero}
-          >
-            <View
-              pointerEvents="none"
-              style={[
-                styles.emailAuthOrbit,
-                { borderColor: colors.primaryForeground },
-              ]}
-            />
-            <View
-              pointerEvents="none"
-              style={[
-                styles.emailAuthOrbitSmall,
-                { borderColor: colors.primaryForeground },
-              ]}
-            />
+        <View style={[styles.emailAuthForm, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius + 8, paddingHorizontal: 22, paddingTop: 22, paddingBottom: 20 }]}>
+          <View style={styles.emailAuthHeader}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={isSignup && signupStep > 0 ? 'Previous signup step' : 'Back to sign-in options'}
-              onPress={handleBack}
-              style={styles.emailAuthBack}
+              onPress={() => {
+                setLocalError(null);
+                clearAuthError();
+                if (isSignup && signupStep > 0) setSignupStep((current) => current - 1);
+                else onBack();
+              }}
+              style={styles.emailBack}
             >
-              <Feather name="arrow-left" size={17} color={colors.primaryForeground} />
-              <Text style={[styles.emailAuthBackText, { color: colors.primaryForeground }]}>Back</Text>
-            </Pressable>
-            <View style={styles.emailAuthHeroCopy}>
-              <View style={styles.emailAuthBrandRow}>
-                <View style={[styles.emailAuthBrandMark, { borderColor: colors.primaryForeground }]}>
-                  <Feather name="users" size={22} color={colors.primaryForeground} />
-                </View>
-                <View>
-                  <Text style={[styles.emailAuthBrandName, { color: colors.primaryForeground }]}>
-                    EXPERIENCES.FUN
-                  </Text>
-                  <Text style={[styles.emailAuthBrandCaption, { color: colors.primaryForeground }]}>
-                    {authHeroCaption}
-                  </Text>
-                </View>
+              <View style={[styles.emailBackIcon, { backgroundColor: colors.secondary + '14' }]}>
+                <Feather name="arrow-left" size={18} color={colors.secondary} />
               </View>
-              <Text style={[styles.emailAuthHeroTitle, { color: colors.primaryForeground }]}>
-                {isSignup ? 'Create account' : 'Log in'}
+              <Text style={[styles.emailBackText, { color: colors.foreground }]}>Back</Text>
+            </Pressable>
+            <View style={[styles.emailIllustration, { backgroundColor: colors.secondary + '14' }]} accessible={false}>
+              <Feather name={isSignup ? activeSignupField.icon : 'users'} size={30} color={colors.secondary} />
+            </View>
+            <View style={styles.emailCardIntro}>
+              <Text style={[styles.emailHeroEyebrow, { color: colors.secondary }]}>EXPERIENCES.FUN</Text>
+              <Text style={[styles.emailCardTitle, { color: colors.foreground }]}>
+                {isSignup ? activeSignupField.title : 'Log in'}
               </Text>
-              <Text style={[styles.emailAuthHeroBody, { color: colors.primaryForeground }]}>
-                {authHeroBody}
+              <Text style={[styles.emailCardBody, { color: colors.mutedForeground }]}>
+                {isSignup
+                  ? activeSignupField.description
+                  : 'Welcome back. Enter your details below.'}
               </Text>
             </View>
-          </LinearGradient>
-
-          <View
-            style={[
-              styles.emailAuthFields,
-              !isSignup && styles.emailLoginFields,
-              isSignup && styles.emailSignupFields,
-            ]}
-          >
             {isSignup ? (
               <View style={styles.emailSignupProgress}>
                 <View style={styles.emailSignupProgressMeta}>
                   <Text style={[styles.emailSignupProgressLabel, { color: colors.secondary }]}>
-                    YOUR DETAILS
+                    STEP {signupStep + 1} OF {signupFields.length}
                   </Text>
                   <Text style={[styles.emailSignupProgressHint, { color: colors.mutedForeground }]}>
-                    {`STEP ${signupStep + 1} OF ${signupFields.length}`}
+                    {signupStep === signupFields.length - 1 ? 'Almost done' : 'Your progress is saved'}
                   </Text>
                 </View>
                 <View style={styles.emailSignupProgressTrack}>
@@ -678,51 +609,46 @@ function EmailAuthPanel({
                 </View>
               </View>
             ) : null}
+          </View>
+
+          <View style={styles.emailAuthFields}>
             {isSignup ? (
-              <>
-                <View style={styles.emailSignupStepIntro}>
-                  <Text style={[styles.emailSignupStepTitle, { color: colors.foreground }]}>
-                    {activeSignupField.title}
-                  </Text>
-                  <Text style={[styles.emailSignupStepDescription, { color: colors.mutedForeground }]}>
-                    {activeSignupField.description}
-                  </Text>
+              <View style={styles.emailField}>
+                <Text style={[styles.emailLabel, { color: colors.foreground }]}>{activeSignupField.label}</Text>
+                <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
+                  <Feather name={activeSignupField.icon} size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
+                  <TextInput
+                    key={`signup-${signupStep}`}
+                    ref={inputRef}
+                    testID={`email-signup-${activeSignupField.label.toLowerCase().replaceAll(' ', '-')}`}
+                    accessibilityLabel={activeSignupField.label}
+                    value={activeSignupValue}
+                    onChangeText={updateActiveSignupValue}
+                    onSubmitEditing={() => { void continueSignup(); }}
+                    placeholder={activeSignupField.placeholder}
+                    placeholderTextColor={colors.mutedForeground}
+                    autoCapitalize={activeSignupField.autoCapitalize}
+                    autoComplete={activeSignupField.autoComplete}
+                    keyboardType={activeSignupField.keyboardType}
+                    returnKeyType={activeSignupField.returnKeyType}
+                    secureTextEntry={activeSignupField.secureTextEntry}
+                    style={[styles.emailInput, { color: colors.foreground }]}
+                  />
                 </View>
-                <View style={styles.emailField}>
-                  <Text style={[styles.emailLabel, { color: colors.foreground }]}>{activeSignupField.label}</Text>
-                  <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
-                    <Feather name={activeSignupField.icon} size={17} color={colors.primary} style={styles.emailInputIcon} />
-                    <TextInput
-                      key={`signup-${signupStep}`}
-                      ref={inputRef}
-                      testID={`email-signup-${activeSignupField.label.toLowerCase().replaceAll(' ', '-')}`}
-                      accessibilityLabel={activeSignupField.label}
-                      value={activeSignupValue}
-                      onChangeText={updateActiveSignupValue}
-                      onSubmitEditing={() => { void continueSignup(); }}
-                      placeholder={activeSignupField.placeholder}
-                      placeholderTextColor={colors.mutedForeground}
-                      autoCapitalize={activeSignupField.autoCapitalize}
-                      autoComplete={activeSignupField.autoComplete}
-                      keyboardType={activeSignupField.keyboardType}
-                      returnKeyType={activeSignupField.returnKeyType}
-                      secureTextEntry={activeSignupField.secureTextEntry}
-                      style={[styles.emailInput, { color: colors.foreground }]}
-                    />
-                  </View>
-                  {signupStep === 4 ? (
-                    <Text style={[styles.emailFieldHint, { color: colors.mutedForeground }]}>
-                      5–32 characters. Letters, numbers and underscores only.
-                    </Text>
-                  ) : null}
-                </View>
-              </>
+                <Text style={[styles.emailFieldHint, { color: colors.mutedForeground }]}>
+                  {signupStep === 4
+                    ? '5–32 characters. Letters, numbers and underscores only.'
+                    : signupStep === 2
+                      ? 'Choose a password with at least 8 characters.'
+                      : activeSignupField.description}
+                </Text>
+              </View>
             ) : (
               <>
                 <View style={styles.emailField}>
                   <Text style={[styles.emailLabel, { color: colors.foreground }]}>Email</Text>
                   <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
-                    <Feather name="mail" size={17} color={colors.primary} style={styles.emailInputIcon} />
+                    <Feather name="mail" size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
                     <TextInput
                       accessibilityLabel="Email"
                       value={email}
@@ -739,7 +665,7 @@ function EmailAuthPanel({
               <View style={styles.emailField}>
                   <Text style={[styles.emailLabel, { color: colors.foreground }]}>Password</Text>
                   <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
-                    <Feather name="lock" size={17} color={colors.primary} style={styles.emailInputIcon} />
+                    <Feather name="lock" size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
                     <TextInput
                       accessibilityLabel="Password"
                       value={password}
@@ -788,11 +714,7 @@ function EmailAuthPanel({
               setLocalError(null);
               clearAuthError();
             }}
-            style={[
-              styles.emailSwitchRow,
-              styles.emailAuthSwitch,
-              { borderTopColor: colors.border },
-            ]}
+            style={styles.emailSwitchRow}
           >
             <Text style={[styles.emailSwitchPrompt, { color: colors.mutedForeground }]}>{isSignup ? 'Already have an account?' : 'New to Experiences.fun?'}</Text>
             <Text style={[styles.emailSwitchLink, { color: colors.secondary }]}>{isSignup ? 'Log in' : 'Sign up'}</Text>
@@ -3882,14 +3804,7 @@ function AppShell({
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{
-    screen?: string;
-    id?: string;
-    friendId?: string;
-    step?: string;
-    mode?: string;
-    accountType?: string;
-  }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; step?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -3927,8 +3842,6 @@ export default function App() {
       screen: next,
       id: next === 'experience' ? nextParams?.id : undefined,
       friendId: next === 'friend-profile' ? nextParams?.friendId : undefined,
-      mode: undefined,
-      accountType: undefined,
     });
   };
 
@@ -3962,22 +3875,16 @@ export default function App() {
     return (
       <AppShell showFeedbackBanner={false}>
         <EmailAuthPanel
-          key={`${params.mode ?? 'login'}:${params.accountType ?? ''}`}
-          accountType={selectedAccountType ?? (
-            params.accountType === 'organisation' || params.accountType === 'participant'
-              ? params.accountType
-              : null
-          )}
-          initialMode={params.mode === 'signup' ? 'signup' : 'login'}
+          accountType={selectedAccountType}
           onBack={() => {
             clearAuthError();
             setScreen('home');
             setEntryStage('login');
-            router.setParams({ screen: 'home', mode: undefined, accountType: undefined });
+            router.setParams({ screen: 'home' });
           }}
           onSuccess={() => {
             setScreen('home');
-            router.setParams({ screen: 'home', mode: undefined, accountType: undefined });
+            router.setParams({ screen: 'home' });
           }}
         />
       </AppShell>
@@ -4197,37 +4104,26 @@ const styles = StyleSheet.create({
   emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   emailAuthScreen: { flex: 1 },
   emailAuthScroll: { flex: 1 },
-  emailAuthContent: { flexGrow: 1, paddingHorizontal: 16, justifyContent: 'center' },
-  emailSignupContent: { justifyContent: 'flex-start' },
+  emailAuthContent: { flexGrow: 1, paddingHorizontal: 22, justifyContent: 'center' },
+  emailBack: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, alignSelf: 'flex-start' },
+  emailBackIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  emailBackText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   emailAuthForm: { width: '100%', maxWidth: 430, alignSelf: 'center', gap: 18 },
-  emailBrandedForm: { gap: 0, overflow: 'hidden' },
-  emailAuthHero: { minHeight: 238, paddingHorizontal: 22, paddingTop: 14, paddingBottom: 24, justifyContent: 'space-between', overflow: 'hidden' },
-  emailAuthOrbit: { position: 'absolute', width: 206, height: 206, borderRadius: 103, borderWidth: 1, top: -110, right: -68, opacity: 0.17 },
-  emailAuthOrbitSmall: { position: 'absolute', width: 138, height: 138, borderRadius: 69, borderWidth: 1, top: -51, right: 2, opacity: 0.12 },
-  emailAuthBack: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
-  emailAuthBackText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  emailAuthHeroCopy: { gap: 10, marginTop: 18 },
-  emailAuthBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  emailAuthBrandMark: { width: 44, height: 44, borderWidth: 1, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  emailAuthBrandName: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.2 },
-  emailAuthBrandCaption: { fontSize: 9, fontFamily: 'Inter_600SemiBold', letterSpacing: 1.05, marginTop: 3, opacity: 0.82 },
-  emailAuthHeroTitle: { fontSize: 32, lineHeight: 37, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, marginTop: 1 },
-  emailAuthHeroBody: { maxWidth: 310, fontSize: 14, lineHeight: 20, fontFamily: 'Inter_500Medium', opacity: 0.92 },
-  emailSignupFields: { paddingHorizontal: 22, paddingTop: 21, paddingBottom: 18, gap: 16 },
-  emailLoginFields: { paddingHorizontal: 22, paddingTop: 21, paddingBottom: 18 },
+  emailAuthHeader: { gap: 12 },
+  emailAuthFields: { gap: 14 },
   emailSignupProgress: { gap: 9 },
   emailSignupProgressMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   emailSignupProgressLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.1 },
   emailSignupProgressHint: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
   emailSignupProgressTrack: { flexDirection: 'row', gap: 6 },
   emailSignupProgressSegment: { flex: 1, height: 4, borderRadius: 2 },
-  emailSignupStepIntro: { gap: 4, marginTop: 2 },
-  emailSignupStepTitle: { fontSize: 22, lineHeight: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.45 },
-  emailSignupStepDescription: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_500Medium' },
-  emailAuthSwitch: { minHeight: 58, paddingHorizontal: 18, borderTopWidth: 1 },
   emailSignupPrevious: { alignItems: 'center', paddingVertical: 6 },
   emailSignupPreviousText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  emailAuthFields: { gap: 14 },
+  emailIllustration: { width: 70, height: 70, borderRadius: 35, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  emailCardIntro: { gap: 5, alignItems: 'center', marginTop: 0, marginBottom: 2 },
+  emailHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.5, marginBottom: 2 },
+  emailCardTitle: { fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, textAlign: 'center' },
+  emailCardBody: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', textAlign: 'center' },
   emailSwitchRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 0, marginBottom: 0 },
   emailSwitchPrompt: { fontSize: 13, fontFamily: 'Inter_500Medium' },
   emailSwitchLink: { fontSize: 13, fontFamily: 'Inter_700Bold' },
