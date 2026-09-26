@@ -551,6 +551,7 @@ function EmailAuthPanel({
         style={[styles.emailAuthScroll, { backgroundColor: colors.muted }]}
         contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 24) }]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         bottomOffset={24}
       >
         <View style={[styles.emailAuthForm, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius + 8, paddingHorizontal: 22, paddingTop: 22, paddingBottom: 20 }]}>
@@ -592,7 +593,7 @@ function EmailAuthPanel({
                     STEP {signupStep + 1} OF {signupFields.length}
                   </Text>
                   <Text style={[styles.emailSignupProgressHint, { color: colors.mutedForeground }]}>
-                    {signupStep === signupFields.length - 1 ? 'Almost done' : 'One detail at a time'}
+                    {signupStep === signupFields.length - 1 ? 'Almost done' : 'Your progress is saved'}
                   </Text>
                 </View>
                 <View style={styles.emailSignupProgressTrack}>
@@ -612,7 +613,7 @@ function EmailAuthPanel({
 
           <View style={styles.emailAuthFields}>
             {isSignup ? (
-                <View style={styles.emailField}>
+              <View style={styles.emailField}>
                 <Text style={[styles.emailLabel, { color: colors.foreground }]}>{activeSignupField.label}</Text>
                 <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
                   <Feather name={activeSignupField.icon} size={17} color={colors.mutedForeground} style={styles.emailInputIcon} />
@@ -624,7 +625,6 @@ function EmailAuthPanel({
                     value={activeSignupValue}
                     onChangeText={updateActiveSignupValue}
                     onSubmitEditing={() => { void continueSignup(); }}
-                    autoFocus={isSignup}
                     placeholder={activeSignupField.placeholder}
                     placeholderTextColor={colors.mutedForeground}
                     autoCapitalize={activeSignupField.autoCapitalize}
@@ -679,7 +679,7 @@ function EmailAuthPanel({
                   </View>
                 </View>
               </>
-            )}
+            ) : null}
             {localError || authError ? <Text accessibilityRole="alert" style={[styles.emailError, { color: colors.destructive }]}>{localError ?? authError}</Text> : null}
             <Button
               label={loading ? (isSignup ? 'Creating account…' : 'Logging in…') : (isSignup && signupStep < signupFields.length - 1 ? 'Continue' : isSignup ? 'Create account' : 'Log in')}
@@ -691,10 +691,20 @@ function EmailAuthPanel({
               color={colors.primary}
               style={styles.emailSubmitButton}
             />
-            <View style={styles.emailSecureNote}>
-              <Feather name="shield" size={12} color={colors.mutedForeground} />
-              <Text style={[styles.emailSecureNoteText, { color: colors.mutedForeground }]}>Your details are kept secure</Text>
-            </View>
+            {isSignup && signupStep > 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => { setLocalError(null); setSignupStep((current) => current - 1); }}
+                style={styles.emailSignupPrevious}
+              >
+                <Text style={[styles.emailSignupPreviousText, { color: colors.mutedForeground }]}>Previous step</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.emailSecureNote}>
+                <Feather name="shield" size={12} color={colors.mutedForeground} />
+                <Text style={[styles.emailSecureNoteText, { color: colors.mutedForeground }]}>Your details are kept secure</Text>
+              </View>
+            )}
           </View>
           <Pressable
             accessibilityRole="button"
@@ -1224,6 +1234,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
       style={[styles.onboarding, { backgroundColor: colors.background }]}
       contentContainerStyle={[styles.flowScreenContent, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 24) }]}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       bottomOffset={24}
       showsVerticalScrollIndicator={false}
     >
@@ -1634,11 +1645,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: true });
 
   return (
-    <KeyboardAwareScrollViewCompat
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
-    >
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
       <Header title="Explore" subtitle="Find your next way to contribute." />
 
       <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
@@ -1667,7 +1674,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         <EmptyState title="Experiences didn’t load" body="Check your connection and try again." actionLabel="Try again" onAction={() => { void query.refetch(); }} />
       ) : query.data?.length ? query.data.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title="No experiences match" body="Try another category or come back when local hosts publish something new." />}
       <View style={{ height: 120 }} />
-    </KeyboardAwareScrollViewCompat>
+    </ScrollView>
   );
 }
 
@@ -2678,10 +2685,11 @@ function FriendsOverviewScreen({
   };
 
   return (
-    <KeyboardAwareScrollViewCompat
+    <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
     >
       <Header
@@ -2957,7 +2965,7 @@ function FriendsOverviewScreen({
         </>
       )}
       <View style={{ height: 120 }} />
-    </KeyboardAwareScrollViewCompat>
+    </ScrollView>
   );
 }
 
@@ -3047,10 +3055,11 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   };
 
   return (
-    <KeyboardAwareScrollViewCompat
+    <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
     >
       <Header
@@ -3240,7 +3249,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         </View>
       ) : null}
       <View style={{ height: 120 }} />
-    </KeyboardAwareScrollViewCompat>
+    </ScrollView>
   );
 }
 
@@ -3510,6 +3519,7 @@ function Create({
         { flexGrow: 1, paddingTop: 12, paddingBottom: insets.bottom + 40 },
       ]}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
     >
         <View style={styles.createTopBar}>
@@ -3783,34 +3793,9 @@ function AppShell({
   showFeedbackBanner?: boolean;
 }) {
   const colors = useColors();
-  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (Platform.OS !== 'web') return;
-
-    const visualViewport = window.visualViewport;
-    const updateViewportHeight = () => {
-      const nextHeight = visualViewport?.height ?? window.innerHeight;
-      if (nextHeight > 0) {
-        setViewportHeight((current) => current === nextHeight ? current : nextHeight);
-      }
-    };
-
-    updateViewportHeight();
-    window.addEventListener('resize', updateViewportHeight);
-    visualViewport?.addEventListener('resize', updateViewportHeight);
-    return () => {
-      window.removeEventListener('resize', updateViewportHeight);
-      visualViewport?.removeEventListener('resize', updateViewportHeight);
-    };
-  }, []);
-
-  const viewportStyle = Platform.OS === 'web' && viewportHeight
-    ? { height: viewportHeight }
-    : undefined;
 
   return (
-    <View style={[styles.app, { backgroundColor: colors.background }, viewportStyle]}>
+    <View style={[styles.app, { backgroundColor: colors.background }]}>
       {showFeedbackBanner ? <FeedbackBanner /> : null}
       <View style={styles.appContent}>{children}</View>
       {bottomNav}
@@ -4008,12 +3993,12 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  app: { flex: 1, minHeight: 0 },
-  appContent: { flex: 1, minHeight: 0 },
+  app: { flex: 1 },
+  appContent: { flex: 1 },
   feedbackBanner: { alignItems: 'center', paddingHorizontal: 14, paddingBottom: 8 },
   feedbackBannerText: { width: '100%', textAlign: 'center', fontSize: 13, lineHeight: 19, fontFamily: 'Inter_500Medium' },
   feedbackBannerLink: { fontFamily: 'Inter_700Bold', textDecorationLine: 'underline' },
-  screen: { flex: 1, minHeight: 0 },
+  screen: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingHorizontal: 20 },
   header: { paddingBottom: 24, flexDirection: 'row', alignItems: 'flex-start' },
@@ -4117,8 +4102,8 @@ const styles = StyleSheet.create({
   welcomeHomeIndicator: { width: 104, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4, opacity: 0.92 },
   emailLoginLink: { alignItems: 'center', paddingVertical: 2 },
   emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  emailAuthScreen: { flex: 1, minHeight: 0 },
-  emailAuthScroll: { flex: 1, minHeight: 0 },
+  emailAuthScreen: { flex: 1 },
+  emailAuthScroll: { flex: 1 },
   emailAuthContent: { flexGrow: 1, paddingHorizontal: 22, justifyContent: 'center' },
   emailBack: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, alignSelf: 'flex-start' },
   emailBackIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
@@ -4126,12 +4111,6 @@ const styles = StyleSheet.create({
   emailAuthForm: { width: '100%', maxWidth: 430, alignSelf: 'center', gap: 18 },
   emailAuthHeader: { gap: 12 },
   emailAuthFields: { gap: 14 },
-  emailSignupProgress: { gap: 8, marginTop: 2 },
-  emailSignupProgressMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  emailSignupProgressLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1 },
-  emailSignupProgressHint: { fontSize: 10, fontFamily: 'Inter_500Medium' },
-  emailSignupProgressTrack: { flexDirection: 'row', gap: 5 },
-  emailSignupProgressSegment: { flex: 1, height: 4, borderRadius: 2 },
   emailIllustration: { width: 70, height: 70, borderRadius: 35, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   emailCardIntro: { gap: 5, alignItems: 'center', marginTop: 0, marginBottom: 2 },
   emailHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.5, marginBottom: 2 },
@@ -4141,7 +4120,6 @@ const styles = StyleSheet.create({
   emailSwitchPrompt: { fontSize: 13, fontFamily: 'Inter_500Medium' },
   emailSwitchLink: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   emailField: { gap: 8 },
-  emailFieldHint: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
   emailLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 0.55 },
   emailInputRow: { height: 54, flexDirection: 'row', alignItems: 'center', borderWidth: 1 },
   emailInputIcon: { marginLeft: 14, marginRight: 10 },
@@ -4151,7 +4129,7 @@ const styles = StyleSheet.create({
   emailSecureNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: -1 },
   emailSecureNoteText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   
-  onboarding: { flex: 1, minHeight: 0 },
+  onboarding: { flex: 1 },
   flowScreenContent: { flexGrow: 1 },
   flowHeader: { paddingHorizontal: 24, paddingBottom: 8 },
   flowHeaderTop: { height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
