@@ -1,10 +1,17 @@
 import crypto from "node:crypto";
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, sql } from "drizzle-orm";
 import type { NextFunction, Request, Response } from "express";
 import { db } from "@workspace/db";
-import { emailAccountsTable, usersTable, type User, type UserType } from "@workspace/db/schema";
+import {
+  emailAccountsTable,
+  telegramSessionsTable,
+  usersTable,
+  type User,
+  type UserType,
+} from "@workspace/db/schema";
 import { verifyTelegramInitData as verifySignedTelegramInitData, type TelegramIdentity } from "./telegram-init-data";
 import { logger } from "./logger";
+import { selectTelegramProfile } from "./telegram-identity";
 
 export type { TelegramIdentity } from "./telegram-init-data";
 
@@ -79,6 +86,16 @@ async function issueEmailSession(userId: number, accountId: number): Promise<str
       updatedAt: new Date(),
     })
     .where(eq(emailAccountsTable.id, accountId));
+  return token;
+}
+
+export async function issueTelegramSession(userId: number): Promise<string> {
+  const token = `telegram_${crypto.randomBytes(32).toString("base64url")}`;
+  await db.insert(telegramSessionsTable).values({
+    userId,
+    tokenHash: hashSessionToken(token),
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  });
   return token;
 }
 
@@ -163,6 +180,19 @@ export async function findUserByEmailSession(sessionToken: string): Promise<User
   });
 }
 
+export async function findUserByTelegramSession(sessionToken: string): Promise<User | undefined> {
+  const session = await db.query.telegramSessionsTable.findFirst({
+    where: and(
+      eq(telegramSessionsTable.tokenHash, hashSessionToken(sessionToken)),
+      gt(telegramSessionsTable.expiresAt, new Date()),
+    ),
+  });
+  if (!session) return undefined;
+  return db.query.usersTable.findFirst({
+    where: eq(usersTable.id, session.userId),
+  });
+}
+
 export function verifyTelegramInitData(initData: string): TelegramIdentity {
   return verifySignedTelegramInitData(initData, getBotToken());
 }
@@ -170,29 +200,67 @@ export function verifyTelegramInitData(initData: string): TelegramIdentity {
 export async function upsertTelegramUser(identity: TelegramIdentity, selectedUserType?: UserType): Promise<User> {
   const name = [identity.first_name, identity.last_name].filter(Boolean).join(" ") || "Telegram user";
   const avatarUrl = validatedTelegramPhotoUrl(identity.photo_url);
-  const [user] = await db
+  const telegramId = String(identity.id);
+  const profiles = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.telegramId, telegramId))
+    .orderBy(asc(usersTable.id));
+
+  const existing = selectTelegramProfile(profiles, selectedUserType);
+
+  if (existing) {
+    const claimUnassignedProfile = existing.userType === null && selectedUserType !== undefined;
+    const [updated] = await db
+      .update(usersTable)
+      .set({
+        ...(claimUnassignedProfile ? { userType: selectedUserType } : {}),
+        ...(avatarUrl && existing.avatarUrl !== avatarUrl ? { avatarUrl } : {}),
+        updatedAt: new Date(),
+      })
+      .where(
+        claimUnassignedProfile
+          ? and(eq(usersTable.id, existing.id), isNull(usersTable.userType))
+          : eq(usersTable.id, existing.id),
+      )
+      .returning();
+    if (updated) return updated;
+    if (claimUnassignedProfile) return upsertTelegramUser(identity, selectedUserType);
+    return existing;
+  }
+
+  const [created] = await db
     .insert(usersTable)
     .values({
-      telegramId: String(identity.id),
+      telegramId,
       name,
-      username: identity.username ?? null,
+      // Each profile owns its public username. Do not reuse Telegram's
+      // username for a second profile under the same identity.
+      username: null,
       avatarUrl: avatarUrl ?? null,
       userType: selectedUserType ?? null,
     })
-    .onConflictDoUpdate({
-      target: usersTable.telegramId,
-      set: {
-        username: identity.username ?? null,
-        ...(avatarUrl ? { avatarUrl } : {}),
-        ...(selectedUserType
-          ? { userType: sql`COALESCE(${usersTable.userType}, ${selectedUserType})` }
-          : {}),
-        updatedAt: new Date(),
-      },
-    })
+    .onConflictDoNothing()
     .returning();
-  if (!user) throw new Error("Unable to create Telegram user.");
-  return user;
+  if (created) return created;
+
+  // A concurrent sign-in may have created the same profile after our read.
+  const [racedProfile] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.telegramId, telegramId))
+    .orderBy(asc(usersTable.id));
+  if (racedProfile) {
+    if (!selectedUserType || racedProfile.userType === selectedUserType) return racedProfile;
+    const matchingProfile = await db.query.usersTable.findFirst({
+      where: and(
+        eq(usersTable.telegramId, telegramId),
+        eq(usersTable.userType, selectedUserType),
+      ),
+    });
+    if (matchingProfile) return matchingProfile;
+  }
+  throw new Error("Unable to create Telegram profile.");
 }
 
 export async function requireTelegramUser(
@@ -220,6 +288,16 @@ export async function requireTelegramUser(
       next();
       return;
     }
+    if (initData.startsWith("telegram_")) {
+      const user = await findUserByTelegramSession(initData);
+      if (!user) {
+        res.status(401).json({ message: "Your Telegram session is invalid or expired." });
+        return;
+      }
+      (req as AuthenticatedRequest).telegramUser = user;
+      next();
+      return;
+    }
     const identity = verifyTelegramInitData(initData);
     const user = await upsertTelegramUser(identity);
     (req as AuthenticatedRequest).telegramUser = user;
@@ -236,10 +314,16 @@ export function currentUser(req: Request): User {
   return user;
 }
 
-export async function findUserByTelegramId(telegramId: number): Promise<User | undefined> {
-  return db.query.usersTable.findFirst({
-    where: eq(usersTable.telegramId, String(telegramId)),
-  });
+export async function findUserByTelegramId(
+  telegramId: number,
+  userType?: UserType,
+): Promise<User | undefined> {
+  const matches = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.telegramId, String(telegramId)))
+    .orderBy(asc(usersTable.id));
+  return userType ? matches.find((profile) => profile.userType === userType) : matches[0];
 }
 
 export async function findUserByUsername(username: string): Promise<User | undefined> {

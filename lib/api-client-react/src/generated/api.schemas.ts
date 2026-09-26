@@ -27,7 +27,10 @@ export const UserType = {
 } as const;
 
 export interface TelegramAuthInput {
-  /** @minLength 1 */
+  /**
+     * Signed Telegram Mini App data or a valid profile-bound Telegram session.
+     * @minLength 1
+     */
   initData: string;
   userType?: UserType;
 }
@@ -89,8 +92,8 @@ export interface User {
 export interface AuthResponse {
   user: User;
   isNew: boolean;
-  /** @nullable */
-  sessionToken: string | null;
+  /** @minLength 1 */
+  sessionToken: string;
 }
 
 export interface EmailSignupInput {
@@ -169,6 +172,12 @@ export interface OrganisationProfileInput {
 export interface ProfileUpdateInput {
   /** @minLength 1 */
   name?: string;
+  /**
+     * @minLength 5
+     * @maxLength 32
+     * @pattern ^[A-Za-z0-9_]{5,32}$
+     */
+  username?: string;
   /** @nullable */
   bio?: string | null;
   /** @nullable */

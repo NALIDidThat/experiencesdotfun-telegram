@@ -8,6 +8,7 @@ import {
   type CommunityMember,
   type User,
 } from "@workspace/db/schema";
+import { hasSameTelegramIdentity } from "./telegram-identity";
 import { logger } from "./logger";
 import {
   COMMUNITY_XP_CONFIG,
@@ -258,7 +259,7 @@ export async function processAdminCommunityReward(input: {
   | { awarded: true; xpAwarded: number }
   | { awarded: false; reason: "self_reward" | "already_processed" | "daily_limit" }
 > {
-  if (input.admin.id === input.recipient.id) {
+  if (hasSameTelegramIdentity(input.admin, input.recipient)) {
     return { awarded: false, reason: "self_reward" };
   }
 

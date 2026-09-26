@@ -238,7 +238,7 @@ export const getAuthenticateTelegramUrl = () => {
 }
 
 /**
- * @summary Authenticate a Telegram Mini App user
+ * @summary Authenticate or select a Telegram profile
  */
 export const authenticateTelegram = async (telegramAuthInput: TelegramAuthInput, options?: Parameters<typeof customFetch>[1]): Promise<AuthResponse> => {
 
@@ -304,7 +304,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type AuthenticateTelegramMutationVariables = {data: BodyType<TelegramAuthInput>}
 
     /**
- * @summary Authenticate a Telegram Mini App user
+ * @summary Authenticate or select a Telegram profile
  */
 export const useAuthenticateTelegram = <TError = ErrorType<UnauthorizedResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authenticateTelegram>>, TError,AuthenticateTelegramMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

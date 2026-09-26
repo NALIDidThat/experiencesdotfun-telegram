@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  index,
   integer,
   pgTable,
   serial,
@@ -29,7 +31,13 @@ export const usersTable = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    telegramIdIndex: uniqueIndex("users_telegram_id_idx").on(table.telegramId),
+    telegramUserTypeIndex: uniqueIndex("users_telegram_user_type_idx").on(
+      table.telegramId,
+      table.userType,
+    ),
+    unassignedTelegramIndex: uniqueIndex("users_telegram_unassigned_idx")
+      .on(table.telegramId)
+      .where(sql`${table.userType} IS NULL`),
     usernameIndex: uniqueIndex("users_username_idx").on(table.username),
   }),
 );
@@ -52,6 +60,23 @@ export const emailAccountsTable = pgTable(
     userIdIndex: uniqueIndex("email_accounts_user_id_idx").on(table.userId),
     emailIndex: uniqueIndex("email_accounts_email_idx").on(table.email),
     sessionTokenIndex: uniqueIndex("email_accounts_session_token_idx").on(table.sessionTokenHash),
+  }),
+);
+
+export const telegramSessionsTable = pgTable(
+  "telegram_sessions",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => usersTable.id),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    tokenHashIndex: uniqueIndex("telegram_sessions_token_hash_idx").on(table.tokenHash),
+    userIdIndex: index("telegram_sessions_user_id_idx").on(table.userId),
   }),
 );
 

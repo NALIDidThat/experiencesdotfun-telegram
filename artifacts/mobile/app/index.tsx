@@ -951,7 +951,10 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
   const [organisationDescription, setOrganisationDescription] = useState(user.organisation?.description ?? '');
   const [bio, setBio] = useState(user.bio ?? '');
   const [name, setName] = useState(user.name ?? '');
+  const [username, setUsername] = useState(user.username ?? '');
   const [saveError, setSaveError] = useState<string | null>(null);
+  const normalizedUsername = username.trim().replace(/^@+/, '').toLowerCase();
+  const usernameIsValid = /^[a-z0-9_]{5,32}$/.test(normalizedUsername);
 
   const steps = accountType === 'organisation'
     ? [
@@ -1014,7 +1017,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
   const next = async () => {
     triggerHaptic();
     Keyboard.dismiss();
-    if (step === 1 && !name.trim()) return;
+    if (step === 1 && (!name.trim() || !usernameIsValid)) return;
     if (step === 2 && accountType === 'participant' && interests.length === 0) return;
     if (step === 2 && accountType === 'organisation' && (!organisationName.trim() || !organisationDescription.trim())) return;
     if (step === 3 && (!city.trim() || (accountType === 'organisation' && interests.length === 0))) return;
@@ -1029,6 +1032,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
         const data = accountType === 'organisation'
           ? {
               name: name.trim(),
+              username: normalizedUsername,
               bio: bio.trim() || null,
               city: city.trim(),
               interests,
@@ -1043,6 +1047,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
             }
           : {
               name: name.trim(),
+              username: normalizedUsername,
               bio: bio.trim() || null,
               city: city.trim(),
               interests,
@@ -1069,7 +1074,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
   };
 
   const stepIsInvalid =
-    (step === 1 && !name.trim()) ||
+    (step === 1 && (!name.trim() || !usernameIsValid)) ||
     (step === 2 && (accountType === 'participant'
       ? interests.length === 0
       : !organisationName.trim() || !organisationDescription.trim())) ||
@@ -1078,11 +1083,13 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
   const reviewItems = accountType === 'organisation'
     ? [
         { label: 'Contact', value: name.trim() || 'Add a contact name', step: 1 },
+        { label: 'Username', value: normalizedUsername ? `@${normalizedUsername}` : 'Choose a username', step: 1 },
         { label: 'Organisation', value: organisationName.trim() || 'Add an organisation name', step: 2 },
         { label: 'Location & focus', value: `${city.trim() || 'Add a city'} · ${interests.map((value) => categoryLabel[value]).join(', ') || 'Choose causes'}`, step: 3 },
       ]
     : [
         { label: 'Display name', value: name.trim() || 'Add your name', step: 1 },
+        { label: 'Username', value: normalizedUsername ? `@${normalizedUsername}` : 'Choose a username', step: 1 },
         { label: 'Interests', value: interests.map((value) => categoryLabel[value]).join(', ') || 'Choose interests', step: 2 },
         { label: 'City', value: city.trim() || 'Add your city', step: 3 },
       ];
@@ -1126,8 +1133,23 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
               placeholderTextColor={colors.mutedForeground}
               style={[styles.flowTextInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]}
             />
+            <Text style={[styles.flowFieldLabel, { color: colors.foreground }]}>Public username</Text>
+            <TextInput
+              accessibilityLabel="Public username"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={32}
+              returnKeyType="done"
+              placeholder="yourusername"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.flowTextInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card, borderRadius: colors.radius }]}
+            />
             <Text style={[styles.flowFieldHint, { color: colors.mutedForeground }]}>
-              {user.email ? `Signed in as ${user.email}` : 'Your Telegram account stays connected automatically.'}
+              {user.email
+                ? 'Choose a unique username for this profile.'
+                : 'Choose a unique username for this profile. Your other account keeps its own history.'}
             </Text>
           </View>
         ) : null}
@@ -2877,6 +2899,16 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
     go('host');
   };
 
+  const handleSwitchProfile = async () => {
+    if (!current.userType) return;
+    setProfileMenuError(null);
+    const nextType: UserType = current.userType === 'organisation' ? 'participant' : 'organisation';
+    const switched = await login(nextType);
+    if (!switched) {
+      setProfileMenuError('We couldn’t switch profiles. Your current account is still active—please try again.');
+    }
+  };
+
   const handleSignOut = async () => {
     setProfileMenuError(null);
     try {
@@ -2917,6 +2949,14 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
                 label: 'Organisation tools',
                 icon: 'briefcase' as IconName,
                 onPress: openHostTools,
+              }]
+            : []),
+          ...(authenticatedUser?.telegramId != null && current.userType
+            ? [{
+                key: 'switch-profile',
+                label: current.userType === 'organisation' ? 'Switch to Participant' : 'Switch to Organisation',
+                icon: 'repeat' as IconName,
+                onPress: () => { void handleSwitchProfile(); },
               }]
             : []),
           {
@@ -3679,6 +3719,7 @@ export default function App() {
   const needsOnboarding = Boolean(user && (
     !user.userType
     || !user.name.trim()
+    || !/^[a-z0-9_]{5,32}$/.test(user.username?.toLowerCase() ?? '')
     || !user.city?.trim()
     || !user.interests.length
     || organisationProfileIncomplete

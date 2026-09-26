@@ -26,15 +26,18 @@ export const GetBotInfoResponse = zod.object({
 
 
 /**
- * @summary Authenticate a Telegram Mini App user
+ * @summary Authenticate or select a Telegram profile
  */
 
 
 
 export const AuthenticateTelegramBody = zod.object({
-  "initData": zod.string().min(1),
+  "initData": zod.string().min(1).describe('Signed Telegram Mini App data or a valid profile-bound Telegram session.'),
   "userType": zod.enum(['participant', 'organisation']).optional()
 })
+
+
+
 
 export const AuthenticateTelegramResponse = zod.object({
   "user": zod.object({
@@ -67,7 +70,7 @@ export const AuthenticateTelegramResponse = zod.object({
   "rewardsPence": zod.number().int()
 }),
   "isNew": zod.boolean(),
-  "sessionToken": zod.string().nullable()
+  "sessionToken": zod.string().min(1)
 })
 
 
@@ -85,6 +88,9 @@ export const SignUpWithEmailBody = zod.object({
   "password": zod.string().min(signUpWithEmailBodyPasswordMin),
   "userType": zod.enum(['participant', 'organisation'])
 })
+
+
+
 
 export const SignUpWithEmailResponse = zod.object({
   "user": zod.object({
@@ -117,7 +123,7 @@ export const SignUpWithEmailResponse = zod.object({
   "rewardsPence": zod.number().int()
 }),
   "isNew": zod.boolean(),
-  "sessionToken": zod.string().nullable()
+  "sessionToken": zod.string().min(1)
 })
 
 
@@ -131,6 +137,9 @@ export const LoginWithEmailBody = zod.object({
   "email": zod.string().email(),
   "password": zod.string().min(1)
 })
+
+
+
 
 export const LoginWithEmailResponse = zod.object({
   "user": zod.object({
@@ -163,7 +172,7 @@ export const LoginWithEmailResponse = zod.object({
   "rewardsPence": zod.number().int()
 }),
   "isNew": zod.boolean(),
-  "sessionToken": zod.string().nullable()
+  "sessionToken": zod.string().min(1)
 })
 
 
@@ -205,6 +214,11 @@ export const GetMeResponse = zod.object({
  * @summary Update the current user's profile
  */
 
+export const updateMeBodyUsernameMin = 5;
+export const updateMeBodyUsernameMax = 32;
+
+
+export const updateMeBodyUsernameRegExp = new RegExp('^[A-Za-z0-9_]{5,32}$');
 export const updateMeBodyOrganisationNameMin = 2;
 export const updateMeBodyOrganisationNameMax = 120;
 
@@ -219,6 +233,7 @@ export const updateMeBodyOrganisationCityMax = 100;
 
 export const UpdateMeBody = zod.object({
   "name": zod.string().min(1).optional(),
+  "username": zod.string().min(updateMeBodyUsernameMin).max(updateMeBodyUsernameMax).regex(updateMeBodyUsernameRegExp).optional(),
   "bio": zod.string().nullish(),
   "city": zod.string().nullish(),
   "country": zod.string().nullish(),

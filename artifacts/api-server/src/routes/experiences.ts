@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   AcceptFriendRequestParams,
@@ -32,12 +32,15 @@ import {
   authenticateEmail,
   createEmailAccount,
   findUserByTelegramId,
+  findUserByTelegramSession,
   findUserByUsername,
+  issueTelegramSession,
   requireTelegramUser,
   upsertTelegramUser,
   verifyTelegramInitData,
 } from "../lib/auth";
 import { logger } from "../lib/logger";
+import { hasSameTelegramIdentity } from "../lib/telegram-identity";
 import {
   currentOrganisation,
   experienceResponse,
@@ -67,25 +70,49 @@ router.post("/auth/telegram", async (req, res) => {
   }
 
   let identity: ReturnType<typeof verifyTelegramInitData>;
-  try {
-    identity = verifyTelegramInitData(parsed.data.initData);
-  } catch (authError) {
-    const reason = authError instanceof Error ? authError.message : "";
-    logger.warn({ err: authError }, "Telegram login rejected");
-    if (reason === "TELEGRAM_BOT_TOKEN is not configured.") {
-      error(res, 503, "Telegram sign-in is temporarily unavailable. Please use email or try again later.");
-    } else if (reason.includes("expired")) {
-      error(res, 401, "Your Telegram sign-in has expired. Close the Mini App and reopen it from the official bot.");
-    } else {
-      error(res, 401, "Telegram could not verify this sign-in. Close the Mini App and reopen it from the official bot.");
+  if (parsed.data.initData.startsWith("telegram_")) {
+    const activeProfile = await findUserByTelegramSession(parsed.data.initData);
+    const telegramId = Number(activeProfile?.telegramId);
+    if (!activeProfile || !Number.isSafeInteger(telegramId) || telegramId <= 0) {
+      error(res, 401, "Your Telegram session is invalid or expired. Sign in again.");
+      return;
     }
-    return;
+    identity = {
+      id: telegramId,
+      first_name: activeProfile.name,
+      photo_url: activeProfile.avatarUrl ?? undefined,
+    };
+  } else {
+    try {
+      identity = verifyTelegramInitData(parsed.data.initData);
+    } catch (authError) {
+      const reason = authError instanceof Error ? authError.message : "";
+      logger.warn({ err: authError }, "Telegram login rejected");
+      if (reason === "TELEGRAM_BOT_TOKEN is not configured.") {
+        error(res, 503, "Telegram sign-in is temporarily unavailable. Please use email or try again later.");
+      } else if (reason.includes("expired")) {
+        error(res, 401, "Your Telegram sign-in has expired. Close the Mini App and reopen it from the official bot.");
+      } else {
+        error(res, 401, "Telegram could not verify this sign-in. Close the Mini App and reopen it from the official bot.");
+      }
+      return;
+    }
   }
 
   try {
-    const existing = await findUserByTelegramId(identity.id);
+    const existing = parsed.data.userType
+      ? await findUserByTelegramId(identity.id, parsed.data.userType)
+      : await findUserByTelegramId(identity.id);
+    const inheritedUnassigned = parsed.data.userType && !existing
+      ? await findUserByTelegramId(identity.id)
+      : undefined;
     const user = await upsertTelegramUser(identity, parsed.data.userType);
-    res.json({ user: await userResponse(user), isNew: !existing, sessionToken: null });
+    const sessionToken = await issueTelegramSession(user.id);
+    res.json({
+      user: await userResponse(user),
+      isNew: !existing && inheritedUnassigned?.userType !== null,
+      sessionToken,
+    });
   } catch (accountError) {
     logger.error({ err: accountError }, "Telegram account initialization failed");
     error(res, 500, "Telegram was verified, but your profile could not be loaded. Please try again or use email.");
@@ -181,50 +208,82 @@ router.patch("/me", async (req, res) => {
     });
     return;
   }
-  const updated = await db.transaction(async (transaction) => {
-    const [updatedUser] = await transaction
-      .update(usersTable)
-      .set({
-        ...(patch.name !== undefined ? { name: patch.name } : {}),
-        ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
-        ...(patch.city !== undefined ? { city: patch.city } : {}),
-        ...(patch.country !== undefined ? { country: patch.country } : {}),
-        ...(patch.interests !== undefined ? { interests: patch.interests } : {}),
-        ...(patch.participationType !== undefined
-          ? { participationType: patch.participationType }
-          : {}),
-        ...(patch.userType !== undefined ? { userType: patch.userType } : {}),
-        updatedAt: new Date(),
-      })
-      .where(eq(usersTable.id, user.id))
-      .returning();
-
-    if (patch.organisation) {
-      const profile = patch.organisation;
-      const existing = await transaction.query.organisationsTable.findFirst({
-        where: eq(organisationsTable.ownerUserId, user.id),
-        orderBy: desc(organisationsTable.createdAt),
-      });
-      const values = {
-        name: profile.name.trim(),
-        description: profile.description.trim(),
-        city: profile.city.trim(),
-        country: patch.country ?? user.country,
-        categories: profile.categories,
-      };
-      if (existing) {
-        await transaction
-          .update(organisationsTable)
-          .set(values)
-          .where(eq(organisationsTable.id, existing.id));
-      } else {
-        await transaction
-          .insert(organisationsTable)
-          .values({ ownerUserId: user.id, ...values });
+  const username = patch.username === undefined
+    ? user.username
+    : patch.username.trim().replace(/^@+/, "").toLowerCase();
+  if ((patch.userType ?? user.userType) !== null && !username) {
+    error(res, 400, "Choose a unique username to finish creating your profile.");
+    return;
+  }
+  if (patch.username !== undefined && !/^[a-z0-9_]{5,32}$/.test(username ?? "")) {
+    error(res, 400, "Username must be 5–32 letters, numbers, or underscores.");
+    return;
+  }
+  let updated: typeof user | undefined;
+  try {
+    updated = await db.transaction(async (transaction) => {
+      if (patch.username !== undefined && username) {
+        await transaction.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${username}, 0))`);
+        const usernameOwner = await transaction.query.usersTable.findFirst({
+          where: and(
+            sql`lower(${usersTable.username}) = ${username}`,
+            ne(usersTable.id, user.id),
+          ),
+        });
+        if (usernameOwner) throw new Error("USERNAME_ALREADY_TAKEN");
       }
+
+      const [updatedUser] = await transaction
+        .update(usersTable)
+        .set({
+          ...(patch.name !== undefined ? { name: patch.name } : {}),
+          ...(patch.username !== undefined && username ? { username } : {}),
+          ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
+          ...(patch.city !== undefined ? { city: patch.city } : {}),
+          ...(patch.country !== undefined ? { country: patch.country } : {}),
+          ...(patch.interests !== undefined ? { interests: patch.interests } : {}),
+          ...(patch.participationType !== undefined
+            ? { participationType: patch.participationType }
+            : {}),
+          ...(patch.userType !== undefined ? { userType: patch.userType } : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(usersTable.id, user.id))
+        .returning();
+
+      if (patch.organisation) {
+        const profile = patch.organisation;
+        const existing = await transaction.query.organisationsTable.findFirst({
+          where: eq(organisationsTable.ownerUserId, user.id),
+          orderBy: desc(organisationsTable.createdAt),
+        });
+        const values = {
+          name: profile.name.trim(),
+          description: profile.description.trim(),
+          city: profile.city.trim(),
+          country: patch.country ?? user.country,
+          categories: profile.categories,
+        };
+        if (existing) {
+          await transaction
+            .update(organisationsTable)
+            .set(values)
+            .where(eq(organisationsTable.id, existing.id));
+        } else {
+          await transaction
+            .insert(organisationsTable)
+            .values({ ownerUserId: user.id, ...values });
+        }
+      }
+      return updatedUser;
+    });
+  } catch (updateError) {
+    if (updateError instanceof Error && updateError.message === "USERNAME_ALREADY_TAKEN") {
+      error(res, 409, "That username is already in use. Choose a different one.");
+      return;
     }
-    return updatedUser;
-  });
+    throw updateError;
+  }
   res.json(await userResponse(updated ?? user));
 });
 
@@ -369,6 +428,18 @@ router.post("/experiences/:experienceId/join", async (req, res) => {
     error(res, 404, "Experience not found.");
     return;
   }
+  const organisation = await db.query.organisationsTable.findFirst({
+    where: eq(organisationsTable.id, experience.organisationId),
+  });
+  const host = organisation
+    ? await db.query.usersTable.findFirst({
+        where: eq(usersTable.id, organisation.ownerUserId),
+      })
+    : undefined;
+  if (host && hasSameTelegramIdentity(host, user)) {
+    error(res, 403, "You can’t join an experience hosted by another profile linked to your Telegram account.");
+    return;
+  }
   const existing = await db.query.participationsTable.findFirst({
     where: and(
       eq(participationsTable.experienceId, experience.id),
@@ -396,17 +467,9 @@ router.post("/experiences/:experienceId/join", async (req, res) => {
     .insert(participationsTable)
     .values({ experienceId: experience.id, userId: user.id })
     .returning();
-  const organisation = await db.query.organisationsTable.findFirst({
-    where: eq(organisationsTable.id, experience.organisationId),
-  });
   await sendExperienceJoinedNotification(user.telegramId, experience);
-  if (organisation) {
-    const host = await db.query.usersTable.findFirst({
-      where: eq(usersTable.id, organisation.ownerUserId),
-    });
-    if (host && host.id !== user.id) {
-      await sendHostNewParticipantNotification(host.telegramId, user.name, experience);
-    }
+  if (host) {
+    await sendHostNewParticipantNotification(host.telegramId, user.name, experience);
   }
   res.status(201).json(await participationResponse(created));
 });
@@ -596,6 +659,13 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
   const participation = await hostParticipation(req, parsed.data.participationId);
   if (!participation) {
     error(res, 404, "Participation not found.");
+    return;
+  }
+  const participantAccount = await db.query.usersTable.findFirst({
+    where: eq(usersTable.id, participation.userId),
+  });
+  if (participantAccount && hasSameTelegramIdentity(participantAccount, currentUser(req))) {
+    error(res, 403, "You can’t verify a contribution from another profile linked to your Telegram account.");
     return;
   }
   if (participation.status !== "submitted") {

@@ -13,6 +13,12 @@ import type { UserType } from './userType';
 export interface ProfileUpdateInput {
   /** @minLength 1 */
   name?: string;
+  /**
+     * @minLength 5
+     * @maxLength 32
+     * @pattern ^[A-Za-z0-9_]{5,32}$
+     */
+  username?: string;
   /** @nullable */
   bio?: string | null;
   /** @nullable */

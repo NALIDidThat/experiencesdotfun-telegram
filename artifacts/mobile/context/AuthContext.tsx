@@ -100,7 +100,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await authenticateRef.current.mutateAsync({
         data: { initData: candidate, ...(accountType ? { userType: accountType } : {}) },
       });
-      await saveAuthToken(candidate);
+      if (!response.sessionToken) {
+        throw new Error('Telegram sign-in did not create a profile session.');
+      }
+      queryClient.clear();
+      await saveAuthToken(response.sessionToken);
       setInitData(candidate);
       setUser(response.user);
       return true;
@@ -116,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryClient]);
 
   const completeEmailAuth = useCallback(async (response: AuthResponse) => {
     if (!response.sessionToken) {
@@ -132,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, []);
 
-  const restoreEmailSession = useCallback(async () => {
+  const restoreStoredSession = useCallback(async () => {
     setLoading(true);
     try {
       const currentUser = await getMe();
@@ -144,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await clearStoredAuthToken();
       setUser(null);
       setInitData(null);
-      setAuthError('Your saved email session has expired. Log in again.');
+      setAuthError('Your saved session has expired. Sign in again.');
       return false;
     } finally {
       setLoading(false);
@@ -184,10 +188,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const liveData = getTelegramInitData();
     const storedData = liveData ? null : await getStoredAuthToken();
     if (!liveData && storedData?.startsWith('email_')) {
-      return restoreEmailSession();
+      return restoreStoredSession();
     }
     return authenticateWith(liveData ?? storedData, true, Boolean(user), accountType);
-  }, [authenticateWith, restoreEmailSession, user]);
+  }, [authenticateWith, restoreStoredSession, user]);
 
   useEffect(() => {
     let active = true;
@@ -199,8 +203,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return;
       }
-      if (storedData.startsWith('email_')) {
-        await restoreEmailSession();
+      if (storedData.startsWith('email_') || storedData.startsWith('telegram_')) {
+        await restoreStoredSession();
         return;
       }
       await authenticateWith(storedData, false);
@@ -208,7 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [authenticateWith, restoreEmailSession]);
+  }, [authenticateWith, restoreStoredSession]);
 
   const value = useMemo(
     () => ({

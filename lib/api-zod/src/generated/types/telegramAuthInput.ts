@@ -8,7 +8,10 @@
 import type { UserType } from './userType';
 
 export interface TelegramAuthInput {
-  /** @minLength 1 */
+  /**
+     * Signed Telegram Mini App data or a valid profile-bound Telegram session.
+     * @minLength 1
+     */
   initData: string;
   userType?: UserType;
 }

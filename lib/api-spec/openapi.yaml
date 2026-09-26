@@ -52,7 +52,7 @@ paths:
     post:
       operationId: authenticateTelegram
       tags: [auth]
-      summary: Authenticate a Telegram Mini App user
+      summary: Authenticate or select a Telegram profile
       requestBody:
         required: true
         content:
@@ -642,6 +642,7 @@ components:
         initData:
           type: string
           minLength: 1
+          description: Signed Telegram Mini App data or a valid profile-bound Telegram session.
         userType:
           $ref: "#/components/schemas/UserType"
       required: [initData]
@@ -653,7 +654,8 @@ components:
         isNew:
           type: boolean
         sessionToken:
-          type: [string, "null"]
+          type: string
+          minLength: 1
       required: [user, isNew, sessionToken]
     EmailSignupInput:
       type: object
@@ -778,6 +780,11 @@ components:
         name:
           type: string
           minLength: 1
+        username:
+          type: string
+          minLength: 5
+          maxLength: 32
+          pattern: "^[A-Za-z0-9_]{5,32}$"
         bio:
           type: [string, "null"]
         city:

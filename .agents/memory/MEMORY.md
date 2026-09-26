@@ -2,7 +2,7 @@
 - [Expo preview bundles](expo-preview-bundles.md) — Metro runs with reloads disabled under CI, so restart the mobile workflow before trusting post-edit screenshots.
 - [Telegram auth bootstrap](telegram-auth-bootstrap.md) — keep Telegram authentication initialization stable across React Query mutation rerenders.
 - [Email auth sessions](email-auth-sessions.md) — email users use hashed passwords and expiring bearer sessions through the same protected API routes.
-- [Account-type selection](account-type-selection.md) — save the chosen role for new accounts; an existing server role remains authoritative.
+- [Account-type selection](account-type-selection.md) — keep Participant and Organisation data in separate profiles with distinct usernames and profile-bound sessions.
 - [Telegram polling ownership](telegram-polling-ownership.md) — run only one Telegram long-polling bot instance; local and deployed pollers conflict.
 - [Telegram group bot compatibility](telegram-group-keyboards.md) — group replies cannot use inline Web App buttons; keep personal actions private.
 - [Query invalidation cancellation](query-invalidation-cancellation.md) — treat expected AbortErrors from mutation-triggered query refreshes as cancellation, not app failure.

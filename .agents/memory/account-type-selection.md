@@ -3,8 +3,8 @@ name: Account-type selection
 description: Product rules for setting Participant or Organisation during authentication and onboarding.
 ---
 
-The Participant or Organisation choice is part of new-account creation. Returning accounts keep their saved server-side role; a new choice may fill an unset role but must not change an established one.
+Participant and Organisation are separate profiles under one verified Telegram identity. Switching must select or create the requested profile without changing an established profile's role or merging its username, participation history, or organisation data. An unassigned legacy profile may be claimed once. Public usernames remain globally unique, and Telegram sessions are bound to a specific profile.
 
-**Why:** Participants and organisations have different permissions and onboarding paths. Losing the selection can route participants into the wrong profile, while changing a returning user's role from the client could bypass server-side authorization.
+**Why:** Reusing one user row mixes participant activity with organisation ownership and can let one person act as both sides of a reward flow. A profile-bound session preserves separate data while the verified Telegram identity still provides the right key for preventing self-joins and self-rewards.
 
-**How to apply:** Pass the selected role through signup/authentication, persist it for new accounts, and keep existing non-null server roles authoritative for routing and permissions.
+**How to apply:** Resolve Telegram authentication by the selected role, issue sessions for that user row, and keep established roles locked. Require a distinct global username for each profile. Compare Telegram identity—not just profile row IDs—when checking actions between hosts, participants, and reward recipients.
