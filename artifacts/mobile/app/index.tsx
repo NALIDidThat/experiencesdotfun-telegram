@@ -4228,6 +4228,10 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
   const dragOriginXRef = useRef<number | null>(null);
   const dragStartIndexRef = useRef<number | null>(null);
   const dragIndexRef = useRef<number | null>(null);
+  const pointerStartXRef = useRef<number | null>(null);
+  const pointerStartYRef = useRef<number | null>(null);
+  const slideClaimedRef = useRef(false);
+  const suppressTapUntilRef = useRef(0);
   const itemsRef = useRef(items);
   const activeRef = useRef(active);
   const goRef = useRef(go);
@@ -4261,12 +4265,62 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
     dragIndexRef.current = null;
     setDragIndex(null);
   };
+  const beginWebSlide = (pageX: number, pageY: number) => {
+    const originX = pageX - navLeftRef.current;
+    dragOriginXRef.current = originX;
+    dragStartIndexRef.current = getItemIndexAtX(originX);
+    dragIndexRef.current = dragStartIndexRef.current;
+    pointerStartXRef.current = pageX;
+    pointerStartYRef.current = pageY;
+    slideClaimedRef.current = false;
+  };
+  const moveWebSlide = (
+    pageX: number,
+    pageY: number,
+    event: { preventDefault: () => void },
+  ) => {
+    if (pointerStartXRef.current === null || pointerStartYRef.current === null) return;
+
+    const dx = pageX - pointerStartXRef.current;
+    const dy = pageY - pointerStartYRef.current;
+    if (!slideClaimedRef.current) {
+      if (Math.abs(dx) <= 8 || Math.abs(dx) <= Math.abs(dy) * 1.15) return;
+      slideClaimedRef.current = true;
+      setDragIndex(dragStartIndexRef.current);
+    }
+
+    if (dragOriginXRef.current !== null) {
+      const nextIndex = getItemIndexAtX(dragOriginXRef.current + dx);
+      if (nextIndex !== dragIndexRef.current) {
+        dragIndexRef.current = nextIndex;
+        setDragIndex(nextIndex);
+      }
+    }
+    event.preventDefault();
+  };
+  const finishWebSlide = (pageX?: number, pageY?: number) => {
+    if (pageX !== undefined && pageY !== undefined) {
+      moveWebSlide(pageX, pageY, { preventDefault: () => {} });
+    }
+    const didSlide = slideClaimedRef.current;
+    const destination = itemsRef.current[dragIndexRef.current ?? -1];
+    if (didSlide) suppressTapUntilRef.current = Date.now() + 350;
+    pointerStartXRef.current = null;
+    pointerStartYRef.current = null;
+    slideClaimedRef.current = false;
+    clearDrag();
+    if (didSlide && destination && destination.key !== activeRef.current) {
+      triggerHaptic();
+      goRef.current(destination.key);
+    }
+  };
   const panResponder = useRef(PanResponder.create({
     onMoveShouldSetPanResponderCapture: (_event, gesture) =>
       dragOriginXRef.current !== null
       && Math.abs(gesture.dx) > 8
       && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.15,
     onPanResponderGrant: () => {
+      slideClaimedRef.current = true;
       const startIndex = dragStartIndexRef.current
         ?? Math.max(0, itemsRef.current.findIndex((item) => item.key === activeRef.current));
       dragIndexRef.current = startIndex;
@@ -4285,13 +4339,18 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
         dragIndexRef.current = getItemIndexAtX(dragOriginXRef.current + gesture.dx);
       }
       const destination = itemsRef.current[dragIndexRef.current ?? -1];
+      suppressTapUntilRef.current = Date.now() + 350;
+      slideClaimedRef.current = false;
       clearDrag();
       if (destination && destination.key !== activeRef.current) {
         triggerHaptic();
         goRef.current(destination.key);
       }
     },
-    onPanResponderTerminate: clearDrag,
+    onPanResponderTerminate: () => {
+      slideClaimedRef.current = false;
+      clearDrag();
+    },
   })).current;
 
   return (
@@ -4315,7 +4374,25 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
           navWidthRef.current = event.nativeEvent.layout.width;
           navBarRef.current?.measureInWindow((x) => { navLeftRef.current = x; });
         }}
-        {...panResponder.panHandlers}
+        onTouchStart={Platform.OS === 'web' ? (event) => {
+          const touch = event.nativeEvent.touches[0];
+          if (touch) beginWebSlide(touch.pageX, touch.pageY);
+        } : undefined}
+        onTouchMove={Platform.OS === 'web' ? (event) => {
+          const touch = event.nativeEvent.touches[0];
+          if (touch) moveWebSlide(touch.pageX, touch.pageY, event);
+        } : undefined}
+        onTouchEnd={Platform.OS === 'web' ? (event) => {
+          const touch = event.nativeEvent.changedTouches[0];
+          finishWebSlide(touch?.pageX, touch?.pageY);
+        } : undefined}
+        onTouchCancel={Platform.OS === 'web' ? () => {
+          pointerStartXRef.current = null;
+          pointerStartYRef.current = null;
+          slideClaimedRef.current = false;
+          clearDrag();
+        } : undefined}
+        {...(Platform.OS === 'web' ? {} : panResponder.panHandlers)}
       >
         {items.map((item, index) => {
           const selected = (dragIndex ?? activeIndex) === index;
@@ -4325,6 +4402,7 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
               accessibilityLabel={item.label}
               accessibilityHint="Press and slide across the bar to switch sections."
               accessibilityState={{ selected: active === item.key }}
+              testID={`bottom-nav-tab-${item.key}`}
               key={item.key}
               onLayout={(event) => {
                 const { x, width } = event.nativeEvent.layout;
@@ -4342,13 +4420,14 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
                 dragStartIndexRef.current = index;
                 dragIndexRef.current = index;
               }}
-              onLongPress={() => {
+              onLongPress={Platform.OS === 'web' ? undefined : () => {
                 dragStartIndexRef.current = index;
                 dragIndexRef.current = index;
                 setDragIndex(index);
               }}
               delayLongPress={350}
               onPress={() => {
+                if (slideClaimedRef.current || Date.now() < suppressTapUntilRef.current) return;
                 clearDrag();
                 triggerHaptic();
                 go(item.key);
@@ -4512,8 +4591,32 @@ function AppShell({
   );
 }
 
+function BottomNavInteractionHarness() {
+  const [active, setActive] = useState<Screen>('home');
+  const colors = useColors();
+
+  return (
+    <AppShell
+      showFeedbackBanner={false}
+      bottomNav={<BottomNav active={active} go={setActive} />}
+    >
+      <View
+        testID="nav-test-screen"
+        style={{ alignItems: 'center', flex: 1, justifyContent: 'center' }}
+      >
+        <Text
+          testID="nav-test-active"
+          style={{ color: colors.foreground, fontFamily: 'Inter_700Bold', fontSize: 18 }}
+        >
+          {active}
+        </Text>
+      </View>
+    </AppShell>
+  );
+}
+
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; step?: string; keyboardTest?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; step?: string; keyboardTest?: string; navTest?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -4575,6 +4678,10 @@ export default function App() {
         <KeyboardInteractionHarness />
       </AppShell>
     );
+  }
+
+  if (__DEV__ && params.navTest === '1') {
+    return <BottomNavInteractionHarness />;
   }
 
   if (loading) {

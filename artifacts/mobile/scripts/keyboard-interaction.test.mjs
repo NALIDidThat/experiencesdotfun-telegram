@@ -584,3 +584,76 @@ test("actual signup, profile, and experience forms stay usable with the keyboard
     });
   });
 });
+
+test("bottom navigation can be changed by holding and sliding", async (t) => {
+  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile preview interaction test.");
+
+  const client = await launchBrowser(t);
+  await setViewport(client, initialViewport.height);
+  await client.send("Page.navigate", { url: `https://${domain}/?navTest=1` });
+
+  const activeTab = `document.querySelector('[data-testid="nav-test-active"]')?.textContent?.trim() ?? null`;
+  await waitForValue(client, activeTab, (value) => value === "home", "the bottom-navigation test screen");
+
+  await tapTestId(client, "bottom-nav-tab-explore");
+  await waitForValue(client, activeTab, (value) => value === "explore", "a standard navigation tap");
+
+  const start = await client.evaluate(`(() => {
+    const element = document.querySelector('[data-testid="bottom-nav-tab-home"]');
+    const rect = element?.getBoundingClientRect();
+    return rect ? { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) } : null;
+  })()`);
+  const end = await client.evaluate(`(() => {
+    const element = document.querySelector('[data-testid="bottom-nav-tab-profile"]');
+    const rect = element?.getBoundingClientRect();
+    return rect ? { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) } : null;
+  })()`);
+  assert.ok(start && end, "The first and last navigation tabs should be visible.");
+
+  await client.evaluate(`(() => {
+    const start = ${JSON.stringify(start)};
+    const origin = document.querySelector('[data-testid="bottom-nav-tab-home"]');
+    const makeTouch = (x, y) => new Touch({
+      identifier: 1,
+      target: origin,
+      clientX: x,
+      clientY: y,
+      pageX: x,
+      pageY: y,
+      screenX: x,
+      screenY: y,
+      radiusX: 1,
+      radiusY: 1,
+      rotationAngle: 0,
+      force: 1,
+    });
+    const dispatch = (type, touches, changedTouches) => origin.dispatchEvent(new TouchEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      touches,
+      changedTouches,
+    }));
+    let touch = makeTouch(start.x, start.y);
+    dispatch('touchstart', [touch], [touch]);
+    window.__bottomNavTouchTest = { makeTouch, dispatch };
+  })()`);
+  await delay(450);
+  await client.evaluate(`(() => {
+    const { makeTouch, dispatch } = window.__bottomNavTouchTest;
+    const start = ${JSON.stringify(start)};
+    const end = ${JSON.stringify(end)};
+    let touch;
+    for (const progress of [0.25, 0.5, 0.75, 1]) {
+      touch = makeTouch(
+        Math.round(start.x + (end.x - start.x) * progress),
+        Math.round(start.y + (end.y - start.y) * progress),
+      );
+      dispatch('touchmove', [touch], [touch]);
+    }
+    dispatch('touchend', [], [touch]);
+    delete window.__bottomNavTouchTest;
+  })()`);
+
+  await waitForValue(client, activeTab, (value) => value === "profile", "the dragged destination tab to open");
+});
