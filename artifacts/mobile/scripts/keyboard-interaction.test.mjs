@@ -407,23 +407,44 @@ test("shared form harness remains scrollable across a mobile keyboard resize", a
   assert.ok(Math.abs(keyboardOpen.viewportHeight - keyboardViewportHeight) <= 4,
     `The visual viewport should be ${keyboardViewportHeight}px while the keyboard is emulated; got ${keyboardOpen.viewportHeight}px.`);
 
-  const wheelY = Math.round((keyboardOpen.scrollTopEdge + keyboardOpen.scrollBottomEdge) / 2);
-  await client.send("Input.dispatchMouseEvent", {
-    type: "mouseWheel",
-    x: Math.round(initialViewport.width / 2),
-    y: wheelY,
-    deltaX: 0,
-    deltaY: 1600,
-  });
-  const scrolled = await waitForValue(
-    client,
-    readFormState,
-    (state) => state.scrollTop > 0
-      && state.lastInputBottom <= state.scrollBottomEdge + 2,
-    "the final form field to become visible by scrolling",
-  );
-  assert.equal(scrolled.activeTestId, "keyboard-test-input-0",
-    "Scrolling to lower fields must not blur the field that was already focused.");
+  let scrolled = keyboardOpen;
+  for (let swipe = 0; swipe < 3 && scrolled.lastInputBottom > scrolled.scrollBottomEdge + 2; swipe += 1) {
+    const previousScrollTop = scrolled.scrollTop;
+    const x = initialViewport.width - 5;
+    const startY = Math.round(scrolled.scrollBottomEdge - 18);
+    const endY = Math.round(scrolled.scrollTopEdge + 18);
+    await client.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ id: 1, x, y: startY, force: 1 }],
+    });
+    for (const progress of [0.33, 0.66, 1]) {
+      await delay(16);
+      await client.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [{
+          id: 1,
+          x,
+          y: Math.round(startY + (endY - startY) * progress),
+          force: 1,
+        }],
+      });
+    }
+    await client.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    scrolled = await waitForValue(
+      client,
+      readFormState,
+      (state) => state.scrollTop > previousScrollTop + 1
+        || state.lastInputBottom <= state.scrollBottomEdge + 2,
+      "the form to respond to an upward touch swipe",
+    );
+    assert.equal(scrolled.activeTestId, "keyboard-test-input-0",
+      "Scrolling to lower fields must not blur the field that was already focused.");
+  }
+  assert.ok(scrolled.lastInputBottom <= scrolled.scrollBottomEdge + 2,
+    "The final form field should become visible after upward touch swipes.");
 
   const lastInputX = Math.round(initialViewport.width / 2);
   const lastInputY = Math.round((scrolled.lastInputTop + scrolled.lastInputBottom) / 2);

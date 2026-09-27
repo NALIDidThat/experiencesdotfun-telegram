@@ -10,6 +10,7 @@ export function KeyboardAwareScrollViewCompat({
   children,
   style,
   keyboardShouldPersistTaps = 'handled',
+  keyboardDismissMode = 'none',
   ...props
 }: Props) {
   if (Platform.OS === 'web') {
@@ -17,6 +18,7 @@ export function KeyboardAwareScrollViewCompat({
       <ScrollView
         style={[style, styles.webScroll]}
         keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+        keyboardDismissMode={keyboardDismissMode}
         {...props}
       >
         {children}
@@ -27,6 +29,7 @@ export function KeyboardAwareScrollViewCompat({
     <KeyboardAwareScrollView
       style={style}
       keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+      keyboardDismissMode={keyboardDismissMode}
       {...props}
     >
       {children}

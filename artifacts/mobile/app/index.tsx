@@ -77,6 +77,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { AccountabilitySection } from '@/components/AccountabilitySection';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
@@ -612,7 +613,7 @@ function EmailAuthPanel({
         style={[styles.emailAuthScroll, { backgroundColor: colors.muted }]}
         contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 24) }]}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        keyboardDismissMode="none"
         bottomOffset={24}
       >
         <View
@@ -1361,7 +1362,7 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
       style={[styles.onboarding, { backgroundColor: colors.background }]}
       contentContainerStyle={[styles.flowScreenContent, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 24) }]}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
+      keyboardDismissMode="none"
       bottomOffset={24}
       showsVerticalScrollIndicator={false}
     >
@@ -1772,7 +1773,14 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: true });
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
+    <KeyboardAwareScrollViewCompat
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="none"
+      bottomOffset={24}
+      showsVerticalScrollIndicator={false}
+    >
       <Header title="Explore" subtitle="Find your next way to contribute." />
 
       <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
@@ -1801,7 +1809,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         <EmptyState title="Experiences didn’t load" body="Check your connection and try again." actionLabel="Try again" onAction={() => { void query.refetch(); }} />
       ) : query.data?.length ? query.data.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title="No experiences match" body="Try another category or come back when local hosts publish something new." />}
       <View style={{ height: 120 }} />
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -2817,7 +2825,7 @@ function FriendsOverviewScreen({
       contentContainerStyle={styles.scrollContent}
       bottomOffset={72}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
+      keyboardDismissMode="none"
       showsVerticalScrollIndicator={false}
     >
       <Header
@@ -3214,11 +3222,13 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   };
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollViewCompat
+      testID="profile-edit-scroll"
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
+      keyboardDismissMode="none"
+      bottomOffset={24}
       showsVerticalScrollIndicator={false}
     >
       <Header
@@ -3419,7 +3429,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         </View>
       ) : null}
       <View style={{ height: 120 }} />
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -3482,7 +3492,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.scrollContent}
       refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshHostData} tintColor={colors.primary} />}
-      keyboardDismissMode="interactive"
+      keyboardDismissMode="none"
       keyboardShouldPersistTaps="handled"
     >
       <Header title="Host tools" subtitle={overview.data?.organisation?.name ?? 'Create your first opportunity'} onBack={() => go('home')} />
@@ -3987,7 +3997,7 @@ function Create({
         { flexGrow: 1, paddingTop: 12, paddingBottom: insets.bottom + 40 },
       ]}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
+      keyboardDismissMode="none"
       showsVerticalScrollIndicator={false}
     >
         <View style={styles.createTopBar}>
@@ -4337,9 +4347,56 @@ function AppShell({
   showFeedbackBanner?: boolean;
 }) {
   const colors = useColors();
+  const [webViewportHeight, setWebViewportHeight] = useState<number | undefined>();
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    const viewport = window.visualViewport;
+    const syncViewportHeight = () => {
+      const height = Math.round(viewport?.height ?? window.innerHeight);
+      setWebViewportHeight((current) => current === height ? current : height);
+    };
+    const revealFocusedInput = () => {
+      const activeElement = document.activeElement;
+      if (!(activeElement instanceof HTMLElement)
+        || !activeElement.matches('input, textarea, select, [contenteditable="true"]')) {
+        return;
+      }
+      window.requestAnimationFrame(() => {
+        if (document.activeElement === activeElement) {
+          activeElement.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
+        }
+      });
+    };
+    const syncAndReveal = () => {
+      syncViewportHeight();
+      revealFocusedInput();
+    };
+
+    syncViewportHeight();
+    viewport?.addEventListener('resize', syncAndReveal);
+    window.addEventListener('resize', syncAndReveal);
+    document.addEventListener('focusin', revealFocusedInput);
+
+    return () => {
+      viewport?.removeEventListener('resize', syncAndReveal);
+      window.removeEventListener('resize', syncAndReveal);
+      document.removeEventListener('focusin', revealFocusedInput);
+    };
+  }, []);
 
   return (
-    <View style={[styles.app, { backgroundColor: colors.background }]}>
+    <View
+      testID="app-shell"
+      style={[
+        styles.app,
+        { backgroundColor: colors.background },
+        Platform.OS === 'web' && webViewportHeight
+          ? { height: webViewportHeight, overflow: 'hidden' }
+          : null,
+      ]}
+    >
       {showFeedbackBanner ? <FeedbackBanner /> : null}
       <View style={styles.appContent}>{children}</View>
       {bottomNav}
@@ -4348,7 +4405,7 @@ function AppShell({
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; step?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; step?: string; keyboardTest?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -4403,6 +4460,14 @@ export default function App() {
     || !user.interests.length
     || organisationProfileIncomplete
   ));
+
+  if (__DEV__ && params.keyboardTest === '1') {
+    return (
+      <AppShell showFeedbackBanner={false}>
+        <KeyboardInteractionHarness />
+      </AppShell>
+    );
+  }
 
   if (loading) {
     return (
@@ -4545,8 +4610,8 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  app: { flex: 1 },
-  appContent: { flex: 1 },
+  app: { flex: 1, minHeight: 0 },
+  appContent: { flex: 1, minHeight: 0 },
   feedbackBanner: { alignItems: 'center', paddingHorizontal: 14, paddingBottom: 8 },
   feedbackBannerText: { width: '100%', textAlign: 'center', fontSize: 13, lineHeight: 19, fontFamily: 'Inter_500Medium' },
   feedbackBannerLink: { fontFamily: 'Inter_700Bold', textDecorationLine: 'underline' },
