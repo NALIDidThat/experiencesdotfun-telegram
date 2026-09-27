@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Linking,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   RefreshControl,
@@ -4219,6 +4220,80 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
         { key: 'experiences', label: 'Experiences', icon: 'calendar' },
         { key: 'profile', label: 'Profile', icon: 'user' },
       ];
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const navBarRef = useRef<View>(null);
+  const navWidthRef = useRef(0);
+  const navLeftRef = useRef(0);
+  const itemLayoutsRef = useRef<Partial<Record<Screen, { x: number; width: number }>>>({});
+  const dragOriginXRef = useRef<number | null>(null);
+  const dragStartIndexRef = useRef<number | null>(null);
+  const dragIndexRef = useRef<number | null>(null);
+  const itemsRef = useRef(items);
+  const activeRef = useRef(active);
+  const goRef = useRef(go);
+  itemsRef.current = items;
+  activeRef.current = active;
+  goRef.current = go;
+
+  const activeIndex = Math.max(0, items.findIndex((item) => item.key === active));
+  const getItemIndexAtX = (x: number) => {
+    const currentItems = itemsRef.current;
+    const fallbackWidth = navWidthRef.current / Math.max(currentItems.length, 1);
+    let nearestIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    currentItems.forEach((item, index) => {
+      const layout = itemLayoutsRef.current[item.key];
+      const left = layout?.x ?? index * fallbackWidth;
+      const right = left + (layout?.width ?? fallbackWidth);
+      const distance = x < left ? left - x : x > right ? x - right : 0;
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+
+    return nearestIndex;
+  };
+  const clearDrag = () => {
+    dragOriginXRef.current = null;
+    dragStartIndexRef.current = null;
+    dragIndexRef.current = null;
+    setDragIndex(null);
+  };
+  const panResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_event, gesture) =>
+      dragOriginXRef.current !== null
+      && Math.abs(gesture.dx) > 8
+      && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.15,
+    onPanResponderGrant: () => {
+      const startIndex = dragStartIndexRef.current
+        ?? Math.max(0, itemsRef.current.findIndex((item) => item.key === activeRef.current));
+      dragIndexRef.current = startIndex;
+      setDragIndex(startIndex);
+    },
+    onPanResponderMove: (_event, gesture) => {
+      if (dragOriginXRef.current === null) return;
+      const nextIndex = getItemIndexAtX(dragOriginXRef.current + gesture.dx);
+      if (nextIndex !== dragIndexRef.current) {
+        dragIndexRef.current = nextIndex;
+        setDragIndex(nextIndex);
+      }
+    },
+    onPanResponderRelease: (_event, gesture) => {
+      if (dragOriginXRef.current !== null) {
+        dragIndexRef.current = getItemIndexAtX(dragOriginXRef.current + gesture.dx);
+      }
+      const destination = itemsRef.current[dragIndexRef.current ?? -1];
+      clearDrag();
+      if (destination && destination.key !== activeRef.current) {
+        triggerHaptic();
+        goRef.current(destination.key);
+      }
+    },
+    onPanResponderTerminate: clearDrag,
+  })).current;
+
   return (
     <View
       style={[
@@ -4235,16 +4310,49 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
             shadowColor: colors.primary,
           },
         ]}
+        ref={navBarRef}
+        onLayout={(event) => {
+          navWidthRef.current = event.nativeEvent.layout.width;
+          navBarRef.current?.measureInWindow((x) => { navLeftRef.current = x; });
+        }}
+        {...panResponder.panHandlers}
       >
-        {items.map((item) => {
-          const selected = active === item.key;
+        {items.map((item, index) => {
+          const selected = (dragIndex ?? activeIndex) === index;
           return (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={item.label}
-              accessibilityState={{ selected }}
+              accessibilityHint="Press and slide across the bar to switch sections."
+              accessibilityState={{ selected: active === item.key }}
               key={item.key}
-              onPress={() => { triggerHaptic(); go(item.key); }}
+              onLayout={(event) => {
+                const { x, width } = event.nativeEvent.layout;
+                itemLayoutsRef.current[item.key] = { x, width };
+              }}
+              onPressIn={(event) => {
+                const layout = itemLayoutsRef.current[item.key];
+                const pageX = event.nativeEvent.pageX;
+                const touchX = event.nativeEvent.locationX;
+                dragOriginXRef.current = Number.isFinite(pageX)
+                  ? pageX - navLeftRef.current
+                  : layout
+                    ? layout.x + Math.max(0, Math.min(touchX, layout.width))
+                    : navWidthRef.current * ((index + 0.5) / items.length);
+                dragStartIndexRef.current = index;
+                dragIndexRef.current = index;
+              }}
+              onLongPress={() => {
+                dragStartIndexRef.current = index;
+                dragIndexRef.current = index;
+                setDragIndex(index);
+              }}
+              delayLongPress={350}
+              onPress={() => {
+                clearDrag();
+                triggerHaptic();
+                go(item.key);
+              }}
               style={({ pressed }) => [
                 styles.navItem,
                 selected && [
