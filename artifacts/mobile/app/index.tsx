@@ -80,6 +80,8 @@ import { openTelegramBot } from '@/lib/telegram';
 
 type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'notifications' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
+type HostExperienceFilter = 'all' | Experience['status'];
+type HostParticipantFilter = 'all' | 'action' | Participation['status'];
 const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'notifications', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
@@ -107,6 +109,39 @@ const categoryGradients: Record<ExperienceCategory, readonly [string, string]> =
   community: ['#F20789', '#6805F2'],
 };
 
+const hostExperienceFilters: Array<{ key: HostExperienceFilter; label: string }> = [
+  { key: 'all', label: 'All' },
+  { key: 'published', label: 'Published' },
+  { key: 'full', label: 'Full' },
+  { key: 'completed', label: 'Completed' },
+  { key: 'archived', label: 'Archived' },
+];
+
+const hostParticipantFilters: Array<{ key: HostParticipantFilter; label: string }> = [
+  { key: 'all', label: 'All' },
+  { key: 'action', label: 'Needs action' },
+  { key: 'joined', label: 'Joined' },
+  { key: 'attended', label: 'Attended' },
+  { key: 'submitted', label: 'To review' },
+  { key: 'verified', label: 'Verified' },
+  { key: 'rejected', label: 'Rejected' },
+];
+
+const hostExperienceStatusLabels: Record<Experience['status'], string> = {
+  published: 'Published',
+  full: 'Full',
+  completed: 'Completed',
+  archived: 'Archived',
+};
+
+const hostParticipationStatusLabels: Record<Participation['status'], string> = {
+  joined: 'Joined',
+  attended: 'Attended',
+  submitted: 'To review',
+  verified: 'Verified',
+  rejected: 'Rejected',
+};
+
 function money(pence: number | null | undefined) {
   return pence ? `£${(pence / 100).toFixed(2)}` : null;
 }
@@ -131,6 +166,14 @@ function dateLabel(date: string) {
   return Number.isNaN(value.getTime())
     ? date
     : value.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function hostTimestampLabel(timestamp: string | null | undefined) {
+  if (!timestamp) return null;
+  const value = new Date(timestamp);
+  return Number.isNaN(value.getTime())
+    ? null
+    : value.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 }
 
 function triggerHaptic() {
@@ -3383,11 +3426,40 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
   const overview = useGetHostOverview();
   const experiences = useListHostExperiences();
   const [selected, setSelected] = useState<number | null>(null);
+  const [experienceSearch, setExperienceSearch] = useState('');
+  const [experienceFilter, setExperienceFilter] = useState<HostExperienceFilter>('all');
+  const [participantSearch, setParticipantSearch] = useState('');
+  const [participantFilter, setParticipantFilter] = useState<HostParticipantFilter>('all');
   const [actionError, setActionError] = useState<string | null>(null);
   const participants = useListExperienceParticipants(selected ?? 0, { query: { enabled: selected !== null, queryKey: getListExperienceParticipantsQueryKey(selected ?? 0) } });
   const attend = useMarkAttendance({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const verify = useVerifyParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const reject = useRejectParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const allExperiences = experiences.data ?? [];
+  const searchTerm = experienceSearch.trim().toLowerCase();
+  const filteredExperiences = allExperiences.filter((item) => {
+    const matchesSearch = !searchTerm || [item.title, item.city, item.location, categoryLabel[item.category]]
+      .some((value) => value.toLowerCase().includes(searchTerm));
+    return matchesSearch && (experienceFilter === 'all' || item.status === experienceFilter);
+  });
+  const selectedExperience = allExperiences.find((item) => item.id === selected);
+  const allParticipants = participants.data ?? [];
+  const participantTerm = participantSearch.trim().toLowerCase();
+  const filteredParticipants = allParticipants.filter((item) => {
+    const matchesSearch = !participantTerm || [item.participant.name, item.participant.username ?? '']
+      .some((value) => value.toLowerCase().includes(participantTerm));
+    const matchesFilter = participantFilter === 'all'
+      || (participantFilter === 'action' && (item.status === 'joined' || item.status === 'submitted'))
+      || item.status === participantFilter;
+    return matchesSearch && matchesFilter;
+  });
+  const isRefreshing = overview.isRefetching || experiences.isRefetching || (selected !== null && participants.isRefetching);
+  const refreshHostData = () => {
+    triggerHaptic();
+    const requests: Promise<unknown>[] = [overview.refetch(), experiences.refetch()];
+    if (selected !== null) requests.push(participants.refetch());
+    void Promise.all(requests);
+  };
   const runHostAction = async (action: () => Promise<unknown>) => {
     setActionError(null);
     try {
@@ -3402,74 +3474,343 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
+    <KeyboardAwareScrollViewCompat
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshHostData} tintColor={colors.primary} />}
+      keyboardDismissMode="interactive"
+      keyboardShouldPersistTaps="handled"
+    >
       <Header title="Host tools" subtitle={overview.data?.organisation?.name ?? 'Create your first opportunity'} onBack={() => go('home')} />
 
+      <View style={[styles.hostHero, { backgroundColor: colors.secondary, borderRadius: colors.radius }]}>
+        <View style={styles.hostHeroMark}>
+          <Feather name="briefcase" size={17} color={colors.primaryForeground} />
+          <Text style={[styles.hostHeroEyebrow, { color: colors.primaryForeground }]}>ORGANISATION SPACE</Text>
+        </View>
+        <Text style={[styles.hostHeroTitle, { color: colors.primaryForeground }]}>Bring your next experience to life.</Text>
+        <Text style={[styles.hostHeroBody, { color: colors.primaryForeground }]}>Keep your listings moving and recognise the people who take part.</Text>
+        <Button
+          label="Create experience"
+          icon="plus"
+          color={colors.primaryForeground}
+          textColor={colors.secondary}
+          testID="host-create-experience"
+          onPress={() => { triggerHaptic(); go('create'); }}
+        />
+      </View>
+
       <View style={styles.hostStats}>
-        {[['Upcoming', overview.data?.upcomingExperiences ?? 0], ['Participants', overview.data?.participantCount ?? 0], ['To verify', overview.data?.pendingVerifications ?? 0]].map(([label, value]) => (
-          <View key={String(label)} style={[styles.hostStat, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-            <Text style={[styles.hostStatValue, { color: colors.foreground }]}>{overview.isLoading ? '…' : value}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{label}</Text>
+        {[
+          { label: 'Live', value: overview.data?.upcomingExperiences ?? 0, icon: 'calendar' as const },
+          { label: 'Participants', value: overview.data?.participantCount ?? 0, icon: 'users' as const },
+          { label: 'To review', value: overview.data?.pendingVerifications ?? 0, icon: 'check-circle' as const },
+        ].map((item) => (
+          <View key={item.label} style={[styles.hostStat, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <View style={styles.hostStatTop}>
+              <Feather name={item.icon} size={15} color={colors.primary} />
+              <Text style={[styles.hostStatValue, { color: colors.foreground }]}>
+                {overview.isLoading ? '…' : overview.isError ? '—' : item.value}
+              </Text>
+            </View>
+            <Text style={[styles.hostStatLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
           </View>
         ))}
       </View>
 
       {overview.isError ? <EmptyState title="Host statistics couldn’t be loaded" body="Check your connection and try again." actionLabel="Try again" onAction={() => { void overview.refetch(); }} /> : null}
-      <Button label="Create experience" icon="plus" onPress={() => { triggerHaptic(); go('create'); }} />
 
-      <View style={styles.socialHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your experiences</Text>
-        <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{experiences.data?.length ?? 0} published</Text>
+      <View style={styles.hostSectionHeader}>
+        <View style={styles.hostSectionCopy}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your experiences</Text>
+          <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>
+            {experiences.isLoading ? 'Loading your listings…' : `${filteredExperiences.length} of ${allExperiences.length} listings`}
+          </Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Refresh host tools"
+          testID="host-refresh"
+          onPress={refreshHostData}
+          style={[styles.hostRefreshButton, { borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius }]}
+        >
+          <Feather name="refresh-cw" size={17} color={colors.primary} />
+        </Pressable>
       </View>
+
+      <View style={[styles.hostSearchBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+        <Feather name="search" size={17} color={colors.mutedForeground} />
+        <TextInput
+          accessibilityLabel="Search experiences"
+          testID="host-experience-search"
+          value={experienceSearch}
+          onChangeText={setExperienceSearch}
+          placeholder="Search title, place or category"
+          placeholderTextColor={colors.mutedForeground}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          style={[styles.hostSearchInput, { color: colors.foreground }]}
+        />
+        {experienceSearch ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Clear experience search" onPress={() => setExperienceSearch('')} hitSlop={8}>
+            <Feather name="x-circle" size={18} color={colors.mutedForeground} />
+          </Pressable>
+        ) : null}
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hostFilterList}>
+        {hostExperienceFilters.map((option) => {
+          const active = experienceFilter === option.key;
+          return (
+            <Pressable
+              key={option.key}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              testID={`host-experience-filter-${option.key}`}
+              onPress={() => setExperienceFilter(option.key)}
+              style={[styles.hostFilterChip, { backgroundColor: active ? colors.secondary : colors.card, borderColor: active ? colors.secondary : colors.border, borderRadius: colors.radius }]}
+            >
+              <Text style={[styles.hostFilterText, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>{option.label}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       {experiences.isLoading ? <LoadingState /> : experiences.isError ? (
         <EmptyState title="Your experiences didn’t load" body="Try again to see your published opportunities." actionLabel="Try again" onAction={() => { void experiences.refetch(); }} />
-      ) : experiences.data?.length ? experiences.data.map((item) => (
-        <Pressable key={item.id} onPress={() => { triggerHaptic(); setSelected(selected === item.id ? null : item.id); }} style={[styles.participationCard, { backgroundColor: selected === item.id ? colors.primary + '10' : colors.card, borderColor: selected === item.id ? colors.primary : colors.border, borderRadius: colors.radius }]}>
-          <View style={styles.cardTop}>
-            <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '15' }]}>
-              <Feather name={categoryIcon[item.category]} size={24} color={colors.primary} />
+      ) : allExperiences.length === 0 ? (
+        <EmptyState title="No experience published" body="Create a real volunteering opportunity and it will appear here." icon="edit-3" actionLabel="Create experience" onAction={() => go('create')} />
+      ) : filteredExperiences.length ? filteredExperiences.map((item) => {
+        const active = selected === item.id;
+        const statusColor = item.status === 'published' ? colors.success : item.status === 'full' ? colors.secondary : colors.mutedForeground;
+        const filledCapacity = item.capacity > 0 ? Math.min(100, Math.round((item.participantCount / item.capacity) * 100)) : 0;
+        return (
+          <Pressable
+            key={item.id}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: active }}
+            accessibilityLabel={`${item.title}, ${hostExperienceStatusLabels[item.status]}, ${item.participantCount} of ${item.capacity} participants. ${active ? 'Hide' : 'Manage'} participants.`}
+            testID={`host-experience-${item.id}`}
+            onPress={() => { triggerHaptic(); setActionError(null); setSelected(active ? null : item.id); }}
+            style={[styles.hostExperienceCard, { backgroundColor: colors.card, borderColor: active ? colors.primary : colors.border, borderRadius: colors.radius }]}
+          >
+            <View style={styles.hostExperienceTop}>
+              <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '15' }]}>
+                <Feather name={categoryIcon[item.category]} size={22} color={colors.primary} />
+              </View>
+              <View style={styles.hostExperienceTitleBlock}>
+                <Text style={[styles.hostExperienceEyebrow, { color: colors.mutedForeground }]}>{categoryLabel[item.category]} · {dateLabel(item.date)}</Text>
+                <Text numberOfLines={2} style={[styles.hostExperienceTitle, { color: colors.foreground }]}>{item.title}</Text>
+              </View>
+              <View style={[styles.hostStatusPill, { backgroundColor: statusColor + '14' }]}>
+                <Text style={[styles.hostStatusText, { color: statusColor }]}>{hostExperienceStatusLabels[item.status]}</Text>
+              </View>
             </View>
-            <View style={styles.cardCategory}>
-              <Text style={[styles.categoryText, { color: colors.mutedForeground }]}>{dateLabel(item.date)} · {item.availablePlaces} spots left</Text>
-              <Text style={[styles.cardTitleSmall, { color: colors.foreground }]}>{item.title}</Text>
-            </View>
-            <Feather name={selected === item.id ? 'chevron-down' : 'chevron-right'} size={24} color={colors.mutedForeground} />
-          </View>
-        </Pressable>
-      )) : <EmptyState title="No experience published" body="Create a real volunteering opportunity and it will appear here." icon="edit-3" />}
 
-      {selected !== null ? (
-        <View style={{ marginTop: 24 }}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Participants</Text>
+            <View style={styles.hostExperienceBody}>
+              <View style={styles.hostMetaLine}>
+                <Feather name="map-pin" size={15} color={colors.mutedForeground} />
+                <Text numberOfLines={1} style={[styles.hostMetaText, { color: colors.mutedForeground }]}>{item.location}, {item.city}</Text>
+              </View>
+              <View style={styles.hostMetaLine}>
+                <Feather name="clock" size={15} color={colors.mutedForeground} />
+                <Text style={[styles.hostMetaText, { color: colors.mutedForeground }]}>{item.startTime} – {item.endTime}</Text>
+              </View>
+              <View style={styles.hostCapacityHeader}>
+                <Text style={[styles.hostCapacityLabel, { color: colors.mutedForeground }]}>Places filled</Text>
+                <Text style={[styles.hostCapacityCount, { color: colors.foreground }]}>{item.participantCount} / {item.capacity}</Text>
+              </View>
+              <View style={[styles.hostCapacityTrack, { backgroundColor: colors.border }]}>
+                <View style={[styles.hostCapacityFill, { width: `${filledCapacity}%`, backgroundColor: colors.primary }]} />
+              </View>
+              <View style={styles.hostExperienceFooter}>
+                <View style={styles.hostRewardRow}>
+                  <Feather name="award" size={14} color={colors.secondary} />
+                  <Text style={[styles.hostRewardText, { color: colors.secondary }]}>{item.xpReward} XP</Text>
+                  {item.monetaryRewardPence ? <Text style={[styles.hostRewardText, { color: colors.mutedForeground }]}>· {money(item.monetaryRewardPence)}</Text> : null}
+                </View>
+                <Text style={[styles.hostPlacesText, { color: item.availablePlaces === 0 ? colors.primary : colors.mutedForeground }]}>
+                  {item.availablePlaces === 0 ? 'No places left' : `${item.availablePlaces} places left`}
+                </Text>
+              </View>
+              <View style={styles.hostManageRow}>
+                <Text style={[styles.hostManageText, { color: colors.primary }]}>{active ? 'Hide participants' : `Manage participants · ${item.participantCount}`}</Text>
+                <Feather name={active ? 'chevron-up' : 'arrow-right'} size={16} color={colors.primary} />
+              </View>
+            </View>
+          </Pressable>
+        );
+      }) : (
+        <EmptyState
+          title="No matching experiences"
+          body="Try another search or status filter."
+          icon="search"
+          actionLabel="Clear filters"
+          onAction={() => { setExperienceSearch(''); setExperienceFilter('all'); }}
+        />
+      )}
+
+      {selectedExperience ? (
+        <View style={styles.hostParticipantsSection}>
+          <View style={styles.hostParticipantHeading}>
+            <View style={styles.hostSectionCopy}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Participants</Text>
+              <Text numberOfLines={1} style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>{selectedExperience.title}</Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close participant list"
+              testID="host-close-participants"
+              onPress={() => { setSelected(null); setActionError(null); }}
+              style={[styles.hostRefreshButton, { borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius }]}
+            >
+              <Feather name="x" size={18} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
           {actionError ? <InlineError message={actionError} /> : null}
+          <View style={[styles.hostSearchBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <Feather name="search" size={17} color={colors.mutedForeground} />
+            <TextInput
+              accessibilityLabel="Search participants"
+              testID="host-participant-search"
+              value={participantSearch}
+              onChangeText={setParticipantSearch}
+              placeholder="Search name or username"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              style={[styles.hostSearchInput, { color: colors.foreground }]}
+            />
+            {participantSearch ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Clear participant search" onPress={() => setParticipantSearch('')} hitSlop={8}>
+                <Feather name="x-circle" size={18} color={colors.mutedForeground} />
+              </Pressable>
+            ) : null}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hostFilterList}>
+            {hostParticipantFilters.map((option) => {
+              const active = participantFilter === option.key;
+              return (
+                <Pressable
+                  key={option.key}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  testID={`host-participant-filter-${option.key}`}
+                  onPress={() => setParticipantFilter(option.key)}
+                  style={[styles.hostFilterChip, { backgroundColor: active ? colors.secondary : colors.card, borderColor: active ? colors.secondary : colors.border, borderRadius: colors.radius }]}
+                >
+                  <Text style={[styles.hostFilterText, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>{option.label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <Text style={[styles.hostSectionHint, styles.hostParticipantCount, { color: colors.mutedForeground }]}>
+            {filteredParticipants.length} of {allParticipants.length} participants
+          </Text>
           {participants.isLoading ? <LoadingState /> : participants.isError ? (
             <EmptyState title="Participants couldn’t be loaded" body="Try again to check attendance and completion." actionLabel="Try again" onAction={() => { void participants.refetch(); }} />
-          ) : participants.data?.length ? participants.data.map((item) => (
-            <View key={item.id} style={[styles.participantRow, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-              <View style={[styles.participantAvatar, { backgroundColor: colors.primary + '15' }]}>
-                <Text style={[styles.participantInitial, { color: colors.primary }]}>{item.participant.name.charAt(0)}</Text>
-              </View>
-              <View style={styles.participantCopy}>
-                <Text style={[styles.participantName, { color: colors.foreground }]}>{item.participant.name}</Text>
-                <Text style={[styles.participantStatus, { color: colors.mutedForeground }]}>{item.participant.username ? `@${item.participant.username} · ` : ''}{item.status}</Text>
-              </View>
-              {item.status === 'joined' ? (
-                <Button label={attend.isPending ? 'Saving…' : 'Attend'} variant="secondary" disabled={attend.isPending} onPress={() => void runHostAction(() => attend.mutateAsync({ participationId: item.id }))} />
-              ) : null}
-              {item.status === 'submitted' ? (
-                <View style={styles.actionPair}>
-                  <Button label={verify.isPending ? 'Saving…' : 'Verify'} disabled={verify.isPending || reject.isPending} onPress={() => void runHostAction(() => verify.mutateAsync({ participationId: item.id }))} />
-                  <Button label={reject.isPending ? 'Saving…' : 'Reject'} variant="secondary" disabled={verify.isPending || reject.isPending} onPress={() => void runHostAction(() => reject.mutateAsync({ participationId: item.id }))} />
+          ) : allParticipants.length === 0 ? (
+            <EmptyState title="No participants yet" body="When people join, you’ll manage attendance and completion here." icon="users" />
+          ) : filteredParticipants.length ? filteredParticipants.map((item) => {
+            const statusColor = item.status === 'verified' || item.status === 'attended'
+              ? colors.success
+              : item.status === 'submitted'
+                ? colors.secondary
+                : item.status === 'rejected'
+                  ? colors.destructive
+                  : colors.mutedForeground;
+            const activityDate = hostTimestampLabel(item.status === 'submitted' ? item.submittedAt : item.joinedAt);
+            return (
+              <View key={item.id} style={[styles.hostParticipantCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+                <View style={styles.hostParticipantTop}>
+                  <View style={[styles.participantAvatar, { backgroundColor: colors.primary + '15' }]}>
+                    <Text style={[styles.participantInitial, { color: colors.primary }]}>{item.participant.name.slice(0, 1).toUpperCase()}</Text>
+                  </View>
+                  <View style={styles.participantCopy}>
+                    <Text numberOfLines={1} style={[styles.participantName, { color: colors.foreground }]}>{item.participant.name}</Text>
+                    <Text numberOfLines={1} style={[styles.participantStatus, { color: colors.mutedForeground }]}>{item.participant.username ? `@${item.participant.username}` : 'Experiences.fun participant'}</Text>
+                  </View>
+                  <View style={[styles.hostStatusPill, { backgroundColor: statusColor + '14' }]}>
+                    <Text style={[styles.hostStatusText, { color: statusColor }]}>{hostParticipationStatusLabels[item.status]}</Text>
+                  </View>
                 </View>
-              ) : null}
-              {item.status === 'verified' ? <Feather name="check-circle" size={28} color={colors.success} /> : null}
-            </View>
-          )) : <EmptyState title="No participants yet" body="When people join, you'll manage attendance and completion here." icon="users" />}
+                <View style={styles.hostParticipantMeta}>
+                  <Feather name={item.status === 'submitted' ? 'clock' : 'calendar'} size={13} color={colors.mutedForeground} />
+                  <Text style={[styles.hostParticipantMetaText, { color: colors.mutedForeground }]}>
+                    {item.status === 'submitted' ? 'Submitted' : 'Joined'}{activityDate ? ` · ${activityDate}` : ''}
+                  </Text>
+                </View>
+                {item.status === 'submitted' ? (
+                  <>
+                    <View style={[styles.hostReviewNote, { backgroundColor: colors.primary + '0C' }]}>
+                      <Feather name="award" size={16} color={colors.primary} />
+                      <Text style={[styles.hostReviewText, { color: colors.foreground }]}>
+                        Verify this completion to award {item.experience.xpReward} XP.
+                      </Text>
+                    </View>
+                    <View style={styles.hostActionPair}>
+                      <Button
+                        label={verify.isPending ? 'Saving…' : 'Verify'}
+                        icon="check"
+                        color={colors.secondary}
+                        disabled={verify.isPending || reject.isPending}
+                        style={styles.hostActionButton}
+                        testID={`host-verify-${item.id}`}
+                        onPress={() => void runHostAction(() => verify.mutateAsync({ participationId: item.id }))}
+                      />
+                      <Button
+                        label={reject.isPending ? 'Saving…' : 'Reject'}
+                        icon="x"
+                        variant="secondary"
+                        disabled={verify.isPending || reject.isPending}
+                        style={styles.hostActionButton}
+                        testID={`host-reject-${item.id}`}
+                        onPress={() => void runHostAction(() => reject.mutateAsync({ participationId: item.id }))}
+                      />
+                    </View>
+                  </>
+                ) : item.status === 'joined' ? (
+                  <Button
+                    label={attend.isPending ? 'Saving…' : 'Mark attended'}
+                    icon="check"
+                    variant="secondary"
+                    disabled={attend.isPending}
+                    style={styles.hostFullActionButton}
+                    testID={`host-attend-${item.id}`}
+                    onPress={() => void runHostAction(() => attend.mutateAsync({ participationId: item.id }))}
+                  />
+                ) : item.status === 'verified' ? (
+                  <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.success + '12' }]}>
+                    <Feather name="check-circle" size={15} color={colors.success} />
+                    <Text style={[styles.hostParticipantOutcomeText, { color: colors.success }]}>Completion verified · XP awarded</Text>
+                  </View>
+                ) : item.status === 'attended' ? (
+                  <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.success + '12' }]}>
+                    <Feather name="check-circle" size={15} color={colors.success} />
+                    <Text style={[styles.hostParticipantOutcomeText, { color: colors.success }]}>Attendance recorded</Text>
+                  </View>
+                ) : (
+                  <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.muted }]}>
+                    <Feather name="info" size={15} color={colors.mutedForeground} />
+                    <Text style={[styles.hostParticipantOutcomeText, { color: colors.mutedForeground }]}>Completion was rejected</Text>
+                  </View>
+                )}
+              </View>
+            );
+          }) : (
+            <EmptyState
+              title="No matching participants"
+              body="Try another name or status filter."
+              icon="search"
+              actionLabel="Clear filters"
+              onAction={() => { setParticipantSearch(''); setParticipantFilter('all'); }}
+            />
+          )}
         </View>
       ) : null}
       <View style={{ height: 120 }} />
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -4743,16 +5084,65 @@ const styles = StyleSheet.create({
   friendSectionHint: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular', paddingHorizontal: 2 },
   
   // Host
-  hostStats: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  hostStat: { flex: 1, borderWidth: 1, padding: 16, alignItems: 'center', gap: 8 },
-  hostStatValue: { fontSize: 24, fontFamily: 'Inter_700Bold' },
-  participantRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderWidth: 1, marginBottom: 12, gap: 12 },
+  hostHero: { padding: 20, gap: 10, marginBottom: 16 },
+  hostHeroMark: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
+  hostHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2 },
+  hostHeroTitle: { fontSize: 23, lineHeight: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
+  hostHeroBody: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', marginBottom: 4, opacity: 0.9 },
+  hostStats: { flexDirection: 'row', gap: 8, marginBottom: 24 },
+  hostStat: { flex: 1, minWidth: 0, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 9, gap: 7 },
+  hostStatTop: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  hostStatValue: { fontSize: 21, fontFamily: 'Inter_700Bold' },
+  hostStatLabel: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  hostSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 13 },
+  hostSectionCopy: { flex: 1, minWidth: 0 },
+  hostSectionHint: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  hostRefreshButton: { width: 44, height: 44, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  hostSearchBox: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, paddingHorizontal: 14, marginBottom: 8 },
+  hostSearchInput: { flex: 1, minWidth: 0, height: 48, paddingHorizontal: 0, fontSize: 14, fontFamily: 'Inter_400Regular' },
+  hostFilterList: { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingBottom: 14 },
+  hostFilterChip: { minHeight: 38, justifyContent: 'center', borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
+  hostFilterText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  hostExperienceCard: { borderWidth: 1, marginBottom: 12, overflow: 'hidden' },
+  hostExperienceTop: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 15, paddingBottom: 14 },
+  hostExperienceTitleBlock: { flex: 1, minWidth: 0 },
+  hostExperienceEyebrow: { fontSize: 10, fontFamily: 'Inter_600SemiBold', marginBottom: 4 },
+  hostExperienceTitle: { fontSize: 15, lineHeight: 20, fontFamily: 'Inter_700Bold' },
+  hostStatusPill: { flexShrink: 0, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 12 },
+  hostStatusText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
+  hostExperienceBody: { paddingHorizontal: 16, paddingBottom: 15, gap: 10 },
+  hostMetaLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hostMetaText: { flex: 1, minWidth: 0, fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
+  hostCapacityHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 3 },
+  hostCapacityLabel: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  hostCapacityCount: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  hostCapacityTrack: { height: 7, overflow: 'hidden', borderRadius: 4 },
+  hostCapacityFill: { height: 7, borderRadius: 4 },
+  hostExperienceFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 },
+  hostRewardRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  hostRewardText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  hostPlacesText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  hostManageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+  hostManageText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  hostParticipantsSection: { marginTop: 13 },
+  hostParticipantHeading: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 13 },
+  hostParticipantCount: { marginBottom: 9 },
+  hostParticipantCard: { borderWidth: 1, padding: 14, marginBottom: 10, gap: 10 },
+  hostParticipantTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   participantAvatar: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   participantInitial: { fontSize: 18, fontFamily: 'Inter_700Bold' },
-  participantCopy: { flex: 1 },
+  participantCopy: { flex: 1, minWidth: 0 },
   participantName: { fontSize: 15, fontFamily: 'Inter_600SemiBold', marginBottom: 2 },
   participantStatus: { fontSize: 13, fontFamily: 'Inter_400Regular' },
-  actionPair: { flexDirection: 'row', gap: 8 },
+  hostParticipantMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  hostParticipantMetaText: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  hostReviewNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 11, borderRadius: 12 },
+  hostReviewText: { flex: 1, fontSize: 12, lineHeight: 18, fontFamily: 'Inter_500Medium' },
+  hostActionPair: { flexDirection: 'row', gap: 8 },
+  hostActionButton: { flex: 1, minWidth: 0 },
+  hostFullActionButton: { width: '100%' },
+  hostParticipantOutcome: { flexDirection: 'row', alignItems: 'center', gap: 7, padding: 10, borderRadius: 12 },
+  hostParticipantOutcomeText: { flex: 1, fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   
   // Create
   createContent: { paddingHorizontal: 20 },
