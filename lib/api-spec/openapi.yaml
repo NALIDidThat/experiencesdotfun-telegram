@@ -577,6 +577,45 @@ paths:
                   $ref: "#/components/schemas/FriendRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /friends/notifications:
+    get:
+      operationId: listFriendNotifications
+      tags: [friends]
+      summary: List friend activity notifications
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Friend activity notifications and unread count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendNotificationsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /friends/notifications/{notificationId}/read:
+    patch:
+      operationId: markFriendNotificationRead
+      tags: [friends]
+      summary: Mark a friend activity notification as read
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendNotificationReadResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /friends/requests/{requestId}/accept:
     post:
       operationId: acceptFriendRequest
@@ -1525,6 +1564,49 @@ components:
           type: string
           minLength: 1
       required: [username]
+    FriendNotification:
+      type: object
+      properties:
+        id:
+          type: integer
+        friendshipId:
+          type: integer
+        type:
+          type: string
+          enum: [friend_request, friend_request_accepted, friend_request_declined]
+        title:
+          type: string
+        message:
+          type: string
+        actor:
+          $ref: "#/components/schemas/ParticipantSummary"
+        isUnread:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type: [string, "null"]
+          format: date-time
+      required: [id, friendshipId, type, title, message, actor, isUnread, createdAt, readAt]
+    FriendNotificationsResponse:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/FriendNotification"
+        unreadCount:
+          type: integer
+      required: [notifications, unreadCount]
+    FriendNotificationReadResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required: [success, message]
     AccountabilityInvitation:
       type: object
       properties:

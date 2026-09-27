@@ -126,23 +126,23 @@ export function formatContributionRejectedNotice(experience: TelegramExperienceN
 }
 
 export function formatFriendRequestNotice(name: string, username: string | null): string {
-  return `<b>🤝 New friend request</b>\n\n${friendLabel(name, username)} wants to connect with you.\n\nAccept the request to add them to your friends.`;
+  return `<b>New friend request</b>\n\n${friendLabel(name, username)} wants to connect with you.\n\nAccept the request to add them to your friends.`;
 }
 
 export function formatFriendRequestSentNotice(name: string, username: string | null): string {
-  return `<b>✅ Friend request sent</b>\n\nYour request is on its way to ${friendLabel(name, username)}.\n\nIf they accept, you’ll see them in your friends list.`;
+  return `<b>Friend request sent</b>\n\nYour request is on its way to ${friendLabel(name, username)}.\n\nIf they accept, you’ll see them in your friends list.`;
 }
 
 export function formatFriendRequestAcceptedNotice(name: string, username: string | null): string {
-  return `<b>🤝 Friend request accepted</b>\n\n${friendLabel(name, username)} accepted your request. You’re now connected.`;
+  return `<b>Friend request accepted</b>\n\n${friendLabel(name, username)} accepted your request. You’re now connected.`;
 }
 
 export function formatFriendshipConnectedNotice(name: string, username: string | null): string {
-  return `<b>🤝 You’re connected</b>\n\nYou and ${friendLabel(name, username)} are now friends.`;
+  return `<b>You’re connected</b>\n\nYou and ${friendLabel(name, username)} are now friends.`;
 }
 
-export function formatFriendRequestDeclinedNotice(): string {
-  return "<b>Friend request declined</b>\n\nThe request has been declined.";
+export function formatFriendRequestDeclinedNotice(name: string, username: string | null): string {
+  return `<b>Friend request declined</b>\n\n${friendLabel(name, username)} declined your friend request.`;
 }
 
 export function parseTelegramCommand(text: string, botUsername: string | null) {

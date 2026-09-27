@@ -26,18 +26,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import {
+  getGetAccountabilityDashboardQueryKey,
   useAcceptFriendRequest,
   useCreateExperience,
   useCreateFriendRequest,
   useDeclineFriendRequest,
   useGetExperience,
   useGetFriendProfile,
+  useGetAccountabilityDashboard,
   useGetHostOverview,
   useGetMe,
   useJoinExperience,
   useListExperienceParticipants,
   useListExperiences,
   useListFriendRequests,
+  useListFriendNotifications,
   useListFriends,
   useListHostExperiences,
   useListMyParticipations,
@@ -53,6 +56,7 @@ import {
   getListHostExperiencesQueryKey,
   getListExperienceParticipantsQueryKey,
   getListFriendRequestsQueryKey,
+  getListFriendNotificationsQueryKey,
   getListFriendsQueryKey,
   getListSentFriendRequestsQueryKey,
   type Experience,
@@ -69,11 +73,12 @@ import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { UserAvatar } from '@/components/UserAvatar';
+import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { openTelegramBot } from '@/lib/telegram';
 
-type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'create' | 'email';
+type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'notifications' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
-const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'notifications', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -193,7 +198,7 @@ function Button({
   );
 }
 
-type HeaderMenuItem = { key: string; label: string; icon: IconName; onPress: () => void };
+type HeaderMenuItem = { key: string; label: string; icon: IconName; onPress: () => void; badge?: number };
 
 function Header({
   title,
@@ -263,7 +268,7 @@ function Header({
                   key={item.key}
                   testID={`profile-menu-${item.key}`}
                   accessibilityRole="button"
-                  accessibilityLabel={item.label}
+                  accessibilityLabel={item.badge ? `${item.label}, ${item.badge} unread` : item.label}
                   onPress={() => {
                     triggerHaptic();
                     setMenuOpen(false);
@@ -272,7 +277,14 @@ function Header({
                   style={({ pressed }) => [styles.headerMenuItem, { opacity: pressed ? 0.65 : 1 }]}
                 >
                   <Feather name={item.icon} size={16} color={colors.primary} />
-                  <Text style={[styles.headerMenuItemText, { color: colors.foreground }]}>{item.label}</Text>
+                  <Text style={[styles.headerMenuItemText, { color: colors.foreground, flex: 1 }]}>{item.label}</Text>
+                  {item.badge ? (
+                    <View style={{ alignItems: 'center', backgroundColor: colors.primary, borderRadius: 12, minWidth: 22, paddingHorizontal: 6, paddingVertical: 3 }}>
+                      <Text style={{ color: colors.primaryForeground, fontSize: 11, fontFamily: 'Inter_700Bold' }}>
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </Text>
+                    </View>
+                  ) : null}
                 </Pressable>
               ))}
             </View>
@@ -3046,6 +3058,20 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   );
   const hosted = useListHostExperiences({ query: { enabled: authenticatedUser?.userType === 'organisation', queryKey: getListHostExperiencesQueryKey() } });
   const friends = useListFriends({ query: { queryKey: getListFriendsQueryKey(), enabled: Boolean(authenticatedUser) } });
+  const accountabilityNotifications = useGetAccountabilityDashboard({
+    query: {
+      queryKey: [...getGetAccountabilityDashboardQueryKey(), authenticatedUser?.id],
+      enabled: authenticatedUser?.userType === 'participant',
+      refetchInterval: 30_000,
+    },
+  });
+  const friendNotifications = useListFriendNotifications({
+    query: {
+      queryKey: [...getListFriendNotificationsQueryKey(), authenticatedUser?.id],
+      enabled: Boolean(authenticatedUser),
+      refetchInterval: 30_000,
+    },
+  });
   const update = useUpdateMe({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user.name);
@@ -3132,6 +3158,17 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         title={current.userType === 'organisation' ? 'Organisation profile' : 'Passport'}
         subtitle={current.userType === 'organisation' ? (current.organisation?.name ?? 'Organisation account') : 'Participant account · Your contribution identity.'}
         menuItems={[
+          {
+            key: 'notifications',
+            label: 'Notifications',
+            icon: 'bell',
+            badge:
+              (friendNotifications.data?.unreadCount ?? 0) +
+              (authenticatedUser?.userType === 'participant'
+                ? accountabilityNotifications.data?.unreadCount ?? 0
+                : 0),
+            onPress: () => go('notifications'),
+          },
           {
             key: 'friends',
             label: 'Friends & Partners',
@@ -4037,6 +4074,14 @@ export default function App() {
     if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
     if (screen === 'friend-profile') return <FriendProfileScreen friendId={Number(params.friendId)} onBack={() => go('friends')} />;
     if (screen === 'friends') return <FriendsOverviewScreen go={go} onBack={() => go('profile')} />;
+    if (screen === 'notifications') {
+      return (
+        <NotificationsScreen
+          onBack={() => go('profile')}
+          onOpenFriends={() => go('friends')}
+        />
+      );
+    }
     if (screen === 'explore') return <Explore go={go} />;
     if (screen === 'experiences') return user.userType === 'organisation' ? <Host go={go} /> : <Experiences go={go} />;
     if (screen === 'profile') return <Profile user={user} go={go} />;
@@ -4048,7 +4093,7 @@ export default function App() {
   const noNav = ['experience', 'create'].includes(screen);
   const navActive = user.userType === 'organisation' && screen === 'experiences'
     ? 'host'
-    : screen === 'friends' || screen === 'friend-profile'
+    : screen === 'friends' || screen === 'friend-profile' || screen === 'notifications'
       ? 'profile'
       : screen;
   return (

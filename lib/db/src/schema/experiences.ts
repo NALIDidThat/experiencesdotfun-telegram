@@ -181,17 +181,50 @@ export const friendshipsTable = pgTable(
   }),
 );
 
+export const friendNotificationsTable = pgTable(
+  "friend_notifications",
+  {
+    id: serial("id").primaryKey(),
+    friendshipId: integer("friendship_id")
+      .notNull()
+      .references(() => friendshipsTable.id),
+    actorUserId: integer("actor_user_id")
+      .notNull()
+      .references(() => usersTable.id),
+    recipientUserId: integer("recipient_user_id")
+      .notNull()
+      .references(() => usersTable.id),
+    type: text("type", {
+      enum: ["friend_request", "friend_request_accepted", "friend_request_declined"],
+    }).notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    recipientCreatedIndex: index("friend_notification_recipient_created_idx").on(
+      table.recipientUserId,
+      table.createdAt,
+    ),
+    recipientReadIndex: index("friend_notification_recipient_read_idx").on(
+      table.recipientUserId,
+      table.readAt,
+    ),
+  }),
+);
+
 export const insertUserSchema = createInsertSchema(usersTable);
 export const insertOrganisationSchema = createInsertSchema(organisationsTable);
 export const insertExperienceSchema = createInsertSchema(experiencesTable);
 export const insertParticipationSchema = createInsertSchema(participationsTable);
 export const insertFriendshipSchema = createInsertSchema(friendshipsTable);
+export const insertFriendNotificationSchema = createInsertSchema(friendNotificationsTable);
 
 export type User = typeof usersTable.$inferSelect;
 export type Organisation = typeof organisationsTable.$inferSelect;
 export type Experience = typeof experiencesTable.$inferSelect;
 export type Participation = typeof participationsTable.$inferSelect;
 export type Friendship = typeof friendshipsTable.$inferSelect;
+export type FriendNotification = typeof friendNotificationsTable.$inferSelect;
 
 export const experienceCategorySchema = z.enum(["environmental", "education", "community"]);
 export const participationTypeSchema = z.enum(["join", "host", "both"]);

@@ -40,6 +40,8 @@ import type {
   Experience,
   ExperienceCreateInput,
   ExperienceDetail,
+  FriendNotificationReadResponse,
+  FriendNotificationsResponse,
   FriendProfile,
   FriendRequest,
   FriendRequestCreateInput,
@@ -2390,6 +2392,157 @@ export function useListSentFriendRequests<TData = Awaited<ReturnType<typeof list
 
 
 
+
+export const getListFriendNotificationsUrl = () => {
+
+
+
+
+  return `/api/friends/notifications`
+}
+
+/**
+ * @summary List friend activity notifications
+ */
+export const listFriendNotifications = async ( options?: Parameters<typeof customFetch>[1]): Promise<FriendNotificationsResponse> => {
+
+  return customFetch<FriendNotificationsResponse>(getListFriendNotificationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFriendNotificationsQueryKey = () => {
+    return [
+    `/api/friends/notifications`
+    ] as const;
+    }
+
+
+export const getListFriendNotificationsQueryOptions = <TData = Awaited<ReturnType<typeof listFriendNotifications>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFriendNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFriendNotificationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFriendNotifications>>> = ({ signal }) => listFriendNotifications({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFriendNotifications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFriendNotificationsQueryResult = NonNullable<Awaited<ReturnType<typeof listFriendNotifications>>>
+export type ListFriendNotificationsQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary List friend activity notifications
+ */
+
+export function useListFriendNotifications<TData = Awaited<ReturnType<typeof listFriendNotifications>>, TError = ErrorType<UnauthorizedResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFriendNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFriendNotificationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMarkFriendNotificationReadUrl = (notificationId: number,) => {
+
+
+
+
+  return `/api/friends/notifications/${notificationId}/read`
+}
+
+/**
+ * @summary Mark a friend activity notification as read
+ */
+export const markFriendNotificationRead = async (notificationId: number, options?: Parameters<typeof customFetch>[1]): Promise<FriendNotificationReadResponse> => {
+
+  return customFetch<FriendNotificationReadResponse>(getMarkFriendNotificationReadUrl(notificationId),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkFriendNotificationReadMutationKey = () => ['markFriendNotificationRead'] as const;
+
+export const getMarkFriendNotificationReadMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markFriendNotificationRead>>, TError,MarkFriendNotificationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markFriendNotificationRead>>, TError,MarkFriendNotificationReadMutationVariables, TContext> => {
+
+const mutationKey = getMarkFriendNotificationReadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markFriendNotificationRead>>, MarkFriendNotificationReadMutationVariables> = (props) => {
+          const {notificationId} = props ?? {};
+
+          return  markFriendNotificationRead(notificationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkFriendNotificationReadMutationResult = NonNullable<Awaited<ReturnType<typeof markFriendNotificationRead>>>
+
+    export type MarkFriendNotificationReadMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+    export type MarkFriendNotificationReadMutationVariables = {notificationId: number}
+
+    /**
+ * @summary Mark a friend activity notification as read
+ */
+export const useMarkFriendNotificationRead = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markFriendNotificationRead>>, TError,MarkFriendNotificationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markFriendNotificationRead>>,
+        TError,
+        MarkFriendNotificationReadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkFriendNotificationReadMutationOptions(options));
+    }
 
 export const getAcceptFriendRequestUrl = (requestId: number,) => {
 

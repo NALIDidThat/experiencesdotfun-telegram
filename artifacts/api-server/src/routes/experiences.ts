@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   AcceptFriendRequestParams,
@@ -21,6 +21,7 @@ import {
 import { db } from "@workspace/db";
 import {
   experiencesTable,
+  friendNotificationsTable,
   friendshipsTable,
   organisationsTable,
   participationsTable,
@@ -55,10 +56,12 @@ import {
   sendContributionVerifiedNotification,
   sendExperienceJoinedNotification,
   sendFriendRequestAcceptedNotification,
+  sendFriendRequestDeclinedNotification,
   sendFriendRequestNotification,
+  sendFriendRequestSentNotification,
   sendHostNewParticipantNotification,
 } from "../lib/telegram";
-import { createOrReopenFriendRequest } from "../lib/friends";
+import { createOrReopenFriendRequest, updateFriendRequestStatus } from "../lib/friends";
 
 const router: IRouter = Router();
 
@@ -773,6 +776,102 @@ router.get("/friends", async (req, res) => {
   })));
 });
 
+router.get("/friends/notifications", async (req, res) => {
+  const recipientUserId = currentUser(req).id;
+  const [rows, unreadRows] = await Promise.all([
+    db
+      .select({ notification: friendNotificationsTable, actor: usersTable })
+      .from(friendNotificationsTable)
+      .innerJoin(usersTable, eq(usersTable.id, friendNotificationsTable.actorUserId))
+      .where(eq(friendNotificationsTable.recipientUserId, recipientUserId))
+      .orderBy(desc(friendNotificationsTable.createdAt), desc(friendNotificationsTable.id))
+      .limit(100),
+    db
+      .select({ count: count() })
+      .from(friendNotificationsTable)
+      .where(
+        and(
+          eq(friendNotificationsTable.recipientUserId, recipientUserId),
+          isNull(friendNotificationsTable.readAt),
+        ),
+      ),
+  ]);
+
+  res.json({
+    notifications: rows.map(({ notification, actor }) => {
+      const title =
+        notification.type === "friend_request"
+          ? "New friend request"
+          : notification.type === "friend_request_accepted"
+            ? "Friend request accepted"
+            : "Friend request declined";
+      const message =
+        notification.type === "friend_request"
+          ? `${actor.name} wants to connect with you.`
+          : notification.type === "friend_request_accepted"
+            ? `${actor.name} accepted your friend request. You’re now friends.`
+            : `${actor.name} declined your friend request.`;
+      return {
+        id: notification.id,
+        friendshipId: notification.friendshipId,
+        type: notification.type,
+        title,
+        message,
+        actor: {
+          id: actor.id,
+          name: actor.name,
+          username: actor.username,
+          avatarUrl: actor.avatarUrl,
+        },
+        isUnread: notification.readAt === null,
+        createdAt: notification.createdAt.toISOString(),
+        readAt: notification.readAt?.toISOString() ?? null,
+      };
+    }),
+    unreadCount: Number(unreadRows[0]?.count ?? 0),
+  });
+});
+
+router.patch("/friends/notifications/:notificationId/read", async (req, res) => {
+  const notificationId = Number(req.params.notificationId);
+  if (!Number.isSafeInteger(notificationId) || notificationId < 1) {
+    error(res, 404, "Notification not found.");
+    return;
+  }
+
+  const recipientUserId = currentUser(req).id;
+  const [updated] = await db
+    .update(friendNotificationsTable)
+    .set({ readAt: new Date() })
+    .where(
+      and(
+        eq(friendNotificationsTable.id, notificationId),
+        eq(friendNotificationsTable.recipientUserId, recipientUserId),
+        isNull(friendNotificationsTable.readAt),
+      ),
+    )
+    .returning({ id: friendNotificationsTable.id });
+
+  if (!updated) {
+    const [owned] = await db
+      .select({ id: friendNotificationsTable.id })
+      .from(friendNotificationsTable)
+      .where(
+        and(
+          eq(friendNotificationsTable.id, notificationId),
+          eq(friendNotificationsTable.recipientUserId, recipientUserId),
+        ),
+      )
+      .limit(1);
+    if (!owned) {
+      error(res, 404, "Notification not found.");
+      return;
+    }
+  }
+
+  res.json({ success: true, message: "Notification marked as read." });
+});
+
 router.get("/friends/:friendId/profile", async (req, res) => {
   const parsed = GetFriendProfileParams.safeParse({ friendId: req.params.friendId });
   if (!parsed.success) {
@@ -873,6 +972,11 @@ router.post("/friends/requests", async (req, res) => {
     return;
   }
   const created = result.request;
+  await sendFriendRequestSentNotification(
+    requester.telegramId,
+    recipient.name,
+    recipient.username,
+  );
   await sendFriendRequestNotification(
     recipient.telegramId,
     requester.name,
@@ -887,41 +991,25 @@ router.post("/friends/requests", async (req, res) => {
   });
 });
 
-async function updateFriendRequest(req: Parameters<IRouter["post"]>[0] extends never ? never : any, accepted: boolean) {
+async function updateFriendRequest(
+  req: Request,
+  recipientUserId: number,
+  status: "accepted" | "declined",
+) {
   const requestId = Number(req.params.requestId);
   const parsed = AcceptFriendRequestParams.safeParse({ requestId });
   if (!parsed.success) return undefined;
-  const recipient = currentUser(req);
-  const request = await db.query.friendshipsTable.findFirst({
-    where: and(
-      eq(friendshipsTable.id, requestId),
-      eq(friendshipsTable.recipientUserId, recipient.id),
-      eq(friendshipsTable.status, "pending"),
-    ),
-  });
-  if (!request) return undefined;
-  const [updated] = await db
-    .update(friendshipsTable)
-    .set({ status: accepted ? "accepted" : "declined", acceptedAt: accepted ? new Date() : null })
-    .where(
-      and(
-        eq(friendshipsTable.id, request.id),
-        eq(friendshipsTable.recipientUserId, recipient.id),
-        eq(friendshipsTable.status, "pending"),
-      ),
-    )
-    .returning();
-  return updated;
+  return updateFriendRequestStatus(parsed.data.requestId, recipientUserId, status);
 }
 
 router.post("/friends/requests/:requestId/accept", async (req, res) => {
-  const updated = await updateFriendRequest(req, true);
+  const recipient = currentUser(req);
+  const updated = await updateFriendRequest(req, recipient.id, "accepted");
   if (!updated) {
     error(res, 404, "Friend request not found.");
     return;
   }
   const requester = await db.query.usersTable.findFirst({ where: eq(usersTable.id, updated.requesterUserId) });
-  const recipient = currentUser(req);
   if (requester) {
     await sendFriendRequestAcceptedNotification(
       requester.telegramId,
@@ -938,12 +1026,20 @@ router.post("/friends/requests/:requestId/accept", async (req, res) => {
 });
 
 router.post("/friends/requests/:requestId/decline", async (req, res) => {
-  const updated = await updateFriendRequest(req, false);
+  const recipient = currentUser(req);
+  const updated = await updateFriendRequest(req, recipient.id, "declined");
   if (!updated) {
     error(res, 404, "Friend request not found.");
     return;
   }
   const requester = await db.query.usersTable.findFirst({ where: eq(usersTable.id, updated.requesterUserId) });
+  if (requester) {
+    await sendFriendRequestDeclinedNotification(
+      requester.telegramId,
+      recipient.name,
+      recipient.username,
+    );
+  }
   res.json({
     id: updated.id,
     user: { id: requester?.id ?? updated.requesterUserId, name: requester?.name ?? "Participant", username: requester?.username ?? null },

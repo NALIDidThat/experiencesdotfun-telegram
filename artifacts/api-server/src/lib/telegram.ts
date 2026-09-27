@@ -15,7 +15,7 @@ import {
   type TelegramIdentity,
 } from "./auth";
 import { experienceResponse, userResponse } from "./data";
-import { createOrReopenFriendRequest } from "./friends";
+import { createOrReopenFriendRequest, updateFriendRequestStatus } from "./friends";
 import {
   getCommunityLeaderboard,
   getCommunityMemberByUsername,
@@ -225,7 +225,7 @@ export async function sendFriendRequestSentNotification(
   return sendTelegramMessage(
     requesterTelegramId,
     formatFriendRequestSentNotice(recipientName, recipientUsername),
-    [[openButton("Open friends", "/?screen=profile")]],
+    [[openButton("Open friends", "/?screen=friends")]],
   );
 }
 
@@ -237,7 +237,7 @@ export async function sendFriendRequestAcceptedNotification(
   return sendTelegramMessage(
     requesterTelegramId,
     formatFriendRequestAcceptedNotice(recipientName, recipientUsername),
-    [[openButton("Open friends", "/?screen=profile")]],
+    [[openButton("Open friends", "/?screen=friends")]],
   );
 }
 
@@ -249,17 +249,19 @@ export async function sendFriendshipConnectedNotification(
   return sendTelegramMessage(
     recipientTelegramId,
     formatFriendshipConnectedNotice(requesterName, requesterUsername),
-    [[openButton("Open friends", "/?screen=profile")]],
+    [[openButton("Open friends", "/?screen=friends")]],
   );
 }
 
 export async function sendFriendRequestDeclinedNotification(
-  recipientTelegramId: number | string,
+  requesterTelegramId: number | string,
+  recipientName: string,
+  recipientUsername: string | null,
 ) {
   return sendTelegramMessage(
-    recipientTelegramId,
-    formatFriendRequestDeclinedNotice(),
-    [[openButton("Open friends", "/?screen=profile")]],
+    requesterTelegramId,
+    formatFriendRequestDeclinedNotice(recipientName, recipientUsername),
+    [[openButton("Open friends", "/?screen=friends")]],
   );
 }
 
@@ -275,7 +277,7 @@ export async function sendFriendRequestNotification(
     [[
       { text: "Accept", callback_data: `friend:accept:${requestId}` },
       { text: "Decline", callback_data: `friend:decline:${requestId}` },
-    ], [openButton("Open friends", "/?screen=profile")]],
+    ], [openButton("Open friends", "/?screen=friends")]],
   );
 }
 
@@ -797,29 +799,22 @@ async function handleCallback(update: NonNullable<TelegramUpdate["callback_query
   if (kind !== "friend" || !["accept", "decline"].includes(action) || !Number.isSafeInteger(id)) return;
   const user = await findUserByTelegramId(update.from.id);
   if (!user) return;
-  const request = await db.query.friendshipsTable.findFirst({
-    where: and(eq(friendshipsTable.id, id), eq(friendshipsTable.recipientUserId, user.id)),
-  });
-  if (!request || request.status !== "pending") return;
   const accepted = action === "accept";
-  const [updated] = await db
-    .update(friendshipsTable)
-    .set({ status: accepted ? "accepted" : "declined", acceptedAt: accepted ? new Date() : null })
-    .where(
-      and(
-        eq(friendshipsTable.id, id),
-        eq(friendshipsTable.recipientUserId, user.id),
-        eq(friendshipsTable.status, "pending"),
-      ),
-    )
-    .returning();
+  const updated = await updateFriendRequestStatus(id, user.id, accepted ? "accepted" : "declined");
   if (!updated) return;
   const requester = await db.query.usersTable.findFirst({
-    where: eq(usersTable.id, request.requesterUserId),
+    where: eq(usersTable.id, updated.requesterUserId),
   });
   const recipientChatId = update.message?.chat.id ?? user.telegramId;
   if (!accepted) {
-    await sendFriendRequestDeclinedNotification(recipientChatId);
+    await sendTelegramMessage(recipientChatId, "<b>Friend request declined</b>\n\nYou declined the request.");
+    if (requester) {
+      await sendFriendRequestDeclinedNotification(
+        requester.telegramId,
+        user.name,
+        user.username,
+      );
+    }
   } else if (requester) {
     await sendFriendshipConnectedNotification(recipientChatId, requester.name, requester.username);
     await sendFriendRequestAcceptedNotification(requester.telegramId, user.name, user.username);

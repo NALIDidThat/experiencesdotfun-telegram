@@ -390,6 +390,38 @@ export interface FriendRequestCreateInput {
   username: string;
 }
 
+export type FriendNotificationType = typeof FriendNotificationType[keyof typeof FriendNotificationType];
+
+
+export const FriendNotificationType = {
+  friend_request: 'friend_request',
+  friend_request_accepted: 'friend_request_accepted',
+  friend_request_declined: 'friend_request_declined',
+} as const;
+
+export interface FriendNotification {
+  id: number;
+  friendshipId: number;
+  type: FriendNotificationType;
+  title: string;
+  message: string;
+  actor: ParticipantSummary;
+  isUnread: boolean;
+  createdAt: string;
+  /** @nullable */
+  readAt: string | null;
+}
+
+export interface FriendNotificationsResponse {
+  notifications: FriendNotification[];
+  unreadCount: number;
+}
+
+export interface FriendNotificationReadResponse {
+  success: boolean;
+  message: string;
+}
+
 export interface AccountabilityInvitation {
   id: number;
   user: ParticipantSummary;

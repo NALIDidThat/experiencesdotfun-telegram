@@ -10,9 +10,12 @@ import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetAccountabilityDashboardQueryKey,
+  getListFriendNotificationsQueryKey,
   useConfirmAccountabilityCheckIn,
   useGetAccountabilityDashboard,
+  useListFriendNotifications,
   useMarkAccountabilityNotificationRead,
+  useMarkFriendNotificationRead,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -49,8 +52,15 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const dashboard = useGetAccountabilityDashboard({
     query: {
-      queryKey: getGetAccountabilityDashboardQueryKey(),
+      queryKey: [...getGetAccountabilityDashboardQueryKey(), user?.id],
       enabled: user?.userType === "participant",
+      refetchInterval: 30_000,
+    },
+  });
+  const friendNotificationsQuery = useListFriendNotifications({
+    query: {
+      queryKey: [...getListFriendNotificationsQueryKey(), user?.id],
+      enabled: Boolean(user),
       refetchInterval: 30_000,
     },
   });
@@ -58,9 +68,13 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
     void queryClient.invalidateQueries({
       queryKey: getGetAccountabilityDashboardQueryKey(),
     });
+    void queryClient.invalidateQueries({
+      queryKey: getListFriendNotificationsQueryKey(),
+    });
   };
   const mutationOptions = { onSuccess: refreshNotifications };
   const markRead = useMarkAccountabilityNotificationRead({ mutation: mutationOptions });
+  const markFriendRead = useMarkFriendNotificationRead({ mutation: mutationOptions });
   const confirmCheckIn = useConfirmAccountabilityCheckIn({ mutation: mutationOptions });
 
   const cardStyle = {
@@ -84,8 +98,22 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
     }
   };
 
-  const notifications = dashboard.data?.notifications ?? [];
-  const unreadCount = dashboard.data?.unreadCount ?? 0;
+  const isParticipant = user?.userType === "participant";
+  const friendNotifications = friendNotificationsQuery.data?.notifications ?? [];
+  const accountabilityNotifications = isParticipant ? dashboard.data?.notifications ?? [] : [];
+  const notifications = [
+    ...friendNotifications.map((notification) => ({ ...notification, source: "friend" as const })),
+    ...accountabilityNotifications.map((notification) => ({ ...notification, source: "accountability" as const })),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const unreadCount =
+    (friendNotificationsQuery.data?.unreadCount ?? 0) +
+    (isParticipant ? dashboard.data?.unreadCount ?? 0 : 0);
+  const isLoading =
+    friendNotificationsQuery.isLoading ||
+    (isParticipant && dashboard.isLoading);
+  const hasError =
+    friendNotificationsQuery.isError ||
+    (isParticipant && dashboard.isError);
 
   return (
     <ScrollView
@@ -109,7 +137,7 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
             Notifications
           </Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 18, marginTop: 3 }}>
-            Partner invitations, check-ins, and shared progress.
+            Friend activity, partner invitations, and check-ins.
           </Text>
         </View>
         {unreadCount > 0 ? (
@@ -121,26 +149,19 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
         ) : null}
       </View>
 
-      {user?.userType !== "participant" ? (
-        <View style={[cardStyle, { alignItems: "center", gap: 8, padding: 20 }]}>
-          <Feather name="bell" size={22} color={colors.primary} />
-          <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700", textAlign: "center" }}>
-            Participant notifications
-          </Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19, textAlign: "center" }}>
-            Accountability notifications are available from a Participant profile.
-          </Text>
-        </View>
-      ) : dashboard.isLoading ? (
+      {isLoading ? (
         <View style={[cardStyle, { alignItems: "center", flexDirection: "row", gap: 10, padding: 16 }]}>
           <ActivityIndicator size="small" color={colors.primary} />
           <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>Loading your notifications…</Text>
         </View>
-      ) : dashboard.isError ? (
+      ) : hasError ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Retry loading notifications"
-          onPress={() => void dashboard.refetch()}
+          onPress={() => {
+            void friendNotificationsQuery.refetch();
+            if (isParticipant) void dashboard.refetch();
+          }}
           style={[cardStyle, { alignItems: "center", flexDirection: "row", gap: 10, padding: 16 }]}
         >
           <Feather name="refresh-cw" size={16} color={colors.primary} />
@@ -157,7 +178,7 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
             You’re all caught up
           </Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19, textAlign: "center" }}>
-            Partner invitations and check-in updates will appear here.
+            Friend requests, accepted connections, partner invitations, and check-ins will appear here.
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -183,15 +204,18 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
             </View>
           ) : null}
           {notifications.map((notification) => {
+            const checkIn =
+              notification.source === "accountability" ? notification.checkIn : null;
             const canConfirmCheckIn =
+              checkIn !== null &&
               dashboard.data?.activePartner !== null &&
-              notification.checkIn?.status === "completed" &&
-              notification.checkIn.verificationStatus === "self_reported" &&
+              checkIn.status === "completed" &&
+              checkIn.verificationStatus === "self_reported" &&
               notification.actor.id !== user?.id;
             return (
               <View
-                key={notification.id}
-                testID={`notification-${notification.id}`}
+                key={`${notification.source}-${notification.id}`}
+                testID={`notification-${notification.source}-${notification.id}`}
                 style={[
                   cardStyle,
                   {
@@ -232,7 +256,30 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
                     </Text>
                   </View>
                 </View>
-                {notification.type === "partner_invite" ? (
+                {notification.source === "friend" ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={notification.type === "friend_request" ? "Review friend request" : "Open friends"}
+                    onPress={() => {
+                      if (notification.isUnread) {
+                        void markFriendRead
+                          .mutateAsync({ notificationId: notification.id })
+                          .catch((error) => setFeedback(errorMessage(error)));
+                      }
+                      onOpenFriends();
+                    }}
+                    style={({ pressed }) => [
+                      primaryButton,
+                      { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 6, opacity: pressed ? 0.8 : 1, paddingHorizontal: 10, paddingVertical: 8 },
+                    ]}
+                  >
+                    <Feather name={notification.type === "friend_request" ? "user-plus" : "users"} size={13} color={colors.primaryForeground} />
+                    <Text style={{ color: colors.primaryForeground, fontSize: 12, fontWeight: "700" }}>
+                      {notification.type === "friend_request" ? "Review request" : "Open friends"}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {notification.source === "accountability" && notification.type === "partner_invite" ? (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Review partner invitation"
@@ -254,9 +301,9 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
                     accessibilityLabel={`Confirm ${notification.actor.name}'s check-in`}
                     disabled={confirmCheckIn.isPending}
                     onPress={() => {
-                      if (!notification.checkIn) return;
+                      if (!checkIn) return;
                       void runAction(
-                        () => confirmCheckIn.mutateAsync({ checkInId: notification.checkIn!.id }),
+                        () => confirmCheckIn.mutateAsync({ checkInId: checkIn.id }),
                         "Check-in confirmed. No XP was awarded.",
                       );
                     }}
@@ -276,16 +323,19 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
                     testID={`notification-mark-read-${notification.id}`}
                     accessibilityRole="button"
                     accessibilityLabel={`Mark ${notification.title} as read`}
-                    disabled={markRead.isPending}
+                    disabled={markRead.isPending || markFriendRead.isPending}
                     onPress={() => {
                       void runAction(
-                        () => markRead.mutateAsync({ notificationId: notification.id }),
+                        () =>
+                          notification.source === "friend"
+                            ? markFriendRead.mutateAsync({ notificationId: notification.id })
+                            : markRead.mutateAsync({ notificationId: notification.id }),
                         "Notification marked as read.",
                       );
                     }}
                     style={{ alignSelf: "flex-start", paddingVertical: 3 }}
                   >
-                    {markRead.isPending ? (
+                    {markRead.isPending || markFriendRead.isPending ? (
                       <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
                       <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700" }}>

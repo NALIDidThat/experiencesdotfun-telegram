@@ -1160,6 +1160,46 @@ export const ListSentFriendRequestsResponse = zod.array(ListSentFriendRequestsRe
 
 
 /**
+ * @summary List friend activity notifications
+ */
+export const ListFriendNotificationsResponse = zod.object({
+  "notifications": zod.array(zod.object({
+  "id": zod.number().int(),
+  "friendshipId": zod.number().int(),
+  "type": zod.enum(['friend_request', 'friend_request_accepted', 'friend_request_declined']),
+  "title": zod.string(),
+  "message": zod.string(),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "isUnread": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+})),
+  "unreadCount": zod.number().int()
+})
+
+
+/**
+ * @summary Mark a friend activity notification as read
+ */
+
+
+
+export const MarkFriendNotificationReadParams = zod.object({
+  "notificationId": zod.coerce.number().int().min(1)
+})
+
+export const MarkFriendNotificationReadResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
  * @summary Accept a friend request
  */
 export const AcceptFriendRequestParams = zod.object({
