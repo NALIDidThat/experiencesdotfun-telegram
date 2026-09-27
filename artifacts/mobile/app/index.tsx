@@ -923,11 +923,11 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
 
         <View style={styles.welcomeContent}>
           <Text style={[styles.welcomeTitle, { color: welcome.foreground }]}>
-            Real people{'\n'}doing <Text style={{ color: colors.primary }}>real things.</Text>
+            Find your people.{'\n'}<Text style={{ color: colors.primary }}>Make a difference.</Text>
           </Text>
           <View style={styles.welcomeDetails}>
             <Text style={[styles.welcomeDescription, { color: welcome.muted }]}>
-              Find small ways to make a real difference near you — and turn your experiences into lasting impact.
+              Discover local experiences, get involved in your community, and see the impact you make.
             </Text>
 
             <View style={styles.welcomeSocialProof}>
