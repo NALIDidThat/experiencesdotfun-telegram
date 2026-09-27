@@ -2764,9 +2764,10 @@ function FriendsOverviewScreen({
   };
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollViewCompat
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.scrollContent}
+      bottomOffset={72}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
@@ -3061,7 +3062,7 @@ function FriendsOverviewScreen({
         </>
       )}
       <View style={{ height: 120 }} />
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 

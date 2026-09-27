@@ -1571,11 +1571,16 @@ export const ConfirmAccountabilityCheckInResponse = zod.object({
 
 
 /**
- * @summary Send a prewritten encouragement to the active partner
+ * @summary Send a prewritten or custom encouragement to the active partner
  */
+export const sendAccountabilityEncouragementBodyCustomMessageMax = 240;
+
+
+
 export const SendAccountabilityEncouragementBody = zod.object({
-  "message": zod.enum(['keep_going', 'nearly_there', 'proud_of_you', 'lets_do_this', 'join_me'])
-})
+  "message": zod.enum(['keep_going', 'nearly_there', 'proud_of_you', 'lets_do_this', 'join_me']).optional(),
+  "customMessage": zod.string().min(1).max(sendAccountabilityEncouragementBodyCustomMessageMax).optional().describe('A personal note, up to 240 characters.')
+}).describe('Provide either a preset message or a custom message, but not both.')
 
 export const SendAccountabilityEncouragementResponse = zod.object({
   "success": zod.boolean(),

@@ -25,7 +25,7 @@ import {
 } from "@workspace/db/schema";
 import { currentUser, requireTelegramUser } from "../lib/auth";
 import { hasSameTelegramIdentity } from "../lib/telegram-identity";
-import { sendTelegramMessage } from "../lib/telegram";
+import { escapeTelegramHtml, sendTelegramMessage } from "../lib/telegram";
 
 const router: IRouter = Router();
 router.use(requireTelegramUser);
@@ -1134,9 +1134,24 @@ router.post("/encouragement", async (req, res) => {
   if (!user) return;
   const parsed = SendAccountabilityEncouragementBody.safeParse(req.body);
   if (!parsed.success) {
-    error(res, 400, "Choose an encouragement message.");
+    error(res, 400, "Choose a preset or write a personal encouragement message.");
     return;
   }
+
+  const hasPreset = parsed.data.message !== undefined;
+  const hasCustomMessage = parsed.data.customMessage !== undefined;
+  if (hasPreset === hasCustomMessage) {
+    error(res, 400, "Choose one preset or write a personal encouragement message.");
+    return;
+  }
+  const customMessage = parsed.data.customMessage?.trim();
+  if (hasCustomMessage && !customMessage) {
+    error(res, 400, "Write a message before sending it.");
+    return;
+  }
+  const message = parsed.data.message
+    ? encouragementMessages[parsed.data.message]
+    : customMessage!;
 
   const result = await db.transaction(async (tx) => {
     const [initialPartnership] = await tx
@@ -1168,7 +1183,6 @@ router.post("/encouragement", async (req, res) => {
       .limit(1);
     const [partner] = await tx.select().from(usersTable).where(eq(usersTable.id, partnerId)).limit(1);
     if (!partnership || !partner) return { outcome: "no_partner" as const };
-    const message = encouragementMessages[parsed.data.message];
     await createEvent(tx, {
       partnershipId: partnership.id,
       actorUserId: user.id,
@@ -1183,7 +1197,10 @@ router.post("/encouragement", async (req, res) => {
     error(res, 409, "You need an active accountability partner to send encouragement.");
     return;
   }
-  sendPrivateTelegramNotice(result.partner, `Your accountability partner says: ${result.message}`);
+  sendPrivateTelegramNotice(
+    result.partner,
+    `Your accountability partner says: ${escapeTelegramHtml(result.message)}`,
+  );
   res.status(201).json({ success: true, message: "Encouragement sent." });
 });
 

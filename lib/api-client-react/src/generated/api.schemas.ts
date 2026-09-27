@@ -603,8 +603,17 @@ export const AccountabilityEncouragementInputMessage = {
   join_me: 'join_me',
 } as const;
 
+/**
+ * Provide either a preset message or a custom message, but not both.
+ */
 export interface AccountabilityEncouragementInput {
-  message: AccountabilityEncouragementInputMessage;
+  message?: AccountabilityEncouragementInputMessage;
+  /**
+     * A personal note, up to 240 characters.
+     * @minLength 1
+     * @maxLength 240
+     */
+  customMessage?: string;
 }
 
 /**

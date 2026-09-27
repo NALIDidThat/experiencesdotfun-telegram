@@ -96,6 +96,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
   const [assignee, setAssignee] = useState<"me" | "partner">("me");
   const [checkInCommitmentId, setCheckInCommitmentId] = useState<number | null>(null);
   const [checkInNote, setCheckInNote] = useState("");
+  const [customEncouragement, setCustomEncouragement] = useState("");
   const [confirmEnd, setConfirmEnd] = useState(false);
 
   const activePartner = dashboard.data?.activePartner ?? null;
@@ -219,6 +220,21 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
     );
   };
 
+  const submitCustomEncouragement = () => {
+    const message = customEncouragement.trim();
+    if (!message) return;
+
+    void runAction(
+      () => sendEncouragement.mutateAsync({ data: { customMessage: message } }),
+      "Your personal note was sent.",
+      "That note could not be sent. Please try again.",
+    ).then((sent) => {
+      if (!sent) return;
+      setCustomEncouragement("");
+      Keyboard.dismiss();
+    });
+  };
+
   const cardStyle = {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -239,11 +255,11 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
   if (user?.userType !== "participant") return null;
 
   return (
-    <View testID="accountability-section" style={{ gap: 16, marginBottom: 18 }}>
-      <View style={{ gap: 4, marginTop: 4 }}>
+    <View testID="accountability-section" style={{ gap: 20, marginBottom: 22 }}>
+      <View style={{ gap: 6, marginTop: 6 }}>
         <View style={{ alignItems: "center", flexDirection: "row", gap: 8 }}>
           <Feather name="target" size={18} color={colors.primary} />
-          <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: "700" }}>
+          <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "700" }}>
             Accountability
           </Text>
           {(dashboard.data?.unreadCount ?? 0) > 0 ? (
@@ -254,7 +270,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
             </View>
           ) : null}
         </View>
-        <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>
+        <Text style={{ color: colors.mutedForeground, fontSize: 14, lineHeight: 21 }}>
           Make a plan together, check in honestly, and keep your progress private to the two of you.
         </Text>
       </View>
@@ -311,7 +327,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
       ) : null}
 
       {!dashboard.isLoading && !dashboard.isError && !activePartner ? (
-        <View style={[cardStyle, { gap: 13, padding: 16 }]}>
+        <View style={[cardStyle, { gap: 16, padding: 18 }]}>
           <View style={{ alignItems: "flex-start", flexDirection: "row", gap: 12 }}>
             <View style={{ alignItems: "center", backgroundColor: colors.primary + "14", borderRadius: 24, height: 44, justifyContent: "center", width: 44 }}>
               <Feather name="users" size={19} color={colors.primary} />
@@ -364,7 +380,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
                       flexDirection: "row",
                       gap: 10,
                       paddingHorizontal: 10,
-                      paddingVertical: 9,
+                       paddingVertical: 12,
                     }]}
                   >
                     <UserAvatar
@@ -431,7 +447,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
               ) : null}
             </View>
           ) : (
-            <View style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 4, padding: 12 }}>
+            <View style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 6, padding: 14 }}>
               <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "600" }}>
                 Add someone to your circle first
               </Text>
@@ -444,7 +460,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
       ) : null}
 
       {incoming.length > 0 ? (
-        <View style={[cardStyle, { gap: 12, padding: 15 }]}>
+        <View style={[cardStyle, { gap: 14, padding: 18 }]}>
           <View style={{ alignItems: "center", flexDirection: "row", gap: 7 }}>
             <Feather name="user-check" size={17} color={colors.teal} />
             <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700" }}>
@@ -502,7 +518,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
       ) : null}
 
       {outgoing.length > 0 ? (
-        <View style={[cardStyle, { gap: 10, padding: 15 }]}>
+          <View style={[cardStyle, { gap: 12, padding: 18 }]}>
           <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700" }}>
             Waiting for a reply
           </Text>
@@ -519,19 +535,19 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
 
       {activePartner ? (
         <>
-          <View style={[cardStyle, { gap: 13, padding: 15 }]}>
-            <View style={{ alignItems: "center", flexDirection: "row", gap: 11 }}>
+          <View style={[cardStyle, { gap: 16, padding: 18 }]}>
+            <View style={{ alignItems: "center", flexDirection: "row", gap: 13 }}>
               <UserAvatar
                 avatarUrl={activePartner.partner.avatarUrl}
                 name={activePartner.partner.name}
-                containerStyle={{ alignItems: "center", backgroundColor: colors.primary + "16", borderRadius: 26, height: 52, justifyContent: "center", width: 52 }}
-                initialStyle={{ color: colors.primary, fontSize: 17, fontWeight: "700" }}
+                containerStyle={{ alignItems: "center", backgroundColor: colors.primary + "16", borderRadius: 29, height: 58, justifyContent: "center", width: 58 }}
+                initialStyle={{ color: colors.primary, fontSize: 18, fontWeight: "700" }}
               />
               <View style={{ flex: 1 }}>
                 <Text style={{ color: colors.mutedForeground, fontSize: 11, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" }}>
                   Your accountability partner
                 </Text>
-                <Text style={{ color: colors.foreground, fontSize: 17, fontWeight: "700", marginTop: 3 }}>
+                <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: "700", marginTop: 4 }}>
                   {activePartner.partner.name}
                 </Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 2 }}>
@@ -544,19 +560,29 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
                 <Text style={{ color: colors.success, fontSize: 11, fontWeight: "700" }}>Active</Text>
               </View>
             </View>
-            <View style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 4, padding: 11 }}>
-              <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600" }}>
+            <View style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 5, padding: 14 }}>
+              <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "600" }}>
                 Support, not surveillance
               </Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
+              <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>
                 Check-ins are self-reported unless your partner confirms them. Manual check-ins never award XP.
               </Text>
             </View>
-            <View style={{ gap: 8 }}>
-              <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "700" }}>
-                Send a little encouragement
-              </Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+            <View style={{ backgroundColor: colors.background, borderRadius: colors.radius, gap: 13, padding: 15 }}>
+              <View style={{ alignItems: "flex-start", flexDirection: "row", gap: 11 }}>
+                <View style={{ alignItems: "center", backgroundColor: colors.primary + "16", borderRadius: 20, height: 40, justifyContent: "center", width: 40 }}>
+                  <Feather name="heart" size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1, gap: 3 }}>
+                  <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700" }}>
+                    Send a little encouragement
+                  </Text>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
+                    A quick note can make their next step feel easier.
+                  </Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 9 }}>
                 {([
                   ["keep_going", "Keep going"],
                   ["nearly_there", "Nearly there"],
@@ -572,13 +598,58 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
                     onPress={() => sendEncouragementMessage(message, label)}
                     style={({ pressed }) => [
                       quietButton,
-                      { alignItems: "center", flexDirection: "row", gap: 6, opacity: sendEncouragement.isPending ? 0.55 : pressed ? 0.75 : 1, paddingHorizontal: 10, paddingVertical: 8 },
+                      { alignItems: "center", flexBasis: "47%", flexDirection: "row", flexGrow: 1, gap: 8, minHeight: 46, opacity: sendEncouragement.isPending ? 0.55 : pressed ? 0.75 : 1, paddingHorizontal: 12, paddingVertical: 10 },
                     ]}
                   >
-                    <Feather name="heart" size={13} color={colors.primary} />
-                    <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600" }}>{label}</Text>
+                    <Feather name="heart" size={14} color={colors.primary} />
+                    <Text style={{ color: colors.foreground, flexShrink: 1, fontSize: 12, fontWeight: "600" }}>{label}</Text>
                   </Pressable>
                 ))}
+              </View>
+              <View style={{ gap: 8, marginTop: 2 }}>
+                <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "700" }}>
+                  Or write something personal
+                </Text>
+                <TextInput
+                  testID="accountability-custom-encouragement"
+                  accessibilityLabel="Custom encouragement message"
+                  accessibilityHint="Write a personal message up to 240 characters."
+                  maxLength={240}
+                  multiline
+                  onChangeText={setCustomEncouragement}
+                  placeholder={`Write a personal note for ${activePartner.partner.name}…`}
+                  placeholderTextColor={colors.mutedForeground}
+                  returnKeyType="default"
+                  style={{ backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 4, borderWidth: 1, color: colors.foreground, fontSize: 14, lineHeight: 20, minHeight: 88, padding: 13, textAlignVertical: "top" }}
+                  value={customEncouragement}
+                />
+                <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={{ color: colors.mutedForeground, flex: 1, fontSize: 11, lineHeight: 16 }}>
+                    Only your accountability partner can see this note.
+                  </Text>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11, fontVariant: ["tabular-nums"] }}>
+                    {customEncouragement.length}/240
+                  </Text>
+                </View>
+                <Pressable
+                  testID="accountability-send-custom-encouragement"
+                  accessibilityRole="button"
+                  accessibilityLabel="Send personal encouragement"
+                  accessibilityState={{ disabled: !customEncouragement.trim() || sendEncouragement.isPending }}
+                  disabled={!customEncouragement.trim() || sendEncouragement.isPending}
+                  onPress={submitCustomEncouragement}
+                  style={({ pressed }) => [
+                    primaryButton,
+                    { alignItems: "center", flexDirection: "row", gap: 8, justifyContent: "center", minHeight: 48, opacity: !customEncouragement.trim() || sendEncouragement.isPending ? 0.5 : pressed ? 0.82 : 1, paddingHorizontal: 14 },
+                  ]}
+                >
+                  {sendEncouragement.isPending
+                    ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                    : <Feather name="send" size={15} color={colors.primaryForeground} />}
+                  <Text style={{ color: colors.primaryForeground, fontSize: 13, fontWeight: "700" }}>
+                    Send personal note
+                  </Text>
+                </Pressable>
               </View>
             </View>
             {confirmEnd ? (
@@ -618,7 +689,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
             )}
           </View>
 
-          <View style={[cardStyle, { gap: 13, padding: 15 }]}>
+          <View style={[cardStyle, { gap: 16, padding: 18 }]}>
             <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
               <View>
                 <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "700" }}>
@@ -866,7 +937,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
             })}
           </View>
 
-          <View style={[cardStyle, { gap: 11, padding: 15 }]}>
+          <View style={[cardStyle, { gap: 14, padding: 18 }]}>
             <View style={{ alignItems: "center", flexDirection: "row", gap: 8 }}>
               <Feather name="activity" size={17} color={colors.teal} />
               <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "700" }}>
@@ -875,7 +946,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
             </View>
             {dashboard.data?.activity.length ? (
               dashboard.data.activity.slice(0, 12).map((event) => (
-                <View key={event.id} style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 6, padding: 11 }}>
+                <View key={event.id} style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 8, padding: 14 }}>
                   <View style={{ alignItems: "flex-start", flexDirection: "row", gap: 8 }}>
                     <View style={{ alignItems: "center", backgroundColor: colors.teal + "16", borderRadius: 15, height: 30, justifyContent: "center", width: 30 }}>
                       <Feather
@@ -937,7 +1008,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
       ) : null}
 
       {notifications.length > 0 ? (
-        <View style={[cardStyle, { gap: 10, padding: 15 }]}>
+          <View style={[cardStyle, { gap: 13, padding: 18 }]}>
           <View style={{ alignItems: "center", flexDirection: "row", gap: 8 }}>
             <Feather name="bell" size={16} color={colors.primary} />
             <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700" }}>Notifications</Text>

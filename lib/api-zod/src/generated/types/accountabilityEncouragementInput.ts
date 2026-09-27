@@ -7,6 +7,15 @@
  */
 import type { AccountabilityEncouragementInputMessage } from './accountabilityEncouragementInputMessage';
 
+/**
+ * Provide either a preset message or a custom message, but not both.
+ */
 export interface AccountabilityEncouragementInput {
-  message: AccountabilityEncouragementInputMessage;
+  message?: AccountabilityEncouragementInputMessage;
+  /**
+     * A personal note, up to 240 characters.
+     * @minLength 1
+     * @maxLength 240
+     */
+  customMessage?: string;
 }

@@ -3339,7 +3339,7 @@ export const getSendAccountabilityEncouragementUrl = () => {
 }
 
 /**
- * @summary Send a prewritten encouragement to the active partner
+ * @summary Send a prewritten or custom encouragement to the active partner
  */
 export const sendAccountabilityEncouragement = async (accountabilityEncouragementInput: AccountabilityEncouragementInput, options?: Parameters<typeof customFetch>[1]): Promise<AccountabilityMutationResult> => {
 
@@ -3405,7 +3405,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SendAccountabilityEncouragementMutationVariables = {data: BodyType<AccountabilityEncouragementInput>}
 
     /**
- * @summary Send a prewritten encouragement to the active partner
+ * @summary Send a prewritten or custom encouragement to the active partner
  */
 export const useSendAccountabilityEncouragement = <TError = ErrorType<UnauthorizedResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAccountabilityEncouragement>>, TError,SendAccountabilityEncouragementMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

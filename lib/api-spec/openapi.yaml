@@ -832,7 +832,7 @@ paths:
     post:
       operationId: sendAccountabilityEncouragement
       tags: [friends]
-      summary: Send a prewritten encouragement to the active partner
+      summary: Send a prewritten or custom encouragement to the active partner
       security: [{ telegramInitData: [] }]
       requestBody:
         required: true
@@ -1845,9 +1845,14 @@ components:
       required: [status]
     AccountabilityEncouragementInput:
       type: object
+      description: Provide either a preset message or a custom message, but not both.
       properties:
         message:
           type: string
           enum: [keep_going, nearly_there, proud_of_you, lets_do_this, join_me]
-      required: [message]
+        customMessage:
+          type: string
+          minLength: 1
+          maxLength: 240
+          description: A personal note, up to 240 characters.
 
