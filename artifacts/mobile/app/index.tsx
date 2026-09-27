@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -3845,6 +3846,7 @@ function Create({
 function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => void }) {
   const colors = useColors();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const items: Array<{ key: Screen; label: string; icon: IconName }> = user?.userType === 'organisation'
     ? [
         { key: 'home', label: 'Home', icon: 'home' },
@@ -3859,18 +3861,90 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
         { key: 'profile', label: 'Profile', icon: 'user' },
       ];
   return (
-    <View style={[styles.bottomNav, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: Platform.OS === 'web' ? 34 : 28 }]}>
-      {items.map((item) => {
-        const selected = active === item.key;
-        return (
-          <Pressable accessibilityRole="button" accessibilityLabel={item.label} accessibilityState={{ selected }} key={item.key} onPress={() => { triggerHaptic(); go(item.key); }} style={styles.navItem}>
-            <View style={[styles.navIconWrapper, selected && { backgroundColor: colors.primary + '15' }]}>
-              <Feather name={item.icon} size={22} color={selected ? colors.primary : colors.mutedForeground} />
-            </View>
-            <Text style={[styles.navLabel, { color: selected ? colors.primary : colors.mutedForeground }]}>{item.label}</Text>
-          </Pressable>
-        );
-      })}
+    <View
+      style={[
+        styles.bottomNavDock,
+        { paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 18 : 10) },
+      ]}
+    >
+      <View
+        style={[
+          styles.bottomNav,
+          {
+            backgroundColor: `${colors.welcome.background}D6`,
+            borderColor: `${colors.welcome.border}E0`,
+            shadowColor: colors.welcome.background,
+          },
+        ]}
+      >
+        <BlurView
+          intensity={72}
+          tint="dark"
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+        />
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: `${colors.welcome.background}70` },
+          ]}
+        />
+        <View
+          pointerEvents="none"
+          style={[
+            styles.navTopShine,
+            { backgroundColor: `${colors.welcome.foreground}35` },
+          ]}
+        />
+        {items.map((item) => {
+          const selected = active === item.key;
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={item.label}
+              accessibilityState={{ selected }}
+              key={item.key}
+              onPress={() => { triggerHaptic(); go(item.key); }}
+              style={({ pressed }) => [
+                styles.navItem,
+                selected && [
+                  styles.navItemActive,
+                  {
+                    backgroundColor: `${colors.welcome.surface}E8`,
+                    borderColor: `${colors.welcome.foreground}35`,
+                    shadowColor: colors.welcome.foreground,
+                  },
+                ],
+                pressed && styles.navItemPressed,
+              ]}
+            >
+              <View
+                style={[
+                  styles.navIconWrapper,
+                  selected && { backgroundColor: `${colors.primary}28` },
+                ]}
+              >
+                <Feather
+                  name={item.icon}
+                  size={19}
+                  color={selected ? colors.primary : colors.welcome.muted}
+                />
+              </View>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.navLabel,
+                  { color: selected ? colors.welcome.foreground : colors.welcome.muted },
+                  selected && styles.navLabelActive,
+                ]}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -4739,9 +4813,57 @@ const styles = StyleSheet.create({
   createPrimaryText: { fontSize: 15, fontFamily: 'Inter_700Bold' },
   createFooterNote: { color: '#9A8FA0', textAlign: 'center', fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 16 },
   
-  // Bottom Nav
-  bottomNav: { flexDirection: 'row', paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  navItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  navIconWrapper: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
-  navLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  // Floating liquid-glass navigation, shared by Home and Profile.
+  bottomNavDock: { alignItems: 'center', paddingHorizontal: 16, paddingTop: 8 },
+  bottomNav: {
+    alignSelf: 'center',
+    borderRadius: 34,
+    borderWidth: 1,
+    flexDirection: 'row',
+    maxWidth: 520,
+    overflow: 'hidden',
+    paddingHorizontal: 7,
+    paddingVertical: 7,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    elevation: 14,
+    width: '100%',
+  },
+  navTopShine: { height: 1, left: 22, position: 'absolute', right: 22, top: 0 },
+  navItem: {
+    alignItems: 'center',
+    borderColor: 'transparent',
+    borderRadius: 26,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 54,
+    paddingHorizontal: 2,
+    paddingVertical: 4,
+  },
+  navItemActive: {
+    elevation: 5,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 9,
+    transform: [{ translateY: -2 }],
+  },
+  navItemPressed: { opacity: 0.78, transform: [{ scale: 0.97 }] },
+  navIconWrapper: {
+    alignItems: 'center',
+    borderRadius: 16,
+    height: 29,
+    justifyContent: 'center',
+    marginBottom: 1,
+    width: 34,
+  },
+  navLabel: {
+    flexShrink: 1,
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 10,
+    lineHeight: 13,
+    textAlign: 'center',
+  },
+  navLabelActive: { fontFamily: 'Inter_700Bold', fontSize: 10.5 },
 });
