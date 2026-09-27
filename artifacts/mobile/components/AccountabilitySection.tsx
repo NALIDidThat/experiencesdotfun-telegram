@@ -536,53 +536,62 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
       {activePartner ? (
         <>
           <View style={[cardStyle, { gap: 16, padding: 18 }]}>
-            <View style={{ alignItems: "center", flexDirection: "row", gap: 13 }}>
-              <UserAvatar
-                avatarUrl={activePartner.partner.avatarUrl}
-                name={activePartner.partner.name}
-                containerStyle={{ alignItems: "center", backgroundColor: colors.primary + "16", borderRadius: 29, height: 58, justifyContent: "center", width: 58 }}
-                initialStyle={{ color: colors.primary, fontSize: 18, fontWeight: "700" }}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.mutedForeground, fontSize: 11, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" }}>
+            <View style={{ gap: 12 }}>
+              <View style={{ alignItems: "center", flexDirection: "row", gap: 10, justifyContent: "space-between" }}>
+                <Text style={{ color: colors.mutedForeground, flex: 1, fontSize: 10, fontWeight: "700", letterSpacing: 0.85, textTransform: "uppercase" }}>
                   Your accountability partner
                 </Text>
-                <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: "700", marginTop: 4 }}>
-                  {activePartner.partner.name}
-                </Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 2 }}>
-                  {activePartner.partner.username ? `@${activePartner.partner.username} · ` : ""}
-                  Since {timeLabel(activePartner.acceptedAt)}
-                </Text>
+                <View style={{ alignItems: "center", backgroundColor: colors.success + "16", borderRadius: 20, flexDirection: "row", gap: 5, minHeight: 30, paddingHorizontal: 10 }}>
+                  <Feather name="check-circle" size={14} color={colors.success} />
+                  <Text style={{ color: colors.success, fontSize: 11, fontWeight: "700" }}>Active</Text>
+                </View>
               </View>
-              <View style={{ alignItems: "center", backgroundColor: colors.success + "16", borderRadius: 20, flexDirection: "row", gap: 5, paddingHorizontal: 9, paddingVertical: 6 }}>
-                <Feather name="check-circle" size={13} color={colors.success} />
-                <Text style={{ color: colors.success, fontSize: 11, fontWeight: "700" }}>Active</Text>
+              <View style={{ alignItems: "center", flexDirection: "row", gap: 12 }}>
+                <UserAvatar
+                  avatarUrl={activePartner.partner.avatarUrl}
+                  name={activePartner.partner.name}
+                  containerStyle={{ alignItems: "center", backgroundColor: colors.primary + "16", borderRadius: 27, height: 54, justifyContent: "center", width: 54 }}
+                  initialStyle={{ color: colors.primary, fontSize: 18, fontWeight: "700" }}
+                />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text numberOfLines={2} style={{ color: colors.foreground, fontSize: 18, fontWeight: "700", lineHeight: 22 }}>
+                    {activePartner.partner.name}
+                  </Text>
+                  <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 3 }}>
+                    {activePartner.partner.username ? `@${activePartner.partner.username} · ` : ""}
+                    Since {timeLabel(activePartner.acceptedAt)}
+                  </Text>
+                </View>
               </View>
             </View>
-            <View style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 5, padding: 14 }}>
-              <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "600" }}>
-                Support, not surveillance
-              </Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>
-                Check-ins are self-reported unless your partner confirms them. Manual check-ins never award XP.
-              </Text>
+            <View style={{ alignItems: "flex-start", backgroundColor: colors.secondary + "08", borderColor: colors.secondary + "18", borderRadius: colors.radius - 3, borderWidth: 1, flexDirection: "row", gap: 10, padding: 12 }}>
+              <View style={{ alignItems: "center", backgroundColor: colors.secondary + "12", borderRadius: 10, height: 30, justifyContent: "center", width: 30 }}>
+                <Feather name="eye-off" size={16} color={colors.secondary} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "700", lineHeight: 17 }}>
+                  Support, not surveillance
+                </Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19, marginTop: 3 }}>
+                  Check-ins are self-reported unless your partner confirms them. Manual check-ins never award XP.
+                </Text>
+              </View>
             </View>
-            <View style={{ backgroundColor: colors.background, borderRadius: colors.radius, gap: 13, padding: 15 }}>
-              <View style={{ alignItems: "flex-start", flexDirection: "row", gap: 11 }}>
-                <View style={{ alignItems: "center", backgroundColor: colors.primary + "16", borderRadius: 20, height: 40, justifyContent: "center", width: 40 }}>
+            <View style={{ gap: 12, paddingTop: 2 }}>
+              <View style={{ alignItems: "center", flexDirection: "row", gap: 10 }}>
+                <View style={{ alignItems: "center", backgroundColor: colors.primary + "16", borderRadius: 12, height: 36, justifyContent: "center", width: 36 }}>
                   <Feather name="heart" size={18} color={colors.primary} />
                 </View>
-                <View style={{ flex: 1, gap: 3 }}>
-                  <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700" }}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "700" }}>
                     Send a little encouragement
                   </Text>
-                  <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
-                    A quick note can make their next step feel easier.
+                  <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 16 }}>
+                    Small support can help with their next step.
                   </Text>
                 </View>
               </View>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 9 }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                 {([
                   ["keep_going", "Keep going"],
                   ["nearly_there", "Nearly there"],
@@ -592,21 +601,37 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
                 ] as Array<[EncouragementType, string]>).map(([message, label]) => (
                   <Pressable
                     key={message}
+                    testID={`accountability-encouragement-${message}`}
                     accessibilityRole="button"
                     accessibilityLabel={`Send encouragement: ${label}`}
+                    accessibilityHint="Sends this encouragement to your accountability partner."
+                    accessibilityState={{ disabled: sendEncouragement.isPending }}
                     disabled={sendEncouragement.isPending}
                     onPress={() => sendEncouragementMessage(message, label)}
                     style={({ pressed }) => [
                       quietButton,
-                      { alignItems: "center", flexBasis: "47%", flexDirection: "row", flexGrow: 1, gap: 8, minHeight: 46, opacity: sendEncouragement.isPending ? 0.55 : pressed ? 0.75 : 1, paddingHorizontal: 12, paddingVertical: 10 },
+                      {
+                        alignItems: "center",
+                        backgroundColor: message === "join_me" ? colors.primary : colors.primary + "08",
+                        borderColor: message === "join_me" ? colors.primary : colors.primary + "20",
+                        flexBasis: message === "join_me" ? "100%" : "48%",
+                        flexDirection: "row",
+                        flexGrow: 0,
+                        gap: 8,
+                        minHeight: 44,
+                        opacity: sendEncouragement.isPending ? 0.55 : pressed ? 0.78 : 1,
+                        paddingHorizontal: 11,
+                        paddingVertical: 9,
+                      },
                     ]}
                   >
-                    <Feather name="heart" size={14} color={colors.primary} />
-                    <Text style={{ color: colors.foreground, flexShrink: 1, fontSize: 12, fontWeight: "600" }}>{label}</Text>
+                    <Feather name={message === "join_me" ? "users" : "heart"} size={15} color={message === "join_me" ? colors.primaryForeground : colors.primary} />
+                    <Text style={{ color: message === "join_me" ? colors.primaryForeground : colors.foreground, flex: 1, flexShrink: 1, fontSize: 12, fontWeight: "600" }}>{label}</Text>
+                    {message === "join_me" ? <Feather name="arrow-right" size={15} color={colors.primaryForeground} /> : null}
                   </Pressable>
                 ))}
               </View>
-              <View style={{ gap: 8, marginTop: 2 }}>
+              <View style={{ borderColor: colors.border, borderTopWidth: 1, gap: 8, marginTop: 2, paddingTop: 14 }}>
                 <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "700" }}>
                   Or write something personal
                 </Text>
@@ -658,10 +683,17 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
                   End this partnership? Your active commitments will be cancelled and private to this partnership.
                 </Text>
                 <View style={{ flexDirection: "row", gap: 8 }}>
-                  <Pressable onPress={() => setConfirmEnd(false)} style={[quietButton, { alignItems: "center", flex: 1, justifyContent: "center", minHeight: 36 }]}>
+                  <Pressable
+                    accessibilityRole="button"
+                    testID="accountability-keep-partnership"
+                    onPress={() => setConfirmEnd(false)}
+                    style={({ pressed }) => [quietButton, { alignItems: "center", flex: 1, justifyContent: "center", minHeight: 44, opacity: pressed ? 0.75 : 1 }]}
+                  >
                     <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600" }}>Keep partnership</Text>
                   </Pressable>
                   <Pressable
+                    accessibilityRole="button"
+                    testID="accountability-confirm-end-partnership"
                     disabled={endPartnership.isPending}
                     onPress={() => {
                       void runAction(
@@ -672,18 +704,24 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
                         if (ended) setConfirmEnd(false);
                       });
                     }}
-                    style={[{ backgroundColor: colors.destructive, borderRadius: colors.radius - 4 }, { alignItems: "center", flex: 1, justifyContent: "center", minHeight: 36, opacity: endPartnership.isPending ? 0.55 : 1 }]}
+                    style={({ pressed }) => [{ backgroundColor: colors.destructive, borderRadius: colors.radius - 4 }, { alignItems: "center", flex: 1, justifyContent: "center", minHeight: 44, opacity: endPartnership.isPending ? 0.55 : pressed ? 0.8 : 1 }]}
                   >
-                    {endPartnership.isPending ? <ActivityIndicator size="small" color="#ffffff" /> : <Text style={{ color: "#ffffff", fontSize: 12, fontWeight: "700" }}>End partnership</Text>}
+                    {endPartnership.isPending ? <ActivityIndicator size="small" color={colors.destructiveForeground} /> : <Text style={{ color: colors.destructiveForeground, fontSize: 12, fontWeight: "700" }}>End partnership</Text>}
                   </Pressable>
                 </View>
               </View>
             ) : (
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel="End accountability partnership"
+                accessibilityHint="Opens a confirmation before ending the partnership."
+                testID="accountability-end-partnership"
                 onPress={() => setConfirmEnd(true)}
-                style={{ alignSelf: "flex-start", paddingVertical: 4 }}
+                style={({ pressed }) => [
+                  { alignItems: "center", alignSelf: "stretch", borderColor: colors.border, borderTopWidth: 1, flexDirection: "row", gap: 8, marginTop: -4, minHeight: 44, opacity: pressed ? 0.75 : 1, paddingTop: 8 },
+                ]}
               >
+                <Feather name="x-circle" size={15} color={colors.destructive} />
                 <Text style={{ color: colors.destructive, fontSize: 12, fontWeight: "600" }}>End partnership</Text>
               </Pressable>
             )}
