@@ -65,7 +65,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
   const { user } = useAuth();
   const dashboard = useGetAccountabilityDashboard({
     query: {
-      queryKey: getGetAccountabilityDashboardQueryKey(),
+      queryKey: [...getGetAccountabilityDashboardQueryKey(), user?.id],
       enabled: user?.userType === "participant",
       refetchInterval: 15_000,
     },
@@ -236,8 +236,10 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
     borderWidth: 1,
   } as const;
 
+  if (user?.userType !== "participant") return null;
+
   return (
-    <View style={{ gap: 16, marginBottom: 18 }}>
+    <View testID="accountability-section" style={{ gap: 16, marginBottom: 18 }}>
       <View style={{ gap: 4, marginTop: 4 }}>
         <View style={{ alignItems: "center", flexDirection: "row", gap: 8 }}>
           <Feather name="target" size={18} color={colors.primary} />

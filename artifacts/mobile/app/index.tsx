@@ -70,6 +70,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
+import { AccountabilitySection } from '@/components/AccountabilitySection';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -2973,6 +2974,23 @@ function FriendsOverviewScreen({
               </View>
             ) : null}
           </View>
+
+          {user.userType === 'participant' ? (
+            <AccountabilitySection friends={friends.data ?? []} />
+          ) : user.userType === 'organisation' ? (
+            <View
+              testID="friends-accountability-unavailable"
+              style={[styles.friendEmpty, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, marginBottom: 18 }]}
+            >
+              <View style={[styles.friendEmptyIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name="target" size={16} color={colors.primary} />
+              </View>
+              <View style={styles.friendPersonCopy}>
+                <Text style={[styles.friendPersonName, { color: colors.foreground }]}>Accountability partners are for Participant profiles</Text>
+                <Text style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>This Organisation profile can manage friends, but can’t create accountability partnerships.</Text>
+              </View>
+            </View>
+          ) : null}
 
           <View style={styles.friendSection}>
             <View style={styles.friendSectionHeader}>
