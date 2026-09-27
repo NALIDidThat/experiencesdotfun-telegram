@@ -22,7 +22,11 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
+import {
+  GlassView,
+  isGlassEffectAPIAvailable,
+  isLiquidGlassAvailable,
+} from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -4188,6 +4192,10 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
   const colors = useColors();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const liquidGlassAvailable =
+    Platform.OS === 'ios' &&
+    isLiquidGlassAvailable() &&
+    isGlassEffectAPIAvailable();
   const items: Array<{ key: Screen; label: string; icon: IconName }> = user?.userType === 'organisation'
     ? [
         { key: 'home', label: 'Home', icon: 'home' },
@@ -4212,32 +4220,12 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
         style={[
           styles.bottomNav,
           {
-            backgroundColor: `${colors.welcome.background}D6`,
-            borderColor: `${colors.welcome.border}E0`,
-            shadowColor: colors.welcome.background,
+            backgroundColor: colors.primary,
+            borderColor: `${colors.primaryForeground}55`,
+            shadowColor: colors.primary,
           },
         ]}
       >
-        <BlurView
-          intensity={72}
-          tint="dark"
-          pointerEvents="none"
-          style={StyleSheet.absoluteFill}
-        />
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: `${colors.welcome.background}70` },
-          ]}
-        />
-        <View
-          pointerEvents="none"
-          style={[
-            styles.navTopShine,
-            { backgroundColor: `${colors.welcome.foreground}35` },
-          ]}
-        />
         {items.map((item) => {
           const selected = active === item.key;
           return (
@@ -4252,31 +4240,50 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
                 selected && [
                   styles.navItemActive,
                   {
-                    backgroundColor: `${colors.welcome.surface}E8`,
-                    borderColor: `${colors.welcome.foreground}35`,
-                    shadowColor: colors.welcome.foreground,
+                    borderColor: `${colors.primaryForeground}88`,
+                    shadowColor: colors.primaryForeground,
                   },
                 ],
                 pressed && styles.navItemPressed,
               ]}
             >
-              <View
-                style={[
-                  styles.navIconWrapper,
-                  selected && { backgroundColor: `${colors.primary}28` },
-                ]}
-              >
+              {selected
+                ? liquidGlassAvailable
+                  ? (
+                    <GlassView
+                      pointerEvents="none"
+                      glassEffectStyle="regular"
+                      tintColor={colors.primary}
+                      style={[StyleSheet.absoluteFill, styles.navGlassSurface]}
+                    />
+                  )
+                  : (
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        StyleSheet.absoluteFill,
+                        styles.navGlassSurface,
+                        styles.navGlassFallback,
+                        {
+                          backgroundColor: `${colors.primaryForeground}24`,
+                          borderColor: `${colors.primaryForeground}88`,
+                        },
+                      ]}
+                    />
+                  )
+                : null}
+              <View style={styles.navIconWrapper}>
                 <Feather
                   name={item.icon}
                   size={19}
-                  color={selected ? colors.primary : colors.welcome.muted}
+                  color={colors.primaryForeground}
                 />
               </View>
               <Text
                 numberOfLines={1}
                 style={[
                   styles.navLabel,
-                  { color: selected ? colors.welcome.foreground : colors.welcome.muted },
+                  { color: colors.primaryForeground },
                   selected && styles.navLabelActive,
                 ]}
               >
@@ -5203,7 +5210,7 @@ const styles = StyleSheet.create({
   createPrimaryText: { fontSize: 15, fontFamily: 'Inter_700Bold' },
   createFooterNote: { color: '#9A8FA0', textAlign: 'center', fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 16 },
   
-  // Floating liquid-glass navigation, shared by Home and Profile.
+  // Floating brand navigation with liquid glass on the active item.
   bottomNavDock: { alignItems: 'center', paddingHorizontal: 16, paddingTop: 8 },
   bottomNav: {
     alignSelf: 'center',
@@ -5220,7 +5227,6 @@ const styles = StyleSheet.create({
     elevation: 14,
     width: '100%',
   },
-  navTopShine: { height: 1, left: 22, position: 'absolute', right: 22, top: 0 },
   navItem: {
     alignItems: 'center',
     borderColor: 'transparent',
@@ -5229,6 +5235,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     minHeight: 54,
+    position: 'relative',
     paddingHorizontal: 2,
     paddingVertical: 4,
   },
@@ -5239,6 +5246,8 @@ const styles = StyleSheet.create({
     shadowRadius: 9,
     transform: [{ translateY: -2 }],
   },
+  navGlassSurface: { borderRadius: 26 },
+  navGlassFallback: { borderWidth: 1 },
   navItemPressed: { opacity: 0.78, transform: [{ scale: 0.97 }] },
   navIconWrapper: {
     alignItems: 'center',
