@@ -11,3 +11,4 @@
 - [Web keyboard focus and scrolling](web-keyboard-provider.md) — provider gating and keyboard-overlap scrolling are separate; web layouts also need viewport-aware, shrinkable scroll regions.
 - [Live UI source context](live-ui-source-context.md) — recheck current component and style anchors when workspace code diverges from earlier excerpts.
 - [Expo web gesture verification](expo-web-gesture-verification.md) — browser drag checks need synthetic touch events; native responder behavior still needs device-level QA.
+- [Transitive package overrides](transitive-package-overrides.md) — security overrides can cross CJS/ESM boundaries; verify them through the consuming package's workspace resolution.
