@@ -13,6 +13,11 @@ import {
 import { verifyTelegramInitData as verifySignedTelegramInitData, type TelegramIdentity } from "./telegram-init-data";
 import { logger } from "./logger";
 import { selectTelegramProfile } from "./telegram-identity";
+import {
+  emailProfileValues,
+  telegramProfileRoleUpdate,
+  telegramProfileValues,
+} from "./account-type-values";
 import { createEphemeralSupabaseClient, getSupabaseAdminClient } from "./supabase";
 import { verifyLegacyPassword } from "./legacy-password";
 
@@ -196,12 +201,9 @@ export async function createEmailAccount(input: EmailSignupInput): Promise<{ use
 
       const [createdUser] = await transaction
         .insert(usersTable)
-        .values({
-          telegramId: `email:${crypto.randomUUID()}`,
-          name: input.name.trim(),
-          username,
-          userType: input.userType,
-        })
+        .values(
+          emailProfileValues(input, `email:${crypto.randomUUID()}`),
+        )
         .returning();
       if (!createdUser) throw new Error("Unable to create email user.");
 
@@ -340,7 +342,6 @@ export function verifyTelegramInitData(initData: string): TelegramIdentity {
 }
 
 export async function upsertTelegramUser(identity: TelegramIdentity, selectedUserType?: UserType): Promise<User> {
-  const name = [identity.first_name, identity.last_name].filter(Boolean).join(" ") || "Telegram user";
   const avatarUrl = validatedTelegramPhotoUrl(identity.photo_url);
   const telegramId = String(identity.id);
   return db.transaction(async (transaction) => {
@@ -358,11 +359,12 @@ export async function upsertTelegramUser(identity: TelegramIdentity, selectedUse
     const existing = selectTelegramProfile(profiles, selectedUserType);
 
     if (existing) {
-      const claimUnassignedProfile = existing.userType === null && selectedUserType !== undefined;
+      const roleUpdate = telegramProfileRoleUpdate(existing.userType, selectedUserType);
+      const claimUnassignedProfile = "userType" in roleUpdate;
       const [updated] = await transaction
         .update(usersTable)
         .set({
-          ...(claimUnassignedProfile ? { userType: selectedUserType } : {}),
+          ...roleUpdate,
           ...(avatarUrl && existing.avatarUrl !== avatarUrl ? { avatarUrl } : {}),
           updatedAt: new Date(),
         })
@@ -379,12 +381,9 @@ export async function upsertTelegramUser(identity: TelegramIdentity, selectedUse
       .insert(usersTable)
       .values({
         telegramId,
-        name,
         // Each profile owns its public username. Do not reuse Telegram's
         // username for a second profile under the same identity.
-        username: null,
-        avatarUrl: avatarUrl ?? null,
-        userType: selectedUserType ?? null,
+        ...telegramProfileValues(identity, avatarUrl, selectedUserType),
       })
       .returning();
     if (!created) throw new Error("Unable to create Telegram profile.");
