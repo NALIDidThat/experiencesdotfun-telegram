@@ -15,3 +15,4 @@
 - [Transitive package overrides](transitive-package-overrides.md) — security overrides can cross CJS/ESM boundaries; verify them through the consuming package's workspace resolution.
 - [OpenAPI date-only fields](openapi-date-only-fields.md) — keep date-only wire values as strings when generating Zod schemas with Orval.
 - [Supabase database connectivity](supabase-pooler.md) — use the Session Pooler when this environment cannot reach Supabase’s IPv6-only direct database endpoint.
+- [Drizzle push filters](drizzle-push-filters.md) — inspect verbose push output against external databases; a configured table filter may still produce broad DDL.

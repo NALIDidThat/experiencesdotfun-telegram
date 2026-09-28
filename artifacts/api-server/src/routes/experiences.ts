@@ -18,7 +18,7 @@ import {
   UpdateMeBody,
   VerifyParticipationParams,
 } from "@workspace/api-zod";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import {
   emailAccountsTable,
   experiencesTable,
@@ -31,6 +31,7 @@ import {
   type PersistedSocialLinks,
   type UserType,
 } from "@workspace/db/schema";
+import { redeemPendingXpAwards } from "../lib/xp-award-redemption.mjs";
 import {
   currentUser,
   authenticateEmail,
@@ -348,46 +349,15 @@ router.get("/me/xp-awards", async (req, res) => {
 
 router.post("/me/xp-awards/redeem", async (req, res) => {
   const user = currentUser(req);
-  const result = await db.transaction(async (transaction) => {
-    const now = new Date();
-    const redeemedAwards = await transaction
-      .update(xpAwardsTable)
-      .set({ status: "redeemed", redeemedAt: now })
-      .where(
-        and(
-          eq(xpAwardsTable.userId, user.id),
-          eq(xpAwardsTable.status, "pending"),
-        ),
-      )
-      .returning({ amount: xpAwardsTable.amount });
-    const redeemedXp = redeemedAwards.reduce(
-      (sum, award) => sum + award.amount,
-      0,
-    );
-
-    if (redeemedXp > 0) {
-      const [updatedUser] = await transaction
-        .update(usersTable)
-        .set({
-          xp: sql`${usersTable.xp} + ${redeemedXp}`,
-          updatedAt: now,
-        })
-        .where(eq(usersTable.id, user.id))
-        .returning();
-      if (!updatedUser) throw new Error("Could not update the Experience XP balance.");
-      return { redeemedXp, user: updatedUser };
-    }
-
-    const existingUser = await transaction.query.usersTable.findFirst({
-      where: eq(usersTable.id, user.id),
-    });
-    if (!existingUser) throw new Error("Profile not found.");
-    return { redeemedXp: 0, user: existingUser };
+  const result = await redeemPendingXpAwards(pool, user.id);
+  const updatedUser = await db.query.usersTable.findFirst({
+    where: eq(usersTable.id, user.id),
   });
+  if (!updatedUser) throw new Error("Profile not found.");
 
   res.json({
     redeemedXp: result.redeemedXp,
-    user: await userResponse(result.user),
+    user: await userResponse(updatedUser),
   });
 });
 
