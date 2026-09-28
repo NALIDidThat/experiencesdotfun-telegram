@@ -45,7 +45,6 @@ function AccountProfileCard({
     title,
     `${subtitle}${profile.city ? `, ${profile.city}` : ''}`,
     usernameLabel,
-    `${profile.level} level`,
     isCurrent ? 'current profile' : 'available profile',
   ].join(', ');
 
@@ -84,15 +83,6 @@ function AccountProfileCard({
           >
             {usernameLabel}
           </Text>
-          <View style={[styles.profileLevelBadge, { backgroundColor: colors.primary + '12' }]}>
-            <Feather name="award" size={11} color={colors.primary} />
-            <Text
-              testID={`account-center-profile-level-${profile.id}`}
-              style={[styles.profileLevelText, { color: colors.primary }]}
-            >
-              {profile.level}
-            </Text>
-          </View>
         </View>
       </View>
       {isCurrent ? (
@@ -258,8 +248,6 @@ const styles = StyleSheet.create({
   profileSubtitle: { fontSize: 11, fontFamily: 'Inter_400Regular' },
   profileMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
   profileUsername: { flex: 1, minWidth: 0, fontSize: 10, fontFamily: 'Inter_500Medium' },
-  profileLevelBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 0, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20 },
-  profileLevelText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
   currentBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 20 },
   currentBadgeText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   switchAction: { flexDirection: 'row', alignItems: 'center', gap: 1 },
