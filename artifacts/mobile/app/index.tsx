@@ -78,6 +78,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { AccountabilitySection } from '@/components/AccountabilitySection';
+import { AccountsCenterScreen } from '@/components/AccountsCenterScreen';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
@@ -85,11 +86,11 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { openTelegramBot } from '@/lib/telegram';
 
-type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'notifications' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'create' | 'email';
+type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'accounts' | 'notifications' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'action' | Participation['status'];
-const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'notifications', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'accounts', 'notifications', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -2327,7 +2328,7 @@ function ContributionDashboard({ user, completed }: { user: User; completed: Par
   );
 }
 
-type ProfileMetricKey = 'completed' | 'hosted' | 'friends';
+type ProfileMetricKey = 'completed' | 'hosted' | 'friends' | 'xp';
 
 const socialLinkFields = [
   { key: 'website', label: 'Website', icon: 'globe', placeholder: 'https://yourwebsite.org', domains: [] },
@@ -2564,7 +2565,13 @@ function SocialProfileHeader({
         </View>
       </View>
 
-      <View style={[styles.profileXpTile, { backgroundColor: colors.muted, borderRadius: colors.radius }]}>
+      <ProfileDashboardMetric
+        testID="profile-metric-xp"
+        accessibilityLabel={`View ${user.xp} experience points`}
+        accessibilityHint="Opens your experience points summary."
+        onPress={onMetricPress ? () => onMetricPress('xp') : undefined}
+        style={[styles.profileXpTile, { backgroundColor: colors.muted, borderRadius: colors.radius }]}
+      >
         <View style={styles.profileXpCopy}>
           <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.primary + '12' }]}>
             <Feather name="zap" size={14} color={colors.primary} />
@@ -2574,8 +2581,11 @@ function SocialProfileHeader({
             <Text style={[styles.profileXpCaption, { color: colors.mutedForeground }]}>Earned through participation</Text>
           </View>
         </View>
-        <Text style={[styles.profileXpValue, { color: colors.primary }]}>{user.xp}<Text style={[styles.profileXpUnit, { color: colors.primary }]}> XP</Text></Text>
-      </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+          <Text style={[styles.profileXpValue, { color: colors.primary }]}>{user.xp}<Text style={[styles.profileXpUnit, { color: colors.primary }]}> XP</Text></Text>
+          {onMetricPress ? <Feather name="chevron-right" size={16} color={colors.mutedForeground} /> : null}
+        </View>
+      </ProfileDashboardMetric>
 
       {user.bio ? (
         <View style={[styles.profileBioTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
@@ -2652,33 +2662,42 @@ function ProfileMetricDetailsSheet({
     completed: 'Completed experiences',
     hosted: 'Hosted experiences',
     friends: 'Friends',
+    xp: 'Experience points',
   }[metric];
   const count = metric === 'completed'
     ? user.completedCount
     : metric === 'hosted'
       ? user.hostedCount
-      : friends?.length ?? 0;
+      : metric === 'friends'
+        ? friends?.length ?? 0
+        : user.xp;
   const countLabel = {
     completed: `completed ${count === 1 ? 'experience' : 'experiences'}`,
     hosted: `hosted ${count === 1 ? 'experience' : 'experiences'}`,
     friends: count === 1 ? 'friend' : 'friends',
+    xp: 'XP earned',
   }[metric];
   const description = {
     completed: 'Your participation history',
     hosted: 'Experiences you have organised',
     friends: 'People connected with you',
+    xp: 'From meaningful participation',
   }[metric];
   const emptyTitle = count > 0 ? 'Summary count saved' : {
     completed: 'No completed experiences yet',
     hosted: 'No hosted experiences yet',
     friends: 'No friends yet',
+    xp: 'Take part to earn Experience points',
   }[metric];
   const emptyBody = count > 0
-    ? 'The profile total is available, but detailed records are not available right now.'
+    ? metric === 'xp'
+      ? 'Your Experience points total reflects meaningful participation. Community XP is tracked separately.'
+      : 'The profile total is available, but detailed records are not available right now.'
     : {
       completed: 'Completed experiences will appear here.',
       hosted: 'Experiences you host will appear here.',
       friends: 'Accepted friend connections will appear here.',
+      xp: 'Earn Experience points by participating in experiences and supporting your community.',
     }[metric];
 
   return (
@@ -2721,7 +2740,7 @@ function ProfileMetricDetailsSheet({
               <Text style={[styles.profileMetricSummaryDescription, { color: colors.mutedForeground }]}>{description}</Text>
             </View>
             <Feather
-              name={metric === 'completed' ? 'check-circle' : metric === 'hosted' ? 'calendar' : 'users'}
+              name={metric === 'completed' ? 'check-circle' : metric === 'hosted' ? 'calendar' : metric === 'friends' ? 'users' : 'zap'}
               size={20}
               color={colors.primary}
             />
@@ -2838,6 +2857,18 @@ function ProfileMetricDetailsSheet({
                   <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
                 </Pressable>
               ))
+            ) : metric === 'xp' ? (
+              <View style={styles.profileMetricState}>
+                <View style={[styles.profileMetricStateIcon, { backgroundColor: colors.primary + '12' }]}>
+                  <Feather name="zap" size={20} color={colors.primary} />
+                </View>
+                <Text style={[styles.profileMetricStateTitle, { color: colors.foreground }]}>
+                  {user.xp > 0 ? 'Your contribution total' : 'Take part to earn Experience points'}
+                </Text>
+                <Text style={[styles.profileMetricStateBody, { color: colors.mutedForeground }]}>
+                  Experience points recognise meaningful participation. Community XP is tracked separately.
+                </Text>
+              </View>
             ) : (
               <View style={styles.profileMetricState}>
                 <View style={[styles.profileMetricStateIcon, { backgroundColor: colors.primary + '12' }]}>
@@ -3406,16 +3437,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
     go('host');
   };
 
-  const handleSwitchProfile = async () => {
-    if (!current.userType) return;
-    setProfileMenuError(null);
-    const nextType: UserType = current.userType === 'organisation' ? 'participant' : 'organisation';
-    const switched = await login(nextType);
-    if (!switched) {
-      setProfileMenuError('We couldn’t switch profiles. Your current account is still active—please try again.');
-    }
-  };
-
   const handleSignOut = async () => {
     setProfileMenuError(null);
     try {
@@ -3461,6 +3482,12 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
             onPress: () => go('friends'),
           },
           {
+            key: 'accounts-center',
+            label: 'Accounts Centre',
+            icon: 'users',
+            onPress: () => go('accounts'),
+          },
+          {
             key: 'edit-profile',
             label: editing ? 'Close edit form' : 'Edit profile',
             icon: editing ? 'x' : 'edit-2',
@@ -3472,14 +3499,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
                 label: 'Organisation tools',
                 icon: 'briefcase' as IconName,
                 onPress: openHostTools,
-              }]
-            : []),
-          ...(authenticatedUser?.telegramId != null && current.userType
-            ? [{
-                key: 'switch-profile',
-                label: current.userType === 'organisation' ? 'Switch to Participant' : 'Switch to Organisation',
-                icon: 'repeat' as IconName,
-                onPress: () => { void handleSwitchProfile(); },
               }]
             : []),
           {
@@ -4912,7 +4931,7 @@ export default function App() {
       ? Platform.OS
       : "web";
     analyticsMutationRef.current.mutate({
-      data: { screen, platform },
+      data: { screen: screen === 'accounts' ? 'profile' : screen, platform },
     });
   }, [screen, user?.id]);
 
@@ -5080,6 +5099,7 @@ export default function App() {
 
   const content = (() => {
     if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
+    if (screen === 'accounts') return <AccountsCenterScreen onBack={() => go('profile')} />;
     if (screen === 'friend-profile') return <FriendProfileScreen friendId={Number(params.friendId)} onBack={() => go('friends')} />;
     if (screen === 'friends') return <FriendsOverviewScreen go={go} onBack={() => go('profile')} />;
     if (screen === 'notifications') {
@@ -5101,7 +5121,7 @@ export default function App() {
   const noNav = ['experience', 'create'].includes(screen);
   const navActive = user.userType === 'organisation' && screen === 'experiences'
     ? 'host'
-    : screen === 'friends' || screen === 'friend-profile' || screen === 'notifications'
+    : screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts'
       ? 'profile'
       : screen;
   return (
