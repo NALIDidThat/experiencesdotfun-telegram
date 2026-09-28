@@ -85,12 +85,7 @@ function AccountProfileCard({
           </Text>
         </View>
       </View>
-      {isCurrent ? (
-        <View style={[styles.currentBadge, { backgroundColor: colors.primary + '12' }]}>
-          <Feather name="check" size={13} color={colors.primary} />
-          <Text style={[styles.currentBadgeText, { color: colors.primary }]}>Current</Text>
-        </View>
-      ) : (
+      {!isCurrent && (
         <View style={styles.switchAction}>
           <Text style={[styles.switchActionText, { color: colors.primary }]}>Switch</Text>
           <Feather name="chevron-right" size={17} color={colors.primary} />
@@ -248,8 +243,6 @@ const styles = StyleSheet.create({
   profileSubtitle: { fontSize: 11, fontFamily: 'Inter_400Regular' },
   profileMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
   profileUsername: { flex: 1, minWidth: 0, fontSize: 10, fontFamily: 'Inter_500Medium' },
-  currentBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 20 },
-  currentBadgeText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   switchAction: { flexDirection: 'row', alignItems: 'center', gap: 1 },
   switchActionText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   loading: { minHeight: 76, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
