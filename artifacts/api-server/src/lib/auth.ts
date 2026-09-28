@@ -172,12 +172,9 @@ export async function issueProfileSession(req: Request, profile: User): Promise<
   return issueTelegramSession(profile.id);
 }
 
-export async function createEmailAccount(input: EmailSignupInput): Promise<{ user: User; sessionToken: string }> {
+export async function createEmailAccount(input: EmailSignupInput): Promise<{ user: User }> {
   const email = normalizeEmail(input.email);
   const username = input.username.trim().replace(/^@+/, "").toLowerCase();
-  const sessionToken = `email_${crypto.randomBytes(32).toString("base64url")}`;
-  const sessionTokenHash = hashSessionToken(sessionToken);
-  const sessionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
   const existingAccount = await db.query.emailAccountsTable.findFirst({
     where: eq(emailAccountsTable.email, email),
@@ -217,15 +214,9 @@ export async function createEmailAccount(input: EmailSignupInput): Promise<{ use
         })
         .returning();
       if (!account) throw new Error("Unable to create email account.");
-      await transaction.insert(emailSessionsTable).values({
-        emailAccountId: account.id,
-        userId: createdUser.id,
-        tokenHash: sessionTokenHash,
-        expiresAt: sessionExpiresAt,
-      });
       return createdUser;
     });
-    return { user, sessionToken };
+    return { user };
   } catch (error) {
     if (supabaseIdentity.created) await deleteSupabaseIdentity(supabaseIdentity.id);
     if (

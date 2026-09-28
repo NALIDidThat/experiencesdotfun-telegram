@@ -56,6 +56,7 @@ import type {
   ParticipantSummary,
   Participation,
   ProfileUpdateInput,
+  SignUpResponse,
   TelegramAuthInput,
   UnauthorizedResponse,
   User
@@ -342,7 +343,7 @@ export const getSignUpWithEmailUrl = () => {
 /**
  * @summary Create an email account
  */
-export const signUpWithEmail = async (emailSignupInput: EmailSignupInput, options?: Parameters<typeof customFetch>[1]): Promise<AuthResponse> => {
+export const signUpWithEmail = async (emailSignupInput: EmailSignupInput, options?: Parameters<typeof customFetch>[1]): Promise<SignUpResponse> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -358,7 +359,7 @@ export const signUpWithEmail = async (emailSignupInput: EmailSignupInput, option
     }
     return headers;
   };
-return customFetch<AuthResponse>(getSignUpWithEmailUrl(),
+return customFetch<SignUpResponse>(getSignUpWithEmailUrl(),
   {
     ...options,
     method: 'POST',

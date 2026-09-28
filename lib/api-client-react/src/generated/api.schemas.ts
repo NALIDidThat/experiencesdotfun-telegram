@@ -125,6 +125,11 @@ export interface AuthResponse {
   sessionToken: string;
 }
 
+export interface SignUpResponse {
+  user: User;
+  isNew: boolean;
+}
+
 export interface AccountProfilesResponse {
   accounts: User[];
 }

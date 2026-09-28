@@ -136,7 +136,6 @@ export const signUpWithEmailResponseUserSocialLinksXRegExp = new RegExp('^https:
 export const signUpWithEmailResponseUserSocialLinksYoutubeRegExp = new RegExp('^https:/');
 
 
-
 export const SignUpWithEmailResponse = zod.object({
   "user": zod.object({
   "id": zod.number().int(),
@@ -174,8 +173,7 @@ export const SignUpWithEmailResponse = zod.object({
   "hostedCount": zod.number().int(),
   "rewardsPence": zod.number().int()
 }),
-  "isNew": zod.boolean(),
-  "sessionToken": zod.string().min(1)
+  "isNew": zod.boolean()
 })
 
 

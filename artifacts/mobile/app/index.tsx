@@ -501,6 +501,7 @@ function EmailAuthPanel({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [signupStep, setSignupStep] = useState(0);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [signupSuccess, setSignupSuccess] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const isSignup = mode === 'signup';
   const normalizedUsername = username.trim().replace(/^@+/, '').toLowerCase();
@@ -590,14 +591,21 @@ function EmailAuthPanel({
       setSignupStep((current) => current + 1);
     } else {
       Keyboard.dismiss();
-      const authenticated = await signUpWithEmail(
+      const created = await signUpWithEmail(
         name.trim(),
         normalizedUsername,
         email.trim(),
         password,
         accountType,
       );
-      if (authenticated) onSuccess();
+      if (created) {
+        setMode('login');
+        setSignupStep(0);
+        setPassword('');
+        setConfirmPassword('');
+        setLocalError(null);
+        setSignupSuccess(true);
+      }
     }
   };
 
@@ -605,7 +613,10 @@ function EmailAuthPanel({
     Keyboard.dismiss();
     setLocalError(null);
     const authenticated = await loginWithEmail(email.trim(), password);
-    if (authenticated) onSuccess();
+    if (authenticated) {
+      setSignupSuccess(false);
+      onSuccess();
+    }
   };
 
   return (
@@ -738,6 +749,26 @@ function EmailAuthPanel({
           )}
 
           <View style={[styles.emailAuthFields, !isSignup && styles.emailLoginFields]}>
+            {!isSignup && signupSuccess ? (
+              <View
+                testID="email-signup-success"
+                style={[
+                  styles.emailSignupSuccess,
+                  {
+                    backgroundColor: colors.success + '12',
+                    borderColor: colors.success + '35',
+                  },
+                ]}
+              >
+                <Feather name="check-circle" size={18} color={colors.success} />
+                <Text
+                  accessibilityRole="alert"
+                  style={[styles.emailSignupSuccessText, { color: colors.success }]}
+                >
+                  You're signed up! Log in with the details you registered with :)
+                </Text>
+              </View>
+            ) : null}
             {isSignup ? (
               <View style={styles.emailField}>
                 <Text style={[styles.emailLabel, { color: colors.foreground }]}>{activeSignupField.label}</Text>
@@ -838,6 +869,7 @@ function EmailAuthPanel({
               setMode(isSignup ? 'login' : 'signup');
               setSignupStep(0);
               setLocalError(null);
+              setSignupSuccess(false);
               clearAuthError();
             }}
             style={[
@@ -5133,6 +5165,8 @@ const styles = StyleSheet.create({
   emailAuthHeader: { gap: 18 },
   emailSignupIntroRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   emailAuthFields: { gap: 14 },
+  emailSignupSuccess: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderRadius: 14, marginBottom: 14 },
+  emailSignupSuccessText: { flex: 1, fontSize: 13, lineHeight: 19, fontFamily: 'Inter_600SemiBold' },
   emailSignupProgress: { gap: 8, marginTop: 2 },
   emailSignupProgressMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   emailSignupProgressLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.1 },
