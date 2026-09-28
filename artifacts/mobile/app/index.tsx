@@ -4275,6 +4275,46 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
   );
 }
 
+type CreateExperienceQuestion = {
+  key: keyof ExperienceCreateInput;
+  prompt: string;
+  description: string;
+  label: string;
+  placeholder: string;
+  multiline?: boolean;
+  keyboardType?: 'default' | 'number-pad';
+  optional?: boolean;
+  kind?: 'category';
+  hint?: string;
+};
+
+const createExperienceQuestions: CreateExperienceQuestion[] = [
+  { key: 'organisationName', prompt: 'Who is hosting?', description: 'Participants will see this name on your experience.', label: 'Organisation name', placeholder: 'e.g. The Good Gym' },
+  { key: 'organisationDescription', prompt: 'What does your organisation do?', description: 'A short introduction helps people understand who you are.', label: 'About your organisation', placeholder: 'A sentence or two about your community', multiline: true, optional: true },
+  { key: 'title', prompt: 'What should participants call it?', description: 'Choose a clear, welcoming title for your experience.', label: 'Experience title', placeholder: 'e.g. Make a river wild again' },
+  { key: 'description', prompt: 'What is the experience about?', description: 'Tell people what makes this worth showing up for.', label: 'Experience description', placeholder: 'Give your experience a warm, inviting introduction', multiline: true },
+  { key: 'category', prompt: 'What kind of experience is it?', description: 'Choose the category that best fits what people will do.', label: 'Category', placeholder: '', kind: 'category' },
+  { key: 'date', prompt: 'What day will it happen?', description: 'Enter the date using year-month-day format.', label: 'Date', placeholder: 'YYYY-MM-DD', hint: 'For example, 2026-10-24.' },
+  { key: 'startTime', prompt: 'What time does it start?', description: 'Use 24-hour time so the schedule is clear.', label: 'Start time', placeholder: '10:00', hint: 'For example, 09:30.' },
+  { key: 'endTime', prompt: 'When will it finish?', description: 'Choose an end time that comes after the start time.', label: 'End time', placeholder: '13:00', hint: 'For example, 12:30.' },
+  { key: 'city', prompt: 'What city is it in?', description: 'This helps people find experiences close to them.', label: 'City', placeholder: 'London' },
+  { key: 'location', prompt: 'Where will everyone meet?', description: 'Add a venue, street, or landmark people can find.', label: 'Meeting point', placeholder: 'A clear place people can find' },
+  { key: 'capacity', prompt: 'How many people can join?', description: 'Set the number of confirmed places available.', label: 'Places available', placeholder: '12', keyboardType: 'number-pad', hint: 'You can manage a waitlist if all places fill.' },
+  { key: 'xpReward', prompt: 'How will you recognise participants?', description: 'Choose the XP reward people earn after their participation is verified.', label: 'XP reward', placeholder: '150', keyboardType: 'number-pad', hint: 'Enter a whole number. You can set this to 0.' },
+  { key: 'monetaryRewardPence', prompt: 'Will you offer a cash reward?', description: 'This is optional. Enter the amount in pence.', label: 'Cash reward in pence', placeholder: '2000', keyboardType: 'number-pad', optional: true, hint: 'For example, enter 2000 for a £20 reward.' },
+  { key: 'whatYouWillDo', prompt: 'What will participants do?', description: 'Help people picture the activity before they sign up.', label: 'What participants will do', placeholder: 'Walk, make, chat, discover…', multiline: true, optional: true },
+  { key: 'whatToBring', prompt: 'What should people bring?', description: 'Share anything participants should have with them.', label: 'What to bring', placeholder: 'Comfortable shoes and a curious mind', multiline: true, optional: true },
+];
+
+const createExperienceReviewSections: Array<{ title: string; keys: Array<keyof ExperienceCreateInput> }> = [
+  { title: 'Host', keys: ['organisationName', 'organisationDescription'] },
+  { title: 'Experience', keys: ['title', 'description', 'category'] },
+  { title: 'When', keys: ['date', 'startTime', 'endTime'] },
+  { title: 'Where', keys: ['city', 'location'] },
+  { title: 'Places and rewards', keys: ['capacity', 'xpReward', 'monetaryRewardPence'] },
+  { title: 'What to expect', keys: ['whatYouWillDo', 'whatToBring'] },
+];
+
 function Create({
   go,
   initialStep = 1,
@@ -4286,9 +4326,11 @@ function Create({
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const create = useCreateExperience();
-  const totalSteps = 6;
+  const inputStepCount = createExperienceQuestions.length;
+  const totalSteps = inputStepCount + 1;
   const [step, setStep] = useState(() => Math.min(totalSteps, Math.max(1, initialStep)));
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [inputError, setInputError] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<ExperienceCreateInput>>({
     organisationName: user?.organisation?.name ?? '',
     organisationDescription: user?.organisation?.description ?? '',
@@ -4303,46 +4345,76 @@ function Create({
     const numeric = key === 'capacity' || key === 'xpReward' || key === 'monetaryRewardPence';
     const nextValue = numeric ? (value === '' || value === null ? null : Number(value)) : value;
     setForm((current) => ({ ...current, [key]: nextValue }));
+    setInputError(null);
+    setPublishError(null);
   };
 
   useEffect(() => {
     Keyboard.dismiss();
   }, [step]);
 
-  const valid = Boolean(
-    form.organisationName?.trim()
-    && form.title?.trim()
-    && form.description?.trim()
-    && form.category
-    && form.date?.trim()
-    && form.startTime?.trim()
-    && form.endTime?.trim()
-    && form.location?.trim()
-    && form.city?.trim()
-    && Number(form.capacity) >= 1
-    && Number(form.xpReward) >= 0,
-  );
-  const canContinue =
-    step === 1 ? Boolean(form.organisationName?.trim()) :
-    step === 2 ? Boolean(form.title?.trim() && form.description?.trim()) :
-    step === 3 ? Boolean(form.category) :
-    step === 4 ? Boolean(
-      form.date?.trim()
-      && form.startTime?.trim()
-      && form.endTime?.trim()
-      && form.location?.trim()
-      && form.city?.trim()
-    ) :
-    step === 5 ? Boolean(
-      Number(form.capacity) >= 1
-      && Number(form.xpReward) >= 0,
-    ) :
-    valid;
+  const isValidDateValue = (value: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const parsed = new Date(`${value}T00:00:00.000Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  };
+  const isValidTimeValue = (value: string) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
+  const timeInMinutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
+  const validateQuestion = (question: CreateExperienceQuestion) => {
+    const value = form[question.key];
+    const text = typeof value === 'string' ? value.trim() : '';
+    const empty = value == null || (typeof value === 'string' && !text);
+    if (question.optional && empty) return null;
+
+    if (question.key === 'category') return value ? null : 'Choose a category to continue.';
+    if (question.key === 'date') return isValidDateValue(text) ? null : 'Enter a real date using YYYY-MM-DD.';
+    if (question.key === 'startTime') return isValidTimeValue(text) ? null : 'Enter a time in 24-hour HH:MM format.';
+    if (question.key === 'endTime') {
+      if (!isValidTimeValue(text)) return 'Enter a time in 24-hour HH:MM format.';
+      const startTime = form.startTime?.trim() ?? '';
+      return isValidTimeValue(startTime) && timeInMinutes(text) > timeInMinutes(startTime)
+        ? null
+        : 'Choose an end time after the start time.';
+    }
+    if (question.key === 'capacity') {
+      return Number.isInteger(Number(value)) && Number(value) >= 1
+        ? null
+        : 'Enter a whole number of places, at least 1.';
+    }
+    if (question.key === 'xpReward') {
+      return Number.isInteger(Number(value)) && Number(value) >= 0
+        ? null
+        : 'Enter a whole number of XP, or 0.';
+    }
+    if (question.key === 'monetaryRewardPence') {
+      return value == null || (Number.isInteger(Number(value)) && Number(value) >= 0)
+        ? null
+        : 'Enter a whole number of pence.';
+    }
+    return text ? null : `${question.label} is required.`;
+  };
+  const valid = createExperienceQuestions.every((question) => validateQuestion(question) === null);
+  const activeQuestion = step <= inputStepCount ? createExperienceQuestions[step - 1] : undefined;
 
   const goToStep = (nextStep: number) => {
     Keyboard.dismiss();
     triggerHaptic();
+    setInputError(null);
+    setPublishError(null);
     setStep(nextStep);
+  };
+
+  const continueToNextStep = () => {
+    if (step <= inputStepCount) {
+      const question = createExperienceQuestions[step - 1];
+      const error = question ? validateQuestion(question) : 'This step is unavailable.';
+      if (error) {
+        setInputError(error);
+        triggerHaptic();
+        return;
+      }
+    }
+    goToStep(Math.min(totalSteps, step + 1));
   };
 
   const publish = async () => {
@@ -4387,6 +4459,8 @@ function Create({
         accessibilityLabel={label}
         value={form[key] == null ? '' : String(form[key])}
         onChangeText={(value) => set(key, value)}
+        onSubmitEditing={multiline ? undefined : continueToNextStep}
+        returnKeyType={multiline ? 'default' : 'done'}
         placeholder={placeholder}
         placeholderTextColor={colors.mutedForeground}
         multiline={multiline}
@@ -4400,41 +4474,15 @@ function Create({
     </View>
   );
 
-  const sceneField = (
-    key: keyof ExperienceCreateInput,
-    label: string,
-    placeholder: string,
-    icon: IconName,
-    hint?: string,
-  ) => (
-    <View style={[styles.createSceneField, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 4 }]}>
-      <View style={[styles.createSceneIcon, { backgroundColor: colors.primary + '12' }]}>
-        <Feather name={icon} size={18} color={colors.primary} />
-      </View>
-      <View style={styles.createSceneFieldBody}>
-        <Text style={[styles.createSceneFieldLabel, { color: colors.foreground }]}>{label}</Text>
-        <TextInput
-          accessibilityLabel={label}
-          value={form[key] == null ? '' : String(form[key])}
-          onChangeText={(value) => set(key, value)}
-          placeholder={placeholder}
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.createSceneInput, { color: colors.foreground }]}
-        />
-        {hint ? <Text style={[styles.createSceneHint, { color: colors.mutedForeground }]}>{hint}</Text> : null}
-      </View>
-    </View>
-  );
-
-  const stepTitles = ['Tell us about you', 'Shape the idea', 'Choose a feeling', 'Set the scene', 'Make joining easy', 'Make it yours'];
-  const stepDescriptions = [
-    'Every great gathering starts with a good host.',
-    'Give your idea a little shape — you can change it later.',
-    'Choose the kind of difference this experience will make.',
-    'A few details help the right people show up.',
-    'Set the places and recognition you want to offer.',
-    'Add the magic, then take a look before you share it.',
-  ];
+  const reviewValue = (key: keyof ExperienceCreateInput) => {
+    const value = form[key];
+    if (value == null || value === '') return 'Not added';
+    if (key === 'category') return categoryLabel[value as ExperienceCategory];
+    if (key === 'capacity') return `${value} places`;
+    if (key === 'xpReward') return `${value} XP`;
+    if (key === 'monetaryRewardPence') return Number(value) > 0 ? money(Number(value)) ?? `${value}p` : 'No cash reward';
+    return String(value);
+  };
 
   return (
     <KeyboardAwareScrollViewCompat
