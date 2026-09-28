@@ -151,8 +151,17 @@ export interface EmailSignupInput {
   userType: UserType;
 }
 
+/**
+ * Supply exactly one of email or username, along with the password.
+ */
 export interface EmailLoginInput {
-  email: string;
+  /** @minLength 1 */
+  email?: string;
+  /**
+     * Public username, with optional leading @ characters.
+     * @pattern ^@*[A-Za-z0-9_]{5,32}$
+     */
+  username?: string;
   /** @minLength 1 */
   password: string;
 }

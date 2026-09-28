@@ -231,7 +231,122 @@ function apiResponseHeaders(request, domain) {
   ];
 }
 
-test("signup returns to sign-in and the new account can log in without production data", async (t) => {
+async function assertLoginIdentifierRequest(t, identifier, expectedInput) {
+  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile email auth flow test.");
+
+  const client = await launchBrowser(t);
+  const requests = [];
+  let interceptionError;
+
+  client.on("Fetch.requestPaused", ({ params }) => {
+    void (async () => {
+      try {
+        const url = new URL(params.request.url);
+        if (
+          params.request.method === "OPTIONS"
+          && url.pathname.startsWith("/api/auth/email/")
+        ) {
+          const origin = params.request.headers.Origin ?? `https://${domain}`;
+          const requestedHeaders = params.request.headers["Access-Control-Request-Headers"]
+            ?? params.request.headers["access-control-request-headers"]
+            ?? "authorization,content-type";
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 204,
+            responseHeaders: [
+              { name: "Access-Control-Allow-Origin", value: origin },
+              { name: "Access-Control-Allow-Methods", value: "POST, OPTIONS" },
+              { name: "Access-Control-Allow-Headers", value: requestedHeaders },
+            ],
+            body: "",
+          });
+          return;
+        }
+
+        if (url.pathname.endsWith("/api/auth/email/login") && params.request.method === "POST") {
+          requests.push(await getRequestBody(client, params));
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 401,
+            responseHeaders: apiResponseHeaders(params.request, domain),
+            body: Buffer.from(JSON.stringify({
+              message: "That email, username or password is not correct.",
+            })).toString("base64"),
+          });
+          return;
+        }
+
+        if (url.pathname.startsWith("/api/")) {
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: url.pathname.endsWith("/analytics/events") ? 202 : 200,
+            responseHeaders: apiResponseHeaders(params.request, domain),
+            body: Buffer.from(JSON.stringify(
+              url.pathname.endsWith("/analytics/events") ? { accepted: true } : [],
+            )).toString("base64"),
+          });
+          return;
+        }
+
+        await client.send("Fetch.continueRequest", { requestId: params.requestId });
+      } catch (error) {
+        interceptionError ??= error;
+        await client.send("Fetch.failRequest", {
+          requestId: params.requestId,
+          errorReason: "Failed",
+        }).catch(() => {});
+      }
+    })();
+  });
+
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
+  await setViewport(client, viewport.height);
+  await client.send("Page.navigate", { url: `https://${domain}/` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="welcome-start"]'))`,
+    Boolean,
+    "the signed-out welcome screen",
+  );
+  await tapTestId(client, "welcome-start");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="account-type-participant"]'))`,
+    Boolean,
+    "the account type choices",
+  );
+  await tapTestId(client, "account-type-participant");
+  await tapTestId(client, "account-type-continue");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="login-choice-email"]'))`,
+    Boolean,
+    "the sign-in method choices",
+  );
+  await tapTestId(client, "login-choice-email");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="email-login-identifier"]'))`,
+    Boolean,
+    "the email-account sign-in form",
+  );
+
+  await enterText(client, "email-login-identifier", identifier);
+  await enterText(client, "email-login-password", "LocalTestPass123!");
+  await tapTestId(client, "email-auth-submit");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="email-auth-error"]'))`,
+    Boolean,
+    "the mocked login response",
+  );
+
+  assert.ifError(interceptionError);
+  assert.deepEqual(requests, [expectedInput]);
+}
+
+test("signup creates an authenticated session without production data", async (t) => {
   const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
   assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile email auth flow test.");
 
@@ -300,7 +415,11 @@ test("signup returns to sign-in and the new account can log in without productio
             requestId: params.requestId,
             responseCode: 200,
             responseHeaders: apiResponseHeaders(params.request, domain),
-            body: Buffer.from(JSON.stringify({ user: signupUser, isNew: true })).toString("base64"),
+            body: Buffer.from(JSON.stringify({
+              user: signupUser,
+              isNew: true,
+              sessionToken: "email_signup-test-session",
+            })).toString("base64"),
           });
           return;
         }
@@ -404,41 +523,32 @@ test("signup returns to sign-in and the new account can log in without productio
   }
   await tapTestId(client, "email-auth-submit");
 
-  await delay(500);
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="signup-congratulations"]'))`,
+    Boolean,
+    "the signed-in signup congratulations screen",
+  );
   assert.ifError(interceptionError);
   assert.equal(
     requests.filter(({ path }) => path.endsWith("/signup")).length,
     1,
     `Expected one intercepted signup request; received ${JSON.stringify(requests)}.`,
   );
-  const signupFormState = await client.evaluate(`(() => ({
-    success: document.querySelector('[data-testid="email-signup-success"]')?.innerText ?? null,
-    email: document.querySelector('[data-testid="email-login-email"]')?.value ?? null,
-    password: document.querySelector('[data-testid="email-login-password"]')?.value ?? null,
-    visibleText: document.body?.innerText?.slice(-500) ?? '',
-  }))()`);
-  assert.ok(signupFormState.success, `Signup did not return to sign-in: ${JSON.stringify(signupFormState)}`);
-  const loginFormState = await client.evaluate(`(() => ({
-    email: document.querySelector('[data-testid="email-login-email"]')?.value ?? null,
-    password: document.querySelector('[data-testid="email-login-password"]')?.value ?? null,
-    success: document.querySelector('[data-testid="email-signup-success"]')?.innerText ?? '',
-  }))()`);
-  assert.equal(loginFormState.email, "signup.flow@example.test", "The registered email should remain filled in.");
-  assert.equal(loginFormState.password, "", "The password should be cleared after signup.");
-  assert.match(loginFormState.success, /You're signed up! Log in with the details you registered with/);
-  assert.equal(requests.filter(({ path }) => path.endsWith("/signup")).length, 1);
-  assert.equal(requests.filter(({ path }) => path.endsWith("/login")).length, 0);
+  assert.equal(requests[0].input.email, "signup.flow@example.test");
+  assert.equal(requests[0].input.username, "signup_qa");
+});
 
-  await enterText(client, "email-login-password", "LocalTestPass123!");
-  await tapTestId(client, "email-auth-submit");
-  await waitForValue(
-    client,
-    `!document.querySelector('[data-testid="email-login-password"]')`,
-    Boolean,
-    "the successful login to leave the sign-in form",
-  );
-  assert.ifError(interceptionError);
-  assert.equal(requests.filter(({ path }) => path.endsWith("/login")).length, 1);
-  assert.equal(requests[0].input.email, requests[1].input.email);
-  assert.equal(requests[0].input.password, requests[1].input.password);
+test("email login keeps sending the existing email credential shape", async (t) => {
+  await assertLoginIdentifierRequest(t, "signup.flow@example.test", {
+    email: "signup.flow@example.test",
+    password: "LocalTestPass123!",
+  });
+});
+
+test("login accepts an @-prefixed username", async (t) => {
+  await assertLoginIdentifierRequest(t, "@Signup_QA", {
+    username: "signup_qa",
+    password: "LocalTestPass123!",
+  });
 });

@@ -180,15 +180,18 @@ export const SignUpWithEmailResponse = zod.object({
 
 
 /**
- * @summary Log in with an email account
+ * @summary Log in to an email account with an email address or username
  */
+
+export const loginWithEmailBodyUsernameRegExp = new RegExp('^@*[A-Za-z0-9_]{5,32}$');
 
 
 
 export const LoginWithEmailBody = zod.object({
-  "email": zod.string().email(),
+  "email": zod.string().email().min(1).optional(),
+  "username": zod.string().regex(loginWithEmailBodyUsernameRegExp).optional().describe('Public username, with optional leading @ characters.'),
   "password": zod.string().min(1)
-})
+}).describe('Supply exactly one of email or username, along with the password.')
 
 
 

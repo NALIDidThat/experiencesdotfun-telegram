@@ -501,11 +501,12 @@ function EmailAuthPanel({
 }) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  const { loginWithEmail, signUpWithEmail, loading, authError, clearAuthError } = useAuth();
+  const { loginWithIdentifier, signUpWithEmail, loading, authError, clearAuthError } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
+  const [loginIdentifier, setLoginIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [signupStep, setSignupStep] = useState(0);
@@ -606,14 +607,17 @@ function EmailAuthPanel({
         password,
         accountType,
       );
-      if (created) onSuccess(true);
+      if (created) {
+        setLoginIdentifier(email.trim());
+        onSuccess(true);
+      }
     }
   };
 
   const submitLogin = async () => {
     Keyboard.dismiss();
     setLocalError(null);
-    const authenticated = await loginWithEmail(email.trim(), password);
+    const authenticated = await loginWithIdentifier(loginIdentifier, password);
     if (authenticated) onSuccess(false);
   };
 
@@ -781,18 +785,18 @@ function EmailAuthPanel({
             ) : (
               <>
                 <View style={styles.emailField}>
-                  <Text style={[styles.emailLabel, { color: colors.foreground }]}>Email</Text>
+                  <Text style={[styles.emailLabel, { color: colors.foreground }]}>Email or username</Text>
                   <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
                     <Feather name="mail" size={17} color={colors.primary} style={styles.emailInputIcon} />
                     <TextInput
-                      testID="email-login-email"
-                      accessibilityLabel="Email"
-                      value={email}
-                      onChangeText={setEmail}
-                      placeholder="you@example.com"
+                      testID="email-login-identifier"
+                      accessibilityLabel="Email or username"
+                      value={loginIdentifier}
+                      onChangeText={setLoginIdentifier}
+                      placeholder="you@example.com or username"
                       placeholderTextColor={colors.mutedForeground}
                       autoCapitalize="none"
-                      autoComplete="email"
+                      autoComplete="username"
                       keyboardType="email-address"
                       style={[styles.emailInput, { color: colors.foreground }]}
                     />
@@ -817,12 +821,12 @@ function EmailAuthPanel({
                 </View>
               </>
             )}
-            {localError || authError ? <Text accessibilityRole="alert" style={[styles.emailError, { color: colors.destructive }]}>{localError ?? authError}</Text> : null}
+            {localError || authError ? <Text testID="email-auth-error" accessibilityRole="alert" style={[styles.emailError, { color: colors.destructive }]}>{localError ?? authError}</Text> : null}
             <Button
               label={loading ? (isSignup ? 'Creating account…' : 'Logging in…') : (isSignup && signupStep < signupFields.length - 1 ? 'Continue' : isSignup ? 'Create account' : 'Log in')}
               disabled={loading || (isSignup
                 ? !activeSignupValue.trim() || !accountType
-                : !email.trim() || !password)}
+                : !loginIdentifier.trim() || !password)}
               onPress={() => { void (isSignup ? continueSignup() : submitLogin()); }}
               icon={isSignup ? 'user-plus' : 'log-in'}
               color={colors.primary}
@@ -850,6 +854,8 @@ function EmailAuthPanel({
             onPress={() => {
               setMode(isSignup ? 'login' : 'signup');
               setSignupStep(0);
+              if (isSignup) setLoginIdentifier(email.trim());
+              else setEmail('');
               setLocalError(null);
               clearAuthError();
             }}

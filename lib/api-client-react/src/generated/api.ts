@@ -431,7 +431,7 @@ export const getLoginWithEmailUrl = () => {
 }
 
 /**
- * @summary Log in with an email account
+ * @summary Log in to an email account with an email address or username
  */
 export const loginWithEmail = async (emailLoginInput: EmailLoginInput, options?: Parameters<typeof customFetch>[1]): Promise<AuthResponse> => {
 
@@ -497,7 +497,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type LoginWithEmailMutationVariables = {data: BodyType<EmailLoginInput>}
 
     /**
- * @summary Log in with an email account
+ * @summary Log in to an email account with an email address or username
  */
 export const useLoginWithEmail = <TError = ErrorType<UnauthorizedResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginWithEmail>>, TError,LoginWithEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

@@ -104,7 +104,7 @@ paths:
     post:
       operationId: loginWithEmail
       tags: [auth]
-      summary: Log in with an email account
+      summary: Log in to an email account with an email address or username
       requestBody:
         required: true
         content:
@@ -1123,14 +1123,20 @@ components:
       required: [name, username, email, password, userType]
     EmailLoginInput:
       type: object
+      description: Supply exactly one of email or username, along with the password.
       properties:
         email:
           type: string
           format: email
+          minLength: 1
+        username:
+          type: string
+          pattern: "^@*[A-Za-z0-9_]{5,32}$"
+          description: Public username, with optional leading @ characters.
         password:
           type: string
           minLength: 1
-      required: [email, password]
+      required: [password]
     AnalyticsEventInput:
       type: object
       additionalProperties: false

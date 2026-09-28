@@ -28,7 +28,7 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   login: (accountType?: UserType) => Promise<boolean>;
   activateProfileSession: (response: AuthResponse) => Promise<boolean>;
-  loginWithEmail: (email: string, password: string) => Promise<boolean>;
+  loginWithIdentifier: (identifier: string, password: string) => Promise<boolean>;
   signUpWithEmail: (name: string, username: string, email: string, password: string, accountType: UserType) => Promise<boolean>;
 };
 
@@ -44,7 +44,7 @@ const AuthContext = createContext<AuthContextValue>({
   signOut: async () => {},
   login: async () => false,
   activateProfileSession: async () => false,
-  loginWithEmail: async () => false,
+  loginWithIdentifier: async () => false,
   signUpWithEmail: async () => false,
 });
 
@@ -171,11 +171,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const loginWithEmail = useCallback(async (email: string, password: string) => {
+  const loginWithIdentifier = useCallback(async (identifier: string, password: string) => {
     setLoading(true);
     setAuthError(null);
     try {
-      return await completeEmailAuth(await emailLoginRef.current.mutateAsync({ data: { email, password } }));
+      const trimmedIdentifier = identifier.trim();
+      const usesEmail = trimmedIdentifier.includes("@") && !trimmedIdentifier.startsWith("@");
+      const data = usesEmail
+        ? { email: trimmedIdentifier, password }
+        : { username: trimmedIdentifier.replace(/^@+/, "").toLowerCase(), password };
+      return await completeEmailAuth(await emailLoginRef.current.mutateAsync({ data }));
     } catch (error) {
       const message = (error as { data?: { message?: string } })?.data?.message;
       setAuthError(message ?? 'Email login failed. Check your details and try again.');
@@ -243,10 +248,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut,
       login,
       activateProfileSession,
-      loginWithEmail,
+      loginWithIdentifier,
       signUpWithEmail,
     }),
-    [user, initData, loading, authError, clearAuthError, refresh, signOut, login, activateProfileSession, loginWithEmail, signUpWithEmail],
+    [user, initData, loading, authError, clearAuthError, refresh, signOut, login, activateProfileSession, loginWithIdentifier, signUpWithEmail],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

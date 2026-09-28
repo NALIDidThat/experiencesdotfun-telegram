@@ -23,6 +23,7 @@ import {
 import { EMAIL_SIGNUP_XP_SOURCE_ID } from "./xp-award-rules";
 import { createEphemeralSupabaseClient, getSupabaseAdminClient } from "./supabase";
 import { verifyLegacyPassword } from "./legacy-password";
+import { isValidEmailLoginUsername, normalizeEmailLoginUsername } from "./email-login-username";
 
 export type { TelegramIdentity } from "./telegram-init-data";
 
@@ -34,10 +35,9 @@ export type EmailSignupInput = {
   userType: UserType;
 };
 
-export type EmailLoginInput = {
-  email: string;
-  password: string;
-};
+export type EmailLoginInput =
+  | { email: string; password: string }
+  | { username: string; password: string };
 
 export type AuthenticatedRequest = Request & {
   telegramUser?: User;
@@ -255,11 +255,25 @@ export async function createEmailAccount(input: EmailSignupInput): Promise<{ use
 }
 
 export async function authenticateEmail(input: EmailLoginInput): Promise<{ user: User; sessionToken: string } | undefined> {
-  const email = normalizeEmail(input.email);
-  const account = await db.query.emailAccountsTable.findFirst({
-    where: eq(emailAccountsTable.email, email),
-  });
+  let account;
+  if ("email" in input) {
+    const email = normalizeEmail(input.email);
+    account = await db.query.emailAccountsTable.findFirst({
+      where: eq(emailAccountsTable.email, email),
+    });
+  } else {
+    const username = normalizeEmailLoginUsername(input.username);
+    if (!isValidEmailLoginUsername(username)) return undefined;
+    const profile = await db.query.usersTable.findFirst({
+      where: sql`lower(${usersTable.username}) = ${username}`,
+    });
+    if (!profile) return undefined;
+    account = await db.query.emailAccountsTable.findFirst({
+      where: eq(emailAccountsTable.userId, profile.id),
+    });
+  }
   if (!account) return undefined;
+  const email = normalizeEmail(account.email);
 
   if (account.supabaseAuthUserId) {
     const authenticatedId = await verifySupabaseIdentity(email, input.password);

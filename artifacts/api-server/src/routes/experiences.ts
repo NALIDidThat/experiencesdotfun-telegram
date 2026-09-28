@@ -220,12 +220,22 @@ router.post("/auth/email/signup", async (req, res) => {
 router.post("/auth/email/login", async (req, res) => {
   const parsed = LoginWithEmailBody.safeParse(req.body);
   if (!parsed.success) {
-    error(res, 400, "Enter your email and password.");
+    error(res, 400, "Enter either your email or username and your password.");
+    return;
+  }
+  const { email, username, password } = parsed.data;
+  if (Boolean(email) === Boolean(username)) {
+    error(res, 400, "Enter either your email or username and your password.");
+    return;
+  }
+  const credentials = email ? { email, password } : username ? { username, password } : null;
+  if (!credentials) {
+    error(res, 400, "Enter either your email or username and your password.");
     return;
   }
   let result: Awaited<ReturnType<typeof authenticateEmail>>;
   try {
-    result = await authenticateEmail(parsed.data);
+    result = await authenticateEmail(credentials);
   } catch (authError) {
     recordAnalyticsEvent({
       source: "server",
@@ -249,7 +259,7 @@ router.post("/auth/email/login", async (req, res) => {
       platform: "server",
       outcome: "failure",
     });
-    error(res, 401, "That email or password is not correct.");
+    error(res, 401, "That email, username or password is not correct.");
     return;
   }
   recordAnalyticsEvent({
