@@ -487,7 +487,7 @@ function EmailAuthPanel({
   accountType,
 }: {
   onBack: () => void;
-  onSuccess: () => void;
+  onSuccess: (justSignedUp: boolean) => void;
   accountType: UserType | null;
 }) {
   const insets = useSafeAreaInsets();
@@ -501,7 +501,6 @@ function EmailAuthPanel({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [signupStep, setSignupStep] = useState(0);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [signupSuccess, setSignupSuccess] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const isSignup = mode === 'signup';
   const normalizedUsername = username.trim().replace(/^@+/, '').toLowerCase();
@@ -598,14 +597,7 @@ function EmailAuthPanel({
         password,
         accountType,
       );
-      if (created) {
-        setMode('login');
-        setSignupStep(0);
-        setPassword('');
-        setConfirmPassword('');
-        setLocalError(null);
-        setSignupSuccess(true);
-      }
+      if (created) onSuccess(true);
     }
   };
 
@@ -613,10 +605,7 @@ function EmailAuthPanel({
     Keyboard.dismiss();
     setLocalError(null);
     const authenticated = await loginWithEmail(email.trim(), password);
-    if (authenticated) {
-      setSignupSuccess(false);
-      onSuccess();
-    }
+    if (authenticated) onSuccess(false);
   };
 
   return (
@@ -749,26 +738,6 @@ function EmailAuthPanel({
           )}
 
           <View style={[styles.emailAuthFields, !isSignup && styles.emailLoginFields]}>
-            {!isSignup && signupSuccess ? (
-              <View
-                testID="email-signup-success"
-                style={[
-                  styles.emailSignupSuccess,
-                  {
-                    backgroundColor: colors.success + '12',
-                    borderColor: colors.success + '35',
-                  },
-                ]}
-              >
-                <Feather name="check-circle" size={18} color={colors.success} />
-                <Text
-                  accessibilityRole="alert"
-                  style={[styles.emailSignupSuccessText, { color: colors.success }]}
-                >
-                  You're signed up! Log in with the details you registered with :)
-                </Text>
-              </View>
-            ) : null}
             {isSignup ? (
               <View style={styles.emailField}>
                 <Text style={[styles.emailLabel, { color: colors.foreground }]}>{activeSignupField.label}</Text>
@@ -869,7 +838,6 @@ function EmailAuthPanel({
               setMode(isSignup ? 'login' : 'signup');
               setSignupStep(0);
               setLocalError(null);
-              setSignupSuccess(false);
               clearAuthError();
             }}
             style={[
@@ -1233,7 +1201,17 @@ function LoginChoiceScreen({
   );
 }
 
-function Onboarding({ user, accountType: initialAccountType, onDone }: { user: User; accountType: UserType; onDone: () => void }) {
+function Onboarding({
+  user,
+  accountType: initialAccountType,
+  showSignupNotice,
+  onDone,
+}: {
+  user: User;
+  accountType: UserType;
+  showSignupNotice: boolean;
+  onDone: () => void;
+}) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -1407,6 +1385,26 @@ function Onboarding({ user, accountType: initialAccountType, onDone }: { user: U
         onBack={step > 1 ? previous : undefined}
       />
       <View style={styles.flowContent}>
+        {showSignupNotice && step === 1 ? (
+          <View
+            testID="signup-onboarding-success"
+            style={[
+              styles.signupSuccessNotice,
+              {
+                backgroundColor: colors.success + '12',
+                borderColor: colors.success + '35',
+              },
+            ]}
+          >
+            <Feather name="check-circle" size={18} color={colors.success} />
+            <Text
+              accessibilityRole="alert"
+              style={[styles.signupSuccessNoticeText, { color: colors.success }]}
+            >
+              You're signed up! Let's finish setting up your profile.
+            </Text>
+          </View>
+        ) : null}
         <View style={[styles.flowHeroBadge, { backgroundColor: colors.primary + '14' }]}>
           <Feather name={activeStep.icon} size={23} color={colors.primary} />
         </View>
@@ -4820,6 +4818,7 @@ export default function App() {
   const [entryStage, setEntryStage] = useState<'start' | 'account-type' | 'login'>('start');
   const [selectedAccountType, setSelectedAccountType] = useState<UserType | null>(null);
   const [accountTypeConfirmed, setAccountTypeConfirmed] = useState(false);
+  const [showSignupOnboardingNotice, setShowSignupOnboardingNotice] = useState(false);
   const initialScreen = params.screen && screenNames.includes(params.screen as Screen)
     ? params.screen as Screen
     : 'home';
@@ -4831,6 +4830,7 @@ export default function App() {
       setEntryStage('start');
       setSelectedAccountType(null);
       setAccountTypeConfirmed(false);
+      setShowSignupOnboardingNotice(false);
     }
   }, [user]);
 
@@ -4913,8 +4913,9 @@ export default function App() {
             setEntryStage('login');
             router.setParams({ screen: 'home' });
           }}
-          onSuccess={() => {
+          onSuccess={(justSignedUp) => {
             setScreen('home');
+            setShowSignupOnboardingNotice(justSignedUp);
             router.setParams({ screen: 'home' });
           }}
         />
@@ -4978,9 +4979,16 @@ export default function App() {
     }
     return (
       <AppShell showFeedbackBanner={false}>
-        <Onboarding key={user.id} user={user} accountType={onboardingAccountType} onDone={() => {
+        <Onboarding
+          key={user.id}
+          user={user}
+          accountType={onboardingAccountType}
+          showSignupNotice={showSignupOnboardingNotice}
+          onDone={() => {
+            setShowSignupOnboardingNotice(false);
           router.setParams({ screen, id: screen === 'experience' ? experienceId : undefined });
-        }} />
+          }}
+        />
       </AppShell>
     );
   }
@@ -5165,8 +5173,8 @@ const styles = StyleSheet.create({
   emailAuthHeader: { gap: 18 },
   emailSignupIntroRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   emailAuthFields: { gap: 14 },
-  emailSignupSuccess: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderRadius: 14, marginBottom: 14 },
-  emailSignupSuccessText: { flex: 1, fontSize: 13, lineHeight: 19, fontFamily: 'Inter_600SemiBold' },
+  signupSuccessNotice: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderRadius: 14, marginBottom: 18 },
+  signupSuccessNoticeText: { flex: 1, fontSize: 13, lineHeight: 19, fontFamily: 'Inter_600SemiBold' },
   emailSignupProgress: { gap: 8, marginTop: 2 },
   emailSignupProgressMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   emailSignupProgressLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.1 },

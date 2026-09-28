@@ -83,11 +83,11 @@ paths:
               $ref: "#/components/schemas/EmailSignupInput"
       responses:
         "200":
-          description: Created email account; the user signs in separately
+          description: Created and authenticated email account
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SignUpResponse"
+                $ref: "#/components/schemas/AuthResponse"
         "409":
           description: Email already registered or username already in use
           content:
@@ -1035,14 +1035,6 @@ components:
           type: string
           minLength: 1
       required: [user, isNew, sessionToken]
-    SignUpResponse:
-      type: object
-      properties:
-        user:
-          $ref: "#/components/schemas/User"
-        isNew:
-          type: boolean
-      required: [user, isNew]
     AccountProfilesResponse:
       type: object
       properties:

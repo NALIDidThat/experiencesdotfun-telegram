@@ -179,7 +179,7 @@ router.post("/auth/email/signup", async (req, res) => {
       platform: "server",
       outcome: "success",
     });
-    res.json({ user: await userResponse(result.user), isNew: true });
+    res.json({ user: await userResponse(result.user), isNew: true, sessionToken: result.sessionToken });
   } catch (signupError) {
     recordAnalyticsEvent({
       source: "server",

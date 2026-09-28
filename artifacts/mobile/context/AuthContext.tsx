@@ -187,11 +187,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setAuthError(null);
     try {
-      await emailSignupRef.current.mutateAsync({
+      return await completeEmailAuth(await emailSignupRef.current.mutateAsync({
         data: { name, username, email, password, userType: accountType },
-      });
-      setLoading(false);
-      return true;
+      }));
     } catch (error) {
       const message = (error as { data?: { message?: string } })?.data?.message;
       setAuthError(message ?? 'We could not create your account. Please try again.');
