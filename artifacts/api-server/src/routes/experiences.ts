@@ -180,7 +180,7 @@ router.post("/auth/email/signup", async (req, res) => {
       platform: "server",
       outcome: "success",
     });
-    res.json(toEmailSignupResponse(await userResponse(result.user)));
+    res.json(toEmailSignupResponse(await userResponse(result.user), result.sessionToken));
   } catch (signupError) {
     recordAnalyticsEvent({
       source: "server",

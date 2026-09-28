@@ -7,6 +7,8 @@ type EmailProfileInput = {
   userType: UserType;
 };
 
+export const EMAIL_SIGNUP_XP_REWARD = 50;
+
 export function emailProfileValues(
   input: EmailProfileInput,
   telegramId: string,
@@ -16,6 +18,7 @@ export function emailProfileValues(
     name: input.name.trim(),
     username: input.username.trim().replace(/^@+/, "").toLowerCase(),
     userType: input.userType,
+    xp: EMAIL_SIGNUP_XP_REWARD,
   };
 }
 

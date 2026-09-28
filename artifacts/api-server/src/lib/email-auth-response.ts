@@ -1,3 +1,6 @@
-export function toEmailSignupResponse<T>(user: T): { user: T; isNew: true } {
-  return { user, isNew: true };
+export function toEmailSignupResponse<T>(
+  user: T,
+  sessionToken: string,
+): { user: T; isNew: true; sessionToken: string } {
+  return { user, isNew: true, sessionToken };
 }

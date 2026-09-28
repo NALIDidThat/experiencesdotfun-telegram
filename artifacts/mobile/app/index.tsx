@@ -1213,15 +1213,86 @@ function LoginChoiceScreen({
   );
 }
 
+function SignupCongratulations({
+  user,
+  onContinue,
+}: {
+  user: User;
+  onContinue: () => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+
+  return (
+    <KeyboardAwareScrollViewCompat
+      testID="signup-congratulations"
+      style={[styles.signupCongratsScreen, { backgroundColor: colors.background }]}
+      contentContainerStyle={[
+        styles.signupCongratsContent,
+        {
+          paddingTop: Math.max(insets.top, 20),
+          paddingBottom: Math.max(insets.bottom, 24),
+        },
+      ]}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="none"
+      bottomOffset={24}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={[styles.signupCongratsMark, { backgroundColor: colors.primary + '14' }]}>
+        <Feather name="check" size={32} color={colors.primary} />
+      </View>
+      <Text style={[styles.signupCongratsEyebrow, { color: colors.primary }]}>
+        WELCOME TO EXPERIENCES.FUN
+      </Text>
+      <Text accessibilityRole="header" style={[styles.signupCongratsTitle, { color: colors.foreground }]}>
+        Congratulations — you’re in.
+      </Text>
+      <Text style={[styles.signupCongratsBody, { color: colors.mutedForeground }]}>
+        Your account is ready. Set up your profile to find experiences and opportunities that fit you.
+      </Text>
+
+      <View
+        testID="signup-reward-50"
+        style={[
+          styles.signupCongratsReward,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            borderRadius: colors.radius * 2,
+          },
+        ]}
+      >
+        <View style={[styles.signupCongratsRewardIcon, { backgroundColor: colors.success + '14' }]}>
+          <Feather name="award" size={27} color={colors.success} />
+        </View>
+        <View style={styles.signupCongratsRewardCopy}>
+          <Text style={[styles.signupCongratsRewardTitle, { color: colors.success }]}>
+            +{user.xp} XP
+          </Text>
+          <Text style={[styles.signupCongratsRewardText, { color: colors.mutedForeground }]}>
+            Added to your account for signing up
+          </Text>
+        </View>
+      </View>
+
+      <Button
+        label="Continue to profile setup"
+        icon="arrow-right"
+        onPress={onContinue}
+        testID="signup-congratulations-continue"
+      />
+    </KeyboardAwareScrollViewCompat>
+  );
+}
+
 function Onboarding({
   user,
   accountType: initialAccountType,
-  showSignupNotice,
   onDone,
 }: {
   user: User;
   accountType: UserType;
-  showSignupNotice: boolean;
   onDone: () => void;
 }) {
   const colors = useColors();
@@ -1397,26 +1468,6 @@ function Onboarding({
         onBack={step > 1 ? previous : undefined}
       />
       <View style={styles.flowContent}>
-        {showSignupNotice && step === 1 ? (
-          <View
-            testID="signup-onboarding-success"
-            style={[
-              styles.signupSuccessNotice,
-              {
-                backgroundColor: colors.success + '12',
-                borderColor: colors.success + '35',
-              },
-            ]}
-          >
-            <Feather name="check-circle" size={18} color={colors.success} />
-            <Text
-              accessibilityRole="alert"
-              style={[styles.signupSuccessNoticeText, { color: colors.success }]}
-            >
-              You're signed up! Let's finish setting up your profile.
-            </Text>
-          </View>
-        ) : null}
         <View style={[styles.flowHeroBadge, { backgroundColor: colors.primary + '14' }]}>
           <Feather name={activeStep.icon} size={23} color={colors.primary} />
         </View>
@@ -4830,7 +4881,7 @@ export default function App() {
   const [entryStage, setEntryStage] = useState<'start' | 'account-type' | 'login'>('start');
   const [selectedAccountType, setSelectedAccountType] = useState<UserType | null>(null);
   const [accountTypeConfirmed, setAccountTypeConfirmed] = useState(false);
-  const [showSignupOnboardingNotice, setShowSignupOnboardingNotice] = useState(false);
+  const [showSignupCongratulations, setShowSignupCongratulations] = useState(false);
   const initialScreen = params.screen && screenNames.includes(params.screen as Screen)
     ? params.screen as Screen
     : 'home';
@@ -4842,7 +4893,7 @@ export default function App() {
       setEntryStage('start');
       setSelectedAccountType(null);
       setAccountTypeConfirmed(false);
-      setShowSignupOnboardingNotice(false);
+      setShowSignupCongratulations(false);
     }
   }, [user]);
 
@@ -4927,7 +4978,7 @@ export default function App() {
           }}
           onSuccess={(justSignedUp) => {
             setScreen('home');
-            setShowSignupOnboardingNotice(justSignedUp);
+            setShowSignupCongratulations(justSignedUp);
             router.setParams({ screen: 'home' });
           }}
         />
@@ -4970,6 +5021,17 @@ export default function App() {
     );
   }
 
+  if (showSignupCongratulations) {
+    return (
+      <AppShell showFeedbackBanner={false}>
+        <SignupCongratulations
+          user={user}
+          onContinue={() => setShowSignupCongratulations(false)}
+        />
+      </AppShell>
+    );
+  }
+
   if (needsOnboarding) {
     const onboardingAccountType = user.userType ?? selectedAccountType;
     if (!onboardingAccountType || (!user.userType && !accountTypeConfirmed)) {
@@ -4995,9 +5057,7 @@ export default function App() {
           key={user.id}
           user={user}
           accountType={onboardingAccountType}
-          showSignupNotice={showSignupOnboardingNotice}
           onDone={() => {
-            setShowSignupOnboardingNotice(false);
           router.setParams({ screen, id: screen === 'experience' ? experienceId : undefined });
           }}
         />
@@ -5185,8 +5245,17 @@ const styles = StyleSheet.create({
   emailAuthHeader: { gap: 18 },
   emailSignupIntroRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   emailAuthFields: { gap: 14 },
-  signupSuccessNotice: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderRadius: 14, marginBottom: 18 },
-  signupSuccessNoticeText: { flex: 1, fontSize: 13, lineHeight: 19, fontFamily: 'Inter_600SemiBold' },
+  signupCongratsScreen: { flex: 1 },
+  signupCongratsContent: { flexGrow: 1, width: '100%', maxWidth: 520, alignSelf: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  signupCongratsMark: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 20 },
+  signupCongratsEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.3, textAlign: 'center', marginBottom: 10 },
+  signupCongratsTitle: { maxWidth: 360, alignSelf: 'center', fontSize: 32, lineHeight: 38, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, textAlign: 'center' },
+  signupCongratsBody: { maxWidth: 340, alignSelf: 'center', fontSize: 15, lineHeight: 22, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 12, marginBottom: 24 },
+  signupCongratsReward: { flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, padding: 16, marginBottom: 24 },
+  signupCongratsRewardIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  signupCongratsRewardCopy: { flex: 1, minWidth: 0 },
+  signupCongratsRewardTitle: { fontSize: 24, lineHeight: 30, fontFamily: 'Inter_700Bold' },
+  signupCongratsRewardText: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_500Medium', marginTop: 2 },
   emailSignupProgress: { gap: 8, marginTop: 2 },
   emailSignupProgressMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   emailSignupProgressLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.1 },
