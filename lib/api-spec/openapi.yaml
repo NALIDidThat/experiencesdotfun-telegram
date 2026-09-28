@@ -368,13 +368,13 @@ paths:
     post:
       operationId: joinExperience
       tags: [experiences]
-      summary: Join a published experience
+      summary: Join a published experience or its waitlist when full
       security: [{ telegramInitData: [] }]
       parameters:
         - $ref: "#/components/parameters/ExperienceId"
       responses:
         "201":
-          description: Participation created
+          description: Participation or waitlist entry created
           content:
             application/json:
               schema:
@@ -458,7 +458,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Experience"
+                  $ref: "#/components/schemas/HostExperience"
         "401":
           $ref: "#/components/responses/Unauthorized"
   /host/experiences/{experienceId}/participants:
@@ -480,6 +480,27 @@ paths:
                   $ref: "#/components/schemas/Participation"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /host/experiences/{experienceId}/promote-next:
+    post:
+      operationId: promoteNextWaitlistedParticipant
+      tags: [host]
+      summary: Promote the earliest waitlisted participant, opening one place if needed
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ExperienceId"
+      responses:
+        "200":
+          description: Promoted participant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Participation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /host/participations/{participationId}/attend:
     post:
       operationId: markAttendance
@@ -1142,7 +1163,7 @@ components:
       enum: [published, full, completed, archived]
     ParticipationStatus:
       type: string
-      enum: [joined, attended, submitted, verified, rejected]
+      enum: [joined, attended, submitted, verified, rejected, waitlisted]
     RewardStatus:
       type: string
       enum: [pending, issued]
@@ -1639,11 +1660,21 @@ components:
           type: integer
         participantCount:
           type: integer
+        waitlistCount:
+          type: integer
         pendingVerifications:
           type: integer
         totalExperiences:
           type: integer
-      required: [organisation, upcomingExperiences, participantCount, pendingVerifications, totalExperiences]
+      required: [organisation, upcomingExperiences, participantCount, waitlistCount, pendingVerifications, totalExperiences]
+    HostExperience:
+      allOf:
+        - $ref: "#/components/schemas/Experience"
+        - type: object
+          properties:
+            waitlistCount:
+              type: integer
+          required: [waitlistCount]
     Friend:
       $ref: "#/components/schemas/ParticipantSummary"
     FriendProfile:

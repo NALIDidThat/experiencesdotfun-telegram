@@ -960,7 +960,7 @@ export const GetExperienceResponse = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -971,7 +971,7 @@ export const GetExperienceResponse = zod.object({
 
 
 /**
- * @summary Join a published experience
+ * @summary Join a published experience or its waitlist when full
  */
 export const JoinExperienceParams = zod.object({
   "experienceId": zod.coerce.number().int()
@@ -1016,7 +1016,7 @@ export const JoinExperienceResponse = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -1071,7 +1071,7 @@ export const ListMyParticipationsResponseItem = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -1127,7 +1127,7 @@ export const SubmitCompletionResponse = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -1151,6 +1151,7 @@ export const GetHostOverviewResponse = zod.object({
 }),zod.null()]),
   "upcomingExperiences": zod.number().int(),
   "participantCount": zod.number().int(),
+  "waitlistCount": zod.number().int(),
   "pendingVerifications": zod.number().int(),
   "totalExperiences": zod.number().int()
 })
@@ -1159,9 +1160,9 @@ export const GetHostOverviewResponse = zod.object({
 /**
  * @summary List experiences owned by the current host
  */
-export const listHostExperiencesResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
-export const listHostExperiencesResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
-export const listHostExperiencesResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listHostExperiencesResponseOneDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const listHostExperiencesResponseOneStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listHostExperiencesResponseOneEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 
 
 export const ListHostExperiencesResponseItem = zod.object({
@@ -1178,9 +1179,9 @@ export const ListHostExperiencesResponseItem = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string().regex(listHostExperiencesResponseDateRegExp),
-  "startTime": zod.string().regex(listHostExperiencesResponseStartTimeRegExp),
-  "endTime": zod.string().regex(listHostExperiencesResponseEndTimeRegExp),
+  "date": zod.string().regex(listHostExperiencesResponseOneDateRegExp),
+  "startTime": zod.string().regex(listHostExperiencesResponseOneStartTimeRegExp),
+  "endTime": zod.string().regex(listHostExperiencesResponseOneEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int(),
@@ -1189,7 +1190,9 @@ export const ListHostExperiencesResponseItem = zod.object({
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
   "status": zod.enum(['published', 'full', 'completed', 'archived'])
-})
+}).and(zod.object({
+  "waitlistCount": zod.number().int()
+}))
 export const ListHostExperiencesResponse = zod.array(ListHostExperiencesResponseItem)
 
 
@@ -1239,7 +1242,7 @@ export const ListExperienceParticipantsResponseItem = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -1247,6 +1250,61 @@ export const ListExperienceParticipantsResponseItem = zod.object({
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
 export const ListExperienceParticipantsResponse = zod.array(ListExperienceParticipantsResponseItem)
+
+
+/**
+ * @summary Promote the earliest waitlisted participant, opening one place if needed
+ */
+export const PromoteNextWaitlistedParticipantParams = zod.object({
+  "experienceId": zod.coerce.number().int()
+})
+
+export const promoteNextWaitlistedParticipantResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const promoteNextWaitlistedParticipantResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const promoteNextWaitlistedParticipantResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const PromoteNextWaitlistedParticipantResponse = zod.object({
+  "id": zod.number().int(),
+  "experience": zod.object({
+  "id": zod.number().int(),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "verified": zod.boolean()
+}),
+  "title": zod.string(),
+  "description": zod.string(),
+  "category": zod.enum(['environmental', 'education', 'community']),
+  "date": zod.string().regex(promoteNextWaitlistedParticipantResponseExperienceDateRegExp),
+  "startTime": zod.string().regex(promoteNextWaitlistedParticipantResponseExperienceStartTimeRegExp),
+  "endTime": zod.string().regex(promoteNextWaitlistedParticipantResponseExperienceEndTimeRegExp),
+  "location": zod.string(),
+  "city": zod.string(),
+  "capacity": zod.number().int(),
+  "participantCount": zod.number().int(),
+  "availablePlaces": zod.number().int(),
+  "xpReward": zod.number().int(),
+  "monetaryRewardPence": zod.number().int().nullable(),
+  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+}),
+  "participant": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
+  "joinedAt": zod.coerce.date(),
+  "attendedAt": zod.coerce.date().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "verifiedAt": zod.coerce.date().nullable(),
+  "rewardStatus": zod.enum(['pending', 'issued'])
+})
 
 
 /**
@@ -1295,7 +1353,7 @@ export const MarkAttendanceResponse = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -1350,7 +1408,7 @@ export const VerifyParticipationResponse = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -1405,7 +1463,7 @@ export const RejectParticipationResponse = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),

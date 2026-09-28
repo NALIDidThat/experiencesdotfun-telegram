@@ -48,6 +48,7 @@ import type {
   FriendRequest,
   FriendRequestCreateInput,
   HealthStatus,
+  HostExperience,
   HostOverview,
   ListExperiencesParams,
   ListMyParticipationsParams,
@@ -1564,7 +1565,7 @@ export const getJoinExperienceUrl = (experienceId: number,) => {
 }
 
 /**
- * @summary Join a published experience
+ * @summary Join a published experience or its waitlist when full
  */
 export const joinExperience = async (experienceId: number, options?: Parameters<typeof customFetch>[1]): Promise<Participation> => {
 
@@ -1616,7 +1617,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type JoinExperienceMutationVariables = {experienceId: number}
 
     /**
- * @summary Join a published experience
+ * @summary Join a published experience or its waitlist when full
  */
 export const useJoinExperience = <TError = ErrorType<UnauthorizedResponse | Error>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinExperience>>, TError,JoinExperienceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1875,9 +1876,9 @@ export const getListHostExperiencesUrl = () => {
 /**
  * @summary List experiences owned by the current host
  */
-export const listHostExperiences = async ( options?: Parameters<typeof customFetch>[1]): Promise<Experience[]> => {
+export const listHostExperiences = async ( options?: Parameters<typeof customFetch>[1]): Promise<HostExperience[]> => {
 
-  return customFetch<Experience[]>(getListHostExperiencesUrl(),
+  return customFetch<HostExperience[]>(getListHostExperiencesUrl(),
   {
     ...options,
     method: 'GET'
@@ -2017,6 +2018,80 @@ export function useListExperienceParticipants<TData = Awaited<ReturnType<typeof 
 
 
 
+
+export const getPromoteNextWaitlistedParticipantUrl = (experienceId: number,) => {
+
+
+
+
+  return `/api/host/experiences/${experienceId}/promote-next`
+}
+
+/**
+ * @summary Promote the earliest waitlisted participant, opening one place if needed
+ */
+export const promoteNextWaitlistedParticipant = async (experienceId: number, options?: Parameters<typeof customFetch>[1]): Promise<Participation> => {
+
+  return customFetch<Participation>(getPromoteNextWaitlistedParticipantUrl(experienceId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPromoteNextWaitlistedParticipantMutationKey = () => ['promoteNextWaitlistedParticipant'] as const;
+
+export const getPromoteNextWaitlistedParticipantMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof promoteNextWaitlistedParticipant>>, TError,PromoteNextWaitlistedParticipantMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof promoteNextWaitlistedParticipant>>, TError,PromoteNextWaitlistedParticipantMutationVariables, TContext> => {
+
+const mutationKey = getPromoteNextWaitlistedParticipantMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof promoteNextWaitlistedParticipant>>, PromoteNextWaitlistedParticipantMutationVariables> = (props) => {
+          const {experienceId} = props ?? {};
+
+          return  promoteNextWaitlistedParticipant(experienceId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PromoteNextWaitlistedParticipantMutationResult = NonNullable<Awaited<ReturnType<typeof promoteNextWaitlistedParticipant>>>
+
+    export type PromoteNextWaitlistedParticipantMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type PromoteNextWaitlistedParticipantMutationVariables = {experienceId: number}
+
+    /**
+ * @summary Promote the earliest waitlisted participant, opening one place if needed
+ */
+export const usePromoteNextWaitlistedParticipant = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof promoteNextWaitlistedParticipant>>, TError,PromoteNextWaitlistedParticipantMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof promoteNextWaitlistedParticipant>>,
+        TError,
+        PromoteNextWaitlistedParticipantMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPromoteNextWaitlistedParticipantMutationOptions(options));
+    }
 
 export const getMarkAttendanceUrl = (participationId: number,) => {
 

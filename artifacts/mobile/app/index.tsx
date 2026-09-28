@@ -53,6 +53,7 @@ import {
   useListMyParticipations,
   useListSentFriendRequests,
   useMarkAttendance,
+  usePromoteNextWaitlistedParticipant,
   useRejectParticipation,
   useRedeemMyXpAwards,
   useSubmitCompletion,
@@ -132,6 +133,7 @@ const hostParticipantFilters: Array<{ key: HostParticipantFilter; label: string 
   { key: 'all', label: 'All' },
   { key: 'action', label: 'Needs action' },
   { key: 'joined', label: 'Joined' },
+  { key: 'waitlisted', label: 'Waitlist' },
   { key: 'attended', label: 'Attended' },
   { key: 'submitted', label: 'To review' },
   { key: 'verified', label: 'Verified' },
@@ -151,6 +153,7 @@ const hostParticipationStatusLabels: Record<Participation['status'], string> = {
   submitted: 'To review',
   verified: 'Verified',
   rejected: 'Rejected',
+  waitlisted: 'Waitlisted',
 };
 
 function money(pence: number | null | undefined) {
@@ -466,7 +469,9 @@ function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => vo
             </View>
             <View style={styles.detailItem}>
               <Feather name="users" size={15} color={colors.mutedForeground} />
-              <Text style={[styles.detailText, { color: item.availablePlaces < 4 ? colors.primary : colors.mutedForeground }]}>{item.availablePlaces} spots left</Text>
+              <Text style={[styles.detailText, { color: item.availablePlaces < 4 ? colors.primary : colors.mutedForeground }]}>
+                {item.availablePlaces === 0 ? 'Waitlist open' : `${item.availablePlaces} spots left`}
+              </Text>
             </View>
           </View>
         </View>
@@ -1869,7 +1874,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   const colors = useColors();
   const [category, setCategory] = useState<ExperienceCategory | 'all'>('all');
   const [search, setSearch] = useState('');
-  const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: true });
+  const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: false });
 
   return (
     <KeyboardAwareScrollViewCompat
@@ -1900,8 +1905,8 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
       </ScrollView>
 
       <View style={styles.resultsHeading}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Available now</Text>
-        <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{query.data?.length ?? 0} opportunities</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Experiences</Text>
+          <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{query.data?.length ?? 0} listings</Text>
       </View>
 
       {query.isLoading ? <LoadingState /> : query.isError ? (
@@ -1951,6 +1956,8 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
   }
 
   const participation = item.participation as Participation | null;
+  const isWaitlisted = participation?.status === 'waitlisted';
+  const acceptsParticipants = item.status === 'published' || item.status === 'full';
   const gradient = categoryGradients[item.category] || categoryGradients.community;
 
   return (
@@ -2143,16 +2150,28 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           </View>
         ) : item.joined && participation ? (
           <View>
-            <View style={[styles.joinedBanner, { backgroundColor: colors.success + '15', borderRadius: colors.radius }]}>
-              <Feather name="check-circle" size={28} color={colors.success} />
+            <View style={[styles.joinedBanner, { backgroundColor: (isWaitlisted ? colors.secondary : colors.success) + '15', borderRadius: colors.radius }]}>
+              <Feather name={isWaitlisted ? 'clock' : 'check-circle'} size={28} color={isWaitlisted ? colors.secondary : colors.success} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.joinedTitle, { color: colors.success }]}>You're participating</Text>
-                <Text style={[styles.joinedSub, { color: colors.success }]}>{participation.status === 'verified' ? 'Completion verified and reward issued.' : participation.status === 'submitted' ? 'Awaiting host verification.' : 'Show up, then submit your completion.'}</Text>
+                <Text style={[styles.joinedTitle, { color: isWaitlisted ? colors.secondary : colors.success }]}>{isWaitlisted ? "You're on the waitlist" : "You're participating"}</Text>
+                <Text style={[styles.joinedSub, { color: isWaitlisted ? colors.mutedForeground : colors.success }]}>
+                  {isWaitlisted
+                    ? 'Your place is not confirmed. The host will promote you when a place opens.'
+                    : participation.status === 'verified'
+                      ? 'Completion verified and reward issued.'
+                      : participation.status === 'submitted'
+                        ? 'Awaiting host verification.'
+                        : 'Show up, then submit your completion.'}
+                </Text>
               </View>
             </View>
-            {['joined', 'attended'].includes(participation.status) ? (
+            {['joined', 'attended', 'waitlisted'].includes(participation.status) ? (
               <Button
-                label={participation.status === 'attended' ? (submit.isPending ? 'Submitting…' : 'Submit completion') : participation.status === 'joined' ? (query.isRefetching ? 'Refreshing…' : 'Refresh status') : (query.isRefetching ? 'Refreshing…' : 'Refresh verification')}
+                label={participation.status === 'attended'
+                  ? (submit.isPending ? 'Submitting…' : 'Submit completion')
+                  : participation.status === 'waitlisted'
+                    ? (query.isRefetching ? 'Checking…' : 'Check waitlist status')
+                    : (query.isRefetching ? 'Refreshing…' : 'Refresh status')}
                 disabled={participation.status === 'attended' ? submit.isPending : query.isRefetching}
                 onPress={() => {
                   if (participation.status === 'attended') void submitCompletion(participation.id);
@@ -2168,8 +2187,14 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
               <Text style={[styles.detailActionReward, { color: colors.primary }]}>+{item.xpReward} XP</Text>
             </View>
             <Button
-              label={join.isPending ? 'Joining…' : item.availablePlaces === 0 ? 'Fully booked' : 'Join experience'}
-              disabled={join.isPending || item.availablePlaces === 0}
+              label={join.isPending
+                ? 'Joining…'
+                : !acceptsParticipants
+                  ? 'Registration closed'
+                  : item.availablePlaces === 0
+                    ? 'Join waitlist'
+                    : 'Join experience'}
+              disabled={join.isPending || !acceptsParticipants}
               onPress={() => void joinExperience()}
               style={styles.detailActionButton}
             />
@@ -2215,7 +2240,15 @@ function Experiences({ go }: { go: (screen: Screen, params?: Record<string, stri
           </View>
           <View style={styles.statusRow}>
             <View style={[styles.statusPill, { backgroundColor: item.status === 'verified' ? colors.success + '15' : colors.secondary + '15' }]}>
-              <Text style={[styles.statusText, { color: item.status === 'verified' ? colors.success : colors.secondary }]}>{item.status === 'verified' ? 'Verified' : item.status === 'submitted' ? 'Awaiting verification' : item.status}</Text>
+              <Text style={[styles.statusText, { color: item.status === 'verified' ? colors.success : colors.secondary }]}>
+                {item.status === 'verified'
+                  ? 'Verified'
+                  : item.status === 'submitted'
+                    ? 'Awaiting verification'
+                    : item.status === 'waitlisted'
+                      ? 'Waitlisted · no place confirmed'
+                      : item.status}
+              </Text>
             </View>
             <Text style={[styles.places, { color: colors.primary, fontFamily: 'Inter_700Bold' }]}>+{item.experience.xpReward} XP</Text>
           </View>
@@ -3815,6 +3848,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
   const attend = useMarkAttendance({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const verify = useVerifyParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const reject = useRejectParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const promoteNext = usePromoteNextWaitlistedParticipant({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const allExperiences = experiences.data ?? [];
   const searchTerm = experienceSearch.trim().toLowerCase();
   const filteredExperiences = allExperiences.filter((item) => {
@@ -3824,8 +3858,13 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
   });
   const selectedExperience = allExperiences.find((item) => item.id === selected);
   const allParticipants = participants.data ?? [];
+  const waitlistedParticipants = allParticipants
+    .filter((item) => item.status === 'waitlisted')
+    .sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime() || a.id - b.id);
+  const waitlistPosition = new Map<number, number>(waitlistedParticipants.map((item, index) => [item.id, index + 1] as const));
   const participantTerm = participantSearch.trim().toLowerCase();
-  const filteredParticipants = allParticipants.filter((item) => {
+  const participantSource = participantFilter === 'waitlisted' ? waitlistedParticipants : allParticipants;
+  const filteredParticipants = participantSource.filter((item) => {
     const matchesSearch = !participantTerm || [item.participant.name, item.participant.username ?? '']
       .some((value) => value.toLowerCase().includes(participantTerm));
     const matchesFilter = participantFilter === 'all'
@@ -3884,6 +3923,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
         {[
           { label: 'Live', value: overview.data?.upcomingExperiences ?? 0, icon: 'calendar' as const },
           { label: 'Participants', value: overview.data?.participantCount ?? 0, icon: 'users' as const },
+          { label: 'Waitlist', value: overview.data?.waitlistCount ?? 0, icon: 'clock' as const },
           { label: 'To review', value: overview.data?.pendingVerifications ?? 0, icon: 'check-circle' as const },
         ].map((item) => (
           <View key={item.label} style={[styles.hostStat, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
@@ -3969,7 +4009,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
             key={item.id}
             accessibilityRole="button"
             accessibilityState={{ expanded: active }}
-            accessibilityLabel={`${item.title}, ${hostExperienceStatusLabels[item.status]}, ${item.participantCount} of ${item.capacity} participants. ${active ? 'Hide' : 'Manage'} participants.`}
+            accessibilityLabel={`${item.title}, ${hostExperienceStatusLabels[item.status]}, ${item.participantCount} of ${item.capacity} places filled, ${item.waitlistCount} waitlisted. ${active ? 'Hide' : 'Manage'} participants.`}
             testID={`host-experience-${item.id}`}
             onPress={() => { triggerHaptic(); setActionError(null); setSelected(active ? null : item.id); }}
             style={[styles.hostExperienceCard, { backgroundColor: colors.card, borderColor: active ? colors.primary : colors.border, borderRadius: colors.radius }]}
@@ -4014,7 +4054,11 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
                 </Text>
               </View>
               <View style={styles.hostManageRow}>
-                <Text style={[styles.hostManageText, { color: colors.primary }]}>{active ? 'Hide participants' : `Manage participants · ${item.participantCount}`}</Text>
+                <Text style={[styles.hostManageText, { color: colors.primary }]}>
+                  {active
+                    ? 'Hide participants'
+                    : `Manage participants · ${item.participantCount}${item.waitlistCount > 0 ? ` · ${item.waitlistCount} waiting` : ''}`}
+                </Text>
                 <Feather name={active ? 'chevron-up' : 'arrow-right'} size={16} color={colors.primary} />
               </View>
             </View>
@@ -4086,8 +4130,32 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
             })}
           </ScrollView>
           <Text style={[styles.hostSectionHint, styles.hostParticipantCount, { color: colors.mutedForeground }]}>
-            {filteredParticipants.length} of {allParticipants.length} participants
+            {filteredParticipants.length} of {allParticipants.length} people
           </Text>
+          {waitlistedParticipants.length > 0 ? (
+            <View style={{ marginBottom: 14 }}>
+              <View style={[styles.hostReviewNote, { backgroundColor: colors.secondary + '0C' }]}>
+                <Feather name="clock" size={16} color={colors.secondary} />
+                <Text style={[styles.hostReviewText, { color: colors.foreground }]}>
+                  {selectedExperience.availablePlaces > 0
+                    ? `${waitlistedParticipants.length} waiting. Promote the oldest person first; ${selectedExperience.availablePlaces} ${selectedExperience.availablePlaces === 1 ? 'place is' : 'places are'} open.`
+                    : `${waitlistedParticipants.length} waiting. Opening a place increases capacity by one and promotes the oldest person.`}
+                </Text>
+              </View>
+              <Button
+                label={promoteNext.isPending
+                  ? 'Promoting…'
+                  : selectedExperience.availablePlaces > 0
+                    ? 'Promote next'
+                    : 'Open a place & promote next'}
+                icon="user-plus"
+                variant="secondary"
+                disabled={promoteNext.isPending || !['published', 'full'].includes(selectedExperience.status)}
+                testID="host-promote-next"
+                onPress={() => void runHostAction(() => promoteNext.mutateAsync({ experienceId: selectedExperience.id }))}
+              />
+            </View>
+          ) : null}
           {participants.isLoading ? <LoadingState /> : participants.isError ? (
             <EmptyState title="Participants couldn’t be loaded" body="Try again to check attendance and completion." actionLabel="Try again" onAction={() => { void participants.refetch(); }} />
           ) : allParticipants.length === 0 ? (
@@ -4095,6 +4163,8 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
           ) : filteredParticipants.length ? filteredParticipants.map((item) => {
             const statusColor = item.status === 'verified' || item.status === 'attended'
               ? colors.success
+              : item.status === 'waitlisted'
+                ? colors.secondary
               : item.status === 'submitted'
                 ? colors.secondary
                 : item.status === 'rejected'
@@ -4118,7 +4188,11 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
                 <View style={styles.hostParticipantMeta}>
                   <Feather name={item.status === 'submitted' ? 'clock' : 'calendar'} size={13} color={colors.mutedForeground} />
                   <Text style={[styles.hostParticipantMetaText, { color: colors.mutedForeground }]}>
-                    {item.status === 'submitted' ? 'Submitted' : 'Joined'}{activityDate ? ` · ${activityDate}` : ''}
+                    {item.status === 'submitted'
+                      ? 'Submitted'
+                      : item.status === 'waitlisted'
+                        ? 'Waitlisted'
+                        : 'Joined'}{activityDate ? ` · ${activityDate}` : ''}
                   </Text>
                 </View>
                 {item.status === 'submitted' ? (
@@ -4160,6 +4234,13 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
                     testID={`host-attend-${item.id}`}
                     onPress={() => void runHostAction(() => attend.mutateAsync({ participationId: item.id }))}
                   />
+                ) : item.status === 'waitlisted' ? (
+                  <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.secondary + '12' }]}>
+                    <Feather name="clock" size={15} color={colors.secondary} />
+                    <Text style={[styles.hostParticipantOutcomeText, { color: colors.secondary }]}>
+                      {waitlistPosition.get(item.id) ? `Waitlist position ${waitlistPosition.get(item.id)}` : 'Waiting for an open place'}
+                    </Text>
+                  </View>
                 ) : item.status === 'verified' ? (
                   <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.success + '12' }]}>
                     <Feather name="check-circle" size={15} color={colors.success} />
@@ -5834,8 +5915,8 @@ const styles = StyleSheet.create({
   hostHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2 },
   hostHeroTitle: { fontSize: 23, lineHeight: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
   hostHeroBody: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', marginBottom: 4, opacity: 0.9 },
-  hostStats: { flexDirection: 'row', gap: 8, marginBottom: 24 },
-  hostStat: { flex: 1, minWidth: 0, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 9, gap: 7 },
+  hostStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
+  hostStat: { flexGrow: 1, flexBasis: '48%', minWidth: 0, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 9, gap: 7 },
   hostStatTop: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   hostStatValue: { fontSize: 21, fontFamily: 'Inter_700Bold' },
   hostStatLabel: { fontSize: 11, fontFamily: 'Inter_500Medium' },

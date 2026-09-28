@@ -220,6 +220,7 @@ export const ParticipationStatus = {
   submitted: 'submitted',
   verified: 'verified',
   rejected: 'rejected',
+  waitlisted: 'waitlisted',
 } as const;
 
 export type RewardStatus = typeof RewardStatus[keyof typeof RewardStatus];
@@ -457,9 +458,14 @@ export interface HostOverview {
   organisation: Organisation | null;
   upcomingExperiences: number;
   participantCount: number;
+  waitlistCount: number;
   pendingVerifications: number;
   totalExperiences: number;
 }
+
+export type HostExperience = Experience & {
+  waitlistCount: number;
+};
 
 export type Friend = ParticipantSummary;
 

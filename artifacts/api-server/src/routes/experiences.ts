@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   AcceptFriendRequestParams,
@@ -48,8 +48,9 @@ import { toEmailSignupResponse } from "../lib/email-auth-response";
 import { logger } from "../lib/logger";
 import { recordAnalyticsEvent } from "../lib/analytics";
 import {
+  canJoinOrWaitlist,
   canMarkAttendance,
-  isExperienceJoinable,
+  participationStatusForCapacity,
   isValidExperienceSchedule,
 } from "../lib/experience-rules";
 import { mergeDefinedFields } from "../lib/profile-rules";
@@ -666,14 +667,8 @@ router.post("/experiences/:experienceId/join", async (req, res) => {
     error(res, 404, "Experience not found.");
     return;
   }
-  if (!isExperienceJoinable(experience.status)) {
-    error(
-      res,
-      409,
-      experience.status === "full"
-        ? "This experience is full."
-        : "This experience is no longer open for new participants.",
-    );
+  if (!canJoinOrWaitlist(experience.status)) {
+    error(res, 409, "This experience is no longer open for new participants.");
     return;
   }
   const organisation = await db.query.organisationsTable.findFirst({
@@ -688,40 +683,64 @@ router.post("/experiences/:experienceId/join", async (req, res) => {
     error(res, 403, "You can’t join an experience hosted by another profile linked to your Telegram account.");
     return;
   }
-  const existing = await db.query.participationsTable.findFirst({
-    where: and(
-      eq(participationsTable.experienceId, experience.id),
-      eq(participationsTable.userId, user.id),
-    ),
-  });
-  if (existing) {
-    error(res, 409, "You are already participating in this experience.");
-    return;
-  }
-  const [participantCount] = await db
-    .select({ value: count() })
-    .from(participationsTable)
-    .where(
-      and(
-        eq(participationsTable.experienceId, experience.id),
-        inArray(participationsTable.status, ["joined", "attended", "submitted", "verified"]),
-      ),
+  const outcome = await db.transaction(async (tx) => {
+    const [lockedExperience] = await tx
+      .select()
+      .from(experiencesTable)
+      .where(eq(experiencesTable.id, experience.id))
+      .for("update");
+    if (!lockedExperience || !canJoinOrWaitlist(lockedExperience.status)) {
+      return { kind: "closed" as const };
+    }
+    const [existing] = await tx
+      .select({ id: participationsTable.id })
+      .from(participationsTable)
+      .where(
+        and(
+          eq(participationsTable.experienceId, lockedExperience.id),
+          eq(participationsTable.userId, user.id),
+        ),
+      )
+      .limit(1);
+    if (existing) return { kind: "already" as const };
+
+    const [participantCount] = await tx
+      .select({ value: count() })
+      .from(participationsTable)
+      .where(
+        and(
+          eq(participationsTable.experienceId, lockedExperience.id),
+          inArray(participationsTable.status, ["joined", "attended", "submitted", "verified"]),
+        ),
+      );
+    const status = participationStatusForCapacity(
+      Number(participantCount?.value ?? 0),
+      lockedExperience.capacity,
     );
-  if (Number(participantCount?.value ?? 0) >= experience.capacity) {
-    error(res, 409, "This experience is full.");
+    const [participation] = await tx
+      .insert(participationsTable)
+      .values({ experienceId: lockedExperience.id, userId: user.id, status })
+      .returning();
+    return { kind: "created" as const, participation, experience: lockedExperience };
+  });
+  if (outcome.kind === "closed") {
+    error(res, 409, "This experience is no longer open for new participants.");
     return;
   }
-  const [created] = await db
-    .insert(participationsTable)
-    .values({ experienceId: experience.id, userId: user.id })
-    .returning();
-  await sendExperienceJoinedNotification(user.telegramId, experience);
-  if (host) {
-    await sendHostNewParticipantNotification(host.telegramId, user.name, experience);
+  if (outcome.kind === "already") {
+    error(res, 409, "You are already participating in or waitlisted for this experience.");
+    return;
+  }
+  const { participation: created, experience: joinedExperience } = outcome;
+  if (created.status === "joined") {
+    await sendExperienceJoinedNotification(user.telegramId, joinedExperience);
+    if (host) {
+      await sendHostNewParticipantNotification(host.telegramId, user.name, joinedExperience);
+    }
   }
   recordAnalyticsEvent({
     source: "server",
-    eventName: "experience_join",
+    eventName: created.status === "waitlisted" ? "experience_waitlist_join" : "experience_join",
     category: "experience",
     platform: "server",
     outcome: "success",
@@ -748,7 +767,7 @@ router.get("/participations", async (req, res) => {
     parsed.data.status === "completed"
       ? results.filter((item) => ["verified", "rejected", "submitted"].includes(item.status))
       : parsed.data.status === "upcoming"
-        ? results.filter((item) => ["joined", "attended"].includes(item.status))
+        ? results.filter((item) => ["joined", "attended", "waitlisted"].includes(item.status))
         : results,
   );
 });
@@ -813,6 +832,7 @@ router.get("/host/overview", async (req, res) => {
       organisation: null,
       upcomingExperiences: 0,
       participantCount: 0,
+      waitlistCount: 0,
       pendingVerifications: 0,
       totalExperiences: 0,
     });
@@ -832,7 +852,10 @@ router.get("/host/overview", async (req, res) => {
   res.json({
     organisation: organisationResponse(organisation),
     upcomingExperiences: experiences.filter((item) => ["published", "full"].includes(item.status)).length,
-    participantCount: participations.length,
+    participantCount: participations.filter((item) =>
+      ["joined", "attended", "submitted", "verified"].includes(item.status),
+    ).length,
+    waitlistCount: participations.filter((item) => item.status === "waitlisted").length,
     pendingVerifications: participations.filter((item) => item.status === "submitted").length,
     totalExperiences: experiences.length,
   });
@@ -847,7 +870,29 @@ router.get("/host/experiences", async (req, res) => {
         .where(eq(experiencesTable.organisationId, organisation.id))
         .orderBy(desc(experiencesTable.createdAt))
     : [];
-  res.json(await Promise.all(rows.map((row) => experienceResponse(row))));
+  const waitingRows = rows.length
+    ? await db
+        .select({ experienceId: participationsTable.experienceId })
+        .from(participationsTable)
+        .where(
+          and(
+            inArray(participationsTable.experienceId, rows.map((row) => row.id)),
+            eq(participationsTable.status, "waitlisted"),
+          ),
+        )
+    : [];
+  const waitlistCounts = new Map<number, number>();
+  for (const row of waitingRows) {
+    waitlistCounts.set(row.experienceId, (waitlistCounts.get(row.experienceId) ?? 0) + 1);
+  }
+  res.json(
+    await Promise.all(
+      rows.map(async (row) => ({
+        ...(await experienceResponse(row)),
+        waitlistCount: waitlistCounts.get(row.id) ?? 0,
+      })),
+    ),
+  );
 });
 
 router.get("/host/experiences/:experienceId/participants", async (req, res) => {
@@ -877,6 +922,113 @@ router.get("/host/experiences/:experienceId/participants", async (req, res) => {
     .where(eq(participationsTable.experienceId, experience.id))
     .orderBy(desc(participationsTable.joinedAt));
   res.json(await Promise.all(rows.map((row) => participationResponse(row))));
+});
+
+router.post("/host/experiences/:experienceId/promote-next", async (req, res) => {
+  if (!enforceAccountType(req, res, "organisation")) return;
+  const parsed = GetExperienceParams.safeParse({
+    experienceId: Number(req.params.experienceId),
+  });
+  if (!parsed.success) {
+    error(res, 400, "Invalid experience.");
+    return;
+  }
+  const organisation = await currentOrganisation(currentUser(req).id);
+  if (!organisation) {
+    error(res, 404, "Hosted experience not found.");
+    return;
+  }
+
+  const outcome = await db.transaction(async (tx) => {
+    const [experience] = await tx
+      .select()
+      .from(experiencesTable)
+      .where(
+        and(
+          eq(experiencesTable.id, parsed.data.experienceId),
+          eq(experiencesTable.organisationId, organisation.id),
+        ),
+      )
+      .for("update");
+    if (!experience) return { kind: "not-found" as const };
+    if (!canJoinOrWaitlist(experience.status)) {
+      return { kind: "closed" as const };
+    }
+
+    const [next] = await tx
+      .select()
+      .from(participationsTable)
+      .where(
+        and(
+          eq(participationsTable.experienceId, experience.id),
+          eq(participationsTable.status, "waitlisted"),
+        ),
+      )
+      .orderBy(asc(participationsTable.joinedAt), asc(participationsTable.id))
+      .limit(1)
+      .for("update");
+    if (!next) return { kind: "empty" as const };
+
+    const [promoted] = await tx
+      .update(participationsTable)
+      .set({ status: "joined", joinedAt: new Date() })
+      .where(
+        and(
+          eq(participationsTable.id, next.id),
+          eq(participationsTable.status, "waitlisted"),
+        ),
+      )
+      .returning();
+    if (!promoted) return { kind: "race" as const };
+
+    const [participantCount] = await tx
+      .select({ value: count() })
+      .from(participationsTable)
+      .where(
+        and(
+          eq(participationsTable.experienceId, experience.id),
+          inArray(participationsTable.status, ["joined", "attended", "submitted", "verified"]),
+        ),
+      );
+    const requiredCapacity = Number(participantCount?.value ?? 0);
+    const capacity = Math.max(experience.capacity, requiredCapacity);
+    if (capacity !== experience.capacity || experience.status === "full") {
+      await tx
+        .update(experiencesTable)
+        .set({ capacity, status: "published" })
+        .where(eq(experiencesTable.id, experience.id));
+    }
+    return {
+      kind: "promoted" as const,
+      participation: promoted,
+      experience: { ...experience, capacity },
+    };
+  });
+
+  if (outcome.kind === "not-found") {
+    error(res, 404, "Hosted experience not found.");
+    return;
+  }
+  if (outcome.kind === "closed") {
+    error(res, 409, "This experience is no longer accepting participants.");
+    return;
+  }
+  if (outcome.kind === "empty") {
+    error(res, 409, "There is no one on this waitlist to promote.");
+    return;
+  }
+  if (outcome.kind === "race") {
+    error(res, 409, "The waitlist changed. Refresh and try again.");
+    return;
+  }
+
+  const participant = await db.query.usersTable.findFirst({
+    where: eq(usersTable.id, outcome.participation.userId),
+  });
+  if (participant) {
+    await sendExperienceJoinedNotification(participant.telegramId, outcome.experience);
+  }
+  res.json(await participationResponse(outcome.participation));
 });
 
 async function hostParticipation(req: Parameters<IRouter["get"]>[0] extends never ? never : any, participationId: number) {

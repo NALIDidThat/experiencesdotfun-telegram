@@ -58,6 +58,7 @@ export * from './friendRequest';
 export * from './friendRequestCreateInput';
 export * from './friendRequestStatus';
 export * from './healthStatus';
+export * from './hostExperience';
 export * from './hostOverview';
 export * from './listExperiencesParams';
 export * from './listMyParticipationsParams';

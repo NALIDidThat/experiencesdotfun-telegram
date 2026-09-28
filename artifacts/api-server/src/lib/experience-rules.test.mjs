@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  canJoinOrWaitlist,
   canMarkAttendance,
   isExperienceJoinable,
+  participationStatusForCapacity,
   isValidExperienceSchedule,
 } from "./experience-rules.ts";
 
@@ -11,6 +13,19 @@ test("only published experiences can be joined", () => {
   assert.equal(isExperienceJoinable("full"), false);
   assert.equal(isExperienceJoinable("completed"), false);
   assert.equal(isExperienceJoinable("archived"), false);
+});
+
+test("published and full experiences can accept a join or waitlist request", () => {
+  assert.equal(canJoinOrWaitlist("published"), true);
+  assert.equal(canJoinOrWaitlist("full"), true);
+  assert.equal(canJoinOrWaitlist("completed"), false);
+  assert.equal(canJoinOrWaitlist("archived"), false);
+});
+
+test("capacity determines whether a new request gets a place or waits", () => {
+  assert.equal(participationStatusForCapacity(2, 3), "joined");
+  assert.equal(participationStatusForCapacity(3, 3), "waitlisted");
+  assert.equal(participationStatusForCapacity(4, 3), "waitlisted");
 });
 
 test("attendance can only be marked from the joined state", () => {

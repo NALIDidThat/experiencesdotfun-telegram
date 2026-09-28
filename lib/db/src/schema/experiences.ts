@@ -233,6 +233,7 @@ export const analyticsEventNames = [
   "experience_view",
   "experience_create",
   "experience_join",
+  "experience_waitlist_join",
   "profile_update",
   "friend_request",
   "bot_command",

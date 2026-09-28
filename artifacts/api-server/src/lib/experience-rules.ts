@@ -2,6 +2,17 @@ export function isExperienceJoinable(status: string): boolean {
   return status === "published";
 }
 
+export function canJoinOrWaitlist(status: string): boolean {
+  return status === "published" || status === "full";
+}
+
+export function participationStatusForCapacity(
+  participantCount: number,
+  capacity: number,
+): "joined" | "waitlisted" {
+  return participantCount < capacity ? "joined" : "waitlisted";
+}
+
 export function canMarkAttendance(status: string): boolean {
   return status === "joined";
 }

@@ -11,6 +11,7 @@ export interface HostOverview {
   organisation: Organisation | null;
   upcomingExperiences: number;
   participantCount: number;
+  waitlistCount: number;
   pendingVerifications: number;
   totalExperiences: number;
 }
