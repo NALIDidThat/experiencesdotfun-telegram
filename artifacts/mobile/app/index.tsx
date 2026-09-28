@@ -54,6 +54,7 @@ import {
   useMarkAttendance,
   useRejectParticipation,
   useSubmitCompletion,
+  useTrackAnalyticsEvent,
   useUpdateMe,
   useVerifyParticipation,
   getGetExperienceQueryKey,
@@ -4781,6 +4782,9 @@ export default function App() {
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
+  const analyticsMutation = useTrackAnalyticsEvent();
+  const analyticsMutationRef = useRef(analyticsMutation);
+  analyticsMutationRef.current = analyticsMutation;
   const [entryStage, setEntryStage] = useState<'start' | 'account-type' | 'login'>('start');
   const [selectedAccountType, setSelectedAccountType] = useState<UserType | null>(null);
   const [accountTypeConfirmed, setAccountTypeConfirmed] = useState(false);
@@ -4806,6 +4810,16 @@ export default function App() {
     if (routeScreen === 'experience') setExperienceId(params.id);
     else if (routeScreen) setExperienceId(undefined);
   }, [params.screen, params.id]);
+
+  useEffect(() => {
+    if (!user) return;
+    const platform = Platform.OS === "ios" || Platform.OS === "android"
+      ? Platform.OS
+      : "web";
+    analyticsMutationRef.current.mutate({
+      data: { screen, platform },
+    });
+  }, [screen, user?.id]);
 
   const go = (next: Screen, nextParams?: Record<string, string>) => {
     Keyboard.dismiss();

@@ -5,12 +5,14 @@ import botRouter from "./bot";
 import communityRouter from "./community";
 import accountabilityRouter from "./accountability";
 import accountsRouter from "./accounts";
+import analyticsRouter from "./analytics";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(botRouter);
 router.use("/accountability", accountabilityRouter);
+router.use("/analytics", analyticsRouter);
 // Telegram/email auth routes are public and must be checked before the
 // community router's authentication middleware.
 router.use(experiencesRouter);

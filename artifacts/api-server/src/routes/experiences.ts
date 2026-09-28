@@ -42,6 +42,7 @@ import {
   verifyTelegramInitData,
 } from "../lib/auth";
 import { logger } from "../lib/logger";
+import { recordAnalyticsEvent } from "../lib/analytics";
 import {
   canMarkAttendance,
   isExperienceJoinable,
@@ -145,6 +146,13 @@ router.post("/auth/telegram", async (req, res) => {
       : undefined;
     const user = await upsertTelegramUser(identity, parsed.data.userType);
     const sessionToken = await issueTelegramSession(user.id);
+    recordAnalyticsEvent({
+      source: "server",
+      eventName: "auth_login",
+      category: "telegram",
+      platform: "telegram",
+      outcome: "success",
+    });
     res.json({
       user: await userResponse(user),
       isNew: !existing && inheritedUnassigned?.userType !== null,
@@ -164,8 +172,22 @@ router.post("/auth/email/signup", async (req, res) => {
   }
   try {
     const result = await createEmailAccount(parsed.data);
+    recordAnalyticsEvent({
+      source: "server",
+      eventName: "auth_signup",
+      category: "email",
+      platform: "server",
+      outcome: "success",
+    });
     res.json({ user: await userResponse(result.user), isNew: true, sessionToken: result.sessionToken });
   } catch (signupError) {
+    recordAnalyticsEvent({
+      source: "server",
+      eventName: "auth_signup",
+      category: "email",
+      platform: "server",
+      outcome: "failure",
+    });
     if (signupError instanceof Error && signupError.message === "EMAIL_ALREADY_REGISTERED") {
       error(res, 409, "That email is already registered. Log in instead.");
       return;
@@ -174,7 +196,14 @@ router.post("/auth/email/signup", async (req, res) => {
       error(res, 409, "That username is already in use. Choose a different one.");
       return;
     }
-    logger.error({ err: signupError }, "Email signup failed");
+    if (signupError instanceof Error && signupError.message === "EMAIL_AUTH_UNAVAILABLE") {
+      error(res, 503, "Email sign-up is temporarily unavailable. Please try again.");
+      return;
+    }
+    logger.error(
+      { errorType: signupError instanceof Error ? signupError.name : typeof signupError },
+      "Email signup failed",
+    );
     error(res, 500, "We couldn't create your account. Please try again.");
   }
 });
@@ -185,11 +214,42 @@ router.post("/auth/email/login", async (req, res) => {
     error(res, 400, "Enter your email and password.");
     return;
   }
-  const result = await authenticateEmail(parsed.data);
+  let result: Awaited<ReturnType<typeof authenticateEmail>>;
+  try {
+    result = await authenticateEmail(parsed.data);
+  } catch (authError) {
+    recordAnalyticsEvent({
+      source: "server",
+      eventName: "auth_login",
+      category: "email",
+      platform: "server",
+      outcome: "failure",
+    });
+    logger.warn(
+      { errorType: authError instanceof Error ? authError.name : typeof authError },
+      "Email login could not be completed",
+    );
+    error(res, 503, "Email sign-in is temporarily unavailable. Please try again.");
+    return;
+  }
   if (!result) {
+    recordAnalyticsEvent({
+      source: "server",
+      eventName: "auth_login",
+      category: "email",
+      platform: "server",
+      outcome: "failure",
+    });
     error(res, 401, "That email or password is not correct.");
     return;
   }
+  recordAnalyticsEvent({
+    source: "server",
+    eventName: "auth_login",
+    category: "email",
+    platform: "server",
+    outcome: "success",
+  });
   res.json({ user: await userResponse(result.user), isNew: false, sessionToken: result.sessionToken });
 });
 
@@ -354,6 +414,13 @@ router.patch("/me", async (req, res) => {
     }
     throw updateError;
   }
+  recordAnalyticsEvent({
+    source: "server",
+    eventName: "profile_update",
+    category: "profile",
+    platform: "server",
+    outcome: "success",
+  });
   res.json(await userResponse(updated ?? user));
 });
 
@@ -456,6 +523,13 @@ router.post("/experiences", async (req, res) => {
       if (!createdExperience) throw new Error("Unable to create experience.");
       return createdExperience;
     });
+    recordAnalyticsEvent({
+      source: "server",
+      eventName: "experience_create",
+      category: "create",
+      platform: "server",
+      outcome: "success",
+    });
     res.status(201).json(await experienceResponse(created));
   } catch (publishError) {
     logger.error({ err: publishError, userId: user.id }, "Experience publish failed");
@@ -484,6 +558,13 @@ router.get("/experiences/:experienceId", async (req, res) => {
       eq(participationsTable.experienceId, experience.id),
       eq(participationsTable.userId, user.id),
     ),
+  });
+  recordAnalyticsEvent({
+    source: "server",
+    eventName: "experience_view",
+    category: "experience",
+    platform: "server",
+    outcome: "success",
   });
   res.json({
     ...(await experienceResponse(experience)),
@@ -564,6 +645,13 @@ router.post("/experiences/:experienceId/join", async (req, res) => {
   if (host) {
     await sendHostNewParticipantNotification(host.telegramId, user.name, experience);
   }
+  recordAnalyticsEvent({
+    source: "server",
+    eventName: "experience_join",
+    category: "experience",
+    platform: "server",
+    outcome: "success",
+  });
   res.status(201).json(await participationResponse(created));
 });
 
@@ -1091,6 +1179,13 @@ router.post("/friends/requests", async (req, res) => {
     requester.username,
     created.id,
   );
+  recordAnalyticsEvent({
+    source: "server",
+    eventName: "friend_request",
+    category: "friendship",
+    platform: "server",
+    outcome: "success",
+  });
   res.status(201).json({
     id: created.id,
     user: { id: recipient.id, name: recipient.name, username: recipient.username },

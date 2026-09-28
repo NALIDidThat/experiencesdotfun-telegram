@@ -13,6 +13,8 @@ import {
 import { verifyTelegramInitData as verifySignedTelegramInitData, type TelegramIdentity } from "./telegram-init-data";
 import { logger } from "./logger";
 import { selectTelegramProfile } from "./telegram-identity";
+import { createEphemeralSupabaseClient, getSupabaseAdminClient } from "./supabase";
+import { verifyLegacyPassword } from "./legacy-password";
 
 export type { TelegramIdentity } from "./telegram-init-data";
 
@@ -47,21 +49,71 @@ export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16);
-  const derivedKey = crypto.scryptSync(password, salt, 64);
-  return `${salt.toString("hex")}:${derivedKey.toString("hex")}`;
+function getAuthErrorCode(error: unknown): string {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    return String(error.code);
+  }
+  return "unknown";
 }
 
-function verifyPassword(password: string, encodedHash: string): boolean {
-  const [saltHex, hashHex] = encodedHash.split(":");
-  if (!saltHex || !hashHex) return false;
-  try {
-    const expected = Buffer.from(hashHex, "hex");
-    const actual = crypto.scryptSync(password, Buffer.from(saltHex, "hex"), expected.length);
-    return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
-  } catch {
-    return false;
+function isDuplicateSupabaseEmail(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const code = "code" in error ? String(error.code) : "";
+  const message = "message" in error ? String(error.message).toLowerCase() : "";
+  return (
+    code === "email_exists" ||
+    code === "user_already_exists" ||
+    message.includes("already registered") ||
+    message.includes("already been registered")
+  );
+}
+
+async function createSupabaseIdentity(
+  email: string,
+  password: string,
+): Promise<{ id: string; created: boolean }> {
+  const { data, error } = await getSupabaseAdminClient().auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+  if (!error && data.user?.id) return { id: data.user.id, created: true };
+
+  if (error && isDuplicateSupabaseEmail(error)) {
+    const { data: loginData, error: loginError } = await createEphemeralSupabaseClient()
+      .auth.signInWithPassword({ email, password });
+    if (
+      !loginError &&
+      loginData.user?.id &&
+      normalizeEmail(loginData.user.email ?? "") === email
+    ) {
+      return { id: loginData.user.id, created: false };
+    }
+    throw new Error("EMAIL_ALREADY_REGISTERED");
+  }
+
+  logger.warn({ code: error ? getAuthErrorCode(error) : "missing_user" }, "Supabase Auth account creation failed.");
+  throw new Error("EMAIL_AUTH_UNAVAILABLE");
+}
+
+async function verifySupabaseIdentity(
+  email: string,
+  password: string,
+): Promise<string | undefined> {
+  const { data, error } = await createEphemeralSupabaseClient()
+    .auth.signInWithPassword({ email, password });
+  if (error) {
+    logger.warn({ code: getAuthErrorCode(error) }, "Supabase Auth login failed.");
+    return undefined;
+  }
+  if (!data.user?.id || normalizeEmail(data.user.email ?? "") !== email) return undefined;
+  return data.user.id;
+}
+
+async function deleteSupabaseIdentity(userId: string): Promise<void> {
+  const { error } = await getSupabaseAdminClient().auth.admin.deleteUser(userId);
+  if (error) {
+    logger.warn({ code: getAuthErrorCode(error) }, "Unlinked Supabase Auth account could not be removed.");
   }
 }
 
@@ -121,7 +173,13 @@ export async function createEmailAccount(input: EmailSignupInput): Promise<{ use
   const sessionToken = `email_${crypto.randomBytes(32).toString("base64url")}`;
   const sessionTokenHash = hashSessionToken(sessionToken);
   const sessionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  const passwordHash = hashPassword(input.password);
+
+  const existingAccount = await db.query.emailAccountsTable.findFirst({
+    where: eq(emailAccountsTable.email, email),
+  });
+  if (existingAccount) throw new Error("EMAIL_ALREADY_REGISTERED");
+
+  const supabaseIdentity = await createSupabaseIdentity(email, input.password);
 
   try {
     const user = await db.transaction(async (transaction) => {
@@ -152,7 +210,8 @@ export async function createEmailAccount(input: EmailSignupInput): Promise<{ use
         .values({
           userId: createdUser.id,
           email,
-          passwordHash,
+          passwordHash: null,
+          supabaseAuthUserId: supabaseIdentity.id,
         })
         .returning();
       if (!account) throw new Error("Unable to create email account.");
@@ -166,6 +225,7 @@ export async function createEmailAccount(input: EmailSignupInput): Promise<{ use
     });
     return { user, sessionToken };
   } catch (error) {
+    if (supabaseIdentity.created) await deleteSupabaseIdentity(supabaseIdentity.id);
     if (
       typeof error === "object" &&
       error !== null &&
@@ -185,7 +245,32 @@ export async function authenticateEmail(input: EmailLoginInput): Promise<{ user:
   const account = await db.query.emailAccountsTable.findFirst({
     where: eq(emailAccountsTable.email, email),
   });
-  if (!account || !verifyPassword(input.password, account.passwordHash)) return undefined;
+  if (!account) return undefined;
+
+  if (account.supabaseAuthUserId) {
+    const authenticatedId = await verifySupabaseIdentity(email, input.password);
+    if (authenticatedId !== account.supabaseAuthUserId) return undefined;
+  } else {
+    if (!verifyLegacyPassword(input.password, account.passwordHash)) return undefined;
+    const identity = await createSupabaseIdentity(email, input.password);
+    const [updatedAccount] = await db
+      .update(emailAccountsTable)
+      .set({
+        supabaseAuthUserId: identity.id,
+        passwordHash: null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(emailAccountsTable.id, account.id), isNull(emailAccountsTable.supabaseAuthUserId)))
+      .returning({ supabaseAuthUserId: emailAccountsTable.supabaseAuthUserId });
+    if (!updatedAccount) {
+      const concurrentAccount = await db.query.emailAccountsTable.findFirst({
+        where: eq(emailAccountsTable.id, account.id),
+      });
+      if (concurrentAccount?.supabaseAuthUserId !== identity.id) {
+        throw new Error("EMAIL_AUTH_MIGRATION_CONFLICT");
+      }
+    }
+  }
 
   const user = await db.query.usersTable.findFirst({
     where: eq(usersTable.id, account.userId),

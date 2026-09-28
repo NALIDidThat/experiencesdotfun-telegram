@@ -251,6 +251,19 @@ export const LoginWithEmailResponse = zod.object({
 
 
 /**
+ * @summary Record a privacy-minimized app screen view
+ */
+export const TrackAnalyticsEventBody = zod.object({
+  "screen": zod.enum(['home', 'explore', 'experiences', 'profile', 'notifications', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email']),
+  "platform": zod.enum(['ios', 'android', 'web'])
+})
+
+export const TrackAnalyticsEventResponse = zod.object({
+  "accepted": zod.boolean()
+})
+
+
+/**
  * @summary List profiles owned by the signed-in identity
  */
 

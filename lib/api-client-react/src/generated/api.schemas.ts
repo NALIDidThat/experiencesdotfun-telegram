@@ -157,6 +157,41 @@ export interface EmailLoginInput {
   password: string;
 }
 
+export type AnalyticsEventInputScreen = typeof AnalyticsEventInputScreen[keyof typeof AnalyticsEventInputScreen];
+
+
+export const AnalyticsEventInputScreen = {
+  home: 'home',
+  explore: 'explore',
+  experiences: 'experiences',
+  profile: 'profile',
+  notifications: 'notifications',
+  friends: 'friends',
+  'friend-profile': 'friend-profile',
+  experience: 'experience',
+  host: 'host',
+  create: 'create',
+  email: 'email',
+} as const;
+
+export type AnalyticsEventInputPlatform = typeof AnalyticsEventInputPlatform[keyof typeof AnalyticsEventInputPlatform];
+
+
+export const AnalyticsEventInputPlatform = {
+  ios: 'ios',
+  android: 'android',
+  web: 'web',
+} as const;
+
+export interface AnalyticsEventInput {
+  screen: AnalyticsEventInputScreen;
+  platform: AnalyticsEventInputPlatform;
+}
+
+export interface AnalyticsEventAccepted {
+  accepted: boolean;
+}
+
 export type ParticipationType = typeof ParticipationType[keyof typeof ParticipationType];
 
 

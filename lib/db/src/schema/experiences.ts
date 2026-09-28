@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
+  date,
   index,
   integer,
   jsonb,
@@ -9,6 +11,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -53,7 +56,8 @@ export const emailAccountsTable = pgTable(
       .notNull()
       .references(() => usersTable.id),
     email: text("email").notNull(),
-    passwordHash: text("password_hash").notNull(),
+    passwordHash: text("password_hash"),
+    supabaseAuthUserId: uuid("supabase_auth_user_id"),
     sessionTokenHash: text("session_token_hash"),
     sessionExpiresAt: timestamp("session_expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -62,6 +66,9 @@ export const emailAccountsTable = pgTable(
   (table) => ({
     userIdIndex: uniqueIndex("email_accounts_user_id_idx").on(table.userId),
     emailIndex: uniqueIndex("email_accounts_email_idx").on(table.email),
+    supabaseAuthUserIdIndex: uniqueIndex("email_accounts_supabase_auth_user_idx").on(
+      table.supabaseAuthUserId,
+    ),
     sessionTokenIndex: uniqueIndex("email_accounts_session_token_idx").on(table.sessionTokenHash),
   }),
 );
@@ -218,6 +225,89 @@ export const friendNotificationsTable = pgTable(
   }),
 );
 
+export const analyticsEventSources = ["app", "bot", "server"] as const;
+export const analyticsEventNames = [
+  "screen_view",
+  "auth_signup",
+  "auth_login",
+  "experience_view",
+  "experience_create",
+  "experience_join",
+  "profile_update",
+  "friend_request",
+  "bot_command",
+  "bot_callback",
+  "community_contribution",
+] as const;
+export const analyticsEventCategories = [
+  "home",
+  "explore",
+  "experiences",
+  "profile",
+  "notifications",
+  "friends",
+  "friend-profile",
+  "experience",
+  "host",
+  "create",
+  "email",
+  "telegram",
+  "start",
+  "menu",
+  "onboarding",
+  "help",
+  "xp",
+  "progress",
+  "rank",
+  "leaderboard",
+  "requests",
+  "add",
+  "accountability",
+  "friendship",
+  "community",
+  "other",
+] as const;
+export const analyticsPlatforms = ["ios", "android", "web", "telegram", "server"] as const;
+
+export const analyticsEventsTable = pgTable(
+  "analytics_events",
+  {
+    id: serial("id").primaryKey(),
+    source: text("source", { enum: analyticsEventSources }).notNull(),
+    eventName: text("event_name", { enum: analyticsEventNames }).notNull(),
+    category: text("category", { enum: analyticsEventCategories }).notNull(),
+    platform: text("platform", { enum: analyticsPlatforms }).notNull(),
+    outcome: text("outcome", { enum: ["success", "failure"] }),
+    eventDate: date("event_date", { mode: "string" })
+      .notNull()
+      .default(sql`CURRENT_DATE`),
+    expiresAt: timestamp("expires_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now() + interval '90 days'`),
+  },
+  (table) => ({
+    sourceDateIndex: index("analytics_events_source_date_idx").on(table.source, table.eventDate),
+    retentionIndex: index("analytics_events_expires_at_idx").on(table.expiresAt),
+    sourceCheck: check("analytics_events_source_check", sql`${table.source} IN ('app', 'bot', 'server')`),
+    eventNameCheck: check(
+      "analytics_events_event_name_check",
+      sql`${table.eventName} IN ('screen_view', 'auth_signup', 'auth_login', 'experience_view', 'experience_create', 'experience_join', 'profile_update', 'friend_request', 'bot_command', 'bot_callback', 'community_contribution')`,
+    ),
+    categoryCheck: check(
+      "analytics_events_category_check",
+      sql`${table.category} IN ('home', 'explore', 'experiences', 'profile', 'notifications', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email', 'telegram', 'start', 'menu', 'onboarding', 'help', 'xp', 'progress', 'rank', 'leaderboard', 'requests', 'add', 'accountability', 'friendship', 'community', 'other')`,
+    ),
+    platformCheck: check(
+      "analytics_events_platform_check",
+      sql`${table.platform} IN ('ios', 'android', 'web', 'telegram', 'server')`,
+    ),
+    outcomeCheck: check(
+      "analytics_events_outcome_check",
+      sql`${table.outcome} IS NULL OR ${table.outcome} IN ('success', 'failure')`,
+    ),
+  }),
+);
+
 export const insertUserSchema = createInsertSchema(usersTable);
 export const insertOrganisationSchema = createInsertSchema(organisationsTable);
 export const insertExperienceSchema = createInsertSchema(experiencesTable);
@@ -231,6 +321,10 @@ export type Experience = typeof experiencesTable.$inferSelect;
 export type Participation = typeof participationsTable.$inferSelect;
 export type Friendship = typeof friendshipsTable.$inferSelect;
 export type FriendNotification = typeof friendNotificationsTable.$inferSelect;
+export type AnalyticsEvent = typeof analyticsEventsTable.$inferSelect;
+export type AnalyticsEventName = (typeof analyticsEventNames)[number];
+export type AnalyticsEventCategory = (typeof analyticsEventCategories)[number];
+export type AnalyticsPlatform = (typeof analyticsPlatforms)[number];
 
 export const experienceCategorySchema = z.enum(["environmental", "education", "community"]);
 export const participationTypeSchema = z.enum(["join", "host", "both"]);

@@ -114,6 +114,27 @@ paths:
                 $ref: "#/components/schemas/AuthResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /analytics/events:
+    post:
+      operationId: trackAnalyticsEvent
+      tags: [profile]
+      summary: Record a privacy-minimized app screen view
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyticsEventInput"
+      responses:
+        "202":
+          description: Event accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsEventAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /accounts:
     get:
       operationId: listAccountProfiles
@@ -1053,6 +1074,24 @@ components:
           type: string
           minLength: 1
       required: [email, password]
+    AnalyticsEventInput:
+      type: object
+      additionalProperties: false
+      properties:
+        screen:
+          type: string
+          enum: [home, explore, experiences, profile, notifications, friends, friend-profile, experience, host, create, email]
+        platform:
+          type: string
+          enum: [ios, android, web]
+      required: [screen, platform]
+    AnalyticsEventAccepted:
+      type: object
+      additionalProperties: false
+      properties:
+        accepted:
+          type: boolean
+      required: [accepted]
     ExperienceCategory:
       type: string
       enum: [environmental, education, community]

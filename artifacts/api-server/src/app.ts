@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { startAnalyticsRetentionCleanup } from "./lib/analytics";
 import { startTelegramBot } from "./lib/telegram";
 
 const app: Express = express();
@@ -30,6 +31,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+startAnalyticsRetentionCleanup();
 app.use("/api", router);
 if (process.env.NODE_ENV === "development") {
   void startTelegramBot();

@@ -27,6 +27,8 @@ import {
   getMessageQualification,
   parseAdminRewardAmount,
 } from "./community-rules";
+import { recordAnalyticsEvent } from "./analytics";
+import type { AnalyticsEventCategory } from "@workspace/db/schema";
 import {
   buildWelcomeKeyboard,
   escapeTelegramHtml,
@@ -846,6 +848,38 @@ async function handleCallback(update: NonNullable<TelegramUpdate["callback_query
   }
 }
 
+const commandAnalyticsCategory: Record<string, AnalyticsEventCategory> = {
+  "/start": "start",
+  "/menu": "menu",
+  "/onboarding": "onboarding",
+  "/help": "help",
+  "/experiences": "experiences",
+  "/xp": "xp",
+  "/progress": "progress",
+  "/rank": "rank",
+  "/leaderboard": "leaderboard",
+  "/profile": "profile",
+  "/friends": "friends",
+  "/requests": "requests",
+  "/add": "add",
+  "/addfriend": "add",
+  "/accountability": "accountability",
+  "/host": "host",
+  "/create": "create",
+};
+
+function commandAnalyticsCategoryFor(text: string): AnalyticsEventCategory {
+  const command = parseTelegramCommand(text, botUsername)?.command;
+  return command ? commandAnalyticsCategory[command] ?? "other" : "other";
+}
+
+function callbackAnalyticsCategoryFor(data: string | undefined): AnalyticsEventCategory {
+  if (data === "menu:open") return "menu";
+  if (data?.startsWith("onboarding:")) return "onboarding";
+  if (data?.startsWith("friend:")) return "friendship";
+  return "other";
+}
+
 async function poll(offset: number): Promise<void> {
   let nextOffset = offset;
   let retryDelayMs = 500;
@@ -865,11 +899,44 @@ async function poll(offset: number): Promise<void> {
       try {
         if (update.message?.text) {
           await handleMessage(update.message);
+          if (update.message.text.trim().startsWith("/")) {
+            recordAnalyticsEvent({
+              source: "bot",
+              eventName: "bot_command",
+              category: commandAnalyticsCategoryFor(update.message.text),
+              platform: "telegram",
+              outcome: "success",
+            });
+          }
         } else if (update.callback_query) {
           await handleCallback(update.callback_query);
+          recordAnalyticsEvent({
+            source: "bot",
+            eventName: "bot_callback",
+            category: callbackAnalyticsCategoryFor(update.callback_query.data),
+            platform: "telegram",
+            outcome: "success",
+          });
         }
       } catch (error) {
-        logger.error({ err: error, updateId: update.update_id }, "Telegram update handling failed");
+        if (update.message?.text?.trim().startsWith("/")) {
+          recordAnalyticsEvent({
+            source: "bot",
+            eventName: "bot_command",
+            category: commandAnalyticsCategoryFor(update.message.text),
+            platform: "telegram",
+            outcome: "failure",
+          });
+        } else if (update.callback_query) {
+          recordAnalyticsEvent({
+            source: "bot",
+            eventName: "bot_callback",
+            category: callbackAnalyticsCategoryFor(update.callback_query.data),
+            platform: "telegram",
+            outcome: "failure",
+          });
+        }
+        logger.error({ err: error }, "Telegram update handling failed");
       }
     }
   } catch (error) {
