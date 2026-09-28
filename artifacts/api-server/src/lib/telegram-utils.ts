@@ -112,13 +112,13 @@ export function formatCompletionSubmittedNotice(
 }
 
 export function formatContributionVerifiedNotice(experience: TelegramExperienceNotice): string {
-  const xpAdded = experience.xpReward > 0
-    ? `<b>+${experience.xpReward} XP</b> has been added to your profile.`
+  const xpReady = experience.xpReward > 0
+    ? `<b>+${experience.xpReward} Experience XP</b> is ready to redeem. Open your XP history to add it to your profile balance.`
     : "Your profile has been updated.";
   const rewardLine = experience.monetaryRewardPence && experience.monetaryRewardPence > 0
     ? `\n\nReward confirmed: <b>£${(experience.monetaryRewardPence / 100).toFixed(2)}</b>.`
     : "";
-  return `<b>🏆 Contribution verified</b>\n\nThe host confirmed your contribution to <b>${escapeTelegramHtml(experience.title)}</b>.\n\n${xpAdded}${rewardLine}`;
+  return `<b>🏆 Contribution verified</b>\n\nThe host confirmed your contribution to <b>${escapeTelegramHtml(experience.title)}</b>.\n\n${xpReady}${rewardLine}`;
 }
 
 export function formatContributionRejectedNotice(experience: TelegramExperienceNotice): string {

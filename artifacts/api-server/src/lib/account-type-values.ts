@@ -18,7 +18,7 @@ export function emailProfileValues(
     name: input.name.trim(),
     username: input.username.trim().replace(/^@+/, "").toLowerCase(),
     userType: input.userType,
-    xp: EMAIL_SIGNUP_XP_REWARD,
+    xp: 0,
   };
 }
 

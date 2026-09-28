@@ -86,7 +86,8 @@ test("Telegram notification copy escapes user content and does not promise XP be
   assert.match(formatFriendRequestNotice("<Alice>", null), /&lt;Alice&gt;/);
 
   const verified = formatContributionVerifiedNotice(experience);
-  assert.match(verified, /<b>\+25 XP<\/b> has been added/);
+  assert.match(verified, /<b>\+25 Experience XP<\/b> is ready to redeem/);
+  assert.match(verified, /add it to your profile balance/);
   assert.match(verified, /Reward confirmed: <b>£5\.00<\/b>/);
   assert.match(formatContributionRejectedNotice(experience), /No XP or reward was added/);
 });

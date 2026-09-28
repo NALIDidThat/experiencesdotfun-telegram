@@ -230,6 +230,46 @@ export const RewardStatus = {
   issued: 'issued',
 } as const;
 
+export type XpAwardSourceType = typeof XpAwardSourceType[keyof typeof XpAwardSourceType];
+
+
+export const XpAwardSourceType = {
+  email_signup: 'email_signup',
+  experience: 'experience',
+  legacy_balance: 'legacy_balance',
+} as const;
+
+export type XpAwardStatus = typeof XpAwardStatus[keyof typeof XpAwardStatus];
+
+
+export const XpAwardStatus = {
+  pending: 'pending',
+  redeemed: 'redeemed',
+} as const;
+
+export interface XpAward {
+  id: string;
+  sourceType: XpAwardSourceType;
+  sourceId: string;
+  title: string;
+  amount: number;
+  status: XpAwardStatus;
+  awardedAt: string;
+}
+
+export interface XpAwardsResponse {
+  /** Experience XP already credited to the user's profile. */
+  balanceXp: number;
+  /** Experience XP that is available to redeem. */
+  pendingXp: number;
+  awards: XpAward[];
+}
+
+export interface RedeemXpAwardsResponse {
+  redeemedXp: number;
+  user: User;
+}
+
 export interface OrganisationProfileInput {
   /**
      * @minLength 2

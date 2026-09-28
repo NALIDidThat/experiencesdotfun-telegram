@@ -42,6 +42,7 @@ import {
   useGetAccountabilityDashboard,
   useGetHostOverview,
   useGetMe,
+  useGetMyXpAwards,
   useJoinExperience,
   useListExperienceParticipants,
   useListExperiences,
@@ -53,12 +54,14 @@ import {
   useListSentFriendRequests,
   useMarkAttendance,
   useRejectParticipation,
+  useRedeemMyXpAwards,
   useSubmitCompletion,
   useTrackAnalyticsEvent,
   useUpdateMe,
   useVerifyParticipation,
   getGetExperienceQueryKey,
   getGetFriendProfileQueryKey,
+  getGetMyXpAwardsQueryKey,
   getListMyParticipationsQueryKey,
   getListHostExperiencesQueryKey,
   getListExperienceParticipantsQueryKey,
@@ -2578,7 +2581,7 @@ function SocialProfileHeader({
           </View>
           <View>
             <Text style={[styles.profileXpTitle, { color: colors.foreground }]}>Experience points</Text>
-            <Text style={[styles.profileXpCaption, { color: colors.mutedForeground }]}>Earned through participation</Text>
+            <Text style={[styles.profileXpCaption, { color: colors.mutedForeground }]}>Redeem awards to add to your profile</Text>
           </View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
@@ -2655,9 +2658,29 @@ function ProfileMetricDetailsSheet({
 }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+  const xpAwards = useGetMyXpAwards({
+    query: {
+      queryKey: getGetMyXpAwardsQueryKey(),
+      enabled: metric === 'xp' && authenticated,
+    },
+  });
+  const redeemXp = useRedeemMyXpAwards({
+    mutation: {
+      onSuccess: () => {
+        invalidateAppQueries(queryClient);
+        triggerHaptic();
+      },
+    },
+  });
 
   if (!metric) return null;
 
+  const detailsIsLoading = metric === 'xp' ? xpAwards.isLoading : isLoading;
+  const detailsHasError = metric === 'xp' ? xpAwards.isError : hasError;
+  const retryDetails = metric === 'xp'
+    ? () => { void xpAwards.refetch(); }
+    : onRetry;
   const title = {
     completed: 'Completed experiences',
     hosted: 'Hosted experiences',
@@ -2675,13 +2698,13 @@ function ProfileMetricDetailsSheet({
     completed: `completed ${count === 1 ? 'experience' : 'experiences'}`,
     hosted: `hosted ${count === 1 ? 'experience' : 'experiences'}`,
     friends: count === 1 ? 'friend' : 'friends',
-    xp: 'XP earned',
+    xp: 'XP in profile',
   }[metric];
   const description = {
     completed: 'Your participation history',
     hosted: 'Experiences you have organised',
     friends: 'People connected with you',
-    xp: 'From meaningful participation',
+    xp: 'Redeem awards to add them to your non-cash profile balance',
   }[metric];
   const emptyTitle = count > 0 ? 'Summary count saved' : {
     completed: 'No completed experiences yet',
@@ -2691,7 +2714,7 @@ function ProfileMetricDetailsSheet({
   }[metric];
   const emptyBody = count > 0
     ? metric === 'xp'
-      ? 'Your Experience points total reflects meaningful participation. Community XP is tracked separately.'
+      ? 'Experience XP recognises meaningful participation. It is a non-cash profile balance; Community XP is tracked separately.'
       : 'The profile total is available, but detailed records are not available right now.'
     : {
       completed: 'Completed experiences will appear here.',
@@ -2763,19 +2786,19 @@ function ProfileMetricDetailsSheet({
                 {authError ? <Text accessibilityRole="alert" style={[styles.profileMetricError, { color: colors.destructive }]}>{authError}</Text> : null}
                 <Button testID="profile-metric-login" label="Log in with Telegram" icon="send" onPress={onLogin} style={styles.profileMetricStateButton} />
               </View>
-            ) : isLoading ? (
+            ) : detailsIsLoading ? (
               <View style={styles.profileMetricState}>
                 <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={[styles.profileMetricStateBody, { color: colors.mutedForeground }]}>Loading your records…</Text>
               </View>
-            ) : hasError ? (
+            ) : detailsHasError ? (
               <View style={styles.profileMetricState}>
                 <View style={[styles.profileMetricStateIcon, { backgroundColor: colors.destructive + '12' }]}>
                   <Feather name="alert-circle" size={20} color={colors.destructive} />
                 </View>
                 <Text style={[styles.profileMetricStateTitle, { color: colors.foreground }]}>Couldn’t load this summary</Text>
                 <Text style={[styles.profileMetricStateBody, { color: colors.mutedForeground }]}>Your profile is unchanged. Try again to reload these records.</Text>
-                <Button testID="profile-metric-retry" label="Try again" variant="secondary" icon="refresh-cw" onPress={onRetry} style={styles.profileMetricStateButton} />
+                <Button testID="profile-metric-retry" label="Try again" variant="secondary" icon="refresh-cw" onPress={retryDetails} style={styles.profileMetricStateButton} />
               </View>
             ) : metric === 'completed' && completed?.length ? (
               completed.map((item) => (
@@ -2858,16 +2881,84 @@ function ProfileMetricDetailsSheet({
                 </Pressable>
               ))
             ) : metric === 'xp' ? (
-              <View style={styles.profileMetricState}>
-                <View style={[styles.profileMetricStateIcon, { backgroundColor: colors.primary + '12' }]}>
-                  <Feather name="zap" size={20} color={colors.primary} />
+              <View style={styles.profileXpAwardsList}>
+                <View
+                  style={[
+                    styles.profileXpRedeemCard,
+                    { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: colors.radius },
+                  ]}
+                >
+                  <View style={styles.profileXpRedeemHeading}>
+                    <View style={[styles.profileMetricStateIcon, { backgroundColor: colors.primary + '12' }]}>
+                      <Feather name="zap" size={20} color={colors.primary} />
+                    </View>
+                    <View style={styles.profileMetricRecordCopy}>
+                      <Text style={[styles.profileMetricRecordTitle, { color: colors.foreground }]}>
+                        {xpAwards.data?.pendingXp ?? 0} XP ready to redeem
+                      </Text>
+                      <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
+                        Redeeming adds these points to your Experience XP profile balance.
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.profileXpNotice, { color: colors.mutedForeground }]}>
+                    Experience XP is a non-cash record of your participation.
+                  </Text>
+                  {(xpAwards.data?.pendingXp ?? 0) > 0 ? (
+                    <Button
+                      testID="xp-awards-redeem"
+                      label={redeemXp.isPending ? 'Redeeming…' : `Redeem ${xpAwards.data?.pendingXp ?? 0} XP`}
+                      disabled={redeemXp.isPending}
+                      onPress={() => redeemXp.mutate()}
+                    />
+                  ) : null}
+                  {redeemXp.isError ? (
+                    <InlineError message={requestErrorMessage(redeemXp.error, 'Your XP could not be redeemed. Please try again.')} />
+                  ) : null}
                 </View>
-                <Text style={[styles.profileMetricStateTitle, { color: colors.foreground }]}>
-                  {user.xp > 0 ? 'Your contribution total' : 'Take part to earn Experience points'}
-                </Text>
-                <Text style={[styles.profileMetricStateBody, { color: colors.mutedForeground }]}>
-                  Experience points recognise meaningful participation. Community XP is tracked separately.
-                </Text>
+                {xpAwards.data?.awards.length ? (
+                  xpAwards.data.awards.map((award) => (
+                    <View
+                      key={award.id}
+                      testID={`xp-award-${award.id}`}
+                      style={[styles.profileXpAwardRow, { borderBottomColor: colors.border }]}
+                    >
+                      <View style={[styles.profileXpAwardIcon, { backgroundColor: award.status === 'pending' ? colors.primary + '12' : colors.success + '12' }]}>
+                        <Feather
+                          name={award.status === 'pending' ? 'clock' : 'check'}
+                          size={15}
+                          color={award.status === 'pending' ? colors.primary : colors.success}
+                        />
+                      </View>
+                      <View style={styles.profileMetricRecordCopy}>
+                        <Text numberOfLines={2} style={[styles.profileMetricRecordTitle, { color: colors.foreground }]}>
+                          {award.title}
+                        </Text>
+                        <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
+                          {award.sourceType === 'experience'
+                            ? 'Verified experience'
+                            : award.sourceType === 'email_signup'
+                              ? 'Email sign-up'
+                              : 'Previous profile balance'} · {hostTimestampLabel(award.awardedAt) ?? 'Date unavailable'}
+                        </Text>
+                        <Text style={[styles.profileXpAwardStatus, { color: award.status === 'pending' ? colors.primary : colors.success }]}>
+                          {award.status === 'pending' ? 'Ready to redeem' : 'Already in your profile'}
+                        </Text>
+                      </View>
+                      <Text style={[styles.profileMetricRewardText, { color: colors.primary }]}>+{award.amount} XP</Text>
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.profileMetricState}>
+                    <View style={[styles.profileMetricStateIcon, { backgroundColor: colors.primary + '12' }]}>
+                      <Feather name="zap" size={20} color={colors.primary} />
+                    </View>
+                    <Text style={[styles.profileMetricStateTitle, { color: colors.foreground }]}>No XP awards yet</Text>
+                    <Text style={[styles.profileMetricStateBody, { color: colors.mutedForeground }]}>
+                      Take part in an experience to build your Experience XP history.
+                    </Text>
+                  </View>
+                )}
               </View>
             ) : (
               <View style={styles.profileMetricState}>
@@ -4072,7 +4163,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
                 ) : item.status === 'verified' ? (
                   <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.success + '12' }]}>
                     <Feather name="check-circle" size={15} color={colors.success} />
-                    <Text style={[styles.hostParticipantOutcomeText, { color: colors.success }]}>Completion verified · XP awarded</Text>
+                    <Text style={[styles.hostParticipantOutcomeText, { color: colors.success }]}>Completion verified · XP ready to redeem</Text>
                   </View>
                 ) : item.status === 'attended' ? (
                   <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.success + '12' }]}>
@@ -5637,6 +5728,13 @@ const styles = StyleSheet.create({
   profileMetricRecordMeta: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular', marginTop: 3 },
   profileMetricReward: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999 },
   profileMetricRewardText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  profileXpAwardsList: { gap: 4 },
+  profileXpRedeemCard: { borderWidth: 1, padding: 14, gap: 11, marginBottom: 6 },
+  profileXpRedeemHeading: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  profileXpNotice: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
+  profileXpAwardRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth },
+  profileXpAwardIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  profileXpAwardStatus: { fontSize: 11, fontFamily: 'Inter_600SemiBold', marginTop: 3 },
   profileMetricFriend: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   profileMetricFriendAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   profileMetricFriendInitial: { fontSize: 16, fontFamily: 'Inter_700Bold' },

@@ -20,12 +20,14 @@ import {
 } from "@workspace/api-zod";
 import { db } from "@workspace/db";
 import {
+  emailAccountsTable,
   experiencesTable,
   friendNotificationsTable,
   friendshipsTable,
   organisationsTable,
   participationsTable,
   usersTable,
+  xpAwardsTable,
   type PersistedSocialLinks,
   type UserType,
 } from "@workspace/db/schema";
@@ -52,6 +54,9 @@ import {
 import { mergeDefinedFields } from "../lib/profile-rules";
 import { hasSameTelegramIdentity } from "../lib/telegram-identity";
 import {
+  buildXpAwardsResponse,
+} from "../lib/xp-award-rules";
+import {
   currentOrganisation,
   experienceResponse,
   friendProfileResponse,
@@ -59,6 +64,7 @@ import {
   participationResponse,
   userResponse,
 } from "../lib/data";
+import { EMAIL_SIGNUP_XP_REWARD } from "../lib/account-type-values";
 import {
   sendCompletionSubmittedNotification,
   sendContributionRejectedNotification,
@@ -286,6 +292,103 @@ router.use("/host", (req, res, next) => {
 
 router.get("/me", async (req, res) => {
   res.json(await userResponse(currentUser(req)));
+});
+
+router.get("/me/xp-awards", async (req, res) => {
+  const user = currentUser(req);
+  const [persistedAwards, legacyExperiences, emailAccount] = await Promise.all([
+    db
+      .select()
+      .from(xpAwardsTable)
+      .where(eq(xpAwardsTable.userId, user.id))
+      .orderBy(desc(xpAwardsTable.awardedAt)),
+    db
+      .select({
+        participationId: participationsTable.id,
+        title: experiencesTable.title,
+        amount: experiencesTable.xpReward,
+        awardedAt: participationsTable.verifiedAt,
+      })
+      .from(participationsTable)
+      .innerJoin(
+        experiencesTable,
+        eq(experiencesTable.id, participationsTable.experienceId),
+      )
+      .where(
+        and(
+          eq(participationsTable.userId, user.id),
+          eq(participationsTable.status, "verified"),
+        ),
+      )
+      .orderBy(desc(participationsTable.verifiedAt)),
+    db.query.emailAccountsTable.findFirst({
+      where: eq(emailAccountsTable.userId, user.id),
+      columns: { id: true },
+    }),
+  ]);
+  res.json(
+    buildXpAwardsResponse({
+      balanceXp: user.xp,
+      profileCreatedAt: user.createdAt,
+      persistedAwards: persistedAwards.map((award) => ({
+        id: award.id,
+        sourceType: award.sourceType,
+        sourceId: award.sourceId,
+        sourceTitle: award.sourceTitle,
+        amount: award.amount,
+        status: award.status,
+        awardedAt: award.awardedAt,
+      })),
+      legacyExperiences,
+      hasLegacyEmailSignup: Boolean(emailAccount),
+      signupXpReward: EMAIL_SIGNUP_XP_REWARD,
+    }),
+  );
+});
+
+router.post("/me/xp-awards/redeem", async (req, res) => {
+  const user = currentUser(req);
+  const result = await db.transaction(async (transaction) => {
+    const now = new Date();
+    const redeemedAwards = await transaction
+      .update(xpAwardsTable)
+      .set({ status: "redeemed", redeemedAt: now })
+      .where(
+        and(
+          eq(xpAwardsTable.userId, user.id),
+          eq(xpAwardsTable.status, "pending"),
+        ),
+      )
+      .returning({ amount: xpAwardsTable.amount });
+    const redeemedXp = redeemedAwards.reduce(
+      (sum, award) => sum + award.amount,
+      0,
+    );
+
+    if (redeemedXp > 0) {
+      const [updatedUser] = await transaction
+        .update(usersTable)
+        .set({
+          xp: sql`${usersTable.xp} + ${redeemedXp}`,
+          updatedAt: now,
+        })
+        .where(eq(usersTable.id, user.id))
+        .returning();
+      if (!updatedUser) throw new Error("Could not update the Experience XP balance.");
+      return { redeemedXp, user: updatedUser };
+    }
+
+    const existingUser = await transaction.query.usersTable.findFirst({
+      where: eq(usersTable.id, user.id),
+    });
+    if (!existingUser) throw new Error("Profile not found.");
+    return { redeemedXp: 0, user: existingUser };
+  });
+
+  res.json({
+    redeemedXp: result.redeemedXp,
+    user: await userResponse(result.user),
+  });
 });
 
 router.patch("/me", async (req, res) => {
@@ -879,32 +982,38 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
   const experience = await db.query.experiencesTable.findFirst({
     where: eq(experiencesTable.id, participation.experienceId),
   });
-  const [updated] = await db
-    .update(participationsTable)
-    .set({ status: "verified", verifiedAt: new Date(), rewardStatus: "issued" })
-    .where(
-      and(
-        eq(participationsTable.id, participation.id),
-        eq(participationsTable.status, "submitted"),
-      ),
-    )
-    .returning();
+  const verifiedAt = new Date();
+  const updated = await db.transaction(async (transaction) => {
+    const [verified] = await transaction
+      .update(participationsTable)
+      .set({ status: "verified", verifiedAt, rewardStatus: "issued" })
+      .where(
+        and(
+          eq(participationsTable.id, participation.id),
+          eq(participationsTable.status, "submitted"),
+        ),
+      )
+      .returning();
+    if (!verified) return undefined;
+    if (experience && experience.xpReward > 0) {
+      await transaction.insert(xpAwardsTable).values({
+        userId: participation.userId,
+        sourceType: "experience",
+        sourceId: String(participation.id),
+        sourceTitle: experience.title,
+        amount: experience.xpReward,
+        status: "pending",
+        awardedAt: verifiedAt,
+      });
+    }
+    return verified;
+  });
   if (!updated) {
     error(res, 409, "This contribution is no longer awaiting review.");
     return;
   }
-  if (experience) {
-    const existingParticipant = await db.query.usersTable.findFirst({
-      where: eq(usersTable.id, participation.userId),
-    });
-    const [participant] = await db
-      .update(usersTable)
-      .set({ xp: (existingParticipant?.xp ?? 0) + experience.xpReward, updatedAt: new Date() })
-      .where(eq(usersTable.id, participation.userId))
-      .returning();
-    if (participant) {
-      await sendContributionVerifiedNotification(participant.telegramId, experience);
-    }
+  if (participantAccount && experience) {
+    await sendContributionVerifiedNotification(participantAccount.telegramId, experience);
   }
   res.json(await participationResponse(updated));
 });

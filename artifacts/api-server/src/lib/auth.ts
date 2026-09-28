@@ -7,6 +7,7 @@ import {
   emailSessionsTable,
   telegramSessionsTable,
   usersTable,
+  xpAwardsTable,
   type User,
   type UserType,
 } from "@workspace/db/schema";
@@ -14,10 +15,12 @@ import { verifyTelegramInitData as verifySignedTelegramInitData, type TelegramId
 import { logger } from "./logger";
 import { selectTelegramProfile } from "./telegram-identity";
 import {
+  EMAIL_SIGNUP_XP_REWARD,
   emailProfileValues,
   telegramProfileRoleUpdate,
   telegramProfileValues,
 } from "./account-type-values";
+import { EMAIL_SIGNUP_XP_SOURCE_ID } from "./xp-award-rules";
 import { createEphemeralSupabaseClient, getSupabaseAdminClient } from "./supabase";
 import { verifyLegacyPassword } from "./legacy-password";
 
@@ -206,6 +209,15 @@ export async function createEmailAccount(input: EmailSignupInput): Promise<{ use
         )
         .returning();
       if (!createdUser) throw new Error("Unable to create email user.");
+
+      await transaction.insert(xpAwardsTable).values({
+        userId: createdUser.id,
+        sourceType: "email_signup",
+        sourceId: EMAIL_SIGNUP_XP_SOURCE_ID,
+        sourceTitle: "Email sign-up bonus",
+        amount: EMAIL_SIGNUP_XP_REWARD,
+        status: "pending",
+      });
 
       const [account] = await transaction
         .insert(emailAccountsTable)

@@ -56,9 +56,11 @@ import type {
   ParticipantSummary,
   Participation,
   ProfileUpdateInput,
+  RedeemXpAwardsResponse,
   TelegramAuthInput,
   UnauthorizedResponse,
-  User
+  User,
+  XpAwardsResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -997,6 +999,157 @@ export const useUpdateMe = <TError = ErrorType<UnauthorizedResponse>,
         TContext
       > => {
       return useMutation(getUpdateMeMutationOptions(options));
+    }
+
+export const getGetMyXpAwardsUrl = () => {
+
+
+
+
+  return `/api/me/xp-awards`
+}
+
+/**
+ * @summary List Experience XP awards and pending balance
+ */
+export const getMyXpAwards = async ( options?: Parameters<typeof customFetch>[1]): Promise<XpAwardsResponse> => {
+
+  return customFetch<XpAwardsResponse>(getGetMyXpAwardsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyXpAwardsQueryKey = () => {
+    return [
+    `/api/me/xp-awards`
+    ] as const;
+    }
+
+
+export const getGetMyXpAwardsQueryOptions = <TData = Awaited<ReturnType<typeof getMyXpAwards>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyXpAwards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyXpAwardsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyXpAwards>>> = ({ signal }) => getMyXpAwards({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyXpAwards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyXpAwardsQueryResult = NonNullable<Awaited<ReturnType<typeof getMyXpAwards>>>
+export type GetMyXpAwardsQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary List Experience XP awards and pending balance
+ */
+
+export function useGetMyXpAwards<TData = Awaited<ReturnType<typeof getMyXpAwards>>, TError = ErrorType<UnauthorizedResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyXpAwards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyXpAwardsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRedeemMyXpAwardsUrl = () => {
+
+
+
+
+  return `/api/me/xp-awards/redeem`
+}
+
+/**
+ * @summary Redeem all pending Experience XP into the profile balance
+ */
+export const redeemMyXpAwards = async ( options?: Parameters<typeof customFetch>[1]): Promise<RedeemXpAwardsResponse> => {
+
+  return customFetch<RedeemXpAwardsResponse>(getRedeemMyXpAwardsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRedeemMyXpAwardsMutationKey = () => ['redeemMyXpAwards'] as const;
+
+export const getRedeemMyXpAwardsMutationOptions = <TError = ErrorType<UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemMyXpAwards>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof redeemMyXpAwards>>, TError,void, TContext> => {
+
+const mutationKey = getRedeemMyXpAwardsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof redeemMyXpAwards>>, void> = () => {
+
+
+          return  redeemMyXpAwards(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RedeemMyXpAwardsMutationResult = NonNullable<Awaited<ReturnType<typeof redeemMyXpAwards>>>
+
+    export type RedeemMyXpAwardsMutationError = ErrorType<UnauthorizedResponse>
+
+
+    /**
+ * @summary Redeem all pending Experience XP into the profile balance
+ */
+export const useRedeemMyXpAwards = <TError = ErrorType<UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemMyXpAwards>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof redeemMyXpAwards>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRedeemMyXpAwardsMutationOptions(options));
     }
 
 export const getGetMyCommunitiesUrl = () => {

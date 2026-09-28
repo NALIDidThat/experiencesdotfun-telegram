@@ -6,6 +6,7 @@ import {
   organisationsTable,
   participationsTable,
   usersTable,
+  xpAwardsTable,
 } from "@workspace/db/schema";
 import { and, desc, eq, gte } from "drizzle-orm";
 import {
@@ -438,24 +439,43 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
     case "/xp":
     case "/progress": {
       const profile = await userResponse(user);
-      const recent = await db
-        .select({ experience: experiencesTable })
-        .from(participationsTable)
-        .innerJoin(experiencesTable, eq(experiencesTable.id, participationsTable.experienceId))
-        .where(
-          and(
-            eq(participationsTable.userId, user.id),
-            eq(participationsTable.status, "verified"),
-          ),
-        )
-        .orderBy(desc(experiencesTable.date))
-        .limit(5);
+      const [recent, pendingAwards] = await Promise.all([
+        db
+          .select({ experience: experiencesTable })
+          .from(participationsTable)
+          .innerJoin(experiencesTable, eq(experiencesTable.id, participationsTable.experienceId))
+          .where(
+            and(
+              eq(participationsTable.userId, user.id),
+              eq(participationsTable.status, "verified"),
+            ),
+          )
+          .orderBy(desc(experiencesTable.date))
+          .limit(5),
+        db
+          .select({
+            title: xpAwardsTable.sourceTitle,
+            amount: xpAwardsTable.amount,
+          })
+          .from(xpAwardsTable)
+          .where(
+            and(
+              eq(xpAwardsTable.userId, user.id),
+              eq(xpAwardsTable.status, "pending"),
+            ),
+          )
+          .orderBy(desc(xpAwardsTable.awardedAt)),
+      ]);
+      const pendingXp = pendingAwards.reduce((sum, award) => sum + award.amount, 0);
       const sources = recent.length
-        ? `\n\n<b>Recent XP</b>\n${recent.map(({ experience }) => `+${experience.xpReward} XP · ${escapeTelegramHtml(experience.title)}`).join("\n")}`
+        ? `\n\n<b>Recent verified experiences</b>\n${recent.map(({ experience }) => `+${experience.xpReward} XP · ${escapeTelegramHtml(experience.title)}`).join("\n")}`
         : "\n\nComplete and verify an experience to start earning XP.";
+      const pendingSummary = pendingXp > 0
+        ? `\n\n<b>Ready to redeem · ${pendingXp} XP</b>\n${pendingAwards.slice(0, 5).map((award) => `+${award.amount} XP · ${escapeTelegramHtml(award.title)}`).join("\n")}`
+        : "";
       await sendTelegramMessage(
         chatId,
-        `<b>⚡ Your Experience XP</b>\n\n<b>${profile.xp} XP</b> · ${escapeTelegramHtml(profile.level)}\n${profile.completedCount} experiences completed\n${profile.hostedCount} experiences hosted\n£${(profile.rewardsPence / 100).toFixed(2)} rewards earned${sources}\n\nCommunity XP is separate for each group. Use <code>/rank</code> in a community group.`,
+        `<b>⚡ Your Experience XP</b>\n\n<b>${profile.xp} XP in your profile</b> · ${escapeTelegramHtml(profile.level)}\n${profile.completedCount} experiences completed\n${profile.hostedCount} experiences hosted\n£${(profile.rewardsPence / 100).toFixed(2)} rewards earned${pendingSummary}${sources}\n\nCommunity XP is separate for each group. Use <code>/rank</code> in a community group.`,
         [[openButton("View XP history", "/?screen=profile")]],
       );
       break;

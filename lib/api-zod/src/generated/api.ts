@@ -636,6 +636,85 @@ export const UpdateMeResponse = zod.object({
 
 
 /**
+ * @summary List Experience XP awards and pending balance
+ */
+export const GetMyXpAwardsResponse = zod.object({
+  "balanceXp": zod.number().int().describe('Experience XP already credited to the user\'s profile.'),
+  "pendingXp": zod.number().int().describe('Experience XP that is available to redeem.'),
+  "awards": zod.array(zod.object({
+  "id": zod.string(),
+  "sourceType": zod.enum(['email_signup', 'experience', 'legacy_balance']),
+  "sourceId": zod.string(),
+  "title": zod.string(),
+  "amount": zod.number().int(),
+  "status": zod.enum(['pending', 'redeemed']),
+  "awardedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Redeem all pending Experience XP into the profile balance
+ */
+
+
+export const redeemMyXpAwardsResponseUserSocialLinksWebsiteRegExp = new RegExp('^https:/');
+
+
+export const redeemMyXpAwardsResponseUserSocialLinksInstagramRegExp = new RegExp('^https:/');
+
+
+export const redeemMyXpAwardsResponseUserSocialLinksLinkedinRegExp = new RegExp('^https:/');
+
+
+export const redeemMyXpAwardsResponseUserSocialLinksXRegExp = new RegExp('^https:/');
+
+
+export const redeemMyXpAwardsResponseUserSocialLinksYoutubeRegExp = new RegExp('^https:/');
+
+
+export const RedeemMyXpAwardsResponse = zod.object({
+  "redeemedXp": zod.number().int(),
+  "user": zod.object({
+  "id": zod.number().int(),
+  "createdAt": zod.coerce.date().nullable(),
+  "telegramId": zod.number().int().nullable(),
+  "email": zod.string().email().nullable(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable(),
+  "bio": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "socialLinks": zod.object({
+  "website": zod.string().url().min(1).regex(redeemMyXpAwardsResponseUserSocialLinksWebsiteRegExp).optional(),
+  "instagram": zod.string().url().min(1).regex(redeemMyXpAwardsResponseUserSocialLinksInstagramRegExp).optional(),
+  "linkedin": zod.string().url().min(1).regex(redeemMyXpAwardsResponseUserSocialLinksLinkedinRegExp).optional(),
+  "x": zod.string().url().min(1).regex(redeemMyXpAwardsResponseUserSocialLinksXRegExp).optional(),
+  "youtube": zod.string().url().min(1).regex(redeemMyXpAwardsResponseUserSocialLinksYoutubeRegExp).optional()
+}),
+  "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "participationType": zod.enum(['join', 'host', 'both']).nullable(),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "verified": zod.boolean()
+}).nullable(),
+  "xp": zod.number().int(),
+  "level": zod.string(),
+  "completedCount": zod.number().int(),
+  "hostedCount": zod.number().int(),
+  "rewardsPence": zod.number().int()
+})
+})
+
+
+/**
  * @summary List Telegram groups where the current user has Community XP
  */
 export const GetMyCommunitiesResponse = zod.object({

@@ -235,6 +235,36 @@ paths:
                 $ref: "#/components/schemas/User"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /me/xp-awards:
+    get:
+      operationId: getMyXpAwards
+      tags: [profile]
+      summary: List Experience XP awards and pending balance
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Experience XP history and claimable amount
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/XpAwardsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /me/xp-awards/redeem:
+    post:
+      operationId: redeemMyXpAwards
+      tags: [profile]
+      summary: Redeem all pending Experience XP into the profile balance
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Redeemed amount and updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedeemXpAwardsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /community/me:
     get:
       operationId: getMyCommunities
@@ -1222,6 +1252,49 @@ components:
         - completedCount
         - hostedCount
         - rewardsPence
+    XpAward:
+      type: object
+      properties:
+        id:
+          type: string
+        sourceType:
+          type: string
+          enum: [email_signup, experience, legacy_balance]
+        sourceId:
+          type: string
+        title:
+          type: string
+        amount:
+          type: integer
+        status:
+          type: string
+          enum: [pending, redeemed]
+        awardedAt:
+          type: string
+          format: date-time
+      required: [id, sourceType, sourceId, title, amount, status, awardedAt]
+    XpAwardsResponse:
+      type: object
+      properties:
+        balanceXp:
+          type: integer
+          description: Experience XP already credited to the user's profile.
+        pendingXp:
+          type: integer
+          description: Experience XP that is available to redeem.
+        awards:
+          type: array
+          items:
+            $ref: "#/components/schemas/XpAward"
+      required: [balanceXp, pendingXp, awards]
+    RedeemXpAwardsResponse:
+      type: object
+      properties:
+        redeemedXp:
+          type: integer
+        user:
+          $ref: "#/components/schemas/User"
+      required: [redeemedXp, user]
     ProfileUpdateInput:
       type: object
       properties:

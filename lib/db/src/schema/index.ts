@@ -20,3 +20,4 @@
 export * from "./experiences";
 export * from "./community";
 export * from "./accountability";
+export * from "./xp-awards";

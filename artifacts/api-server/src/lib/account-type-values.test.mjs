@@ -30,7 +30,7 @@ test("email signup accepts and persists each selected account role", () => {
         name: "Sam Example",
         username: "sam_example",
         userType,
-        xp: 50,
+        xp: 0,
       },
     );
   }

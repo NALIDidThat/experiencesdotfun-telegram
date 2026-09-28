@@ -8,6 +8,7 @@
 - [Query invalidation cancellation](query-invalidation-cancellation.md) — treat expected AbortErrors from mutation-triggered query refreshes as cancellation, not app failure.
 - [Build-first UI iteration](build-first-ui.md) — implement mobile visual references in the app directly; make substantial layout changes when the reference calls for them.
 - [Auth unit-test boundaries](auth-unit-test-boundaries.md) — keep Telegram init-data verification testable without importing database-bound API modules into Node's test runner.
+- [Node TypeScript test imports](node-typescript-test-imports.md) — direct Node tests of TypeScript helpers fail on extensionless runtime imports; keep helpers self-contained or inject values.
 - [Web keyboard focus and scrolling](web-keyboard-provider.md) — provider gating and keyboard-overlap scrolling are separate; web layouts also need viewport-aware, shrinkable scroll regions.
 - [Live UI source context](live-ui-source-context.md) — recheck current component and style anchors when workspace code diverges from earlier excerpts.
 - [Expo web gesture verification](expo-web-gesture-verification.md) — browser drag checks need synthetic touch events; native responder behavior still needs device-level QA.
