@@ -41,6 +41,7 @@ import {
   upsertTelegramUser,
   verifyTelegramInitData,
 } from "../lib/auth";
+import { toEmailSignupResponse } from "../lib/email-auth-response";
 import { logger } from "../lib/logger";
 import { recordAnalyticsEvent } from "../lib/analytics";
 import {
@@ -179,7 +180,7 @@ router.post("/auth/email/signup", async (req, res) => {
       platform: "server",
       outcome: "success",
     });
-    res.json({ user: await userResponse(result.user), isNew: true, sessionToken: result.sessionToken });
+    res.json(toEmailSignupResponse(await userResponse(result.user)));
   } catch (signupError) {
     recordAnalyticsEvent({
       source: "server",

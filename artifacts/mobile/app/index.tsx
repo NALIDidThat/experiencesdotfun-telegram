@@ -776,6 +776,7 @@ function EmailAuthPanel({
                   <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
                     <Feather name="mail" size={17} color={colors.primary} style={styles.emailInputIcon} />
                     <TextInput
+                      testID="email-login-email"
                       accessibilityLabel="Email"
                       value={email}
                       onChangeText={setEmail}
@@ -793,6 +794,7 @@ function EmailAuthPanel({
                   <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
                     <Feather name="lock" size={17} color={colors.primary} style={styles.emailInputIcon} />
                     <TextInput
+                      testID="email-login-password"
                       accessibilityLabel="Password"
                       value={password}
                       onChangeText={setPassword}
@@ -816,6 +818,7 @@ function EmailAuthPanel({
               icon={isSignup ? 'user-plus' : 'log-in'}
               color={colors.primary}
               style={styles.emailSubmitButton}
+              testID="email-auth-submit"
             />
             {isSignup && signupStep > 0 ? (
               <Pressable
@@ -834,6 +837,7 @@ function EmailAuthPanel({
           </View>
           <Pressable
             accessibilityRole="button"
+            testID="email-auth-mode-switch"
             onPress={() => {
               setMode(isSignup ? 'login' : 'signup');
               setSignupStep(0);
@@ -1091,6 +1095,7 @@ function AccountTypeSelection({
                 key={option.value}
                 accessibilityRole="radio"
                 accessibilityState={{ selected }}
+                testID={`account-type-${option.value}`}
                 onPress={() => { triggerHaptic(); onSelect(option.value); }}
                 style={[
                   styles.accountTypeCard,
@@ -1122,7 +1127,13 @@ function AccountTypeSelection({
         </View>
       </View>
       <View style={[styles.flowFooter, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-        <Button label="Continue" disabled={!selectedType} onPress={onContinue} icon="arrow-right" />
+        <Button
+          label="Continue"
+          disabled={!selectedType}
+          onPress={onContinue}
+          icon="arrow-right"
+          testID="account-type-continue"
+        />
       </View>
     </KeyboardAwareScrollViewCompat>
   );
@@ -1188,6 +1199,7 @@ function LoginChoiceScreen({
             textColor={colors.foreground}
             onPress={() => { clearAuthError(); onEmail(); }}
             icon="mail"
+            testID="login-choice-email"
           />
         </View>
         <View style={styles.flowReassurance}>
@@ -4891,7 +4903,7 @@ export default function App() {
     return <BottomNavInteractionHarness />;
   }
 
-  if (loading) {
+  if (loading && screen !== 'email') {
     return (
       <AppShell>
         <View style={[styles.center, { backgroundColor: colors.background }]}>
