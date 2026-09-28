@@ -181,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return false;
     }
-  }, [completeEmailAuth]);
+  }, []);
 
   const signUpWithEmail = useCallback(async (name: string, username: string, email: string, password: string, accountType: UserType) => {
     setLoading(true);
