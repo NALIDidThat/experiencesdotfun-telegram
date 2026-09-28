@@ -8,7 +8,10 @@
 import type { UserType } from './userType';
 
 export interface EmailSignupInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   name: string;
   /**
      * @minLength 5

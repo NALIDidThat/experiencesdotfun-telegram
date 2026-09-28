@@ -134,7 +134,10 @@ export interface CreateAccountProfileInput {
 }
 
 export interface EmailSignupInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   name: string;
   /**
      * @minLength 5
@@ -213,7 +216,10 @@ export interface OrganisationProfileInput {
 }
 
 export interface ProfileUpdateInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   name?: string;
   /**
      * @minLength 5
@@ -289,8 +295,11 @@ export interface Experience {
   title: string;
   description: string;
   category: ExperienceCategory;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
   date: string;
+  /** @pattern ^(?:[01][0-9]|2[0-3]):[0-5][0-9]$ */
   startTime: string;
+  /** @pattern ^(?:[01][0-9]|2[0-3]):[0-5][0-9]$ */
   endTime: string;
   location: string;
   city: string;
@@ -346,8 +355,11 @@ export interface ExperienceCreateInput {
   /** @minLength 1 */
   description: string;
   category: ExperienceCategory;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
   date: string;
+  /** @pattern ^(?:[01][0-9]|2[0-3]):[0-5][0-9]$ */
   startTime: string;
+  /** @pattern ^(?:[01][0-9]|2[0-3]):[0-5][0-9]$ */
   endTime: string;
   location: string;
   city: string;

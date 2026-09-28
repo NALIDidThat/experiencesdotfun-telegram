@@ -42,6 +42,12 @@ import {
   verifyTelegramInitData,
 } from "../lib/auth";
 import { logger } from "../lib/logger";
+import {
+  canMarkAttendance,
+  isExperienceJoinable,
+  isValidExperienceSchedule,
+} from "../lib/experience-rules";
+import { mergeDefinedFields } from "../lib/profile-rules";
 import { hasSameTelegramIdentity } from "../lib/telegram-identity";
 import {
   currentOrganisation,
@@ -229,6 +235,10 @@ router.patch("/me", async (req, res) => {
   }
   const patch = parsed.data;
   const user = currentUser(req);
+  if (patch.name !== undefined && !patch.name.trim()) {
+    error(res, 400, "Name cannot be blank.");
+    return;
+  }
   if (patch.userType !== undefined && user.userType !== null && patch.userType !== user.userType) {
     res.status(409).json({
       code: "ACCOUNT_TYPE_LOCKED",
@@ -266,6 +276,21 @@ router.patch("/me", async (req, res) => {
   let updated: typeof user | undefined;
   try {
     updated = await db.transaction(async (transaction) => {
+      let socialLinks: PersistedSocialLinks | undefined;
+      if (patch.socialLinks !== undefined) {
+        const latestUser = await transaction.query.usersTable.findFirst({
+          where: eq(usersTable.id, user.id),
+        });
+        const normalizedPatch = Object.fromEntries(
+          Object.entries(patch.socialLinks).flatMap(([platform, value]) =>
+            value === undefined ? [] : [[platform, value.trim()]],
+          ),
+        );
+        socialLinks = mergeDefinedFields(
+          latestUser?.socialLinks ?? {},
+          normalizedPatch,
+        ) as PersistedSocialLinks;
+      }
       if (patch.username !== undefined && username) {
         await transaction.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${username}, 0))`);
         const usernameOwner = await transaction.query.usersTable.findFirst({
@@ -280,21 +305,13 @@ router.patch("/me", async (req, res) => {
       const [updatedUser] = await transaction
         .update(usersTable)
         .set({
-          ...(patch.name !== undefined ? { name: patch.name } : {}),
+          ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
           ...(patch.username !== undefined && username ? { username } : {}),
           ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
           ...(patch.city !== undefined ? { city: patch.city } : {}),
           ...(patch.country !== undefined ? { country: patch.country } : {}),
           ...(patch.interests !== undefined ? { interests: patch.interests } : {}),
-          ...(patch.socialLinks !== undefined
-            ? {
-                socialLinks: Object.fromEntries(
-                  Object.entries(patch.socialLinks).flatMap(([platform, value]) =>
-                    value === undefined ? [] : [[platform, value.trim()]],
-                  ),
-                ) as PersistedSocialLinks,
-              }
-            : {}),
+          ...(socialLinks !== undefined ? { socialLinks } : {}),
           ...(patch.participationType !== undefined
             ? { participationType: patch.participationType }
             : {}),
@@ -382,11 +399,24 @@ router.post("/experiences", async (req, res) => {
   if (!enforceAccountType(req, res, "organisation")) return;
   const parsed = CreateExperienceBody.safeParse(req.body);
   if (!parsed.success) {
-    error(res, 400, "Please complete every experience field.");
+    const hasScheduleIssue = parsed.error.issues.some(({ path }) =>
+      ["date", "startTime", "endTime"].includes(String(path[0])),
+    );
+    error(
+      res,
+      400,
+      hasScheduleIssue
+        ? "Use a real date in YYYY-MM-DD format and 24-hour times in HH:MM format."
+        : "Please complete every experience field.",
+    );
     return;
   }
   const user = currentUser(req);
   const input = parsed.data;
+  if (!isValidExperienceSchedule(input.date, input.startTime, input.endTime)) {
+    error(res, 400, "End time must be later than the start time.");
+    return;
+  }
   const existingOrganisation = await currentOrganisation(user.id);
   if (!existingOrganisation) {
     error(res, 409, "Complete your organisation profile before creating an experience.");
@@ -479,6 +509,16 @@ router.post("/experiences/:experienceId/join", async (req, res) => {
   });
   if (!experience) {
     error(res, 404, "Experience not found.");
+    return;
+  }
+  if (!isExperienceJoinable(experience.status)) {
+    error(
+      res,
+      409,
+      experience.status === "full"
+        ? "This experience is full."
+        : "This experience is no longer open for new participants.",
+    );
     return;
   }
   const organisation = await db.query.organisationsTable.findFirst({
@@ -578,8 +618,17 @@ router.post("/participations/:participationId/submit", async (req, res) => {
   const [updated] = await db
     .update(participationsTable)
     .set({ status: "submitted", submittedAt: new Date() })
-    .where(eq(participationsTable.id, participation.id))
+    .where(
+      and(
+        eq(participationsTable.id, participation.id),
+        inArray(participationsTable.status, ["joined", "attended"]),
+      ),
+    )
     .returning();
+  if (!updated) {
+    error(res, 409, "This participation is no longer ready for completion submission.");
+    return;
+  }
   const experience = await db.query.experiencesTable.findFirst({
     where: eq(experiencesTable.id, participation.experienceId),
   });
@@ -695,11 +744,24 @@ router.post("/host/participations/:participationId/attend", async (req, res) => 
     error(res, 404, "Participation not found.");
     return;
   }
+  if (!canMarkAttendance(participation.status)) {
+    error(res, 409, "Only joined participants can be marked as attended.");
+    return;
+  }
   const [updated] = await db
     .update(participationsTable)
     .set({ status: "attended", attendedAt: new Date() })
-    .where(eq(participationsTable.id, participation.id))
+    .where(
+      and(
+        eq(participationsTable.id, participation.id),
+        eq(participationsTable.status, "joined"),
+      ),
+    )
     .returning();
+  if (!updated) {
+    error(res, 409, "This participation can no longer be marked as attended.");
+    return;
+  }
   res.json(await participationResponse(updated));
 });
 

@@ -17,8 +17,11 @@ export interface ExperienceCreateInput {
   /** @minLength 1 */
   description: string;
   category: ExperienceCategory;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
   date: string;
+  /** @pattern ^(?:[01][0-9]|2[0-3]):[0-5][0-9]$ */
   startTime: string;
+  /** @pattern ^(?:[01][0-9]|2[0-3]):[0-5][0-9]$ */
   endTime: string;
   location: string;
   city: string;

@@ -100,6 +100,8 @@ export const AuthenticateTelegramResponse = zod.object({
  * @summary Create an email account
  */
 
+
+export const signUpWithEmailBodyNameRegExp = new RegExp('\\S');
 export const signUpWithEmailBodyUsernameMin = 5;
 export const signUpWithEmailBodyUsernameMax = 32;
 
@@ -110,7 +112,7 @@ export const signUpWithEmailBodyPasswordMin = 8;
 
 
 export const SignUpWithEmailBody = zod.object({
-  "name": zod.string().min(1),
+  "name": zod.string().min(1).regex(signUpWithEmailBodyNameRegExp),
   "username": zod.string().min(signUpWithEmailBodyUsernameMin).max(signUpWithEmailBodyUsernameMax).regex(signUpWithEmailBodyUsernameRegExp),
   "email": zod.string().email(),
   "password": zod.string().min(signUpWithEmailBodyPasswordMin),
@@ -507,6 +509,8 @@ export const GetMeResponse = zod.object({
  * @summary Update the current user's profile
  */
 
+
+export const updateMeBodyNameRegExp = new RegExp('\\S');
 export const updateMeBodyUsernameMin = 5;
 export const updateMeBodyUsernameMax = 32;
 
@@ -540,7 +544,7 @@ export const updateMeBodyOrganisationCityMax = 100;
 
 
 export const UpdateMeBody = zod.object({
-  "name": zod.string().min(1).optional(),
+  "name": zod.string().min(1).regex(updateMeBodyNameRegExp).optional(),
   "username": zod.string().min(updateMeBodyUsernameMin).max(updateMeBodyUsernameMax).regex(updateMeBodyUsernameRegExp).optional(),
   "bio": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -685,6 +689,11 @@ export const ListExperiencesQueryParams = zod.object({
   "availableOnly": zod.coerce.boolean().optional()
 })
 
+export const listExperiencesResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const listExperiencesResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listExperiencesResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
 export const ListExperiencesResponseItem = zod.object({
   "id": zod.number().int(),
   "organisation": zod.object({
@@ -699,9 +708,9 @@ export const ListExperiencesResponseItem = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string(),
-  "startTime": zod.string(),
-  "endTime": zod.string(),
+  "date": zod.string().regex(listExperiencesResponseDateRegExp),
+  "startTime": zod.string().regex(listExperiencesResponseStartTimeRegExp),
+  "endTime": zod.string().regex(listExperiencesResponseEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int(),
@@ -720,6 +729,9 @@ export const ListExperiencesResponse = zod.array(ListExperiencesResponseItem)
 
 
 
+export const createExperienceBodyDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const createExperienceBodyStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createExperienceBodyEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 
 export const createExperienceBodyXpRewardMin = 0;
 
@@ -733,9 +745,9 @@ export const CreateExperienceBody = zod.object({
   "title": zod.string().min(1),
   "description": zod.string().min(1),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string(),
-  "startTime": zod.string(),
-  "endTime": zod.string(),
+  "date": zod.string().regex(createExperienceBodyDateRegExp),
+  "startTime": zod.string().regex(createExperienceBodyStartTimeRegExp),
+  "endTime": zod.string().regex(createExperienceBodyEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int().min(1),
@@ -744,6 +756,11 @@ export const CreateExperienceBody = zod.object({
   "whatToBring": zod.string().nullable(),
   "whatYouWillDo": zod.string().nullable()
 })
+
+export const createExperienceResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const createExperienceResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createExperienceResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 
 export const CreateExperienceResponse = zod.object({
   "id": zod.number().int(),
@@ -759,9 +776,9 @@ export const CreateExperienceResponse = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string(),
-  "startTime": zod.string(),
-  "endTime": zod.string(),
+  "date": zod.string().regex(createExperienceResponseDateRegExp),
+  "startTime": zod.string().regex(createExperienceResponseStartTimeRegExp),
+  "endTime": zod.string().regex(createExperienceResponseEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int(),
@@ -780,6 +797,14 @@ export const GetExperienceParams = zod.object({
   "experienceId": zod.coerce.number().int()
 })
 
+export const getExperienceResponseOneDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const getExperienceResponseOneStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getExperienceResponseOneEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getExperienceResponseTwoParticipationOneExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const getExperienceResponseTwoParticipationOneExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getExperienceResponseTwoParticipationOneExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
 export const GetExperienceResponse = zod.object({
   "id": zod.number().int(),
   "organisation": zod.object({
@@ -794,9 +819,9 @@ export const GetExperienceResponse = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string(),
-  "startTime": zod.string(),
-  "endTime": zod.string(),
+  "date": zod.string().regex(getExperienceResponseOneDateRegExp),
+  "startTime": zod.string().regex(getExperienceResponseOneStartTimeRegExp),
+  "endTime": zod.string().regex(getExperienceResponseOneEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int(),
@@ -825,9 +850,9 @@ export const GetExperienceResponse = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string(),
-  "startTime": zod.string(),
-  "endTime": zod.string(),
+  "date": zod.string().regex(getExperienceResponseTwoParticipationOneExperienceDateRegExp),
+  "startTime": zod.string().regex(getExperienceResponseTwoParticipationOneExperienceStartTimeRegExp),
+  "endTime": zod.string().regex(getExperienceResponseTwoParticipationOneExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int(),
@@ -860,6 +885,11 @@ export const JoinExperienceParams = zod.object({
   "experienceId": zod.coerce.number().int()
 })
 
+export const joinExperienceResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const joinExperienceResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const joinExperienceResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
 export const JoinExperienceResponse = zod.object({
   "id": zod.number().int(),
   "experience": zod.object({
@@ -876,9 +906,9 @@ export const JoinExperienceResponse = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string(),
-  "startTime": zod.string(),
-  "endTime": zod.string(),
+  "date": zod.string().regex(joinExperienceResponseExperienceDateRegExp),
+  "startTime": zod.string().regex(joinExperienceResponseExperienceStartTimeRegExp),
+  "endTime": zod.string().regex(joinExperienceResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int(),
@@ -910,6 +940,11 @@ export const ListMyParticipationsQueryParams = zod.object({
   "status": zod.enum(['upcoming', 'completed']).optional()
 })
 
+export const listMyParticipationsResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const listMyParticipationsResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listMyParticipationsResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
 export const ListMyParticipationsResponseItem = zod.object({
   "id": zod.number().int(),
   "experience": zod.object({
@@ -926,9 +961,9 @@ export const ListMyParticipationsResponseItem = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string(),
-  "startTime": zod.string(),
-  "endTime": zod.string(),
+  "date": zod.string().regex(listMyParticipationsResponseExperienceDateRegExp),
+  "startTime": zod.string().regex(listMyParticipationsResponseExperienceStartTimeRegExp),
+  "endTime": zod.string().regex(listMyParticipationsResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int(),
@@ -961,6 +996,11 @@ export const SubmitCompletionParams = zod.object({
   "participationId": zod.coerce.number().int()
 })
 
+export const submitCompletionResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const submitCompletionResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const submitCompletionResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
 export const SubmitCompletionResponse = zod.object({
   "id": zod.number().int(),
   "experience": zod.object({
@@ -977,9 +1017,9 @@ export const SubmitCompletionResponse = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string(),
-  "startTime": zod.string(),
-  "endTime": zod.string(),
+  "date": zod.string().regex(submitCompletionResponseExperienceDateRegExp),
+  "startTime": zod.string().regex(submitCompletionResponseExperienceStartTimeRegExp),
+  "endTime": zod.string().regex(submitCompletionResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int(),
@@ -1027,6 +1067,11 @@ export const GetHostOverviewResponse = zod.object({
 /**
  * @summary List experiences owned by the current host
  */
+export const listHostExperiencesResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const listHostExperiencesResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listHostExperiencesResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
 export const ListHostExperiencesResponseItem = zod.object({
   "id": zod.number().int(),
   "organisation": zod.object({
@@ -1041,9 +1086,9 @@ export const ListHostExperiencesResponseItem = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string(),
-  "startTime": zod.string(),
-  "endTime": zod.string(),
+  "date": zod.string().regex(listHostExperiencesResponseDateRegExp),
+  "startTime": zod.string().regex(listHostExperiencesResponseStartTimeRegExp),
+  "endTime": zod.string().regex(listHostExperiencesResponseEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int(),
@@ -1063,6 +1108,11 @@ export const ListExperienceParticipantsParams = zod.object({
   "experienceId": zod.coerce.number().int()
 })
 
+export const listExperienceParticipantsResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const listExperienceParticipantsResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listExperienceParticipantsResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
 export const ListExperienceParticipantsResponseItem = zod.object({
   "id": zod.number().int(),
   "experience": zod.object({
@@ -1079,9 +1129,9 @@ export const ListExperienceParticipantsResponseItem = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string(),
-  "startTime": zod.string(),
-  "endTime": zod.string(),
+  "date": zod.string().regex(listExperienceParticipantsResponseExperienceDateRegExp),
+  "startTime": zod.string().regex(listExperienceParticipantsResponseExperienceStartTimeRegExp),
+  "endTime": zod.string().regex(listExperienceParticipantsResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int(),
@@ -1114,6 +1164,11 @@ export const MarkAttendanceParams = zod.object({
   "participationId": zod.coerce.number().int()
 })
 
+export const markAttendanceResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const markAttendanceResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const markAttendanceResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
 export const MarkAttendanceResponse = zod.object({
   "id": zod.number().int(),
   "experience": zod.object({
@@ -1130,9 +1185,9 @@ export const MarkAttendanceResponse = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string(),
-  "startTime": zod.string(),
-  "endTime": zod.string(),
+  "date": zod.string().regex(markAttendanceResponseExperienceDateRegExp),
+  "startTime": zod.string().regex(markAttendanceResponseExperienceStartTimeRegExp),
+  "endTime": zod.string().regex(markAttendanceResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int(),
@@ -1164,6 +1219,11 @@ export const VerifyParticipationParams = zod.object({
   "participationId": zod.coerce.number().int()
 })
 
+export const verifyParticipationResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const verifyParticipationResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const verifyParticipationResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
 export const VerifyParticipationResponse = zod.object({
   "id": zod.number().int(),
   "experience": zod.object({
@@ -1180,9 +1240,9 @@ export const VerifyParticipationResponse = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string(),
-  "startTime": zod.string(),
-  "endTime": zod.string(),
+  "date": zod.string().regex(verifyParticipationResponseExperienceDateRegExp),
+  "startTime": zod.string().regex(verifyParticipationResponseExperienceStartTimeRegExp),
+  "endTime": zod.string().regex(verifyParticipationResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int(),
@@ -1214,6 +1274,11 @@ export const RejectParticipationParams = zod.object({
   "participationId": zod.coerce.number().int()
 })
 
+export const rejectParticipationResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const rejectParticipationResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const rejectParticipationResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
 export const RejectParticipationResponse = zod.object({
   "id": zod.number().int(),
   "experience": zod.object({
@@ -1230,9 +1295,9 @@ export const RejectParticipationResponse = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "category": zod.enum(['environmental', 'education', 'community']),
-  "date": zod.string(),
-  "startTime": zod.string(),
-  "endTime": zod.string(),
+  "date": zod.string().regex(rejectParticipationResponseExperienceDateRegExp),
+  "startTime": zod.string().regex(rejectParticipationResponseExperienceStartTimeRegExp),
+  "endTime": zod.string().regex(rejectParticipationResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
   "capacity": zod.number().int(),

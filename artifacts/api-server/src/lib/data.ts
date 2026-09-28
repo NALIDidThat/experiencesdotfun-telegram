@@ -58,8 +58,7 @@ export async function userResponse(user: User) {
   const [emailAccount] = await db
     .select({ email: emailAccountsTable.email })
     .from(emailAccountsTable)
-    .innerJoin(usersTable, eq(usersTable.id, emailAccountsTable.userId))
-    .where(eq(usersTable.telegramId, user.telegramId))
+    .where(eq(emailAccountsTable.userId, user.id))
     .limit(1);
   const organisation = await db.query.organisationsTable.findFirst({
     where: eq(organisationsTable.ownerUserId, user.id),
