@@ -4582,7 +4582,7 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
     : [
         { key: 'home', label: 'Home', icon: 'home' },
         { key: 'explore', label: 'Explore', icon: 'compass' },
-        { key: 'experiences', label: 'Experiences', icon: 'calendar' },
+        { key: 'experiences', label: 'Activity', icon: 'calendar' },
         { key: 'profile', label: 'Profile', icon: 'user' },
       ];
   const [dragIndex, setDragIndex] = useState<number | null>(null);
