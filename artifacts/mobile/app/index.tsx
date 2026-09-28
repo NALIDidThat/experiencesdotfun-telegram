@@ -2942,7 +2942,7 @@ function ProfileMetricDetailsSheet({
                               : 'Previous profile balance'} · {hostTimestampLabel(award.awardedAt) ?? 'Date unavailable'}
                         </Text>
                         <Text style={[styles.profileXpAwardStatus, { color: award.status === 'pending' ? colors.primary : colors.success }]}>
-                          {award.status === 'pending' ? 'Ready to redeem' : 'Already in your profile'}
+                          {award.status === 'pending' ? 'Ready to redeem' : 'Redeemed'}
                         </Text>
                       </View>
                       <Text style={[styles.profileMetricRewardText, { color: colors.primary }]}>+{award.amount} XP</Text>
