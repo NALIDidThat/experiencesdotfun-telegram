@@ -130,13 +130,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return false;
     }
+    queryClient.clear();
     await saveAuthToken(response.sessionToken);
     setInitData(null);
     setUser(response.user);
     setAuthError(null);
     setLoading(false);
     return true;
-  }, []);
+  }, [queryClient]);
 
   const activateProfileSession = useCallback(async (response: AuthResponse) => {
     if (!response.sessionToken) {

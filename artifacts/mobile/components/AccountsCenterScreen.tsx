@@ -3,35 +3,11 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { Feather } from '@expo/vector-icons';
 import {
   useActivateAccountProfile,
-  useCreateAccountProfile,
   useListAccountProfiles,
   type User,
-  type UserType,
 } from '@workspace/api-client-react';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
-
-type AccountChoice = {
-  userType: UserType;
-  title: string;
-  description: string;
-  icon: keyof typeof Feather.glyphMap;
-};
-
-const accountChoices: AccountChoice[] = [
-  {
-    userType: 'participant',
-    title: 'Participant account',
-    description: 'Discover and join experiences.',
-    icon: 'user',
-  },
-  {
-    userType: 'organisation',
-    title: 'Organisation account',
-    description: 'Create and manage experiences.',
-    icon: 'briefcase',
-  },
-];
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (
@@ -107,38 +83,22 @@ function AccountProfileCard({
   );
 }
 
-export function AccountsCenterScreen({ onBack }: { onBack: () => void }) {
+export function AccountsCenterScreen({
+  onBack,
+  onAddAccount,
+}: {
+  onBack: () => void;
+  onAddAccount: () => void;
+}) {
   const colors = useColors();
   const { user, activateProfileSession } = useAuth();
   const accounts = useListAccountProfiles();
-  const createProfile = useCreateAccountProfile();
   const activateProfile = useActivateAccountProfile();
-  const [choosingType, setChoosingType] = useState(false);
-  const [creatingType, setCreatingType] = useState<UserType | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const busy = createProfile.isPending || activateProfile.isPending;
+  const busy = activateProfile.isPending;
   const profiles = [...(accounts.data?.accounts ?? [])].sort(
     (first, second) => Number(second.id === user?.id) - Number(first.id === user?.id),
   );
-
-  const handleCreate = async (userType: UserType) => {
-    setError(null);
-    setCreatingType(userType);
-    try {
-      const response = await createProfile.mutateAsync({ data: { userType } });
-      const activated = await activateProfileSession(response);
-      if (!activated) {
-        void accounts.refetch();
-        setError('The profile was created, but could not be activated. It is still listed here; select it to try again.');
-        return;
-      }
-      setChoosingType(false);
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError, 'The profile could not be created. Please try again.'));
-    } finally {
-      setCreatingType(null);
-    }
-  };
 
   const handleActivate = async (accountId: number) => {
     setError(null);
@@ -227,70 +187,24 @@ export function AccountsCenterScreen({ onBack }: { onBack: () => void }) {
 
       {error ? <Text accessibilityRole="alert" style={[styles.errorMessage, { color: colors.destructive }]}>{error}</Text> : null}
 
-      {choosingType ? (
-        <View style={styles.addSection}>
-          <View style={styles.addHeading}>
-            <Text style={[styles.addTitle, { color: colors.foreground }]}>Choose a profile type</Text>
-            <Pressable
-              testID="accounts-center-cancel-add"
-              accessibilityRole="button"
-              accessibilityLabel="Cancel adding a profile"
-              disabled={busy}
-              onPress={() => setChoosingType(false)}
-              style={({ pressed }) => [styles.cancelButton, { opacity: pressed ? 0.65 : 1 }]}
-            >
-              <Feather name="x" size={19} color={colors.mutedForeground} />
-            </Pressable>
-          </View>
-          {accountChoices.map((choice) => (
-            <Pressable
-              key={choice.userType}
-              testID={`accounts-center-add-${choice.userType}`}
-              accessibilityRole="button"
-              accessibilityLabel={`Add ${choice.title}`}
-              accessibilityHint={choice.description}
-              disabled={busy}
-              onPress={() => { void handleCreate(choice.userType); }}
-              style={({ pressed }) => [
-                styles.choiceCard,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  borderRadius: colors.radius,
-                  opacity: busy ? 0.55 : pressed ? 0.72 : 1,
-                },
-              ]}
-            >
-              <View style={[styles.profileIcon, { backgroundColor: colors.primary + '12' }]}>
-                {busy && creatingType === choice.userType ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Feather name={choice.icon} size={19} color={colors.primary} />
-                )}
-              </View>
-              <View style={styles.profileCopy}>
-                <Text style={[styles.profileTitle, { color: colors.foreground }]}>{choice.title}</Text>
-                <Text style={[styles.profileSubtitle, { color: colors.mutedForeground }]}>{choice.description}</Text>
-              </View>
-              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-            </Pressable>
-          ))}
-        </View>
-      ) : (
-        <Pressable
-          testID="accounts-center-add-account"
-          accessibilityRole="button"
-          accessibilityLabel="Add another profile"
-          onPress={() => { setError(null); setChoosingType(true); }}
-          style={({ pressed }) => [
-            styles.addButton,
-            { backgroundColor: colors.primary, borderRadius: colors.radius, opacity: pressed ? 0.78 : 1 },
-          ]}
-        >
-          <Feather name="plus" size={18} color={colors.primaryForeground} />
-          <Text style={[styles.addButtonText, { color: colors.primaryForeground }]}>Add an account</Text>
-        </Pressable>
-      )}
+      <Pressable
+        testID="accounts-center-add-account"
+        accessibilityRole="button"
+        accessibilityLabel="Add another account"
+        disabled={busy}
+        onPress={() => { setError(null); onAddAccount(); }}
+        style={({ pressed }) => [
+          styles.addButton,
+          {
+            backgroundColor: colors.primary,
+            borderRadius: colors.radius,
+            opacity: busy ? 0.55 : pressed ? 0.78 : 1,
+          },
+        ]}
+      >
+        <Feather name="plus" size={18} color={colors.primaryForeground} />
+        <Text style={[styles.addButtonText, { color: colors.primaryForeground }]}>Add an account</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -326,11 +240,6 @@ const styles = StyleSheet.create({
   errorMessage: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_600SemiBold' },
   secondaryButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 11, borderWidth: 1 },
   secondaryButtonText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  addSection: { gap: 10 },
-  addHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  addTitle: { fontSize: 16, fontFamily: 'Inter_700Bold' },
-  cancelButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  choiceCard: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 12, borderWidth: 1 },
   addButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16 },
   addButtonText: { fontSize: 14, fontFamily: 'Inter_700Bold' },
 });

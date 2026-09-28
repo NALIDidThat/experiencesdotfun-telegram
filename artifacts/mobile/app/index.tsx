@@ -4990,6 +4990,7 @@ export default function App() {
   analyticsMutationRef.current = analyticsMutation;
   const [entryStage, setEntryStage] = useState<'start' | 'account-type' | 'login'>('start');
   const [selectedAccountType, setSelectedAccountType] = useState<UserType | null>(null);
+  const [accountAuthType, setAccountAuthType] = useState<UserType | null>(null);
   const [accountTypeConfirmed, setAccountTypeConfirmed] = useState(false);
   const [showSignupCongratulations, setShowSignupCongratulations] = useState(false);
   const initialScreen = params.screen && screenNames.includes(params.screen as Screen)
@@ -5035,6 +5036,14 @@ export default function App() {
       id: next === 'experience' ? nextParams?.id : undefined,
       friendId: next === 'friend-profile' ? nextParams?.friendId : undefined,
     });
+  };
+  const continueAccountLogin = async (accountType: UserType) => {
+    const authenticated = await login(accountType);
+    if (!authenticated) return;
+    setAccountAuthType(null);
+    setShowSignupCongratulations(false);
+    setScreen('home');
+    router.setParams({ screen: 'home' });
   };
 
   const organisationProfileIncomplete = user?.userType === 'organisation'
@@ -5082,15 +5091,36 @@ export default function App() {
           accountType={selectedAccountType}
           onBack={() => {
             clearAuthError();
+            if (accountAuthType) {
+              go('accounts');
+              return;
+            }
             setScreen('home');
             setEntryStage('login');
             router.setParams({ screen: 'home' });
           }}
           onSuccess={(justSignedUp) => {
+            setAccountAuthType(null);
             setScreen('home');
             setShowSignupCongratulations(justSignedUp);
             router.setParams({ screen: 'home' });
           }}
+        />
+      </AppShell>
+    );
+  }
+
+  if (accountAuthType) {
+    return (
+      <AppShell showFeedbackBanner={false}>
+        <LoginChoiceScreen
+          accountType={accountAuthType}
+          onBack={() => {
+            clearAuthError();
+            setAccountAuthType(null);
+          }}
+          onEmail={() => go('email')}
+          onTelegram={() => { void continueAccountLogin(accountAuthType); }}
         />
       </AppShell>
     );
@@ -5190,7 +5220,19 @@ export default function App() {
 
   const content = (() => {
     if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
-    if (screen === 'accounts') return <AccountsCenterScreen onBack={() => go('profile')} />;
+    if (screen === 'accounts') {
+      return (
+        <AccountsCenterScreen
+          onBack={() => go('profile')}
+          onAddAccount={() => {
+            const accountType = user.userType ?? 'participant';
+            clearAuthError();
+            setSelectedAccountType(accountType);
+            setAccountAuthType(accountType);
+          }}
+        />
+      );
+    }
     if (screen === 'friend-profile') return <FriendProfileScreen friendId={Number(params.friendId)} onBack={() => go('friends')} />;
     if (screen === 'friends') return <FriendsOverviewScreen go={go} onBack={() => go('profile')} />;
     if (screen === 'notifications') {
