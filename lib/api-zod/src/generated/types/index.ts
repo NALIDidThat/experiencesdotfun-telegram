@@ -69,6 +69,7 @@ export * from './participationType';
 export * from './profileUpdateInput';
 export * from './rewardStatus';
 export * from './searchParameter';
+export * from './socialLinks';
 export * from './telegramAuthInput';
 export * from './unauthorizedResponse';
 export * from './user';

@@ -2235,9 +2235,48 @@ function ContributionDashboard({ user, completed }: { user: User; completed: Par
 
 type ProfileMetricKey = 'completed' | 'hosted' | 'friends';
 
+const socialLinkFields = [
+  { key: 'website', label: 'Website', icon: 'globe', placeholder: 'https://yourwebsite.org', domains: [] },
+  { key: 'instagram', label: 'Instagram', icon: 'instagram', placeholder: 'instagram.com/yourname', domains: ['instagram.com'] },
+  { key: 'linkedin', label: 'LinkedIn', icon: 'linkedin', placeholder: 'linkedin.com/in/yourname', domains: ['linkedin.com'] },
+  { key: 'x', label: 'X', icon: 'twitter', placeholder: 'x.com/yourname', domains: ['x.com', 'twitter.com'] },
+  { key: 'youtube', label: 'YouTube', icon: 'youtube', placeholder: 'youtube.com/@yourname', domains: ['youtube.com', 'youtu.be'] },
+] as const;
+
+type SocialLinkKey = typeof socialLinkFields[number]['key'];
+type SocialLinksFormState = Record<SocialLinkKey, string>;
+
+function socialLinksFormState(links?: Partial<Record<SocialLinkKey, string>> | null): SocialLinksFormState {
+  return Object.fromEntries(
+    socialLinkFields.map(({ key }) => [key, links?.[key] ?? '']),
+  ) as SocialLinksFormState;
+}
+
+function normalizeSocialLink(key: SocialLinkKey, value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const hasScheme = /^[a-z][a-z\d+.-]*:/i.test(trimmed);
+  const candidate = hasScheme ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(candidate);
+    const field = socialLinkFields.find((item) => item.key === key);
+    if (!field || url.protocol !== 'https:' || url.username || url.password || !url.hostname) return null;
+    if (
+      field.domains.length > 0 &&
+      !field.domains.some((domain) => url.hostname === domain || url.hostname.endsWith(`.${domain}`))
+    ) {
+      return null;
+    }
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 type SocialProfileUser = Pick<
   User,
-  'name' | 'username' | 'avatarUrl' | 'createdAt' | 'level' | 'completedCount' | 'hostedCount' | 'xp' | 'bio' | 'city' | 'interests'
+  'name' | 'username' | 'avatarUrl' | 'createdAt' | 'level' | 'completedCount' | 'hostedCount' | 'xp' | 'bio' | 'city' | 'interests' | 'socialLinks'
 >;
 
 function ProfileDashboardMetric({
@@ -2277,10 +2316,14 @@ function SocialProfileHeader({
   user,
   friendsCount,
   onMetricPress,
+  isEditing,
+  onEditPress,
 }: {
   user: SocialProfileUser;
   friendsCount: number;
   onMetricPress?: (metric: ProfileMetricKey) => void;
+  isEditing?: boolean;
+  onEditPress?: () => void;
 }) {
   const colors = useColors();
   const interests = user.interests?.map((interest) => categoryLabel[interest]).join(' · ');
@@ -2289,6 +2332,10 @@ function SocialProfileHeader({
     { key: 'level', label: user.level, icon: 'award' },
     ...(joinedIn2026 ? [{ key: 'early', label: 'Early', icon: 'star' as IconName }] : []),
   ];
+  const visibleSocialLinks = socialLinkFields.flatMap((field) => {
+    const url = normalizeSocialLink(field.key, user.socialLinks?.[field.key] ?? '');
+    return url ? [{ ...field, url }] : [];
+  });
 
   return (
     <View style={styles.profileFeatureCard}>
@@ -2317,8 +2364,51 @@ function SocialProfileHeader({
               </View>
             ))}
           </View>
+          {visibleSocialLinks.length ? (
+            <View style={styles.profileSocialLinks}>
+              {visibleSocialLinks.map((field) => (
+                <Pressable
+                  key={field.key}
+                  testID={`profile-social-link-${field.key}`}
+                  accessibilityRole="link"
+                  accessibilityLabel={`Open ${field.label} profile`}
+                  accessibilityHint="Opens an external link."
+                  onPress={() => {
+                    void Linking.openURL(field.url).catch(() => {
+                      Alert.alert('Could not open link', `The ${field.label} link could not be opened.`);
+                    });
+                  }}
+                  style={({ pressed }) => [
+                    styles.profileSocialLink,
+                    { backgroundColor: colors.primaryForeground + '20', opacity: pressed ? 0.72 : 1 },
+                  ]}
+                >
+                  <Feather name={field.icon} size={18} color={colors.primaryForeground} />
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
         </View>
       </View>
+
+      {onEditPress ? (
+        <Pressable
+          testID="profile-edit-toggle"
+          accessibilityRole="button"
+          accessibilityLabel={isEditing ? 'Close edit form' : 'Edit profile'}
+          accessibilityHint={isEditing ? 'Closes the profile editor.' : 'Opens the profile editor.'}
+          onPress={() => { triggerHaptic(); onEditPress(); }}
+          style={({ pressed }) => [
+            styles.profileEditButton,
+            { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.72 : 1 },
+          ]}
+        >
+          <Feather name={isEditing ? 'x' : 'edit-2'} size={16} color={colors.primary} />
+          <Text style={[styles.profileEditButtonText, { color: colors.foreground }]}>
+            {isEditing ? 'Close edit form' : 'Edit profile'}
+          </Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.profileBentoRow}>
         <ProfileDashboardMetric
@@ -2736,6 +2826,7 @@ function FriendProfileScreen({
             bio: friend.bio,
             city: friend.city,
             interests: friend.interests,
+            socialLinks: friend.socialLinks,
           }}
           friendsCount={friend.friendsCount}
         />
@@ -3154,6 +3245,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const [city, setCity] = useState(user.city ?? '');
   const [bio, setBio] = useState(user.bio ?? '');
   const [interests, setInterests] = useState<ExperienceCategory[]>(user.interests ?? []);
+  const [socialLinks, setSocialLinks] = useState<SocialLinksFormState>(() => socialLinksFormState(user.socialLinks));
   const [organisationName, setOrganisationName] = useState(user.organisation?.name ?? '');
   const [organisationDescription, setOrganisationDescription] = useState(user.organisation?.description ?? '');
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
@@ -3167,6 +3259,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       setCity(current.city ?? '');
       setBio(current.bio ?? '');
       setInterests(current.interests ?? []);
+      setSocialLinks(socialLinksFormState(current.socialLinks));
       setOrganisationName(current.organisation?.name ?? '');
       setOrganisationDescription(current.organisation?.description ?? '');
       setProfileSaveError(null);
@@ -3177,7 +3270,24 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const saveProfile = async () => {
     setProfileSaveError(null);
     try {
-      const baseData = { name: name.trim(), city: city.trim(), bio: bio.trim() || null, interests };
+      const normalizedSocialLinks: Partial<Record<SocialLinkKey, string>> = {};
+      for (const field of socialLinkFields) {
+        const value = socialLinks[field.key].trim();
+        if (!value) continue;
+        const normalized = normalizeSocialLink(field.key, value);
+        if (!normalized) {
+          setProfileSaveError(`Enter a valid HTTPS link for ${field.label}.`);
+          return;
+        }
+        normalizedSocialLinks[field.key] = normalized;
+      }
+      const baseData = {
+        name: name.trim(),
+        city: city.trim(),
+        bio: bio.trim() || null,
+        interests,
+        socialLinks: normalizedSocialLinks,
+      };
       const data = current.userType === 'organisation'
         ? {
             ...baseData,
@@ -3221,6 +3331,9 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       setProfileMenuError('Could not sign out. Please try again.');
     }
   };
+  const invalidSocialLink = socialLinkFields.find(
+    ({ key }) => socialLinks[key].trim() && !normalizeSocialLink(key, socialLinks[key]),
+  );
 
   return (
     <KeyboardAwareScrollViewCompat
@@ -3285,17 +3398,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       />
       {profileMenuError ? <InlineError message={profileMenuError} /> : null}
 
-      <SocialProfileHeader
-        user={current}
-        friendsCount={friends.data?.length ?? 0}
-        onMetricPress={(metric) => {
-          if (metric === 'friends') {
-            go('friends');
-            return;
-          }
-          setSelectedProfileMetric(metric);
-        }}
-      />
       {profile.isError && !profile.data ? (
         <EmptyState title="Profile details didn’t load" body="Your saved profile is still available. Try again." actionLabel="Try again" onAction={() => { void profile.refetch(); }} />
       ) : null}
@@ -3328,7 +3430,22 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       />
 
       {editing ? (
-        <View style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+        <View
+          testID="profile-edit-panel"
+          style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
+        >
+          <View style={styles.profileEditorTitleRow}>
+            <Text style={[styles.profileEditorTitle, { color: colors.foreground }]}>Edit your profile</Text>
+            <Pressable
+              testID="profile-edit-close"
+              accessibilityRole="button"
+              accessibilityLabel="Close edit form"
+              onPress={() => setEditing(false)}
+              style={({ pressed }) => [styles.profileEditorClose, { opacity: pressed ? 0.65 : 1 }]}
+            >
+              <Feather name="x" size={18} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
           {current.userType === 'organisation' ? (
             <>
               <Text style={[styles.formLabel, { color: colors.foreground }]}>Organisation</Text>
@@ -3352,6 +3469,36 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
               );
             })}
           </View>
+          <Text style={[styles.formLabel, { color: colors.foreground }]}>Social links</Text>
+          <Text style={[styles.inputHint, { color: colors.mutedForeground }]}>
+            Add secure HTTPS links. These appear as icons below your profile badges.
+          </Text>
+          {socialLinkFields.map((field) => {
+            const value = socialLinks[field.key];
+            const hasInvalidValue = Boolean(value.trim() && !normalizeSocialLink(field.key, value));
+            return (
+              <View key={field.key}>
+                <TextInput
+                  testID={`profile-social-input-${field.key}`}
+                  accessibilityLabel={`${field.label} profile link`}
+                  value={value}
+                  onChangeText={(text) => setSocialLinks((currentLinks) => ({ ...currentLinks, [field.key]: text }))}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                  maxLength={500}
+                  placeholder={field.placeholder}
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[styles.input, { color: colors.foreground, borderColor: hasInvalidValue ? colors.destructive : colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]}
+                />
+                {hasInvalidValue ? (
+                  <Text style={[styles.inputHint, { color: colors.destructive }]}>
+                    Enter a valid HTTPS {field.label} link.
+                  </Text>
+                ) : null}
+              </View>
+            );
+          })}
           {!name.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add a display name to save your profile.</Text> : null}
           {!city.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add a city to save your profile.</Text> : null}
           {!interests.length ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Choose at least one interest to save your profile.</Text> : null}
@@ -3360,11 +3507,25 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           {profileSaveError ? <InlineError message={profileSaveError} /> : null}
           <Button
             label={update.isPending ? 'Saving…' : 'Save profile'}
-            disabled={update.isPending || !name.trim() || !city.trim() || interests.length === 0 || (current.userType === 'organisation' && (!organisationName.trim() || !organisationDescription.trim()))}
+            disabled={update.isPending || !name.trim() || !city.trim() || interests.length === 0 || Boolean(invalidSocialLink) || (current.userType === 'organisation' && (!organisationName.trim() || !organisationDescription.trim()))}
             onPress={() => void saveProfile()}
           />
         </View>
       ) : null}
+
+      <SocialProfileHeader
+        user={current}
+        friendsCount={friends.data?.length ?? 0}
+        isEditing={editing}
+        onEditPress={toggleProfileEditor}
+        onMetricPress={(metric) => {
+          if (metric === 'friends') {
+            go('friends');
+            return;
+          }
+          setSelectedProfileMetric(metric);
+        }}
+      />
 
       {current.userType === 'participant' ? (
         <>
@@ -5227,6 +5388,9 @@ const styles = StyleSheet.create({
   iconButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   
   editPanel: { padding: 20, borderWidth: 1, marginBottom: 24, gap: 16 },
+  profileEditorTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  profileEditorTitle: { fontSize: 18, fontFamily: 'Inter_700Bold' },
+  profileEditorClose: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   input: { height: 56, borderWidth: 1, paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_400Regular' },
   bioInput: { height: 100, paddingTop: 16, textAlignVertical: 'top' },
   
@@ -5263,6 +5427,10 @@ const styles = StyleSheet.create({
   profileIdentityFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   profileBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5, maxWidth: '100%' },
   profileBadgeText: { flexShrink: 1, fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  profileSocialLinks: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 10 },
+  profileSocialLink: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 15 },
+  profileEditButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 14, borderWidth: 1 },
+  profileEditButtonText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   profileBentoRow: { flexDirection: 'row', gap: 10 },
   profileMetricTopRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   profileCompletedTile: { flex: 1.05, minHeight: 148, justifyContent: 'space-between', padding: 13, borderWidth: 1 },

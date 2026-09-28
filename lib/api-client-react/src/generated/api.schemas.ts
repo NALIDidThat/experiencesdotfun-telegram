@@ -35,6 +35,34 @@ export interface TelegramAuthInput {
   userType?: UserType;
 }
 
+export interface SocialLinks {
+  /**
+     * @minLength 1
+     * @pattern ^https://
+     */
+  website?: string;
+  /**
+     * @minLength 1
+     * @pattern ^https://
+     */
+  instagram?: string;
+  /**
+     * @minLength 1
+     * @pattern ^https://
+     */
+  linkedin?: string;
+  /**
+     * @minLength 1
+     * @pattern ^https://
+     */
+  x?: string;
+  /**
+     * @minLength 1
+     * @pattern ^https://
+     */
+  youtube?: string;
+}
+
 export type ExperienceCategory = typeof ExperienceCategory[keyof typeof ExperienceCategory];
 
 
@@ -76,6 +104,7 @@ export interface User {
   city: string | null;
   /** @nullable */
   country: string | null;
+  socialLinks: SocialLinks;
   interests: ExperienceCategory[];
   /** @nullable */
   participationType: string | null;
@@ -196,6 +225,7 @@ export interface ProfileUpdateInput {
   bio?: string | null;
   /** @nullable */
   city?: string | null;
+  socialLinks?: SocialLinks;
   /** @nullable */
   country?: string | null;
   interests?: ExperienceCategory[];
@@ -357,6 +387,7 @@ export interface FriendProfile {
   bio: string | null;
   /** @nullable */
   city: string | null;
+  socialLinks: SocialLinks;
   interests: ExperienceCategory[];
   userType: UserType | null;
   /** @nullable */

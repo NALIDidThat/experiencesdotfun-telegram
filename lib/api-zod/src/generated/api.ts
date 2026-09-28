@@ -38,6 +38,21 @@ export const AuthenticateTelegramBody = zod.object({
 
 
 
+export const authenticateTelegramResponseUserSocialLinksWebsiteRegExp = new RegExp('^https:/');
+
+
+export const authenticateTelegramResponseUserSocialLinksInstagramRegExp = new RegExp('^https:/');
+
+
+export const authenticateTelegramResponseUserSocialLinksLinkedinRegExp = new RegExp('^https:/');
+
+
+export const authenticateTelegramResponseUserSocialLinksXRegExp = new RegExp('^https:/');
+
+
+export const authenticateTelegramResponseUserSocialLinksYoutubeRegExp = new RegExp('^https:/');
+
+
 
 export const AuthenticateTelegramResponse = zod.object({
   "user": zod.object({
@@ -51,6 +66,13 @@ export const AuthenticateTelegramResponse = zod.object({
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
+  "socialLinks": zod.object({
+  "website": zod.string().url().min(1).regex(authenticateTelegramResponseUserSocialLinksWebsiteRegExp).optional(),
+  "instagram": zod.string().url().min(1).regex(authenticateTelegramResponseUserSocialLinksInstagramRegExp).optional(),
+  "linkedin": zod.string().url().min(1).regex(authenticateTelegramResponseUserSocialLinksLinkedinRegExp).optional(),
+  "x": zod.string().url().min(1).regex(authenticateTelegramResponseUserSocialLinksXRegExp).optional(),
+  "youtube": zod.string().url().min(1).regex(authenticateTelegramResponseUserSocialLinksYoutubeRegExp).optional()
+}),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "participationType": zod.enum(['join', 'host', 'both']).nullable(),
   "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
@@ -97,6 +119,21 @@ export const SignUpWithEmailBody = zod.object({
 
 
 
+export const signUpWithEmailResponseUserSocialLinksWebsiteRegExp = new RegExp('^https:/');
+
+
+export const signUpWithEmailResponseUserSocialLinksInstagramRegExp = new RegExp('^https:/');
+
+
+export const signUpWithEmailResponseUserSocialLinksLinkedinRegExp = new RegExp('^https:/');
+
+
+export const signUpWithEmailResponseUserSocialLinksXRegExp = new RegExp('^https:/');
+
+
+export const signUpWithEmailResponseUserSocialLinksYoutubeRegExp = new RegExp('^https:/');
+
+
 
 export const SignUpWithEmailResponse = zod.object({
   "user": zod.object({
@@ -110,6 +147,13 @@ export const SignUpWithEmailResponse = zod.object({
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
+  "socialLinks": zod.object({
+  "website": zod.string().url().min(1).regex(signUpWithEmailResponseUserSocialLinksWebsiteRegExp).optional(),
+  "instagram": zod.string().url().min(1).regex(signUpWithEmailResponseUserSocialLinksInstagramRegExp).optional(),
+  "linkedin": zod.string().url().min(1).regex(signUpWithEmailResponseUserSocialLinksLinkedinRegExp).optional(),
+  "x": zod.string().url().min(1).regex(signUpWithEmailResponseUserSocialLinksXRegExp).optional(),
+  "youtube": zod.string().url().min(1).regex(signUpWithEmailResponseUserSocialLinksYoutubeRegExp).optional()
+}),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "participationType": zod.enum(['join', 'host', 'both']).nullable(),
   "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
@@ -146,6 +190,21 @@ export const LoginWithEmailBody = zod.object({
 
 
 
+export const loginWithEmailResponseUserSocialLinksWebsiteRegExp = new RegExp('^https:/');
+
+
+export const loginWithEmailResponseUserSocialLinksInstagramRegExp = new RegExp('^https:/');
+
+
+export const loginWithEmailResponseUserSocialLinksLinkedinRegExp = new RegExp('^https:/');
+
+
+export const loginWithEmailResponseUserSocialLinksXRegExp = new RegExp('^https:/');
+
+
+export const loginWithEmailResponseUserSocialLinksYoutubeRegExp = new RegExp('^https:/');
+
+
 
 export const LoginWithEmailResponse = zod.object({
   "user": zod.object({
@@ -159,6 +218,13 @@ export const LoginWithEmailResponse = zod.object({
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
+  "socialLinks": zod.object({
+  "website": zod.string().url().min(1).regex(loginWithEmailResponseUserSocialLinksWebsiteRegExp).optional(),
+  "instagram": zod.string().url().min(1).regex(loginWithEmailResponseUserSocialLinksInstagramRegExp).optional(),
+  "linkedin": zod.string().url().min(1).regex(loginWithEmailResponseUserSocialLinksLinkedinRegExp).optional(),
+  "x": zod.string().url().min(1).regex(loginWithEmailResponseUserSocialLinksXRegExp).optional(),
+  "youtube": zod.string().url().min(1).regex(loginWithEmailResponseUserSocialLinksYoutubeRegExp).optional()
+}),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "participationType": zod.enum(['join', 'host', 'both']).nullable(),
   "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
@@ -185,6 +251,23 @@ export const LoginWithEmailResponse = zod.object({
 /**
  * @summary List profiles owned by the signed-in identity
  */
+
+
+export const listAccountProfilesResponseAccountsItemSocialLinksWebsiteRegExp = new RegExp('^https:/');
+
+
+export const listAccountProfilesResponseAccountsItemSocialLinksInstagramRegExp = new RegExp('^https:/');
+
+
+export const listAccountProfilesResponseAccountsItemSocialLinksLinkedinRegExp = new RegExp('^https:/');
+
+
+export const listAccountProfilesResponseAccountsItemSocialLinksXRegExp = new RegExp('^https:/');
+
+
+export const listAccountProfilesResponseAccountsItemSocialLinksYoutubeRegExp = new RegExp('^https:/');
+
+
 export const ListAccountProfilesResponse = zod.object({
   "accounts": zod.array(zod.object({
   "id": zod.number().int(),
@@ -197,6 +280,13 @@ export const ListAccountProfilesResponse = zod.object({
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
+  "socialLinks": zod.object({
+  "website": zod.string().url().min(1).regex(listAccountProfilesResponseAccountsItemSocialLinksWebsiteRegExp).optional(),
+  "instagram": zod.string().url().min(1).regex(listAccountProfilesResponseAccountsItemSocialLinksInstagramRegExp).optional(),
+  "linkedin": zod.string().url().min(1).regex(listAccountProfilesResponseAccountsItemSocialLinksLinkedinRegExp).optional(),
+  "x": zod.string().url().min(1).regex(listAccountProfilesResponseAccountsItemSocialLinksXRegExp).optional(),
+  "youtube": zod.string().url().min(1).regex(listAccountProfilesResponseAccountsItemSocialLinksYoutubeRegExp).optional()
+}),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "participationType": zod.enum(['join', 'host', 'both']).nullable(),
   "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
@@ -227,6 +317,21 @@ export const CreateAccountProfileBody = zod.object({
 
 
 
+export const createAccountProfileResponseUserSocialLinksWebsiteRegExp = new RegExp('^https:/');
+
+
+export const createAccountProfileResponseUserSocialLinksInstagramRegExp = new RegExp('^https:/');
+
+
+export const createAccountProfileResponseUserSocialLinksLinkedinRegExp = new RegExp('^https:/');
+
+
+export const createAccountProfileResponseUserSocialLinksXRegExp = new RegExp('^https:/');
+
+
+export const createAccountProfileResponseUserSocialLinksYoutubeRegExp = new RegExp('^https:/');
+
+
 
 export const CreateAccountProfileResponse = zod.object({
   "user": zod.object({
@@ -240,6 +345,13 @@ export const CreateAccountProfileResponse = zod.object({
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
+  "socialLinks": zod.object({
+  "website": zod.string().url().min(1).regex(createAccountProfileResponseUserSocialLinksWebsiteRegExp).optional(),
+  "instagram": zod.string().url().min(1).regex(createAccountProfileResponseUserSocialLinksInstagramRegExp).optional(),
+  "linkedin": zod.string().url().min(1).regex(createAccountProfileResponseUserSocialLinksLinkedinRegExp).optional(),
+  "x": zod.string().url().min(1).regex(createAccountProfileResponseUserSocialLinksXRegExp).optional(),
+  "youtube": zod.string().url().min(1).regex(createAccountProfileResponseUserSocialLinksYoutubeRegExp).optional()
+}),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "participationType": zod.enum(['join', 'host', 'both']).nullable(),
   "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
@@ -275,6 +387,21 @@ export const ActivateAccountProfileParams = zod.object({
 
 
 
+export const activateAccountProfileResponseUserSocialLinksWebsiteRegExp = new RegExp('^https:/');
+
+
+export const activateAccountProfileResponseUserSocialLinksInstagramRegExp = new RegExp('^https:/');
+
+
+export const activateAccountProfileResponseUserSocialLinksLinkedinRegExp = new RegExp('^https:/');
+
+
+export const activateAccountProfileResponseUserSocialLinksXRegExp = new RegExp('^https:/');
+
+
+export const activateAccountProfileResponseUserSocialLinksYoutubeRegExp = new RegExp('^https:/');
+
+
 
 export const ActivateAccountProfileResponse = zod.object({
   "user": zod.object({
@@ -288,6 +415,13 @@ export const ActivateAccountProfileResponse = zod.object({
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
+  "socialLinks": zod.object({
+  "website": zod.string().url().min(1).regex(activateAccountProfileResponseUserSocialLinksWebsiteRegExp).optional(),
+  "instagram": zod.string().url().min(1).regex(activateAccountProfileResponseUserSocialLinksInstagramRegExp).optional(),
+  "linkedin": zod.string().url().min(1).regex(activateAccountProfileResponseUserSocialLinksLinkedinRegExp).optional(),
+  "x": zod.string().url().min(1).regex(activateAccountProfileResponseUserSocialLinksXRegExp).optional(),
+  "youtube": zod.string().url().min(1).regex(activateAccountProfileResponseUserSocialLinksYoutubeRegExp).optional()
+}),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "participationType": zod.enum(['join', 'host', 'both']).nullable(),
   "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
@@ -314,6 +448,23 @@ export const ActivateAccountProfileResponse = zod.object({
 /**
  * @summary Get the current Telegram user's profile
  */
+
+
+export const getMeResponseSocialLinksWebsiteRegExp = new RegExp('^https:/');
+
+
+export const getMeResponseSocialLinksInstagramRegExp = new RegExp('^https:/');
+
+
+export const getMeResponseSocialLinksLinkedinRegExp = new RegExp('^https:/');
+
+
+export const getMeResponseSocialLinksXRegExp = new RegExp('^https:/');
+
+
+export const getMeResponseSocialLinksYoutubeRegExp = new RegExp('^https:/');
+
+
 export const GetMeResponse = zod.object({
   "id": zod.number().int(),
   "createdAt": zod.coerce.date().nullable(),
@@ -325,6 +476,13 @@ export const GetMeResponse = zod.object({
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
+  "socialLinks": zod.object({
+  "website": zod.string().url().min(1).regex(getMeResponseSocialLinksWebsiteRegExp).optional(),
+  "instagram": zod.string().url().min(1).regex(getMeResponseSocialLinksInstagramRegExp).optional(),
+  "linkedin": zod.string().url().min(1).regex(getMeResponseSocialLinksLinkedinRegExp).optional(),
+  "x": zod.string().url().min(1).regex(getMeResponseSocialLinksXRegExp).optional(),
+  "youtube": zod.string().url().min(1).regex(getMeResponseSocialLinksYoutubeRegExp).optional()
+}),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "participationType": zod.enum(['join', 'host', 'both']).nullable(),
   "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
@@ -354,6 +512,21 @@ export const updateMeBodyUsernameMax = 32;
 
 
 export const updateMeBodyUsernameRegExp = new RegExp('^[A-Za-z0-9_]{5,32}$');
+
+
+export const updateMeBodySocialLinksWebsiteRegExp = new RegExp('^https:/');
+
+
+export const updateMeBodySocialLinksInstagramRegExp = new RegExp('^https:/');
+
+
+export const updateMeBodySocialLinksLinkedinRegExp = new RegExp('^https:/');
+
+
+export const updateMeBodySocialLinksXRegExp = new RegExp('^https:/');
+
+
+export const updateMeBodySocialLinksYoutubeRegExp = new RegExp('^https:/');
 export const updateMeBodyOrganisationNameMin = 2;
 export const updateMeBodyOrganisationNameMax = 120;
 
@@ -371,6 +544,13 @@ export const UpdateMeBody = zod.object({
   "username": zod.string().min(updateMeBodyUsernameMin).max(updateMeBodyUsernameMax).regex(updateMeBodyUsernameRegExp).optional(),
   "bio": zod.string().nullish(),
   "city": zod.string().nullish(),
+  "socialLinks": zod.object({
+  "website": zod.string().url().min(1).regex(updateMeBodySocialLinksWebsiteRegExp).optional(),
+  "instagram": zod.string().url().min(1).regex(updateMeBodySocialLinksInstagramRegExp).optional(),
+  "linkedin": zod.string().url().min(1).regex(updateMeBodySocialLinksLinkedinRegExp).optional(),
+  "x": zod.string().url().min(1).regex(updateMeBodySocialLinksXRegExp).optional(),
+  "youtube": zod.string().url().min(1).regex(updateMeBodySocialLinksYoutubeRegExp).optional()
+}).optional(),
   "country": zod.string().nullish(),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])).optional(),
   "participationType": zod.enum(['join', 'host', 'both']).optional(),
@@ -383,6 +563,23 @@ export const UpdateMeBody = zod.object({
 }).optional()
 })
 
+
+
+export const updateMeResponseSocialLinksWebsiteRegExp = new RegExp('^https:/');
+
+
+export const updateMeResponseSocialLinksInstagramRegExp = new RegExp('^https:/');
+
+
+export const updateMeResponseSocialLinksLinkedinRegExp = new RegExp('^https:/');
+
+
+export const updateMeResponseSocialLinksXRegExp = new RegExp('^https:/');
+
+
+export const updateMeResponseSocialLinksYoutubeRegExp = new RegExp('^https:/');
+
+
 export const UpdateMeResponse = zod.object({
   "id": zod.number().int(),
   "createdAt": zod.coerce.date().nullable(),
@@ -394,6 +591,13 @@ export const UpdateMeResponse = zod.object({
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
+  "socialLinks": zod.object({
+  "website": zod.string().url().min(1).regex(updateMeResponseSocialLinksWebsiteRegExp).optional(),
+  "instagram": zod.string().url().min(1).regex(updateMeResponseSocialLinksInstagramRegExp).optional(),
+  "linkedin": zod.string().url().min(1).regex(updateMeResponseSocialLinksLinkedinRegExp).optional(),
+  "x": zod.string().url().min(1).regex(updateMeResponseSocialLinksXRegExp).optional(),
+  "youtube": zod.string().url().min(1).regex(updateMeResponseSocialLinksYoutubeRegExp).optional()
+}),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "participationType": zod.enum(['join', 'host', 'both']).nullable(),
   "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
@@ -1075,6 +1279,23 @@ export const GetFriendProfileParams = zod.object({
   "friendId": zod.coerce.number().int().min(1)
 })
 
+
+
+export const getFriendProfileResponseSocialLinksWebsiteRegExp = new RegExp('^https:/');
+
+
+export const getFriendProfileResponseSocialLinksInstagramRegExp = new RegExp('^https:/');
+
+
+export const getFriendProfileResponseSocialLinksLinkedinRegExp = new RegExp('^https:/');
+
+
+export const getFriendProfileResponseSocialLinksXRegExp = new RegExp('^https:/');
+
+
+export const getFriendProfileResponseSocialLinksYoutubeRegExp = new RegExp('^https:/');
+
+
 export const GetFriendProfileResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -1082,6 +1303,13 @@ export const GetFriendProfileResponse = zod.object({
   "avatarUrl": zod.string().url().nullable(),
   "bio": zod.string().nullable(),
   "city": zod.string().nullable(),
+  "socialLinks": zod.object({
+  "website": zod.string().url().min(1).regex(getFriendProfileResponseSocialLinksWebsiteRegExp).optional(),
+  "instagram": zod.string().url().min(1).regex(getFriendProfileResponseSocialLinksInstagramRegExp).optional(),
+  "linkedin": zod.string().url().min(1).regex(getFriendProfileResponseSocialLinksLinkedinRegExp).optional(),
+  "x": zod.string().url().min(1).regex(getFriendProfileResponseSocialLinksXRegExp).optional(),
+  "youtube": zod.string().url().min(1).regex(getFriendProfileResponseSocialLinksYoutubeRegExp).optional()
+}),
   "interests": zod.array(zod.enum(['environmental', 'education', 'community'])),
   "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()]),
   "organisation": zod.object({

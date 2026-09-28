@@ -1070,6 +1070,35 @@ components:
     RewardStatus:
       type: string
       enum: [pending, issued]
+    SocialLinks:
+      type: object
+      properties:
+        website:
+          type: string
+          minLength: 1
+          format: uri
+          pattern: "^https://"
+        instagram:
+          type: string
+          minLength: 1
+          format: uri
+          pattern: "^https://"
+        linkedin:
+          type: string
+          minLength: 1
+          format: uri
+          pattern: "^https://"
+        x:
+          type: string
+          minLength: 1
+          format: uri
+          pattern: "^https://"
+        youtube:
+          type: string
+          minLength: 1
+          format: uri
+          pattern: "^https://"
+      additionalProperties: false
     User:
       type: object
       properties:
@@ -1098,6 +1127,8 @@ components:
           type: [string, "null"]
         country:
           type: [string, "null"]
+        socialLinks:
+          $ref: "#/components/schemas/SocialLinks"
         interests:
           type: array
           items:
@@ -1135,6 +1166,7 @@ components:
         - bio
         - city
         - country
+        - socialLinks
         - interests
         - participationType
         - userType
@@ -1159,6 +1191,8 @@ components:
           type: [string, "null"]
         city:
           type: [string, "null"]
+        socialLinks:
+          $ref: "#/components/schemas/SocialLinks"
         country:
           type: [string, "null"]
         interests:
@@ -1502,6 +1536,8 @@ components:
           type: [string, "null"]
         city:
           type: [string, "null"]
+        socialLinks:
+          $ref: "#/components/schemas/SocialLinks"
         interests:
           type: array
           items:
@@ -1534,6 +1570,7 @@ components:
         - avatarUrl
         - bio
         - city
+        - socialLinks
         - interests
         - userType
         - organisation

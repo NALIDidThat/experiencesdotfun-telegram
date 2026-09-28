@@ -3,6 +3,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
@@ -11,6 +12,10 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+
+export type PersistedSocialLinks = Partial<
+  Record<"website" | "instagram" | "linkedin" | "x" | "youtube", string>
+>;
 
 export const usersTable = pgTable(
   "users",
@@ -24,6 +29,7 @@ export const usersTable = pgTable(
     city: text("city"),
     country: text("country"),
     interests: text("interests").array().notNull().default([]),
+    socialLinks: jsonb("social_links").$type<PersistedSocialLinks>().notNull().default({}),
     participationType: text("participation_type"),
     userType: text("user_type", { enum: ["participant", "organisation"] }),
     xp: integer("xp").notNull().default(0),

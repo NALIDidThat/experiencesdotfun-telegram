@@ -8,6 +8,7 @@
 import type { ExperienceCategory } from './experienceCategory';
 import type { OrganisationProfileInput } from './organisationProfileInput';
 import type { ParticipationType } from './participationType';
+import type { SocialLinks } from './socialLinks';
 import type { UserType } from './userType';
 
 export interface ProfileUpdateInput {
@@ -23,6 +24,7 @@ export interface ProfileUpdateInput {
   bio?: string | null;
   /** @nullable */
   city?: string | null;
+  socialLinks?: SocialLinks;
   /** @nullable */
   country?: string | null;
   interests?: ExperienceCategory[];

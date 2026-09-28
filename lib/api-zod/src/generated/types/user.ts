@@ -7,6 +7,7 @@
  */
 import type { ExperienceCategory } from './experienceCategory';
 import type { Organisation } from './organisation';
+import type { SocialLinks } from './socialLinks';
 import type { UserType } from './userType';
 
 export interface User {
@@ -28,6 +29,7 @@ export interface User {
   city: string | null;
   /** @nullable */
   country: string | null;
+  socialLinks: SocialLinks;
   interests: ExperienceCategory[];
   /** @nullable */
   participationType: string | null;

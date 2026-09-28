@@ -7,6 +7,7 @@
  */
 import type { ExperienceCategory } from './experienceCategory';
 import type { Organisation } from './organisation';
+import type { SocialLinks } from './socialLinks';
 import type { UserType } from './userType';
 
 export interface FriendProfile {
@@ -20,6 +21,7 @@ export interface FriendProfile {
   bio: string | null;
   /** @nullable */
   city: string | null;
+  socialLinks: SocialLinks;
   interests: ExperienceCategory[];
   userType: UserType | null;
   /** @nullable */

@@ -26,6 +26,7 @@ import {
   organisationsTable,
   participationsTable,
   usersTable,
+  type PersistedSocialLinks,
   type UserType,
 } from "@workspace/db/schema";
 import {
@@ -64,6 +65,33 @@ import {
 import { createOrReopenFriendRequest, updateFriendRequestStatus } from "../lib/friends";
 
 const router: IRouter = Router();
+
+const socialLinkDomains: Record<keyof PersistedSocialLinks, readonly string[]> = {
+  website: [],
+  instagram: ["instagram.com"],
+  linkedin: ["linkedin.com"],
+  x: ["x.com", "twitter.com"],
+  youtube: ["youtube.com", "youtu.be"],
+};
+
+function isAllowedSocialLink(platform: string, value: string): boolean {
+  const domains = socialLinkDomains[platform as keyof PersistedSocialLinks];
+  if (!domains) return false;
+
+  try {
+    const url = new URL(value.trim());
+    return (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      Boolean(url.hostname) &&
+      (domains.length === 0 ||
+        domains.some((domain) => url.hostname === domain || url.hostname.endsWith(`.${domain}`)))
+    );
+  } catch {
+    return false;
+  }
+}
 
 router.post("/auth/telegram", async (req, res) => {
   const parsed = AuthenticateTelegramBody.safeParse(req.body);
@@ -215,6 +243,15 @@ router.patch("/me", async (req, res) => {
     });
     return;
   }
+  if (
+    patch.socialLinks &&
+    Object.entries(patch.socialLinks).some(
+      ([platform, value]) => value !== undefined && !isAllowedSocialLink(platform, value),
+    )
+  ) {
+    error(res, 400, "Use valid HTTPS links for your website and social profiles.");
+    return;
+  }
   const username = patch.username === undefined
     ? user.username
     : patch.username.trim().replace(/^@+/, "").toLowerCase();
@@ -249,6 +286,15 @@ router.patch("/me", async (req, res) => {
           ...(patch.city !== undefined ? { city: patch.city } : {}),
           ...(patch.country !== undefined ? { country: patch.country } : {}),
           ...(patch.interests !== undefined ? { interests: patch.interests } : {}),
+          ...(patch.socialLinks !== undefined
+            ? {
+                socialLinks: Object.fromEntries(
+                  Object.entries(patch.socialLinks).flatMap(([platform, value]) =>
+                    value === undefined ? [] : [[platform, value.trim()]],
+                  ),
+                ) as PersistedSocialLinks,
+              }
+            : {}),
           ...(patch.participationType !== undefined
             ? { participationType: patch.participationType }
             : {}),
