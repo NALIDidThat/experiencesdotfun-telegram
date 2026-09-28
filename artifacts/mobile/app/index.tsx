@@ -1770,9 +1770,9 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
             style={({ pressed }) => [styles.dashboardAction, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.75 : 1 }]}
           >
             <View style={[styles.dashboardActionIcon, { backgroundColor: colors.primary + '12' }]}>
-              <Feather name={action.icon} size={20} color={colors.primary} />
+              <Feather name={action.icon} size={19} color={colors.primary} />
             </View>
-            <Text style={[styles.dashboardActionLabel, { color: colors.foreground }]}>{action.label}</Text>
+            <Text numberOfLines={2} style={[styles.dashboardActionLabel, { color: colors.foreground }]}>{action.label}</Text>
           </Pressable>
         ))}
       </View>
@@ -5415,10 +5415,10 @@ const styles = StyleSheet.create({
   dashboardSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 13, marginTop: 4 },
   dashboardSectionTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
   dashboardSeeAll: { fontSize: 13, fontFamily: 'Inter_700Bold' },
-  dashboardActionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 28 },
-  dashboardAction: { width: '48%', minHeight: 58, borderWidth: 1, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dashboardActionIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  dashboardActionLabel: { flex: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  dashboardActionGrid: { flexDirection: 'row', gap: 8, marginBottom: 28 },
+  dashboardAction: { alignItems: 'center', borderWidth: 1, flex: 1, justifyContent: 'center', minHeight: 86, paddingHorizontal: 5, paddingVertical: 10, gap: 8 },
+  dashboardActionIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  dashboardActionLabel: { alignSelf: 'stretch', fontSize: 12, lineHeight: 15, textAlign: 'center', fontFamily: 'Inter_600SemiBold' },
   dashboardEventCard: { borderWidth: 1, overflow: 'hidden', marginBottom: 14 },
   dashboardEventPhoto: { height: 168, position: 'relative', overflow: 'hidden' },
   dashboardEventPhotoTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: 12 },
