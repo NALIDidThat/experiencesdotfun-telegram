@@ -566,23 +566,64 @@ test("actual signup, profile, and experience forms stay usable with the keyboard
     });
   });
 
-  await t.test("experience creation scrolls to the organisation description field", async () => {
-    await setViewport(client, initialViewport.height);
-    await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=create` });
-    await waitForValue(
-      client,
-      `Boolean(document.querySelector('[data-testid="create-field-organisationDescription"]'))`,
-      Boolean,
-      "the real experience creation form",
-    );
+});
 
-    await checkRealFormKeyboardBehavior(client, {
-      scrollerTestId: "create-experience-scroll",
-      focusInputTestId: "create-field-organisationName",
-      targetInputTestId: "create-field-organisationDescription",
-      description: "Experience creation",
-    });
+test("experience creation shows one question and keeps it reachable with the keyboard open", async (t) => {
+  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile preview interaction test.");
+
+  const client = await launchBrowser(t);
+  await setViewport(client, initialViewport.height);
+  await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=create&step=2` });
+  await waitForValue(
+    client,
+    `document.querySelectorAll('[data-testid^="create-field-"]').length`,
+    (count) => count === 1,
+    "the real experience creation form",
+  );
+
+  await checkRealFormKeyboardBehavior(client, {
+    scrollerTestId: "create-experience-scroll",
+    focusInputTestId: "create-field-organisationDescription",
+    targetInputTestId: "create-field-organisationDescription",
+    description: "Experience creation",
   });
+});
+
+test("experience review returns to the overview after saving an edited answer", async (t) => {
+  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile preview interaction test.");
+
+  const client = await launchBrowser(t);
+  await setViewport(client, initialViewport.height);
+  await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=create&step=16` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="create-review-heading"]'))`,
+    Boolean,
+    "the experience review overview",
+  );
+
+  await tapTestId(client, "create-review-organisationName");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="create-field-organisationName"]'))`,
+    Boolean,
+    "the organisation name question",
+  );
+  await enterText(client, "create-field-organisationName", "Community Host");
+  await tapTestId(client, "create-primary");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="create-review-heading"]'))`,
+    Boolean,
+    "the overview after saving the edited answer",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelectorAll('[data-testid^="create-field-"]').length`),
+    0,
+    "The overview should show details instead of an input.",
+  );
 });
 
 test("bottom navigation can be changed by holding and sliding", async (t) => {
