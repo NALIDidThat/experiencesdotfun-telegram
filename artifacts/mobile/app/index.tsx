@@ -4799,42 +4799,35 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
               }}
               style={({ pressed }) => [
                 styles.navItem,
-                selected && [
-                  styles.navItemActive,
-                  {
-                    borderColor: `${colors.primaryForeground}88`,
-                    shadowColor: colors.primaryForeground,
-                  },
-                ],
                 pressed && styles.navItemPressed,
               ]}
             >
-              {selected
-                ? liquidGlassAvailable
-                  ? (
-                    <GlassView
-                      pointerEvents="none"
-                      glassEffectStyle="regular"
-                      tintColor={colors.primary}
-                      style={[StyleSheet.absoluteFill, styles.navGlassSurface]}
-                    />
-                  )
-                  : (
-                    <View
-                      pointerEvents="none"
-                      style={[
-                        StyleSheet.absoluteFill,
-                        styles.navGlassSurface,
-                        styles.navGlassFallback,
-                        {
-                          backgroundColor: `${colors.primaryForeground}24`,
-                          borderColor: `${colors.primaryForeground}88`,
-                        },
-                      ]}
-                    />
-                  )
-                : null}
               <View style={styles.navIconWrapper}>
+                {selected
+                  ? liquidGlassAvailable
+                    ? (
+                      <GlassView
+                        pointerEvents="none"
+                        glassEffectStyle="regular"
+                        tintColor={colors.primary}
+                        style={[StyleSheet.absoluteFill, styles.navGlassSurface]}
+                      />
+                    )
+                    : (
+                      <View
+                        pointerEvents="none"
+                        style={[
+                          StyleSheet.absoluteFill,
+                          styles.navGlassSurface,
+                          styles.navGlassFallback,
+                          {
+                            backgroundColor: `${colors.primaryForeground}24`,
+                            borderColor: `${colors.primaryForeground}88`,
+                          },
+                        ]}
+                      />
+                    )
+                  : null}
                 <Feather
                   name={item.icon}
                   size={19}
@@ -5974,32 +5967,23 @@ const styles = StyleSheet.create({
   },
   navItem: {
     alignItems: 'center',
-    borderColor: 'transparent',
-    borderRadius: 26,
-    borderWidth: 1,
     flex: 1,
     justifyContent: 'center',
-    minHeight: 54,
+    minHeight: 56,
     position: 'relative',
     paddingHorizontal: 2,
-    paddingVertical: 4,
+    paddingVertical: 3,
   },
-  navItemActive: {
-    elevation: 5,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 9,
-    transform: [{ translateY: -2 }],
-  },
-  navGlassSurface: { borderRadius: 26 },
+  navGlassSurface: { borderRadius: 17 },
   navGlassFallback: { borderWidth: 1 },
   navItemPressed: { opacity: 0.78, transform: [{ scale: 0.97 }] },
   navIconWrapper: {
     alignItems: 'center',
-    borderRadius: 16,
-    height: 29,
+    borderRadius: 17,
+    height: 34,
     justifyContent: 'center',
-    marginBottom: 1,
+    marginBottom: 4,
+    position: 'relative',
     width: 34,
   },
   navLabel: {

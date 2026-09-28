@@ -39,12 +39,21 @@ function AccountProfileCard({
     ? profile.organisation?.name || 'Organisation account'
     : profile.name;
   const subtitle = isOrganisation ? 'Organisation account' : 'Participant account';
+  const username = profile.username?.trim().replace(/^@+/, '');
+  const usernameLabel = username ? `@${username}` : 'Username not set';
+  const accessibilityLabel = [
+    title,
+    `${subtitle}${profile.city ? `, ${profile.city}` : ''}`,
+    usernameLabel,
+    `${profile.level} level`,
+    isCurrent ? 'current profile' : 'available profile',
+  ].join(', ');
 
   return (
     <Pressable
       testID={`account-center-profile-${profile.id}`}
       accessibilityRole="button"
-      accessibilityLabel={isCurrent ? `${subtitle}, current profile` : `Switch to ${subtitle}`}
+      accessibilityLabel={accessibilityLabel}
       accessibilityHint={isCurrent ? undefined : 'Activates this profile under your current login.'}
       accessibilityState={{ disabled: isCurrent || disabled, selected: isCurrent }}
       disabled={isCurrent || disabled}
@@ -67,6 +76,24 @@ function AccountProfileCard({
         <Text numberOfLines={1} style={[styles.profileSubtitle, { color: colors.mutedForeground }]}>
           {subtitle}{profile.city ? ` · ${profile.city}` : ''}
         </Text>
+        <View style={styles.profileMetaRow}>
+          <Text
+            testID={`account-center-profile-username-${profile.id}`}
+            numberOfLines={1}
+            style={[styles.profileUsername, { color: colors.mutedForeground }]}
+          >
+            {usernameLabel}
+          </Text>
+          <View style={[styles.profileLevelBadge, { backgroundColor: colors.primary + '12' }]}>
+            <Feather name="award" size={11} color={colors.primary} />
+            <Text
+              testID={`account-center-profile-level-${profile.id}`}
+              style={[styles.profileLevelText, { color: colors.primary }]}
+            >
+              {profile.level}
+            </Text>
+          </View>
+        </View>
       </View>
       {isCurrent ? (
         <View style={[styles.currentBadge, { backgroundColor: colors.primary + '12' }]}>
@@ -224,11 +251,15 @@ const styles = StyleSheet.create({
   introBody: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
   sectionLabel: { marginBottom: -8, fontSize: 10, letterSpacing: 0.8, fontFamily: 'Inter_700Bold' },
   profileList: { gap: 10 },
-  profileCard: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 12, borderWidth: 1 },
+  profileCard: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 12, borderWidth: 1 },
   profileIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   profileCopy: { flex: 1, minWidth: 0, gap: 3 },
   profileTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   profileSubtitle: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  profileMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
+  profileUsername: { flex: 1, minWidth: 0, fontSize: 10, fontFamily: 'Inter_500Medium' },
+  profileLevelBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 0, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20 },
+  profileLevelText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
   currentBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 20 },
   currentBadgeText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   switchAction: { flexDirection: 'row', alignItems: 'center', gap: 1 },
