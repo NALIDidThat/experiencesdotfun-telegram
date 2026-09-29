@@ -33,6 +33,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import {
   getGetAccountabilityDashboardQueryKey,
+  getGetHostOverviewQueryKey,
   useAcceptFriendRequest,
   useCreateExperience,
   useCreateFriendRequest,
@@ -3479,7 +3480,12 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
     { query: { enabled: authenticatedUser?.userType === 'participant', queryKey: getListMyParticipationsQueryKey({ status: 'completed' }) } },
   );
   const hosted = useListHostExperiences({ query: { enabled: authenticatedUser?.userType === 'organisation', queryKey: getListHostExperiencesQueryKey() } });
-  const hostOverview = useGetHostOverview({ query: { enabled: authenticatedUser?.userType === 'organisation' } });
+  const hostOverview = useGetHostOverview({
+    query: {
+      queryKey: getGetHostOverviewQueryKey(),
+      enabled: authenticatedUser?.userType === 'organisation',
+    },
+  });
   const friends = useListFriends({ query: { queryKey: getListFriendsQueryKey(), enabled: Boolean(authenticatedUser) } });
   const accountabilityNotifications = useGetAccountabilityDashboard({
     query: {
