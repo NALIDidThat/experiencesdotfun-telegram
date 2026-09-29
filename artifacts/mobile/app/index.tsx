@@ -3479,6 +3479,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
     { query: { enabled: authenticatedUser?.userType === 'participant', queryKey: getListMyParticipationsQueryKey({ status: 'completed' }) } },
   );
   const hosted = useListHostExperiences({ query: { enabled: authenticatedUser?.userType === 'organisation', queryKey: getListHostExperiencesQueryKey() } });
+  const hostOverview = useGetHostOverview({ query: { enabled: authenticatedUser?.userType === 'organisation' } });
   const friends = useListFriends({ query: { queryKey: getListFriendsQueryKey(), enabled: Boolean(authenticatedUser) } });
   const accountabilityNotifications = useGetAccountabilityDashboard({
     query: {
@@ -3796,11 +3797,47 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       ) : (
         <View style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>About your organisation</Text>
-          <Text style={[styles.mutedParagraph, { color: colors.mutedForeground }]}>{current.organisation?.description ?? 'Complete your organisation details to introduce your work to participants.'}</Text>
-          <Text style={[styles.inputHint, { color: colors.mutedForeground, marginTop: 10 }]}>
-            {current.organisation?.city ?? current.city ?? 'Location not set'} · {hosted.data?.length ?? 0} experiences hosted
+          <Text
+            style={[
+              styles.mutedParagraph,
+              { color: colors.mutedForeground, marginTop: 0, marginBottom: 0, lineHeight: 21 },
+            ]}
+          >
+            {current.organisation?.description ?? 'Complete your organisation details to introduce your work to participants.'}
           </Text>
-          <Button label="Open organisation tools" icon="briefcase" onPress={() => go('host')} style={{ marginTop: 18 }} />
+          <View style={styles.organisationLocation}>
+            <Feather name="map-pin" size={14} color={colors.mutedForeground} />
+            <Text numberOfLines={1} style={[styles.organisationLocationText, { color: colors.mutedForeground }]}>
+              {current.organisation?.city ?? current.city ?? 'Location not set'}
+            </Text>
+          </View>
+          <View
+            testID="organisation-overview-stats"
+            style={[styles.organisationStats, { borderColor: colors.border }]}
+          >
+            {[
+              { label: 'Experiences', value: hostOverview.data?.totalExperiences },
+              { label: 'Upcoming', value: hostOverview.data?.upcomingExperiences },
+              { label: 'Participants', value: hostOverview.data?.participantCount },
+            ].map((stat, index) => (
+              <View
+                key={stat.label}
+                style={[
+                  styles.organisationStat,
+                  index < 2 && styles.organisationStatDivider,
+                  index < 2 && { borderRightColor: colors.border },
+                ]}
+              >
+                <Text style={[styles.organisationStatValue, { color: colors.foreground }]}>
+                  {stat.value ?? '—'}
+                </Text>
+                <Text style={[styles.organisationStatLabel, { color: colors.mutedForeground }]}>
+                  {stat.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+          <Button label="Open organisation tools" icon="briefcase" onPress={() => go('host')} />
         </View>
       )}
 
@@ -3828,11 +3865,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
       </Pressable>
 
-      {current.userType === 'organisation' ? (
-        <View style={{ marginTop: 32 }}>
-          <Button label="Open organisation tools" variant="secondary" icon="briefcase" onPress={() => { triggerHaptic(); go('host'); }} />
-        </View>
-      ) : null}
       <View style={{ height: 120 }} />
     </KeyboardAwareScrollViewCompat>
   );
@@ -5804,6 +5836,13 @@ const styles = StyleSheet.create({
   iconButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   
   editPanel: { padding: 20, borderWidth: 1, marginBottom: 24, gap: 16 },
+  organisationLocation: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  organisationLocationText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium' },
+  organisationStats: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 12 },
+  organisationStat: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  organisationStatDivider: { borderRightWidth: StyleSheet.hairlineWidth },
+  organisationStatValue: { fontSize: 19, fontFamily: 'Inter_700Bold' },
+  organisationStatLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', textAlign: 'center' },
   profileEditorTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   profileEditorTitle: { fontSize: 18, fontFamily: 'Inter_700Bold' },
   profileEditorClose: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
