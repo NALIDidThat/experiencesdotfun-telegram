@@ -91,11 +91,11 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { openTelegramBot } from '@/lib/telegram';
 
-type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'accounts' | 'notifications' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'create' | 'email';
+type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'accounts' | 'notifications' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
 type HostExperienceFilter = 'all' | Experience['status'];
-type HostParticipantFilter = 'all' | 'action' | Participation['status'];
-const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'accounts', 'notifications', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email'];
+type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
+const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'accounts', 'notifications', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -132,13 +132,9 @@ const hostExperienceFilters: Array<{ key: HostExperienceFilter; label: string }>
 
 const hostParticipantFilters: Array<{ key: HostParticipantFilter; label: string }> = [
   { key: 'all', label: 'All' },
-  { key: 'action', label: 'Needs action' },
-  { key: 'joined', label: 'Joined' },
+  { key: 'review', label: 'To review' },
+  { key: 'participants', label: 'Participants' },
   { key: 'waitlisted', label: 'Waitlist' },
-  { key: 'attended', label: 'Attended' },
-  { key: 'submitted', label: 'To review' },
-  { key: 'verified', label: 'Verified' },
-  { key: 'rejected', label: 'Rejected' },
 ];
 
 const hostExperienceStatusLabels: Record<Experience['status'], string> = {
@@ -3878,21 +3874,11 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
 
 function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
-  const queryClient = useQueryClient();
   const { user } = useAuth();
   const overview = useGetHostOverview();
   const experiences = useListHostExperiences();
-  const [selected, setSelected] = useState<number | null>(null);
   const [experienceSearch, setExperienceSearch] = useState('');
   const [experienceFilter, setExperienceFilter] = useState<HostExperienceFilter>('all');
-  const [participantSearch, setParticipantSearch] = useState('');
-  const [participantFilter, setParticipantFilter] = useState<HostParticipantFilter>('all');
-  const [actionError, setActionError] = useState<string | null>(null);
-  const participants = useListExperienceParticipants(selected ?? 0, { query: { enabled: selected !== null, queryKey: getListExperienceParticipantsQueryKey(selected ?? 0) } });
-  const attend = useMarkAttendance({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
-  const verify = useVerifyParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
-  const reject = useRejectParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
-  const promoteNext = usePromoteNextWaitlistedParticipant({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const allExperiences = experiences.data ?? [];
   const searchTerm = experienceSearch.trim().toLowerCase();
   const filteredExperiences = allExperiences.filter((item) => {
@@ -3900,36 +3886,10 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
       .some((value) => value.toLowerCase().includes(searchTerm));
     return matchesSearch && (experienceFilter === 'all' || item.status === experienceFilter);
   });
-  const selectedExperience = allExperiences.find((item) => item.id === selected);
-  const allParticipants = participants.data ?? [];
-  const waitlistedParticipants = allParticipants
-    .filter((item) => item.status === 'waitlisted')
-    .sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime() || a.id - b.id);
-  const waitlistPosition = new Map<number, number>(waitlistedParticipants.map((item, index) => [item.id, index + 1] as const));
-  const participantTerm = participantSearch.trim().toLowerCase();
-  const participantSource = participantFilter === 'waitlisted' ? waitlistedParticipants : allParticipants;
-  const filteredParticipants = participantSource.filter((item) => {
-    const matchesSearch = !participantTerm || [item.participant.name, item.participant.username ?? '']
-      .some((value) => value.toLowerCase().includes(participantTerm));
-    const matchesFilter = participantFilter === 'all'
-      || (participantFilter === 'action' && (item.status === 'joined' || item.status === 'submitted'))
-      || item.status === participantFilter;
-    return matchesSearch && matchesFilter;
-  });
-  const isRefreshing = overview.isRefetching || experiences.isRefetching || (selected !== null && participants.isRefetching);
+  const isRefreshing = overview.isRefetching || experiences.isRefetching;
   const refreshHostData = () => {
     triggerHaptic();
-    const requests: Promise<unknown>[] = [overview.refetch(), experiences.refetch()];
-    if (selected !== null) requests.push(participants.refetch());
-    void Promise.all(requests);
-  };
-  const runHostAction = async (action: () => Promise<unknown>) => {
-    setActionError(null);
-    try {
-      await action();
-    } catch (error) {
-      setActionError(requestErrorMessage(error, 'That host action could not be completed. Please try again.'));
-    }
+    void Promise.all([overview.refetch(), experiences.refetch()]);
   };
 
   if (user?.userType !== 'organisation') {
@@ -4045,18 +4005,16 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
       ) : allExperiences.length === 0 ? (
         <EmptyState title="No experience published" body="Create a real volunteering opportunity and it will appear here." icon="edit-3" actionLabel="Create experience" onAction={() => go('create')} />
       ) : filteredExperiences.length ? filteredExperiences.map((item) => {
-        const active = selected === item.id;
         const statusColor = item.status === 'published' ? colors.success : item.status === 'full' ? colors.secondary : colors.mutedForeground;
         const filledCapacity = item.capacity > 0 ? Math.min(100, Math.round((item.participantCount / item.capacity) * 100)) : 0;
         return (
           <Pressable
             key={item.id}
             accessibilityRole="button"
-            accessibilityState={{ expanded: active }}
-            accessibilityLabel={`${item.title}, ${hostExperienceStatusLabels[item.status]}, ${item.participantCount} of ${item.capacity} places filled, ${item.waitlistCount} waitlisted. ${active ? 'Hide' : 'Manage'} participants.`}
+            accessibilityLabel={`Open management for ${item.title}. ${hostExperienceStatusLabels[item.status]}, ${item.participantCount} of ${item.capacity} places filled, ${item.waitlistCount} waitlisted.`}
             testID={`host-experience-${item.id}`}
-            onPress={() => { triggerHaptic(); setActionError(null); setSelected(active ? null : item.id); }}
-            style={[styles.hostExperienceCard, { backgroundColor: colors.card, borderColor: active ? colors.primary : colors.border, borderRadius: colors.radius }]}
+            onPress={() => { triggerHaptic(); go('host-detail', { id: String(item.id) }); }}
+            style={[styles.hostExperienceCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
           >
             <View style={styles.hostExperienceTop}>
               <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '15' }]}>
@@ -4098,12 +4056,8 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
                 </Text>
               </View>
               <View style={styles.hostManageRow}>
-                <Text style={[styles.hostManageText, { color: colors.primary }]}>
-                  {active
-                    ? 'Hide participants'
-                    : `Manage participants · ${item.participantCount}${item.waitlistCount > 0 ? ` · ${item.waitlistCount} waiting` : ''}`}
-                </Text>
-                <Feather name={active ? 'chevron-up' : 'arrow-right'} size={16} color={colors.primary} />
+                <Text style={[styles.hostManageText, { color: colors.primary }]}>Manage experience</Text>
+                <Feather name="arrow-right" size={16} color={colors.primary} />
               </View>
             </View>
           </Pressable>
@@ -4118,24 +4072,235 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
         />
       )}
 
-      {selectedExperience ? (
-        <View style={styles.hostParticipantsSection}>
-          <View style={styles.hostParticipantHeading}>
+      <View style={{ height: 120 }} />
+    </KeyboardAwareScrollViewCompat>
+  );
+}
+
+function HostExperienceDetail({
+  experienceId,
+  go,
+}: {
+  experienceId: number;
+  go: (screen: Screen, params?: Record<string, string>) => void;
+}) {
+  const colors = useColors();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const validExperienceId = Number.isSafeInteger(experienceId) && experienceId > 0;
+  const experiences = useListHostExperiences({
+    query: {
+      queryKey: getListHostExperiencesQueryKey(),
+      enabled: user?.userType === 'organisation',
+    },
+  });
+  const participantExperienceId = validExperienceId ? experienceId : 0;
+  const participants = useListExperienceParticipants(participantExperienceId, {
+    query: {
+      queryKey: getListExperienceParticipantsQueryKey(participantExperienceId),
+      enabled: validExperienceId && user?.userType === 'organisation',
+    },
+  });
+  const [participantSearch, setParticipantSearch] = useState('');
+  const [participantFilter, setParticipantFilter] = useState<HostParticipantFilter>('all');
+  const [actionError, setActionError] = useState<string | null>(null);
+  const attend = useMarkAttendance({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const verify = useVerifyParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const reject = useRejectParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const promoteNext = usePromoteNextWaitlistedParticipant({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+
+  const experience = validExperienceId
+    ? experiences.data?.find((item) => item.id === experienceId)
+    : undefined;
+  const allParticipants = participants.data ?? [];
+  const waitlistedParticipants = allParticipants
+    .filter((item) => item.status === 'waitlisted')
+    .sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime() || a.id - b.id);
+  const waitlistPosition = new Map<number, number>(waitlistedParticipants.map((item, index) => [item.id, index + 1] as const));
+  const pendingReviewCount = allParticipants.filter((item) => item.status === 'submitted').length;
+  const participantCount = allParticipants.filter((item) => item.status !== 'waitlisted').length;
+  const filterCounts: Record<HostParticipantFilter, number> = {
+    all: allParticipants.length,
+    participants: participantCount,
+    review: pendingReviewCount,
+    waitlisted: waitlistedParticipants.length,
+  };
+  const participantTerm = participantSearch.trim().toLowerCase();
+  const filteredParticipants = allParticipants.filter((item) => {
+    const matchesSearch = !participantTerm || [item.participant.name, item.participant.username ?? '']
+      .some((value) => value.toLowerCase().includes(participantTerm));
+    const matchesFilter = participantFilter === 'all'
+      || (participantFilter === 'participants' && item.status !== 'waitlisted')
+      || (participantFilter === 'review' && item.status === 'submitted')
+      || (participantFilter === 'waitlisted' && item.status === 'waitlisted');
+    return matchesSearch && matchesFilter;
+  });
+  const isRefreshing = experiences.isRefetching || participants.isRefetching;
+  const refreshHostData = () => {
+    triggerHaptic();
+    void Promise.all([
+      experiences.refetch(),
+      validExperienceId ? participants.refetch() : Promise.resolve(),
+    ]);
+  };
+  const runHostAction = async (action: () => Promise<unknown>) => {
+    setActionError(null);
+    try {
+      await action();
+    } catch (error) {
+      setActionError(requestErrorMessage(error, 'That host action could not be completed. Please try again.'));
+    }
+  };
+  const statusColor = experience?.status === 'published'
+    ? colors.success
+    : experience?.status === 'full'
+      ? colors.secondary
+      : colors.mutedForeground;
+
+  return (
+    <KeyboardAwareScrollViewCompat
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshHostData} tintColor={colors.primary} />}
+      keyboardDismissMode="none"
+      keyboardShouldPersistTaps="handled"
+    >
+      <Header title="Manage experience" subtitle="Host tools" onBack={() => go('host')} />
+      {experiences.isLoading && !experience ? <LoadingState /> : null}
+      {experiences.isError && !experience ? (
+        <EmptyState
+          title="This experience couldn’t be loaded"
+          body="Check your connection and try again."
+          actionLabel="Try again"
+          onAction={() => { void experiences.refetch(); }}
+        />
+      ) : null}
+      {!experiences.isLoading && !experiences.isError && !experience ? (
+        <EmptyState
+          title="Experience not found"
+          body="It may have been removed. Return to your experience list to continue."
+          actionLabel="Back to host tools"
+          onAction={() => go('host')}
+        />
+      ) : null}
+
+      {experience ? (
+        <>
+          <View style={[styles.hostDetailCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <View style={styles.hostDetailTop}>
+              <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '15' }]}>
+                <Feather name={categoryIcon[experience.category]} size={22} color={colors.primary} />
+              </View>
+              <View style={styles.hostDetailCopy}>
+                <Text style={[styles.hostDetailEyebrow, { color: colors.mutedForeground }]}>
+                  {categoryLabel[experience.category]} · {dateLabel(experience.date)}
+                </Text>
+                <Text style={[styles.hostDetailTitle, { color: colors.foreground }]}>{experience.title}</Text>
+              </View>
+              <View style={[styles.hostStatusPill, { backgroundColor: statusColor + '14' }]}>
+                <Text style={[styles.hostStatusText, { color: statusColor }]}>{hostExperienceStatusLabels[experience.status]}</Text>
+              </View>
+            </View>
+            <Text style={[styles.hostDetailDescription, { color: colors.mutedForeground }]}>
+              {experience.description || 'No description added yet.'}
+            </Text>
+            <View style={[styles.hostDetailMeta, { borderTopColor: colors.border }]}>
+              <View style={styles.hostDetailMetaLine}>
+                <Feather name="map-pin" size={15} color={colors.mutedForeground} />
+                <Text style={[styles.hostMetaText, { color: colors.mutedForeground }]}>{experience.location}, {experience.city}</Text>
+              </View>
+              <View style={styles.hostDetailMetaLine}>
+                <Feather name="clock" size={15} color={colors.mutedForeground} />
+                <Text style={[styles.hostMetaText, { color: colors.mutedForeground }]}>
+                  {experience.startTime} – {experience.endTime}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.hostCapacityHeader}>
+              <Text style={[styles.hostCapacityLabel, { color: colors.mutedForeground }]}>Places filled</Text>
+              <Text style={[styles.hostCapacityCount, { color: colors.foreground }]}>{experience.participantCount} / {experience.capacity}</Text>
+            </View>
+            <View style={[styles.hostCapacityTrack, { backgroundColor: colors.border }]}>
+              <View
+                style={[
+                  styles.hostCapacityFill,
+                  {
+                    width: `${experience.capacity > 0 ? Math.min(100, Math.round((experience.participantCount / experience.capacity) * 100)) : 0}%`,
+                    backgroundColor: colors.primary,
+                  },
+                ]}
+              />
+            </View>
+            <View style={styles.hostExperienceFooter}>
+              <View style={styles.hostRewardRow}>
+                <Feather name="award" size={14} color={colors.secondary} />
+                <Text style={[styles.hostRewardText, { color: colors.secondary }]}>{experience.xpReward} XP</Text>
+                {experience.monetaryRewardPence ? (
+                  <Text style={[styles.hostRewardText, { color: colors.mutedForeground }]}>· {money(experience.monetaryRewardPence)}</Text>
+                ) : null}
+              </View>
+              <Text style={[styles.hostPlacesText, { color: experience.availablePlaces === 0 ? colors.primary : colors.mutedForeground }]}>
+                {experience.availablePlaces === 0 ? 'No places left' : `${experience.availablePlaces} places left`}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.hostDetailMetrics}>
+            {[
+              { key: 'participants' as const, filter: 'participants' as const, label: 'Participants', value: experience.participantCount, icon: 'users' as const },
+              { key: 'waitlist' as const, filter: 'waitlisted' as const, label: 'Waitlist', value: experience.waitlistCount, icon: 'clock' as const },
+              {
+                key: 'review' as const,
+                filter: 'review' as const,
+                label: 'To review',
+                value: participants.isLoading ? '…' : participants.isError ? '—' : pendingReviewCount,
+                icon: 'check-circle' as const,
+              },
+            ].map((metric) => (
+              <Pressable
+                key={metric.key}
+                accessibilityRole="button"
+                accessibilityLabel={`${metric.label}: ${metric.value}. Show ${metric.label.toLowerCase()}.`}
+                accessibilityState={{ selected: participantFilter === metric.filter }}
+                testID={`host-detail-metric-${metric.key}`}
+                onPress={() => setParticipantFilter(metric.filter)}
+                style={[
+                  styles.hostDetailMetric,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: participantFilter === metric.filter ? colors.primary : colors.border,
+                    borderRadius: colors.radius,
+                  },
+                ]}
+              >
+                <View style={styles.hostDetailMetricTop}>
+                  <Feather name={metric.icon} size={15} color={colors.primary} />
+                  <Text style={[styles.hostDetailMetricValue, { color: colors.foreground }]}>{metric.value}</Text>
+                </View>
+                <Text numberOfLines={1} style={[styles.hostDetailMetricLabel, { color: colors.mutedForeground }]}>{metric.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={styles.hostSectionHeader}>
             <View style={styles.hostSectionCopy}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Participants</Text>
-              <Text numberOfLines={1} style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>{selectedExperience.title}</Text>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Participants & reviews</Text>
+              <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>
+                Manage sign-ups, the waitlist, attendance and completion checks.
+              </Text>
             </View>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Close participant list"
-              testID="host-close-participants"
-              onPress={() => { setSelected(null); setActionError(null); }}
+              accessibilityLabel="Refresh experience participants"
+              testID="host-detail-refresh"
+              onPress={refreshHostData}
               style={[styles.hostRefreshButton, { borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius }]}
             >
-              <Feather name="x" size={18} color={colors.mutedForeground} />
+              <Feather name="refresh-cw" size={17} color={colors.primary} />
             </Pressable>
           </View>
           {actionError ? <InlineError message={actionError} /> : null}
+
           <View style={[styles.hostSearchBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
             <Feather name="search" size={17} color={colors.mutedForeground} />
             <TextInput
@@ -4159,57 +4324,76 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hostFilterList}>
             {hostParticipantFilters.map((option) => {
               const active = participantFilter === option.key;
+              const count = participants.isLoading ? '…' : participants.isError ? '—' : filterCounts[option.key];
               return (
                 <Pressable
                   key={option.key}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
-                  testID={`host-participant-filter-${option.key}`}
+                  testID={`host-detail-filter-${option.key}`}
                   onPress={() => setParticipantFilter(option.key)}
-                  style={[styles.hostFilterChip, { backgroundColor: active ? colors.secondary : colors.card, borderColor: active ? colors.secondary : colors.border, borderRadius: colors.radius }]}
+                  style={[
+                    styles.hostFilterChip,
+                    styles.hostDetailFilterChip,
+                    { backgroundColor: active ? colors.secondary : colors.card, borderColor: active ? colors.secondary : colors.border, borderRadius: colors.radius },
+                  ]}
                 >
                   <Text style={[styles.hostFilterText, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>{option.label}</Text>
+                  <Text style={[styles.hostDetailFilterCount, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>{count}</Text>
                 </Pressable>
               );
             })}
           </ScrollView>
           <Text style={[styles.hostSectionHint, styles.hostParticipantCount, { color: colors.mutedForeground }]}>
-            {filteredParticipants.length} of {allParticipants.length} people
+            {participants.isLoading ? 'Loading people…' : participants.isError ? 'People could not be loaded' : `${filteredParticipants.length} of ${allParticipants.length} people`}
           </Text>
-          {waitlistedParticipants.length > 0 ? (
-            <View style={{ marginBottom: 14 }}>
-              <View style={[styles.hostReviewNote, { backgroundColor: colors.secondary + '0C' }]}>
-                <Feather name="clock" size={16} color={colors.secondary} />
-                <Text style={[styles.hostReviewText, { color: colors.foreground }]}>
-                  {selectedExperience.availablePlaces > 0
-                    ? `${waitlistedParticipants.length} waiting. Promote the oldest person first; ${selectedExperience.availablePlaces} ${selectedExperience.availablePlaces === 1 ? 'place is' : 'places are'} open.`
-                    : `${waitlistedParticipants.length} waiting. Opening a place increases capacity by one and promotes the oldest person.`}
-                </Text>
+
+          {!participants.isLoading && !participants.isError && waitlistedParticipants.length > 0
+            && (participantFilter === 'all' || participantFilter === 'waitlisted') ? (
+              <View style={[styles.hostWaitlistPanel, { backgroundColor: colors.secondary + '0C', borderColor: colors.border, borderRadius: colors.radius }]}>
+                <View style={styles.hostWaitlistCopy}>
+                  <View style={[styles.hostWaitlistIcon, { backgroundColor: colors.secondary + '15' }]}>
+                    <Feather name="clock" size={16} color={colors.secondary} />
+                  </View>
+                  <View style={styles.hostWaitlistTextBlock}>
+                    <Text style={[styles.hostWaitlistTitle, { color: colors.foreground }]}>
+                      {waitlistedParticipants.length} {waitlistedParticipants.length === 1 ? 'person is' : 'people are'} waiting
+                    </Text>
+                    <Text style={[styles.hostWaitlistText, { color: colors.mutedForeground }]}>
+                      {experience.availablePlaces > 0
+                        ? `${experience.availablePlaces} ${experience.availablePlaces === 1 ? 'place is' : 'places are'} open. The oldest person is next.`
+                        : 'The oldest person is promoted first when a place opens.'}
+                    </Text>
+                  </View>
+                </View>
+                <Button
+                  label={promoteNext.isPending
+                    ? 'Promoting…'
+                    : experience.availablePlaces > 0
+                      ? 'Promote next'
+                      : 'Open a place & promote next'}
+                  icon="user-plus"
+                  variant="secondary"
+                  disabled={promoteNext.isPending || !['published', 'full'].includes(experience.status)}
+                  testID="host-promote-next"
+                  onPress={() => void runHostAction(() => promoteNext.mutateAsync({ experienceId: experience.id }))}
+                />
               </View>
-              <Button
-                label={promoteNext.isPending
-                  ? 'Promoting…'
-                  : selectedExperience.availablePlaces > 0
-                    ? 'Promote next'
-                    : 'Open a place & promote next'}
-                icon="user-plus"
-                variant="secondary"
-                disabled={promoteNext.isPending || !['published', 'full'].includes(selectedExperience.status)}
-                testID="host-promote-next"
-                onPress={() => void runHostAction(() => promoteNext.mutateAsync({ experienceId: selectedExperience.id }))}
-              />
-            </View>
-          ) : null}
+            ) : null}
+
           {participants.isLoading ? <LoadingState /> : participants.isError ? (
-            <EmptyState title="Participants couldn’t be loaded" body="Try again to check attendance and completion." actionLabel="Try again" onAction={() => { void participants.refetch(); }} />
+            <EmptyState
+              title="People couldn’t be loaded"
+              body="Try again to check attendance and completion."
+              actionLabel="Try again"
+              onAction={() => { void participants.refetch(); }}
+            />
           ) : allParticipants.length === 0 ? (
             <EmptyState title="No participants yet" body="When people join, you’ll manage attendance and completion here." icon="users" />
           ) : filteredParticipants.length ? filteredParticipants.map((item) => {
-            const statusColor = item.status === 'verified' || item.status === 'attended'
+            const participantStatusColor = item.status === 'verified' || item.status === 'attended'
               ? colors.success
-              : item.status === 'waitlisted'
-                ? colors.secondary
-              : item.status === 'submitted'
+              : item.status === 'waitlisted' || item.status === 'submitted'
                 ? colors.secondary
                 : item.status === 'rejected'
                   ? colors.destructive
@@ -4225,8 +4409,8 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
                     <Text numberOfLines={1} style={[styles.participantName, { color: colors.foreground }]}>{item.participant.name}</Text>
                     <Text numberOfLines={1} style={[styles.participantStatus, { color: colors.mutedForeground }]}>{item.participant.username ? `@${item.participant.username}` : 'Experiences.fun participant'}</Text>
                   </View>
-                  <View style={[styles.hostStatusPill, { backgroundColor: statusColor + '14' }]}>
-                    <Text style={[styles.hostStatusText, { color: statusColor }]}>{hostParticipationStatusLabels[item.status]}</Text>
+                  <View style={[styles.hostStatusPill, { backgroundColor: participantStatusColor + '14' }]}>
+                    <Text style={[styles.hostStatusText, { color: participantStatusColor }]}>{hostParticipationStatusLabels[item.status]}</Text>
                   </View>
                 </View>
                 <View style={styles.hostParticipantMeta}>
@@ -4288,7 +4472,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
                 ) : item.status === 'verified' ? (
                   <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.success + '12' }]}>
                     <Feather name="check-circle" size={15} color={colors.success} />
-                    <Text style={[styles.hostParticipantOutcomeText, { color: colors.success }]}>Completion verified · XP ready to redeem</Text>
+                    <Text style={[styles.hostParticipantOutcomeText, { color: colors.success }]}>Completion approved · XP ready to redeem</Text>
                   </View>
                 ) : item.status === 'attended' ? (
                   <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.success + '12' }]}>
@@ -4305,14 +4489,14 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
             );
           }) : (
             <EmptyState
-              title="No matching participants"
-              body="Try another name or status filter."
+              title="No matching people"
+              body="Try another name or management filter."
               icon="search"
               actionLabel="Clear filters"
               onAction={() => { setParticipantSearch(''); setParticipantFilter('all'); }}
             />
           )}
-        </View>
+        </>
       ) : null}
       <View style={{ height: 120 }} />
     </KeyboardAwareScrollViewCompat>
@@ -5169,7 +5353,7 @@ export default function App() {
     if (routeScreen && screenNames.includes(routeScreen as Screen)) {
       setScreen(routeScreen as Screen);
     }
-    if (routeScreen === 'experience') setExperienceId(params.id);
+    if (routeScreen === 'experience' || routeScreen === 'host-detail') setExperienceId(params.id);
     else if (routeScreen) setExperienceId(undefined);
   }, [params.screen, params.id]);
 
@@ -5178,18 +5362,24 @@ export default function App() {
     const platform = Platform.OS === "ios" || Platform.OS === "android"
       ? Platform.OS
       : "web";
+    const analyticsScreen = screen === 'accounts'
+      ? 'profile'
+      : screen === 'host-detail'
+        ? 'host'
+        : screen;
     analyticsMutationRef.current.mutate({
-      data: { screen: screen === 'accounts' ? 'profile' : screen, platform },
+      data: { screen: analyticsScreen, platform },
     });
   }, [screen, user?.id]);
 
   const go = (next: Screen, nextParams?: Record<string, string>) => {
     Keyboard.dismiss();
     setScreen(next);
-    setExperienceId(next === 'experience' ? nextParams?.id : undefined);
+    const screenUsesExperienceId = next === 'experience' || next === 'host-detail';
+    setExperienceId(screenUsesExperienceId ? nextParams?.id : undefined);
     router.setParams({
       screen: next,
-      id: next === 'experience' ? nextParams?.id : undefined,
+      id: screenUsesExperienceId ? nextParams?.id : undefined,
       friendId: next === 'friend-profile' ? nextParams?.friendId : undefined,
     });
   };
@@ -5362,14 +5552,14 @@ export default function App() {
           user={user}
           accountType={onboardingAccountType}
           onDone={() => {
-          router.setParams({ screen, id: screen === 'experience' ? experienceId : undefined });
+            router.setParams({ screen, id: screen === 'experience' || screen === 'host-detail' ? experienceId : undefined });
           }}
         />
       </AppShell>
     );
   }
 
-  if (user.userType !== 'organisation' && (screen === 'host' || screen === 'create')) {
+  if (user.userType !== 'organisation' && (screen === 'host' || screen === 'host-detail' || screen === 'create')) {
     return (
       <AppShell>
         <EmptyState
@@ -5384,6 +5574,7 @@ export default function App() {
 
   const content = (() => {
     if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
+    if (screen === 'host-detail') return <HostExperienceDetail experienceId={Number(experienceId)} go={go} />;
     if (screen === 'accounts') {
       return (
         <AccountsCenterScreen
@@ -5415,7 +5606,7 @@ export default function App() {
     return <Home user={user} go={go} />;
   })();
 
-  const noNav = ['experience', 'create'].includes(screen);
+  const noNav = ['experience', 'host-detail', 'create'].includes(screen);
   const navActive = user.userType === 'organisation' && screen === 'experiences'
     ? 'host'
     : screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts'
@@ -6047,8 +6238,27 @@ const styles = StyleSheet.create({
   hostPlacesText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
   hostManageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   hostManageText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  hostParticipantsSection: { marginTop: 13 },
-  hostParticipantHeading: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 13 },
+  hostDetailCard: { borderWidth: 1, padding: 16, marginBottom: 14, gap: 12 },
+  hostDetailTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  hostDetailCopy: { flex: 1, minWidth: 0 },
+  hostDetailEyebrow: { fontSize: 10, fontFamily: 'Inter_600SemiBold', marginBottom: 4 },
+  hostDetailTitle: { fontSize: 19, lineHeight: 24, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 },
+  hostDetailDescription: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular' },
+  hostDetailMeta: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 11, gap: 9 },
+  hostDetailMetaLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hostDetailMetrics: { flexDirection: 'row', gap: 8, marginBottom: 21 },
+  hostDetailMetric: { flex: 1, minWidth: 0, minHeight: 72, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 9, justifyContent: 'space-between' },
+  hostDetailMetricTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
+  hostDetailMetricValue: { fontSize: 19, fontFamily: 'Inter_700Bold' },
+  hostDetailMetricLabel: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_600SemiBold' },
+  hostDetailFilterChip: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  hostDetailFilterCount: { fontSize: 10, fontFamily: 'Inter_700Bold' },
+  hostWaitlistPanel: { borderWidth: 1, padding: 13, gap: 12, marginBottom: 12 },
+  hostWaitlistCopy: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  hostWaitlistIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  hostWaitlistTextBlock: { flex: 1, minWidth: 0, gap: 3 },
+  hostWaitlistTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  hostWaitlistText: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
   hostParticipantCount: { marginBottom: 9 },
   hostParticipantCard: { borderWidth: 1, padding: 14, marginBottom: 10, gap: 10 },
   hostParticipantTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
