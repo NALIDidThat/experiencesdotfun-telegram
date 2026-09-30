@@ -16,3 +16,4 @@
 - [OpenAPI date-only fields](openapi-date-only-fields.md) — keep date-only wire values as strings when generating Zod schemas with Orval.
 - [Supabase database connectivity](supabase-pooler.md) — use the Session Pooler when this environment cannot reach Supabase’s IPv6-only direct database endpoint.
 - [Drizzle push filters](drizzle-push-filters.md) — inspect verbose push output against external databases; a configured table filter may still produce broad DDL.
+- [Expo preview API mocks](expo-preview-api-mocking.md) — mock CORS preflight requests before asserting an authenticated Expo web preview has restored its test session.
