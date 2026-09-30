@@ -4,6 +4,7 @@ import {
   Keyboard,
   Linking,
   Pressable,
+  Platform,
   Share,
   Text,
   TextInput,
@@ -28,6 +29,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { UserAvatar } from "@/components/UserAvatar";
+import { createSocialInviteShareContent } from "@/lib/social-invite-copy";
 
 type Friend = {
   id: number;
@@ -157,18 +159,35 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
       const invitation = await createSocialInvitation.mutateAsync({
         data: { username, kind: "accountability" },
       });
-      const message = `Join me on Experiences.fun as an accountability partner! Sign up with @${username}; first accept my friend request, then you’ll receive the partner invitation: ${invitation.url}`;
+      const shareContent = createSocialInviteShareContent(
+        "accountability",
+        username,
+        invitation.url,
+        Platform.OS === "ios" || Platform.OS === "android" || Platform.OS === "web"
+          ? Platform.OS
+          : "other",
+      );
       const webNavigator = typeof navigator !== "undefined"
         ? navigator as Navigator & { share?: (data: { title?: string; text?: string; url?: string }) => Promise<void> }
         : null;
       if (webNavigator?.share) {
-        await webNavigator.share({ title: "Accountability partner invite", text: message, url: invitation.url });
+        await webNavigator.share({
+          title: shareContent.title,
+          text: shareContent.text,
+          url: invitation.url,
+        });
       } else {
         try {
-          await Share.share({ message, url: invitation.url, title: "Accountability partner invite" });
+          await Share.share({
+            message: shareContent.message,
+            url: shareContent.url,
+            title: shareContent.title,
+          });
         } catch (shareError) {
           if (typeof navigator === "undefined") throw shareError;
-          await Linking.openURL(`https://t.me/share/url?url=${encodeURIComponent(invitation.url)}&text=${encodeURIComponent(message)}`);
+          await Linking.openURL(
+            `https://t.me/share/url?url=${encodeURIComponent(invitation.url)}&text=${encodeURIComponent(shareContent.text)}`,
+          );
         }
       }
       setFeedback({ message: "Invite ready to share.", tone: "success" });

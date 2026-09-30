@@ -92,6 +92,7 @@ import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { openTelegramBot } from '@/lib/telegram';
+import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
 type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'accounts' | 'notifications' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
@@ -3159,18 +3160,35 @@ function FriendsOverviewScreen({
       const invitation = await createSocialInvitation.mutateAsync({
         data: { username: normalizedFriendUsername, kind: 'friend' },
       });
-      const message = `Join me on Experiences.fun! Sign up with @${normalizedFriendUsername}, then we can connect as friends: ${invitation.url}`;
+      const shareContent = createSocialInviteShareContent(
+        'friend',
+        normalizedFriendUsername,
+        invitation.url,
+        Platform.OS === 'ios' || Platform.OS === 'android' || Platform.OS === 'web'
+          ? Platform.OS
+          : 'other',
+      );
       const webNavigator = typeof navigator !== 'undefined'
         ? navigator as Navigator & { share?: (data: { title?: string; text?: string; url?: string }) => Promise<void> }
         : null;
       if (Platform.OS === 'web' && webNavigator?.share) {
-        await webNavigator.share({ title: 'Join me on Experiences.fun', text: message, url: invitation.url });
+        await webNavigator.share({
+          title: shareContent.title,
+          text: shareContent.text,
+          url: invitation.url,
+        });
       } else {
         try {
-          await Share.share({ message, url: invitation.url, title: 'Join me on Experiences.fun' });
+          await Share.share({
+            message: shareContent.message,
+            url: shareContent.url,
+            title: shareContent.title,
+          });
         } catch (shareError) {
           if (Platform.OS !== 'web') throw shareError;
-          await Linking.openURL(`https://t.me/share/url?url=${encodeURIComponent(invitation.url)}&text=${encodeURIComponent(message)}`);
+          await Linking.openURL(
+            `https://t.me/share/url?url=${encodeURIComponent(invitation.url)}&text=${encodeURIComponent(shareContent.text)}`,
+          );
         }
       }
       setFriendFeedback({ message: 'Invite ready to share.', tone: 'success' });
