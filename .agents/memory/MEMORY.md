@@ -14,6 +14,6 @@
 - [Expo web gesture verification](expo-web-gesture-verification.md) — browser drag checks need synthetic touch events; native responder behavior still needs device-level QA.
 - [Transitive package overrides](transitive-package-overrides.md) — security overrides can cross CJS/ESM boundaries; verify them through the consuming package's workspace resolution.
 - [OpenAPI date-only fields](openapi-date-only-fields.md) — keep date-only wire values as strings when generating Zod schemas with Orval.
-- [Supabase database connectivity](supabase-pooler.md) — use the Session Pooler when this environment cannot reach Supabase’s IPv6-only direct database endpoint.
+- [Supabase database connectivity](supabase-pooler.md) — use the Session Pooler and confirm runtime/secret scope before external schema writes.
 - [Drizzle push filters](drizzle-push-filters.md) — inspect verbose push output against external databases; a configured table filter may still produce broad DDL.
 - [Expo preview API mocks](expo-preview-api-mocking.md) — mock CORS preflight requests before asserting an authenticated Expo web preview has restored its test session.
