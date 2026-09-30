@@ -17,6 +17,7 @@ import {
 } from "./auth";
 import { experienceResponse, userResponse } from "./data";
 import { createOrReopenFriendRequest, updateFriendRequestStatus } from "./friends";
+import { claimSocialInvite } from "./social-invites";
 import {
   getCommunityLeaderboard,
   getCommunityMemberByUsername,
@@ -257,6 +258,14 @@ export async function sendFriendshipConnectedNotification(
   );
 }
 
+export async function sendAccountabilityInvitationNotification(recipientTelegramId: number | string) {
+  return sendTelegramMessage(
+    recipientTelegramId,
+    "You have a new accountability partner invitation waiting in Experiences.fun.",
+    [[openButton("Review partner invitation", "/?screen=friends")]],
+  );
+}
+
 export async function sendFriendRequestDeclinedNotification(
   requesterTelegramId: number | string,
   recipientName: string,
@@ -395,6 +404,15 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
   if (!parsedCommand) return;
   const { command, args } = parsedCommand;
   const user = await upsertTelegramUser(identity);
+  let socialInviteClaim: Awaited<ReturnType<typeof claimSocialInvite>> | null = null;
+  if (command === "/start" && chatType === "private" && args[0]?.startsWith("invite_")) {
+    try {
+      socialInviteClaim = await claimSocialInvite(args[0].slice("invite_".length), user);
+    } catch (inviteError) {
+      // An invite must never prevent Telegram signup or the normal welcome flow.
+      logger.warn({ err: inviteError }, "Social invite claim failed");
+    }
+  }
   const privateCommands = new Set(["/onboarding", "/create", "/xp", "/progress", "/profile", "/friends", "/requests", "/add", "/addfriend", "/accountability", "/host"]);
   if (chatType !== "private" && privateCommands.has(command)) {
     await sendTelegramMessage(chatId, "For your privacy, use this command in a private chat with the Experiences.fun bot.");
@@ -403,6 +421,13 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
   switch (command) {
     case "/start":
       await sendOnboarding(chatId);
+      if (socialInviteClaim?.outcome === "created") {
+        await sendTelegramMessage(
+          chatId,
+          formatFriendRequestNotice(socialInviteClaim.inviter.name, socialInviteClaim.inviter.username),
+          [[openButton("Review friend request", "/?screen=friends")]],
+        );
+      }
       break;
     case "/onboarding":
       await sendTelegramMessage(

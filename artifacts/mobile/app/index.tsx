@@ -13,6 +13,7 @@ import {
   Platform,
   Pressable,
   RefreshControl,
+  Share,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -37,6 +38,7 @@ import {
   useAcceptFriendRequest,
   useCreateExperience,
   useCreateFriendRequest,
+  useCreateSocialInvite,
   useDeclineFriendRequest,
   useGetExperience,
   useGetFriendProfile,
@@ -3109,6 +3111,7 @@ function FriendsOverviewScreen({
   const createFriend = useCreateFriendRequest({
     mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } },
   });
+  const createSocialInvitation = useCreateSocialInvite();
   const accept = useAcceptFriendRequest({
     mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } },
   });
@@ -3118,6 +3121,8 @@ function FriendsOverviewScreen({
   const [username, setUsername] = useState('');
   const [friendFeedback, setFriendFeedback] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
   const [respondingRequest, setRespondingRequest] = useState<{ id: number; action: 'accept' | 'decline' } | null>(null);
+  const [friendInvitePending, setFriendInvitePending] = useState(false);
+  const [friendNotFound, setFriendNotFound] = useState(false);
   const normalizedFriendUsername = username.trim().replace(/^@+/, '').trim();
   const combinedFriendRequests = [
     ...(requests.data ?? []).map((request) => ({ ...request, direction: 'incoming' as const })),
@@ -3127,6 +3132,7 @@ function FriendsOverviewScreen({
   const sendFriendRequest = () => {
     if (!normalizedFriendUsername || createFriend.isPending) return;
     setFriendFeedback(null);
+    setFriendNotFound(false);
     void createFriend.mutateAsync({ data: { username: normalizedFriendUsername } })
       .then(() => {
         setUsername('');
@@ -3135,11 +3141,47 @@ function FriendsOverviewScreen({
       })
       .catch((requestError: unknown) => {
         const message = (requestError as { data?: { message?: string } })?.data?.message;
+        const status = (requestError as { status?: number; response?: { status?: number } })?.status
+          ?? (requestError as { response?: { status?: number } })?.response?.status;
+        setFriendNotFound(status === 404 || /not found|does not exist|couldn.t find/i.test(message ?? ''));
         setFriendFeedback({
           message: message ?? 'Could not send that request. Check the username or try again.',
           tone: 'error',
         });
       });
+  };
+
+  const shareFriendInvite = async () => {
+    if (!normalizedFriendUsername || friendInvitePending) return;
+    setFriendInvitePending(true);
+    setFriendFeedback(null);
+    try {
+      const invitation = await createSocialInvitation.mutateAsync({
+        data: { username: normalizedFriendUsername, kind: 'friend' },
+      });
+      const message = `Join me on Experiences.fun! Sign up with @${normalizedFriendUsername}, then we can connect as friends: ${invitation.url}`;
+      const webNavigator = typeof navigator !== 'undefined'
+        ? navigator as Navigator & { share?: (data: { title?: string; text?: string; url?: string }) => Promise<void> }
+        : null;
+      if (Platform.OS === 'web' && webNavigator?.share) {
+        await webNavigator.share({ title: 'Join me on Experiences.fun', text: message, url: invitation.url });
+      } else {
+        try {
+          await Share.share({ message, url: invitation.url, title: 'Join me on Experiences.fun' });
+        } catch (shareError) {
+          if (Platform.OS !== 'web') throw shareError;
+          await Linking.openURL(`https://t.me/share/url?url=${encodeURIComponent(invitation.url)}&text=${encodeURIComponent(message)}`);
+        }
+      }
+      setFriendFeedback({ message: 'Invite ready to share.', tone: 'success' });
+    } catch (shareError: unknown) {
+      if ((shareError as { name?: string })?.name !== 'AbortError') {
+        const message = (shareError as { data?: { message?: string } })?.data?.message;
+        setFriendFeedback({ message: message ?? 'Could not create that invite. Please try again.', tone: 'error' });
+      }
+    } finally {
+      setFriendInvitePending(false);
+    }
   };
 
   const respondToFriendRequest = async (requestId: number, action: 'accept' | 'decline') => {
@@ -3207,7 +3249,7 @@ function FriendsOverviewScreen({
                   testID="friends-add-username"
                   accessibilityLabel="Friend username"
                   value={username}
-                  onChangeText={(value) => { setUsername(value); setFriendFeedback(null); }}
+                  onChangeText={(value) => { setUsername(value); setFriendFeedback(null); setFriendNotFound(false); }}
                   onSubmitEditing={sendFriendRequest}
                   placeholder="username"
                   placeholderTextColor={colors.mutedForeground}
@@ -3242,6 +3284,31 @@ function FriendsOverviewScreen({
               </Pressable>
             </View>
             <Text style={[styles.friendInputHint, { color: colors.mutedForeground }]}>Enter a username with or without @.</Text>
+            {friendNotFound && normalizedFriendUsername ? (
+              <Pressable
+                testID="friends-invite-to-sign-up"
+                accessibilityRole="button"
+                accessibilityLabel={`Invite ${normalizedFriendUsername} to sign up`}
+                accessibilityState={{ disabled: friendInvitePending }}
+                disabled={friendInvitePending}
+                onPress={shareFriendInvite}
+                style={({ pressed }) => [{
+                  alignItems: 'center',
+                  borderColor: colors.primary,
+                  borderRadius: colors.radius - 4,
+                  borderWidth: 1,
+                  flexDirection: 'row',
+                  gap: 7,
+                  justifyContent: 'center',
+                  marginTop: 4,
+                  paddingVertical: 10,
+                  opacity: friendInvitePending ? 0.55 : pressed ? 0.8 : 1,
+                }]}
+              >
+                {friendInvitePending ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="share-2" size={15} color={colors.primary} />}
+                <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>Invite to sign up</Text>
+              </Pressable>
+            ) : null}
           </View>
 
           {friendFeedback ? (

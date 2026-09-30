@@ -1488,6 +1488,28 @@ export const ListFriendsResponse = zod.array(ListFriendsResponseItem)
 
 
 /**
+ * @summary Create a private, one-time Telegram invitation link
+ */
+export const createSocialInviteBodyUsernameMin = 5;
+export const createSocialInviteBodyUsernameMax = 32;
+
+
+export const createSocialInviteBodyUsernameRegExp = new RegExp('^[A-Za-z0-9_]+$');
+
+
+export const CreateSocialInviteBody = zod.object({
+  "username": zod.string().min(createSocialInviteBodyUsernameMin).max(createSocialInviteBodyUsernameMax).regex(createSocialInviteBodyUsernameRegExp),
+  "kind": zod.enum(['friend', 'accountability'])
+})
+
+export const CreateSocialInviteResponse = zod.object({
+  "url": zod.string().url(),
+  "kind": zod.enum(['friend', 'accountability']),
+  "expiresAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Get the profile of an accepted friend
  */
 

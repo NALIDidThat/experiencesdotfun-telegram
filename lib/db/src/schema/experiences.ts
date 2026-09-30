@@ -185,6 +185,7 @@ export const friendshipsTable = pgTable(
     status: text("status").notNull().default("pending"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    socialInviteId: integer("social_invite_id"),
   },
   (table) => ({
     requestIndex: uniqueIndex("friendships_request_idx").on(

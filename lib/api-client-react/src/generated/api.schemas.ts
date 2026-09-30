@@ -523,6 +523,38 @@ export interface FriendRequestCreateInput {
   username: string;
 }
 
+export type SocialInviteCreateInputKind = typeof SocialInviteCreateInputKind[keyof typeof SocialInviteCreateInputKind];
+
+
+export const SocialInviteCreateInputKind = {
+  friend: 'friend',
+  accountability: 'accountability',
+} as const;
+
+export interface SocialInviteCreateInput {
+  /**
+     * @minLength 5
+     * @maxLength 32
+     * @pattern ^[A-Za-z0-9_]+$
+     */
+  username: string;
+  kind: SocialInviteCreateInputKind;
+}
+
+export type SocialInviteKind = typeof SocialInviteKind[keyof typeof SocialInviteKind];
+
+
+export const SocialInviteKind = {
+  friend: 'friend',
+  accountability: 'accountability',
+} as const;
+
+export interface SocialInvite {
+  url: string;
+  kind: SocialInviteKind;
+  expiresAt: string;
+}
+
 export type FriendNotificationType = typeof FriendNotificationType[keyof typeof FriendNotificationType];
 
 

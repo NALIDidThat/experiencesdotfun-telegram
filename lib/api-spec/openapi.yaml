@@ -575,6 +575,33 @@ paths:
                   $ref: "#/components/schemas/Friend"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /social-invites:
+    post:
+      operationId: createSocialInvite
+      tags: [friends]
+      summary: Create a private, one-time Telegram invitation link
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SocialInviteCreateInput"
+      responses:
+        "201":
+          description: Shareable invitation link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SocialInvite"
+        "400":
+          $ref: "#/components/responses/Conflict"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Conflict"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /friends/{friendId}/profile:
     get:
       operationId: getFriendProfile
@@ -1764,6 +1791,31 @@ components:
           type: string
           minLength: 1
       required: [username]
+    SocialInviteCreateInput:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 5
+          maxLength: 32
+          pattern: "^[A-Za-z0-9_]+$"
+        kind:
+          type: string
+          enum: [friend, accountability]
+      required: [username, kind]
+    SocialInvite:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        kind:
+          type: string
+          enum: [friend, accountability]
+        expiresAt:
+          type: string
+          format: date-time
+      required: [url, kind, expiresAt]
     FriendNotification:
       type: object
       properties:

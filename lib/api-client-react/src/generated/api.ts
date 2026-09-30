@@ -58,6 +58,8 @@ import type {
   Participation,
   ProfileUpdateInput,
   RedeemXpAwardsResponse,
+  SocialInvite,
+  SocialInviteCreateInput,
   TelegramAuthInput,
   UnauthorizedResponse,
   User,
@@ -2391,6 +2393,94 @@ export function useListFriends<TData = Awaited<ReturnType<typeof listFriends>>, 
 
 
 
+
+export const getCreateSocialInviteUrl = () => {
+
+
+
+
+  return `/api/social-invites`
+}
+
+/**
+ * @summary Create a private, one-time Telegram invitation link
+ */
+export const createSocialInvite = async (socialInviteCreateInput: SocialInviteCreateInput, options?: Parameters<typeof customFetch>[1]): Promise<SocialInvite> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SocialInvite>(getCreateSocialInviteUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(socialInviteCreateInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSocialInviteMutationKey = () => ['createSocialInvite'] as const;
+
+export const getCreateSocialInviteMutationOptions = <TError = ErrorType<ConflictResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSocialInvite>>, TError,CreateSocialInviteMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSocialInvite>>, TError,CreateSocialInviteMutationVariables, TContext> => {
+
+const mutationKey = getCreateSocialInviteMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSocialInvite>>, CreateSocialInviteMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSocialInvite(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSocialInviteMutationResult = NonNullable<Awaited<ReturnType<typeof createSocialInvite>>>
+    export type CreateSocialInviteMutationBody = BodyType<SocialInviteCreateInput>
+    export type CreateSocialInviteMutationError = ErrorType<ConflictResponse | UnauthorizedResponse>
+    export type CreateSocialInviteMutationVariables = {data: BodyType<SocialInviteCreateInput>}
+
+    /**
+ * @summary Create a private, one-time Telegram invitation link
+ */
+export const useCreateSocialInvite = <TError = ErrorType<ConflictResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSocialInvite>>, TError,CreateSocialInviteMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSocialInvite>>,
+        TError,
+        CreateSocialInviteMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateSocialInviteMutationOptions(options));
+    }
 
 export const getGetFriendProfileUrl = (friendId: number,) => {
 

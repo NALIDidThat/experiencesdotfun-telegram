@@ -3,12 +3,18 @@ import { db } from "@workspace/db";
 import {
   friendNotificationsTable,
   friendshipsTable,
+  accountabilityEventsTable,
+  accountabilityPartnershipsTable,
+  socialInvitesTable,
+  usersTable,
   type Friendship,
 } from "@workspace/db/schema";
 
 export type FriendRequestResult =
   | { outcome: "created" | "reopened"; request: Friendship }
   | { outcome: "exists"; request: Friendship };
+
+export type UpdatedFriendship = Friendship & { accountabilityInviteCreated?: true };
 
 function friendshipBetween(a: number, b: number) {
   return or(
@@ -20,6 +26,7 @@ function friendshipBetween(a: number, b: number) {
 export async function createOrReopenFriendRequest(
   requesterUserId: number,
   recipientUserId: number,
+  socialInviteId?: number,
 ): Promise<FriendRequestResult> {
   if (requesterUserId === recipientUserId) {
     throw new Error("Users cannot send friend requests to themselves.");
@@ -50,6 +57,7 @@ export async function createOrReopenFriendRequest(
           status: "pending",
           acceptedAt: null,
           createdAt: new Date(),
+          socialInviteId: socialInviteId ?? null,
         })
         .where(eq(friendshipsTable.id, existing.id))
         .returning();
@@ -65,7 +73,7 @@ export async function createOrReopenFriendRequest(
 
     const [created] = await transaction
       .insert(friendshipsTable)
-      .values({ requesterUserId, recipientUserId })
+        .values({ requesterUserId, recipientUserId, socialInviteId: socialInviteId ?? null })
       .returning();
     if (!created) throw new Error("Unable to create friend request.");
     await transaction.insert(friendNotificationsTable).values({
@@ -82,7 +90,7 @@ export async function updateFriendRequestStatus(
   requestId: number,
   recipientUserId: number,
   status: "accepted" | "declined",
-): Promise<Friendship | undefined> {
+): Promise<UpdatedFriendship | undefined> {
   return db.transaction(async (transaction) => {
     const [request] = await transaction
       .select()
@@ -116,6 +124,65 @@ export async function updateFriendRequestStatus(
       recipientUserId: request.requesterUserId,
       type: status === "accepted" ? "friend_request_accepted" : "friend_request_declined",
     });
-    return updated;
+    let accountabilityInviteCreated = false;
+    if (status === "accepted" && request.socialInviteId) {
+      const [invite] = await transaction.select().from(socialInvitesTable)
+        .where(and(eq(socialInvitesTable.id, request.socialInviteId), eq(socialInvitesTable.kind, "accountability")))
+        .limit(1);
+      if (invite) {
+        const participants = await transaction.select({ id: usersTable.id, userType: usersTable.userType })
+          .from(usersTable)
+          .where(or(eq(usersTable.id, request.requesterUserId), eq(usersTable.id, request.recipientUserId)));
+        if (participants.length < 2 || participants.some((user) => user.userType !== "participant")) {
+          return updated;
+        }
+        const [activePartnership] = await transaction.select({ id: accountabilityPartnershipsTable.id })
+          .from(accountabilityPartnershipsTable)
+          .where(and(
+            eq(accountabilityPartnershipsTable.status, "active"),
+            or(
+              eq(accountabilityPartnershipsTable.requesterUserId, request.requesterUserId),
+              eq(accountabilityPartnershipsTable.recipientUserId, request.requesterUserId),
+              eq(accountabilityPartnershipsTable.requesterUserId, request.recipientUserId),
+              eq(accountabilityPartnershipsTable.recipientUserId, request.recipientUserId),
+            ),
+          ))
+          .limit(1);
+        if (activePartnership) return updated;
+        const [existingPartnership] = await transaction.select().from(accountabilityPartnershipsTable)
+          .where(or(
+            and(eq(accountabilityPartnershipsTable.requesterUserId, request.requesterUserId), eq(accountabilityPartnershipsTable.recipientUserId, request.recipientUserId)),
+            and(eq(accountabilityPartnershipsTable.requesterUserId, request.recipientUserId), eq(accountabilityPartnershipsTable.recipientUserId, request.requesterUserId)),
+          )).limit(1);
+        if (
+          existingPartnership?.status !== "active" &&
+          !(existingPartnership?.status === "pending" && existingPartnership.expiresAt > new Date())
+        ) {
+          const [partnership] = existingPartnership
+            ? await transaction.update(accountabilityPartnershipsTable).set({
+                requesterUserId: request.requesterUserId, recipientUserId: request.recipientUserId,
+                status: "pending", createdAt: new Date(),
+                expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+                acceptedAt: null, endedAt: null,
+              }).where(eq(accountabilityPartnershipsTable.id, existingPartnership.id)).returning()
+            : await transaction.insert(accountabilityPartnershipsTable).values({
+                requesterUserId: request.requesterUserId, recipientUserId: request.recipientUserId,
+                status: "pending", expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+              }).returning();
+          if (partnership) {
+            await transaction.insert(accountabilityEventsTable).values({
+              partnershipId: partnership.id,
+              actorUserId: request.requesterUserId,
+              recipientUserId: request.recipientUserId,
+              type: "partner_invite",
+              title: "Partner invitation",
+              message: "Your new friend invited you to be their accountability partner.",
+            });
+            accountabilityInviteCreated = true;
+          }
+        }
+      }
+    }
+    return accountabilityInviteCreated ? { ...updated, accountabilityInviteCreated: true } : updated;
   });
 }

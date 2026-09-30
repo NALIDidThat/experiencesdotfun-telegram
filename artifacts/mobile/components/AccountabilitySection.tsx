@@ -2,7 +2,9 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
+  Linking,
   Pressable,
+  Share,
   Text,
   TextInput,
   View,
@@ -16,6 +18,7 @@ import {
   useCreateAccountabilityCheckIn,
   useCreateAccountabilityCommitment,
   useCreateAccountabilityInvitation,
+  useCreateSocialInvite,
   useDeclineAccountabilityInvitation,
   useEndAccountabilityPartnership,
   useGetAccountabilityDashboard,
@@ -77,6 +80,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
   };
   const mutationOptions = { onSuccess: refreshDashboard };
   const invite = useCreateAccountabilityInvitation({ mutation: mutationOptions });
+  const createSocialInvitation = useCreateSocialInvite();
   const accept = useAcceptAccountabilityInvitation({ mutation: mutationOptions });
   const decline = useDeclineAccountabilityInvitation({ mutation: mutationOptions });
   const endPartnership = useEndAccountabilityPartnership({ mutation: mutationOptions });
@@ -88,6 +92,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
 
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [friendSearch, setFriendSearch] = useState("");
+  const [signupInvitePending, setSignupInvitePending] = useState(false);
   const [commitmentFormOpen, setCommitmentFormOpen] = useState(false);
   const [commitmentTitle, setCommitmentTitle] = useState("");
   const [commitmentDescription, setCommitmentDescription] = useState("");
@@ -141,6 +146,39 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
       `Invitation sent to ${friend.name}. They can accept or decline before you share commitments.`,
       "That invitation could not be sent. Please try again.",
     );
+  };
+
+  const inviteUsernameToSignUp = async () => {
+    const username = friendSearch.trim().replace(/^@+/, "").trim();
+    if (!username || signupInvitePending) return;
+    setSignupInvitePending(true);
+    setFeedback(null);
+    try {
+      const invitation = await createSocialInvitation.mutateAsync({
+        data: { username, kind: "accountability" },
+      });
+      const message = `Join me on Experiences.fun as an accountability partner! Sign up with @${username}; first accept my friend request, then you’ll receive the partner invitation: ${invitation.url}`;
+      const webNavigator = typeof navigator !== "undefined"
+        ? navigator as Navigator & { share?: (data: { title?: string; text?: string; url?: string }) => Promise<void> }
+        : null;
+      if (webNavigator?.share) {
+        await webNavigator.share({ title: "Accountability partner invite", text: message, url: invitation.url });
+      } else {
+        try {
+          await Share.share({ message, url: invitation.url, title: "Accountability partner invite" });
+        } catch (shareError) {
+          if (typeof navigator === "undefined") throw shareError;
+          await Linking.openURL(`https://t.me/share/url?url=${encodeURIComponent(invitation.url)}&text=${encodeURIComponent(message)}`);
+        }
+      }
+      setFeedback({ message: "Invite ready to share.", tone: "success" });
+    } catch (error: unknown) {
+      if ((error as { name?: string })?.name !== "AbortError") {
+        setFeedback({ message: errorMessage(error, "Could not create that invite. Please try again."), tone: "error" });
+      }
+    } finally {
+      setSignupInvitePending(false);
+    }
   };
 
   const respondToInvitation = (invitationId: number, action: "accept" | "decline") => {
@@ -436,9 +474,33 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
                 );
               })}
               {!matchingFriends.length ? (
-                <Text style={{ color: colors.mutedForeground, fontSize: 13, paddingVertical: 5 }}>
-                  No friends match that search.
-                </Text>
+                <View style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 9, padding: 12 }}>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+                    No friend found for “{friendSearch.trim()}”.
+                  </Text>
+                  {searchTerm ? (
+                    <>
+                      <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 17 }}>
+                        Share an invite. If they are new, they’ll be prompted to sign up. They first accept your friend request, then receive your accountability partner invitation.
+                      </Text>
+                      <Pressable
+                        testID="accountability-invite-to-sign-up"
+                        accessibilityRole="button"
+                        accessibilityLabel={`Invite ${searchTerm} to sign up as an accountability partner`}
+                        accessibilityState={{ disabled: signupInvitePending }}
+                        disabled={signupInvitePending}
+                        onPress={() => void inviteUsernameToSignUp()}
+                        style={({ pressed }) => [
+                          primaryButton,
+                          { alignItems: "center", flexDirection: "row", gap: 7, justifyContent: "center", opacity: signupInvitePending ? 0.55 : pressed ? 0.8 : 1, paddingVertical: 10 },
+                        ]}
+                      >
+                        {signupInvitePending ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name="share-2" size={14} color={colors.primaryForeground} />}
+                        <Text style={{ color: colors.primaryForeground, fontSize: 13, fontWeight: "600" }}>Invite someone new</Text>
+                      </Pressable>
+                    </>
+                  ) : null}
+                </View>
               ) : null}
               {friends.length > matchingFriends.length ? (
                 <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
@@ -447,13 +509,57 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
               ) : null}
             </View>
           ) : (
-            <View style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 6, padding: 14 }}>
+            <View style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 10, padding: 14 }}>
               <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "600" }}>
-                Add someone to your circle first
+                Invite an accountability partner
               </Text>
               <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
-                Send them a friend request below. Once they accept, you can invite them here.
+                Enter their Telegram username. If they are new, they’ll be prompted to sign up. They first accept your friend request, then receive your accountability invitation.
               </Text>
+              <View style={{
+                alignItems: "center",
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderRadius: colors.radius - 4,
+                borderWidth: 1,
+                flexDirection: "row",
+                gap: 8,
+                paddingHorizontal: 11,
+              }}>
+                <Feather name="at-sign" size={15} color={colors.mutedForeground} />
+                <TextInput
+                  accessibilityLabel="Telegram username for an accountability partner"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onChangeText={setFriendSearch}
+                  placeholder="Telegram username"
+                  placeholderTextColor={colors.mutedForeground}
+                  style={{ color: colors.foreground, flex: 1, fontSize: 14, minHeight: 42 }}
+                  value={friendSearch}
+                />
+              </View>
+              <Pressable
+                testID="accountability-invite-to-sign-up"
+                accessibilityRole="button"
+                accessibilityLabel={`Invite ${friendSearch.trim() || "someone"} as an accountability partner`}
+                accessibilityState={{ disabled: !friendSearch.trim() || signupInvitePending }}
+                disabled={!friendSearch.trim() || signupInvitePending}
+                onPress={() => void inviteUsernameToSignUp()}
+                style={({ pressed }) => [
+                  primaryButton,
+                  {
+                    alignItems: "center",
+                    flexDirection: "row",
+                    gap: 7,
+                    justifyContent: "center",
+                    opacity: !friendSearch.trim() || signupInvitePending ? 0.55 : pressed ? 0.8 : 1,
+                    paddingVertical: 10,
+                  },
+                ]}
+              >
+                {signupInvitePending ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name="share-2" size={14} color={colors.primaryForeground} />}
+                <Text style={{ color: colors.primaryForeground, fontSize: 13, fontWeight: "600" }}>Invite someone new</Text>
+              </Pressable>
             </View>
           )}
         </View>

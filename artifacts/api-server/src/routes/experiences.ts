@@ -17,6 +17,7 @@ import {
   LoginWithEmailBody,
   UpdateMeBody,
   VerifyParticipationParams,
+  CreateSocialInviteBody,
 } from "@workspace/api-zod";
 import { db, pool } from "@workspace/db";
 import {
@@ -71,6 +72,7 @@ import {
   sendCompletionSubmittedNotification,
   sendContributionRejectedNotification,
   sendContributionVerifiedNotification,
+  sendAccountabilityInvitationNotification,
   sendExperienceJoinedNotification,
   sendFriendRequestAcceptedNotification,
   sendFriendRequestDeclinedNotification,
@@ -79,6 +81,7 @@ import {
   sendHostNewParticipantNotification,
 } from "../lib/telegram";
 import { createOrReopenFriendRequest, updateFriendRequestStatus } from "../lib/friends";
+import { createSocialInvite } from "../lib/social-invites";
 
 const router: IRouter = Router();
 
@@ -273,6 +276,34 @@ router.post("/auth/email/login", async (req, res) => {
 });
 
 router.use(requireTelegramUser);
+
+router.post("/social-invites", async (req, res) => {
+  const parsed = CreateSocialInviteBody.safeParse(req.body);
+  if (!parsed.success) {
+    error(res, 400, "Enter a valid Telegram username and invite type.");
+    return;
+  }
+  const inviter = currentUser(req);
+  if (parsed.data.kind === "accountability" && inviter.userType !== "participant") {
+    error(res, inviter.userType === null ? 409 : 403, "Accountability invites require a participant profile.");
+    return;
+  }
+  const username = parsed.data.username.replace(/^@/, "").trim().toLowerCase();
+  if (username === inviter.username?.toLowerCase()) {
+    error(res, 409, "You cannot invite yourself.");
+    return;
+  }
+  if (await findUserByUsername(username)) {
+    error(res, 409, "They already have an account. Send them a friend request first.");
+    return;
+  }
+  try {
+    res.status(201).json(await createSocialInvite(inviter, username, parsed.data.kind));
+  } catch (inviteError) {
+    logger.error({ err: inviteError, userId: inviter.id }, "Social invite creation failed");
+    error(res, 500, "We couldn't create that invite. Please try again.");
+  }
+});
 
 function error(res: Parameters<Parameters<IRouter["get"]>[1]>[1], status: number, message: string) {
   res.status(status).json({ message });
@@ -1461,6 +1492,9 @@ router.post("/friends/requests/:requestId/accept", async (req, res) => {
       recipient.name,
       recipient.username,
     );
+  }
+  if (updated.accountabilityInviteCreated) {
+    await sendAccountabilityInvitationNotification(recipient.telegramId);
   }
   res.json({
     id: updated.id,
