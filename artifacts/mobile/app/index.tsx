@@ -4187,56 +4187,71 @@ function HostExperienceDetail({
       {experience ? (
         <>
           <View style={[styles.hostDetailCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-            <View style={styles.hostDetailTop}>
-              <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Feather name={categoryIcon[experience.category]} size={22} color={colors.primary} />
-              </View>
-              <View style={styles.hostDetailCopy}>
-                <Text style={[styles.hostDetailEyebrow, { color: colors.mutedForeground }]}>
-                  {categoryLabel[experience.category]} · {dateLabel(experience.date)}
-                </Text>
-                <Text style={[styles.hostDetailTitle, { color: colors.foreground }]}>{experience.title}</Text>
+            <View style={styles.hostDetailTopline}>
+              <View style={[styles.hostDetailCategoryBadge, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name={categoryIcon[experience.category]} size={13} color={colors.primary} />
+                <Text style={[styles.hostDetailCategoryText, { color: colors.primary }]}>{categoryLabel[experience.category]}</Text>
               </View>
               <View style={[styles.hostStatusPill, { backgroundColor: statusColor + '14' }]}>
                 <Text style={[styles.hostStatusText, { color: statusColor }]}>{hostExperienceStatusLabels[experience.status]}</Text>
               </View>
             </View>
+            <Text style={[styles.hostDetailTitle, { color: colors.foreground }]}>{experience.title}</Text>
             <Text style={[styles.hostDetailDescription, { color: colors.mutedForeground }]}>
               {experience.description || 'No description added yet.'}
             </Text>
-            <View style={[styles.hostDetailMeta, { borderTopColor: colors.border }]}>
-              <View style={styles.hostDetailMetaLine}>
-                <Feather name="map-pin" size={15} color={colors.mutedForeground} />
-                <Text style={[styles.hostMetaText, { color: colors.mutedForeground }]}>{experience.location}, {experience.city}</Text>
-              </View>
-              <View style={styles.hostDetailMetaLine}>
-                <Feather name="clock" size={15} color={colors.mutedForeground} />
-                <Text style={[styles.hostMetaText, { color: colors.mutedForeground }]}>
+
+            <View style={styles.hostDetailFacts}>
+              <View style={[styles.hostDetailFact, { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: Math.max(8, colors.radius - 6) }]}>
+                <View style={styles.hostDetailFactHeader}>
+                  <View style={[styles.hostDetailFactIcon, { backgroundColor: colors.card }]}>
+                    <Feather name="calendar" size={13} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.hostDetailFactLabel, { color: colors.mutedForeground }]}>WHEN</Text>
+                </View>
+                <Text style={[styles.hostDetailFactValue, { color: colors.foreground }]}>{dateLabel(experience.date)}</Text>
+                <Text style={[styles.hostDetailFactSecondary, { color: colors.mutedForeground }]}>
                   {experience.startTime} – {experience.endTime}
                 </Text>
               </View>
+              <View style={[styles.hostDetailFact, { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: Math.max(8, colors.radius - 6) }]}>
+                <View style={styles.hostDetailFactHeader}>
+                  <View style={[styles.hostDetailFactIcon, { backgroundColor: colors.card }]}>
+                    <Feather name="map-pin" size={13} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.hostDetailFactLabel, { color: colors.mutedForeground }]}>WHERE</Text>
+                </View>
+                <Text style={[styles.hostDetailFactValue, { color: colors.foreground }]}>{experience.location}</Text>
+                <Text style={[styles.hostDetailFactSecondary, { color: colors.mutedForeground }]}>{experience.city}</Text>
+              </View>
             </View>
-            <View style={styles.hostCapacityHeader}>
-              <Text style={[styles.hostCapacityLabel, { color: colors.mutedForeground }]}>Places filled</Text>
-              <Text style={[styles.hostCapacityCount, { color: colors.foreground }]}>{experience.participantCount} / {experience.capacity}</Text>
+
+            <View style={styles.hostDetailCapacity}>
+              <View style={styles.hostCapacityHeader}>
+                <Text style={[styles.hostCapacityLabel, { color: colors.mutedForeground }]}>Places filled</Text>
+                <Text style={[styles.hostCapacityCount, { color: colors.foreground }]}>{experience.participantCount} / {experience.capacity}</Text>
+              </View>
+              <View style={[styles.hostDetailProgressTrack, { backgroundColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.hostDetailProgressFill,
+                    {
+                      width: `${experience.capacity > 0 ? Math.min(100, Math.round((experience.participantCount / experience.capacity) * 100)) : 0}%`,
+                      backgroundColor: colors.primary,
+                    },
+                  ]}
+                />
+              </View>
             </View>
-            <View style={[styles.hostCapacityTrack, { backgroundColor: colors.border }]}>
-              <View
-                style={[
-                  styles.hostCapacityFill,
-                  {
-                    width: `${experience.capacity > 0 ? Math.min(100, Math.round((experience.participantCount / experience.capacity) * 100)) : 0}%`,
-                    backgroundColor: colors.primary,
-                  },
-                ]}
-              />
-            </View>
-            <View style={styles.hostExperienceFooter}>
-              <View style={styles.hostRewardRow}>
-                <Feather name="award" size={14} color={colors.secondary} />
-                <Text style={[styles.hostRewardText, { color: colors.secondary }]}>{experience.xpReward} XP</Text>
+
+            <View style={styles.hostDetailFooter}>
+              <View style={styles.hostDetailRewards}>
+                <View style={[styles.hostDetailRewardPill, { backgroundColor: colors.secondary + '12' }]}>
+                  <Feather name="award" size={13} color={colors.secondary} />
+                  <Text style={[styles.hostDetailRewardText, { color: colors.secondary }]}>{experience.xpReward} XP</Text>
+                </View>
                 {experience.monetaryRewardPence ? (
-                  <Text style={[styles.hostRewardText, { color: colors.mutedForeground }]}>· {money(experience.monetaryRewardPence)}</Text>
+                  <Text style={[styles.hostDetailMoneyReward, { color: colors.mutedForeground }]}>{money(experience.monetaryRewardPence)}</Text>
                 ) : null}
               </View>
               <Text style={[styles.hostPlacesText, { color: experience.availablePlaces === 0 ? colors.primary : colors.mutedForeground }]}>
@@ -6238,14 +6253,27 @@ const styles = StyleSheet.create({
   hostPlacesText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
   hostManageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   hostManageText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  hostDetailCard: { borderWidth: 1, padding: 16, marginBottom: 14, gap: 12 },
-  hostDetailTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  hostDetailCopy: { flex: 1, minWidth: 0 },
-  hostDetailEyebrow: { fontSize: 10, fontFamily: 'Inter_600SemiBold', marginBottom: 4 },
-  hostDetailTitle: { fontSize: 19, lineHeight: 24, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 },
-  hostDetailDescription: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular' },
-  hostDetailMeta: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 11, gap: 9 },
-  hostDetailMetaLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hostDetailCard: { borderWidth: 1, padding: 15, marginBottom: 14 },
+  hostDetailTopline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  hostDetailCategoryBadge: { minHeight: 29, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 9, borderRadius: 15 },
+  hostDetailCategoryText: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.15 },
+  hostDetailTitle: { fontSize: 21, lineHeight: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.45, marginTop: 10 },
+  hostDetailDescription: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  hostDetailFacts: { flexDirection: 'row', alignItems: 'stretch', gap: 9, marginTop: 13 },
+  hostDetailFact: { flex: 1, minWidth: 0, borderWidth: 1, padding: 10, gap: 4 },
+  hostDetailFactHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 2 },
+  hostDetailFactIcon: { width: 25, height: 25, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  hostDetailFactLabel: { fontSize: 9, fontFamily: 'Inter_700Bold', letterSpacing: 0.65 },
+  hostDetailFactValue: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_700Bold' },
+  hostDetailFactSecondary: { fontSize: 11, lineHeight: 15, fontFamily: 'Inter_400Regular' },
+  hostDetailCapacity: { gap: 8, marginTop: 14 },
+  hostDetailProgressTrack: { height: 6, overflow: 'hidden', borderRadius: 3 },
+  hostDetailProgressFill: { height: 6, borderRadius: 3 },
+  hostDetailFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 9 },
+  hostDetailRewards: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  hostDetailRewardPill: { minHeight: 27, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, borderRadius: 14 },
+  hostDetailRewardText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  hostDetailMoneyReward: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
   hostDetailMetrics: { flexDirection: 'row', gap: 8, marginBottom: 21 },
   hostDetailMetric: { flex: 1, minWidth: 0, minHeight: 72, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 9, justifyContent: 'space-between' },
   hostDetailMetricTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },

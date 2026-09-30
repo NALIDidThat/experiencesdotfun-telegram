@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -477,6 +477,14 @@ test("organisation hosts can manage experience participants from a phone-sized d
     (value) => value === "All 5",
     "the host participant records to load",
   );
+
+  if (process.env.HOST_MANAGEMENT_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", {
+      format: "png",
+      captureBeyondViewport: true,
+    });
+    await writeFile(process.env.HOST_MANAGEMENT_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
+  }
 
   const initialLayout = await client.evaluate(`(() => ({
     width: window.innerWidth,
