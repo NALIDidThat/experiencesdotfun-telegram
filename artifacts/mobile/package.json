@@ -8,6 +8,7 @@
     "build": "node scripts/build-web.js",
     "serve": "node server/serve.js",
     "test:auth": "node --test scripts/email-signup-login.test.mjs",
+    "test:home-prompt": "node --test scripts/home-prompt-interaction.test.mjs",
     "test:host": "node --test scripts/host-management-interaction.test.mjs",
     "test:keyboard": "node --test scripts/keyboard-interaction.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"

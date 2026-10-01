@@ -6008,7 +6008,7 @@ const styles = StyleSheet.create({
   // Home
   dashboardScreen: { flex: 1 },
   dashboardContent: { paddingHorizontal: 18, paddingBottom: 20 },
-  dashboardHero: { minHeight: 260, paddingHorizontal: 24, paddingTop: 34, marginBottom: -34, position: 'relative' },
+  dashboardHero: { minHeight: 260, paddingHorizontal: 24, paddingTop: 34, marginBottom: 0, position: 'relative' },
   dashboardGlow: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 999 },
   dashboardGlowOne: { width: 220, height: 220, right: -82, top: -82 },
   dashboardGlowTwo: { width: 160, height: 160, left: -60, bottom: -76 },

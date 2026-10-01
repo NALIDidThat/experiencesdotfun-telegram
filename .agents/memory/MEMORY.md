@@ -17,3 +17,4 @@
 - [Supabase database connectivity](supabase-pooler.md) — use the Session Pooler and confirm runtime/secret scope before external schema writes.
 - [Drizzle push filters](drizzle-push-filters.md) — inspect verbose push output against external databases; a configured table filter may still produce broad DDL.
 - [Expo preview API mocks](expo-preview-api-mocking.md) — mock CORS preflight requests before asserting an authenticated Expo web preview has restored its test session.
+- [Expo in-app navigation tests](expo-router-in-app-navigation.md) — assert the rendered destination after router state changes; browser query strings may not track in-app screen state.
