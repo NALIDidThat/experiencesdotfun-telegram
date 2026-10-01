@@ -1741,26 +1741,23 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
           accessibilityHint={upcomingCount ? 'View your experience journey' : 'Find an experience to join'}
           onPress={() => { triggerHaptic(); go('experiences'); }}
           style={({ pressed }) => [
-            styles.dashboardStatusStrip,
-            { backgroundColor: colors.card, borderColor: colors.border },
-            pressed && styles.dashboardStatusStripPressed,
+            styles.dashboardStatusCard,
+            { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 8 },
+            pressed && styles.dashboardStatusCardPressed,
           ]}
         >
-          <View style={[styles.dashboardStatusIcon, { backgroundColor: colors.primary + '14' }]}>
-            <Feather name={upcomingCount ? 'calendar' : 'compass'} size={21} color={colors.primary} />
-          </View>
           <View style={styles.dashboardStatusCopy}>
-            <Text style={[styles.dashboardStatusEyebrow, { color: colors.primary }]}>
-              {upcomingCount ? 'UP NEXT' : 'YOUR FIRST STEP'}
-            </Text>
             <Text style={[styles.dashboardStatusTitle, { color: colors.foreground }]}>
               {upcomingCount ? `${upcomingCount} experience${upcomingCount === 1 ? '' : 's'} coming up` : 'Ready for your first experience?'}
             </Text>
             <Text style={[styles.dashboardStatusSub, { color: colors.mutedForeground }]}>
-              {upcomingCount ? 'View your experience journey' : 'Explore something meaningful nearby'}
+              {upcomingCount ? 'Your next plans are ready when you are.' : 'Find an experience you’ll look forward to.'}
             </Text>
           </View>
-          <View style={[styles.dashboardStatusAction, { backgroundColor: colors.primary }]}>
+          <View style={[styles.dashboardStatusCta, { backgroundColor: colors.primary, borderRadius: colors.radius - 2 }]}>
+            <Text style={[styles.dashboardStatusCtaText, { color: colors.primaryForeground }]}>
+              {upcomingCount ? 'View upcoming experiences' : 'Explore experiences'}
+            </Text>
             <Feather name="arrow-right" size={17} color={colors.primaryForeground} />
           </View>
         </Pressable>
@@ -6020,14 +6017,13 @@ const styles = StyleSheet.create({
   dashboardGreetingCopy: { flex: 1, minWidth: 0 },
   dashboardWelcome: { color: 'rgba(255,255,255,0.82)', fontSize: 14, fontFamily: 'Inter_500Medium', textAlign: 'left', marginBottom: 3 },
   dashboardName: { color: '#ffffff', fontSize: 34, lineHeight: 40, fontFamily: 'Inter_700Bold', textAlign: 'left', letterSpacing: -0.9 },
-  dashboardStatusStrip: { minHeight: 94, borderWidth: 1, borderRadius: 22, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, marginTop: 24, shadowColor: '#000000', shadowOpacity: 0.13, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
-  dashboardStatusStripPressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
-  dashboardStatusIcon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  dashboardStatusCopy: { flex: 1, minWidth: 0 },
-  dashboardStatusEyebrow: { fontSize: 9, lineHeight: 12, fontFamily: 'Inter_700Bold', letterSpacing: 0.9, marginBottom: 2 },
-  dashboardStatusTitle: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_700Bold' },
-  dashboardStatusSub: { fontSize: 11, lineHeight: 15, fontFamily: 'Inter_400Regular', marginTop: 2 },
-  dashboardStatusAction: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  dashboardStatusCard: { borderWidth: 1, gap: 14, padding: 18, marginTop: 24 },
+  dashboardStatusCardPressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
+  dashboardStatusCopy: { minWidth: 0, gap: 4 },
+  dashboardStatusTitle: { fontSize: 18, lineHeight: 24, fontFamily: 'Inter_700Bold', letterSpacing: -0.35 },
+  dashboardStatusSub: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_400Regular' },
+  dashboardStatusCta: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 16 },
+  dashboardStatusCtaText: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_700Bold' },
   dashboardPassportCard: { marginHorizontal: 8, borderWidth: 1, overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 5, marginBottom: 28 },
   dashboardPassportTop: { minHeight: 142, padding: 20, paddingTop: 54, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dashboardCardEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2, marginBottom: 7 },
