@@ -22,3 +22,4 @@ export * from "./community";
 export * from "./accountability";
 export * from "./xp-awards";
 export * from "./social-invites";
+export * from "./social-feed";

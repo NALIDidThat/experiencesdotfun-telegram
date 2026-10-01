@@ -781,6 +781,175 @@ export interface AccountabilityEncouragementInput {
   customMessage?: string;
 }
 
+export type FeedMode = typeof FeedMode[keyof typeof FeedMode];
+
+
+export const FeedMode = {
+  'for-you': 'for-you',
+  following: 'following',
+  local: 'local',
+} as const;
+
+export interface FeedPreferences {
+  shareActivityWithFriends: boolean;
+}
+
+export interface UpdateFeedPreferencesInput {
+  shareActivityWithFriends: boolean;
+}
+
+export type FeedVisibility = typeof FeedVisibility[keyof typeof FeedVisibility];
+
+
+export const FeedVisibility = {
+  public: 'public',
+  friends: 'friends',
+  community: 'community',
+  private: 'private',
+} as const;
+
+export type FeedPostKind = typeof FeedPostKind[keyof typeof FeedPostKind];
+
+
+export const FeedPostKind = {
+  goal: 'goal',
+  doing: 'doing',
+  thought: 'thought',
+} as const;
+
+export type FeedActivityType = typeof FeedActivityType[keyof typeof FeedActivityType];
+
+
+export const FeedActivityType = {
+  experience_published: 'experience_published',
+  experience_joined: 'experience_joined',
+  experience_verified: 'experience_verified',
+  xp_earned: 'xp_earned',
+  achievement_unlocked: 'achievement_unlocked',
+  accountability_checkin: 'accountability_checkin',
+  accountability_goal_completed: 'accountability_goal_completed',
+  status_posted: 'status_posted',
+} as const;
+
+export interface FeedActor {
+  id: number;
+  name: string;
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  city: string | null;
+  /** @nullable */
+  userType: string | null;
+  isFriend: boolean;
+}
+
+export interface FeedExperience {
+  id: number;
+  title: string;
+  category: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  city: string;
+  location: string;
+  xpReward: number;
+  organisationName: string;
+}
+
+export interface FeedPostContent {
+  id: number;
+  kind: FeedPostKind;
+  body: string;
+}
+
+export interface FeedReactionState {
+  count: number;
+  reacted: boolean;
+  /** @nullable */
+  reactionType: string | null;
+}
+
+export interface FeedItem {
+  id: number;
+  type: FeedActivityType;
+  actor: FeedActor;
+  createdAt: string;
+  visibility: FeedVisibility;
+  experience: FeedExperience | null;
+  post: FeedPostContent | null;
+  /** @nullable */
+  xpAmount: number | null;
+  /** @nullable */
+  sourceTitle: string | null;
+  summary: string;
+  reaction: FeedReactionState;
+  commentCount: number;
+}
+
+export interface FeedResponse {
+  items: FeedItem[];
+  /** @nullable */
+  nextCursor: string | null;
+  mode: FeedMode;
+  /** @nullable */
+  city: string | null;
+}
+
+export interface CreateFeedPostInput {
+  kind: FeedPostKind;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  body: string;
+  visibility?: FeedVisibility;
+}
+
+export type FeedReactionInputReactionType = typeof FeedReactionInputReactionType[keyof typeof FeedReactionInputReactionType];
+
+
+export const FeedReactionInputReactionType = {
+  support: 'support',
+  celebrate: 'celebrate',
+  insightful: 'insightful',
+} as const;
+
+export interface FeedReactionInput {
+  reactionType: FeedReactionInputReactionType;
+}
+
+export interface FeedComment {
+  id: number;
+  activityId: number;
+  body: string;
+  createdAt: string;
+  actor: FeedActor;
+  canDelete: boolean;
+}
+
+export interface FeedCommentsResponse {
+  comments: FeedComment[];
+}
+
+export interface FeedCommentInput {
+  /**
+     * @minLength 1
+     * @maxLength 280
+     */
+  body: string;
+}
+
+export interface FeedDeleteResponse {
+  success: boolean;
+}
+
+/**
+ * Request validation failed
+ */
+export type BadRequestResponse = Error;
+
 /**
  * Telegram identity is missing or invalid
  */
@@ -801,6 +970,19 @@ export type CategoryParameter = ExperienceCategory;
 export type SearchParameter = string;
 
 export type AvailableOnlyParameter = boolean;
+
+export type GetFeedParams = {
+mode?: FeedMode;
+/**
+ * @maxLength 256
+ */
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+};
 
 export type ListExperiencesParams = {
 category?: CategoryParameter;

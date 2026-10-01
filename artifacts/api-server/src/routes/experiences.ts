@@ -22,6 +22,8 @@ import {
 import { db, pool } from "@workspace/db";
 import {
   emailAccountsTable,
+  feedActivityEventsTable,
+  feedPreferencesTable,
   experiencesTable,
   friendNotificationsTable,
   friendshipsTable,
@@ -68,6 +70,7 @@ import {
   userResponse,
 } from "../lib/data";
 import { EMAIL_SIGNUP_XP_REWARD } from "../lib/account-type-values";
+import { automaticActivityVisibility } from "../lib/feed-privacy";
 import {
   sendCompletionSubmittedNotification,
   sendContributionRejectedNotification,
@@ -637,6 +640,14 @@ router.post("/experiences", async (req, res) => {
         })
         .returning();
       if (!createdExperience) throw new Error("Unable to create experience.");
+      await transaction.insert(feedActivityEventsTable).values({
+        actorId: user.id,
+        type: "experience_published",
+        targetType: "experience",
+        targetId: createdExperience.id,
+        visibility: "public",
+        createdAt: createdExperience.createdAt,
+      });
       return createdExperience;
     });
     recordAnalyticsEvent({
@@ -762,6 +773,20 @@ router.post("/experiences/:experienceId/join", async (req, res) => {
       .insert(participationsTable)
       .values({ experienceId: lockedExperience.id, userId: user.id, status })
       .returning();
+    if (participation?.status === "joined") {
+      const visibility = await automaticActivityVisibility(tx, user.id);
+      await tx
+        .insert(feedActivityEventsTable)
+        .values({
+          actorId: user.id,
+          type: "experience_joined",
+          targetType: "experience",
+          targetId: lockedExperience.id,
+          visibility,
+          createdAt: participation.joinedAt,
+        })
+        .onConflictDoNothing();
+    }
     return { kind: "created" as const, participation, experience: lockedExperience };
   });
   if (outcome.kind === "closed") {
@@ -1168,6 +1193,24 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
         status: "pending",
         awardedAt: verifiedAt,
       });
+    }
+    if (experience) {
+      const visibility = await automaticActivityVisibility(
+        transaction,
+        participation.userId,
+      );
+      await transaction
+        .insert(feedActivityEventsTable)
+        .values({
+          actorId: participation.userId,
+          type: "experience_verified",
+          targetType: "experience",
+          targetId: experience.id,
+          metadata: { participationId: verified.id },
+          visibility,
+          createdAt: verifiedAt,
+        })
+        .onConflictDoNothing();
     }
     return verified;
   });

@@ -267,6 +267,321 @@ export const TrackAnalyticsEventResponse = zod.object({
 
 
 /**
+ * @summary Get a privacy-filtered, cursor-paginated social feed
+ */
+export const getFeedQueryModeDefault = `for-you`;
+export const getFeedQueryCursorMax = 256;
+
+export const getFeedQueryLimitDefault = 20;
+export const getFeedQueryLimitMax = 50;
+
+
+
+export const GetFeedQueryParams = zod.object({
+  "mode": zod.enum(['for-you', 'following', 'local']).default(getFeedQueryModeDefault),
+  "cursor": zod.coerce.string().max(getFeedQueryCursorMax).optional(),
+  "limit": zod.coerce.number().int().min(1).max(getFeedQueryLimitMax).default(getFeedQueryLimitDefault)
+})
+
+export const getFeedResponseModeDefault = `for-you`;
+
+export const GetFeedResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['experience_published', 'experience_joined', 'experience_verified', 'xp_earned', 'achievement_unlocked', 'accountability_checkin', 'accountability_goal_completed', 'status_posted']),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "userType": zod.string().nullable(),
+  "isFriend": zod.boolean()
+}),
+  "createdAt": zod.coerce.date(),
+  "visibility": zod.enum(['public', 'friends', 'community', 'private']),
+  "experience": zod.union([zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "date": zod.string(),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "city": zod.string(),
+  "location": zod.string(),
+  "xpReward": zod.number().int(),
+  "organisationName": zod.string()
+}),zod.null()]),
+  "post": zod.union([zod.object({
+  "id": zod.number().int(),
+  "kind": zod.enum(['goal', 'doing', 'thought']),
+  "body": zod.string()
+}),zod.null()]),
+  "xpAmount": zod.number().int().nullable(),
+  "sourceTitle": zod.string().nullable(),
+  "summary": zod.string(),
+  "reaction": zod.object({
+  "count": zod.number().int(),
+  "reacted": zod.boolean(),
+  "reactionType": zod.string().nullable()
+}),
+  "commentCount": zod.number().int()
+})),
+  "nextCursor": zod.string().nullable(),
+  "mode": zod.enum(['for-you', 'following', 'local']).default(getFeedResponseModeDefault),
+  "city": zod.string().nullable()
+})
+
+
+/**
+ * @summary Get the current profile's activity-sharing preference
+ */
+export const GetFeedPreferencesResponse = zod.object({
+  "shareActivityWithFriends": zod.boolean()
+})
+
+
+/**
+ * @summary Change whether experience, verification, XP, and accountability check-in activity is shared with friends
+ */
+export const UpdateFeedPreferencesBody = zod.object({
+  "shareActivityWithFriends": zod.boolean()
+})
+
+export const UpdateFeedPreferencesResponse = zod.object({
+  "shareActivityWithFriends": zod.boolean()
+})
+
+
+/**
+ * @summary Share a structured goal, doing, or thought update
+ */
+export const createFeedPostBodyBodyMax = 500;
+
+
+
+export const CreateFeedPostBody = zod.object({
+  "kind": zod.enum(['goal', 'doing', 'thought']),
+  "body": zod.string().min(1).max(createFeedPostBodyBodyMax),
+  "visibility": zod.enum(['public', 'friends', 'community', 'private']).optional()
+})
+
+export const CreateFeedPostResponse = zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['experience_published', 'experience_joined', 'experience_verified', 'xp_earned', 'achievement_unlocked', 'accountability_checkin', 'accountability_goal_completed', 'status_posted']),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "userType": zod.string().nullable(),
+  "isFriend": zod.boolean()
+}),
+  "createdAt": zod.coerce.date(),
+  "visibility": zod.enum(['public', 'friends', 'community', 'private']),
+  "experience": zod.union([zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "date": zod.string(),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "city": zod.string(),
+  "location": zod.string(),
+  "xpReward": zod.number().int(),
+  "organisationName": zod.string()
+}),zod.null()]),
+  "post": zod.union([zod.object({
+  "id": zod.number().int(),
+  "kind": zod.enum(['goal', 'doing', 'thought']),
+  "body": zod.string()
+}),zod.null()]),
+  "xpAmount": zod.number().int().nullable(),
+  "sourceTitle": zod.string().nullable(),
+  "summary": zod.string(),
+  "reaction": zod.object({
+  "count": zod.number().int(),
+  "reacted": zod.boolean(),
+  "reactionType": zod.string().nullable()
+}),
+  "commentCount": zod.number().int()
+})
+
+
+/**
+ * @summary Get one visible feed item
+ */
+
+
+
+export const GetFeedItemParams = zod.object({
+  "postId": zod.coerce.number().int().min(1)
+})
+
+export const GetFeedItemResponse = zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['experience_published', 'experience_joined', 'experience_verified', 'xp_earned', 'achievement_unlocked', 'accountability_checkin', 'accountability_goal_completed', 'status_posted']),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "userType": zod.string().nullable(),
+  "isFriend": zod.boolean()
+}),
+  "createdAt": zod.coerce.date(),
+  "visibility": zod.enum(['public', 'friends', 'community', 'private']),
+  "experience": zod.union([zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "date": zod.string(),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "city": zod.string(),
+  "location": zod.string(),
+  "xpReward": zod.number().int(),
+  "organisationName": zod.string()
+}),zod.null()]),
+  "post": zod.union([zod.object({
+  "id": zod.number().int(),
+  "kind": zod.enum(['goal', 'doing', 'thought']),
+  "body": zod.string()
+}),zod.null()]),
+  "xpAmount": zod.number().int().nullable(),
+  "sourceTitle": zod.string().nullable(),
+  "summary": zod.string(),
+  "reaction": zod.object({
+  "count": zod.number().int(),
+  "reacted": zod.boolean(),
+  "reactionType": zod.string().nullable()
+}),
+  "commentCount": zod.number().int()
+})
+
+
+/**
+ * @summary Add or replace the signed-in profile's reaction
+ */
+
+
+
+export const SetFeedReactionParams = zod.object({
+  "postId": zod.coerce.number().int().min(1)
+})
+
+export const SetFeedReactionBody = zod.object({
+  "reactionType": zod.enum(['support', 'celebrate', 'insightful'])
+})
+
+export const SetFeedReactionResponse = zod.object({
+  "count": zod.number().int(),
+  "reacted": zod.boolean(),
+  "reactionType": zod.string().nullable()
+})
+
+
+/**
+ * @summary Remove the signed-in profile's reaction
+ */
+
+
+
+export const RemoveFeedReactionParams = zod.object({
+  "postId": zod.coerce.number().int().min(1)
+})
+
+export const RemoveFeedReactionResponse = zod.object({
+  "count": zod.number().int(),
+  "reacted": zod.boolean(),
+  "reactionType": zod.string().nullable()
+})
+
+
+/**
+ * @summary List comments on a visible feed item
+ */
+
+
+
+export const ListFeedCommentsParams = zod.object({
+  "postId": zod.coerce.number().int().min(1)
+})
+
+export const ListFeedCommentsResponse = zod.object({
+  "comments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "activityId": zod.number().int(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "userType": zod.string().nullable(),
+  "isFriend": zod.boolean()
+}),
+  "canDelete": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Comment on a visible feed item
+ */
+
+
+
+export const CreateFeedCommentParams = zod.object({
+  "postId": zod.coerce.number().int().min(1)
+})
+
+export const createFeedCommentBodyBodyMax = 280;
+
+
+
+export const CreateFeedCommentBody = zod.object({
+  "body": zod.string().min(1).max(createFeedCommentBodyBodyMax)
+})
+
+export const CreateFeedCommentResponse = zod.object({
+  "id": zod.number().int(),
+  "activityId": zod.number().int(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "userType": zod.string().nullable(),
+  "isFriend": zod.boolean()
+}),
+  "canDelete": zod.boolean()
+})
+
+
+/**
+ * @summary Delete the signed-in profile's own comment
+ */
+
+
+
+export const DeleteFeedCommentParams = zod.object({
+  "commentId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteFeedCommentResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
  * @summary List profiles owned by the signed-in identity
  */
 

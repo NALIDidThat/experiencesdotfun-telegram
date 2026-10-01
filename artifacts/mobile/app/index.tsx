@@ -85,6 +85,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { AccountabilitySection } from '@/components/AccountabilitySection';
+import { SocialFeed } from '@/components/SocialFeed';
 import { AccountsCenterScreen } from '@/components/AccountsCenterScreen';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
@@ -1697,6 +1698,8 @@ function Onboarding({
 function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
   const { user: authenticatedUser } = useAuth();
+  const [feedRefreshSignal, setFeedRefreshSignal] = useState(0);
+  const [feedRefreshing, setFeedRefreshing] = useState(false);
   const query = useListExperiences({ availableOnly: true });
   const participations = useListMyParticipations(
     { status: 'upcoming' },
@@ -1717,7 +1720,17 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
       <ScrollView
       style={[styles.dashboardScreen, { backgroundColor: colors.muted }]}
       contentContainerStyle={[styles.dashboardContent, { paddingTop: 12 }]}
-      refreshControl={<RefreshControl refreshing={query.isRefetching || participations.isRefetching} onRefresh={() => { triggerHaptic(); void Promise.all([query.refetch(), participations.refetch()]); }} tintColor={colors.primary} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={query.isRefetching || participations.isRefetching || feedRefreshing}
+          onRefresh={() => {
+            triggerHaptic();
+            setFeedRefreshSignal((signal) => signal + 1);
+            void Promise.all([query.refetch(), participations.refetch()]);
+          }}
+          tintColor={colors.primary}
+        />
+      }
       showsVerticalScrollIndicator={false}
     >
       {!authenticatedUser ? <TelegramConnectCard /> : null}
@@ -1805,6 +1818,18 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
           </Pressable>
         ))}
       </View>
+
+      <SocialFeed
+        currentUserId={user.id}
+        refreshSignal={feedRefreshSignal}
+        onRefreshingChange={setFeedRefreshing}
+        onOpenExperience={(id) => go('experience', { id: String(id) })}
+        onOpenFriend={(friendId) => go('friend-profile', { friendId: String(friendId) })}
+        onOpenSelf={() => go('profile')}
+        onOpenFriends={() => go('friends')}
+        onOpenProfile={() => go('profile')}
+        onOpenExplore={() => go('explore')}
+      />
 
       <View style={styles.dashboardSectionHeader}>
         <Text style={[styles.dashboardSectionTitle, { color: colors.foreground }]}>Upcoming near you</Text>

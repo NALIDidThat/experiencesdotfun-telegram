@@ -19,11 +19,13 @@ import {
   accountabilityCommitmentsTable,
   accountabilityEventsTable,
   accountabilityPartnershipsTable,
+  feedActivityEventsTable,
   friendshipsTable,
   usersTable,
   type User,
 } from "@workspace/db/schema";
 import { currentUser, requireTelegramUser } from "../lib/auth";
+import { automaticActivityVisibility } from "../lib/feed-privacy";
 import { hasSameTelegramIdentity } from "../lib/telegram-identity";
 import { escapeTelegramHtml, sendTelegramMessage } from "../lib/telegram";
 
@@ -951,6 +953,20 @@ router.post("/commitments/:commitmentId/check-ins", async (req, res) => {
         completedAt: isComplete ? new Date() : commitment.completedAt,
       })
       .where(eq(accountabilityCommitmentsTable.id, commitment.id));
+
+    const feedVisibility = await automaticActivityVisibility(tx, user.id);
+    await tx
+      .insert(feedActivityEventsTable)
+      .values({
+        actorId: user.id,
+        type: isComplete ? "accountability_goal_completed" : "accountability_checkin",
+        targetType: "accountability",
+        targetId: checkIn.id,
+        metadata: { status: checkIn.status },
+        visibility: feedVisibility,
+        createdAt: checkIn.createdAt,
+      })
+      .onConflictDoNothing();
 
     const descriptions = {
       completed: {

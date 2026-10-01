@@ -97,16 +97,34 @@ test(
           id serial PRIMARY KEY,
           user_id integer NOT NULL REFERENCES public.users(id),
           amount integer NOT NULL,
+          source_title text NOT NULL DEFAULT 'Experience reward',
           status text NOT NULL DEFAULT 'pending',
           redeemed_at timestamp with time zone
+        );
+        CREATE TABLE public.feed_preferences (
+          user_id integer PRIMARY KEY REFERENCES public.users(id),
+          share_activity_with_friends boolean NOT NULL DEFAULT false
+        );
+        CREATE TABLE public.activity_events (
+          id serial PRIMARY KEY,
+          actor_id integer NOT NULL REFERENCES public.users(id),
+          type text NOT NULL,
+          target_type text NOT NULL,
+          target_id integer NOT NULL,
+          metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+          visibility text NOT NULL,
+          created_at timestamp with time zone NOT NULL,
+          UNIQUE (actor_id, type, target_type, target_id)
         );
       `);
       const { rows: [profile] } = await pool.query(
         "INSERT INTO public.users (xp) VALUES (100) RETURNING id",
       );
       await pool.query(
-        `INSERT INTO public.xp_awards (user_id, amount, status, redeemed_at)
-         VALUES ($1, 17, 'redeemed', now()), ($1, 25, 'pending', NULL), ($1, 35, 'pending', NULL)`,
+        `INSERT INTO public.xp_awards (user_id, amount, source_title, status, redeemed_at)
+         VALUES ($1, 17, 'Experience reward', 'redeemed', now()),
+                ($1, 25, 'Experience reward', 'pending', NULL),
+                ($1, 35, 'Experience reward', 'pending', NULL)`,
         [profile.id],
       );
 
@@ -136,6 +154,45 @@ test(
         [profile.id],
       );
       assert.equal(afterRetry.xp, 160);
+
+      const { rows: privateEvents } = await pool.query(
+        `SELECT type, target_type, visibility, metadata
+         FROM public.activity_events
+         WHERE actor_id = $1
+         ORDER BY target_id`,
+        [profile.id],
+      );
+      assert.equal(privateEvents.length, 2);
+      assert.deepEqual(
+        privateEvents.map((event) => event.visibility),
+        ["private", "private"],
+      );
+      assert.ok(privateEvents.every((event) => event.type === "xp_earned"));
+      assert.ok(privateEvents.every((event) => event.target_type === "xp_award"));
+      assert.equal(Number(privateEvents[0].metadata.amount), 25);
+
+      const { rows: [optedInProfile] } = await pool.query(
+        "INSERT INTO public.users (xp) VALUES (0) RETURNING id",
+      );
+      await pool.query(
+        "INSERT INTO public.feed_preferences (user_id, share_activity_with_friends) VALUES ($1, true)",
+        [optedInProfile.id],
+      );
+      await pool.query(
+        "INSERT INTO public.xp_awards (user_id, amount, source_title) VALUES ($1, 10, 'Neighbourhood clean-up')",
+        [optedInProfile.id],
+      );
+      const optedInRedemption = await redeemPendingXpAwards(pool, optedInProfile.id);
+      assert.deepEqual(optedInRedemption, { redeemedXp: 10, balanceXp: 10 });
+      const { rows: [sharedEvent] } = await pool.query(
+        "SELECT visibility, metadata FROM public.activity_events WHERE actor_id = $1",
+        [optedInProfile.id],
+      );
+      assert.equal(sharedEvent.visibility, "friends");
+      assert.deepEqual(sharedEvent.metadata, {
+        amount: 10,
+        sourceTitle: "Neighbourhood clean-up",
+      });
     } finally {
       if (pool) await pool.end();
       if (server && server.exitCode === null) {

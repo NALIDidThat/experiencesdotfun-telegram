@@ -24,6 +24,8 @@ tags:
     description: Lightweight social graph
   - name: community
     description: Group-scoped Community XP and reputation
+  - name: socialFeed
+    description: Privacy-aware activity feed, updates, reactions, and comments
 paths:
   /healthz:
     get:
@@ -141,6 +143,236 @@ paths:
                 $ref: "#/components/schemas/AnalyticsEventAccepted"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /feed:
+    get:
+      operationId: getFeed
+      tags: [socialFeed]
+      summary: Get a privacy-filtered, cursor-paginated social feed
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: mode
+          in: query
+          schema:
+            $ref: "#/components/schemas/FeedMode"
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 256
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Feed items visible to the current profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /feed/preferences:
+    get:
+      operationId: getFeedPreferences
+      tags: [socialFeed]
+      summary: Get the current profile's activity-sharing preference
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Current feed privacy preference
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedPreferences"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      operationId: updateFeedPreferences
+      tags: [socialFeed]
+      summary: Change whether experience, verification, XP, and accountability check-in activity is shared with friends
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFeedPreferencesInput"
+      responses:
+        "200":
+          description: Updated feed privacy preference
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedPreferences"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /posts:
+    post:
+      operationId: createFeedPost
+      tags: [socialFeed]
+      summary: Share a structured goal, doing, or thought update
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFeedPostInput"
+      responses:
+        "201":
+          description: Created update
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /posts/{postId}:
+    get:
+      operationId: getFeedItem
+      tags: [socialFeed]
+      summary: Get one visible feed item
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/FeedItemId"
+      responses:
+        "200":
+          description: Feed item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /posts/{postId}/reaction:
+    put:
+      operationId: setFeedReaction
+      tags: [socialFeed]
+      summary: Add or replace the signed-in profile's reaction
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/FeedItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedReactionInput"
+      responses:
+        "200":
+          description: Updated reaction summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedReactionState"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: removeFeedReaction
+      tags: [socialFeed]
+      summary: Remove the signed-in profile's reaction
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/FeedItemId"
+      responses:
+        "200":
+          description: Updated reaction summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedReactionState"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /posts/{postId}/comments:
+    get:
+      operationId: listFeedComments
+      tags: [socialFeed]
+      summary: List comments on a visible feed item
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/FeedItemId"
+      responses:
+        "200":
+          description: Comments in chronological order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedCommentsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createFeedComment
+      tags: [socialFeed]
+      summary: Comment on a visible feed item
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/FeedItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedCommentInput"
+      responses:
+        "201":
+          description: Created comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedComment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /comments/{commentId}:
+    delete:
+      operationId: deleteFeedComment
+      tags: [socialFeed]
+      summary: Delete the signed-in profile's own comment
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/FeedCommentId"
+      responses:
+        "200":
+          description: Comment deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedDeleteResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /accounts:
     get:
       operationId: listAccountProfiles
@@ -1038,6 +1270,20 @@ components:
       schema:
         type: integer
         minimum: 1
+    FeedItemId:
+      name: postId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    FeedCommentId:
+      name: commentId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
     Category:
       name: category
       in: query
@@ -1054,6 +1300,12 @@ components:
       schema:
         type: boolean
   responses:
+    BadRequest:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
     Unauthorized:
       description: Telegram identity is missing or invalid
       content:
@@ -2107,4 +2359,204 @@ components:
           minLength: 1
           maxLength: 240
           description: A personal note, up to 240 characters.
+    FeedMode:
+      type: string
+      enum: [for-you, following, local]
+      default: for-you
+    FeedPreferences:
+      type: object
+      properties:
+        shareActivityWithFriends:
+          type: boolean
+      required: [shareActivityWithFriends]
+    UpdateFeedPreferencesInput:
+      type: object
+      properties:
+        shareActivityWithFriends:
+          type: boolean
+      required: [shareActivityWithFriends]
+    FeedVisibility:
+      type: string
+      enum: [public, friends, community, private]
+    FeedPostKind:
+      type: string
+      enum: [goal, doing, thought]
+    FeedActivityType:
+      type: string
+      enum:
+        - experience_published
+        - experience_joined
+        - experience_verified
+        - xp_earned
+        - achievement_unlocked
+        - accountability_checkin
+        - accountability_goal_completed
+        - status_posted
+    FeedActor:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        username:
+          type: [string, "null"]
+        avatarUrl:
+          type: [string, "null"]
+        city:
+          type: [string, "null"]
+        userType:
+          type: [string, "null"]
+        isFriend:
+          type: boolean
+      required: [id, name, username, avatarUrl, city, userType, isFriend]
+    FeedExperience:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        category:
+          type: string
+        date:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        city:
+          type: string
+        location:
+          type: string
+        xpReward:
+          type: integer
+        organisationName:
+          type: string
+      required: [id, title, category, date, startTime, endTime, city, location, xpReward, organisationName]
+    FeedPostContent:
+      type: object
+      properties:
+        id:
+          type: integer
+        kind:
+          $ref: "#/components/schemas/FeedPostKind"
+        body:
+          type: string
+      required: [id, kind, body]
+    FeedReactionState:
+      type: object
+      properties:
+        count:
+          type: integer
+        reacted:
+          type: boolean
+        reactionType:
+          type: [string, "null"]
+      required: [count, reacted, reactionType]
+    FeedItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          $ref: "#/components/schemas/FeedActivityType"
+        actor:
+          $ref: "#/components/schemas/FeedActor"
+        createdAt:
+          type: string
+          format: date-time
+        visibility:
+          $ref: "#/components/schemas/FeedVisibility"
+        experience:
+          anyOf:
+            - $ref: "#/components/schemas/FeedExperience"
+            - type: "null"
+        post:
+          anyOf:
+            - $ref: "#/components/schemas/FeedPostContent"
+            - type: "null"
+        xpAmount:
+          type: [integer, "null"]
+        sourceTitle:
+          type: [string, "null"]
+        summary:
+          type: string
+        reaction:
+          $ref: "#/components/schemas/FeedReactionState"
+        commentCount:
+          type: integer
+      required: [id, type, actor, createdAt, visibility, experience, post, xpAmount, sourceTitle, summary, reaction, commentCount]
+    FeedResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedItem"
+        nextCursor:
+          type: [string, "null"]
+        mode:
+          $ref: "#/components/schemas/FeedMode"
+        city:
+          type: [string, "null"]
+      required: [items, nextCursor, mode, city]
+    CreateFeedPostInput:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/FeedPostKind"
+        body:
+          type: string
+          minLength: 1
+          maxLength: 500
+        visibility:
+          $ref: "#/components/schemas/FeedVisibility"
+      required: [kind, body]
+    FeedReactionInput:
+      type: object
+      properties:
+        reactionType:
+          type: string
+          enum: [support, celebrate, insightful]
+      required: [reactionType]
+    FeedComment:
+      type: object
+      properties:
+        id:
+          type: integer
+        activityId:
+          type: integer
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        actor:
+          $ref: "#/components/schemas/FeedActor"
+        canDelete:
+          type: boolean
+      required: [id, activityId, body, createdAt, actor, canDelete]
+    FeedCommentsResponse:
+      type: object
+      properties:
+        comments:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedComment"
+      required: [comments]
+    FeedCommentInput:
+      type: object
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 280
+      required: [body]
+    FeedDeleteResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required: [success]
 
