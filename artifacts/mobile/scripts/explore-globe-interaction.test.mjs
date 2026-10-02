@@ -255,6 +255,40 @@ async function dragGlobeWithSyntheticTouch(client, deltaX, deltaY) {
   return result;
 }
 
+async function dragSheetWithSyntheticTouch(client, deltaY) {
+  const result = await client.evaluate(`(() => {
+    const handle = document.querySelector('[data-testid="explore-sheet-handle"]');
+    if (!handle) return null;
+    const rect = handle.getBoundingClientRect();
+    const startX = rect.left + rect.width / 2;
+    const startY = rect.top + rect.height / 2;
+    const createTouch = (y) => new Touch({
+      identifier: 2,
+      target: handle,
+      clientX: startX,
+      clientY: y,
+      screenX: startX,
+      screenY: y,
+      pageX: startX + window.scrollX,
+      pageY: y + window.scrollY,
+    });
+    const start = createTouch(startY);
+    handle.dispatchEvent(new TouchEvent("touchstart", {
+      bubbles: true, cancelable: true, touches: [start], targetTouches: [start], changedTouches: [start],
+    }));
+    const moved = createTouch(startY + ${deltaY});
+    handle.dispatchEvent(new TouchEvent("touchmove", {
+      bubbles: true, cancelable: true, touches: [moved], targetTouches: [moved], changedTouches: [moved],
+    }));
+    handle.dispatchEvent(new TouchEvent("touchend", {
+      bubbles: true, cancelable: true, touches: [], targetTouches: [], changedTouches: [moved],
+    }));
+    return { startY, endY: startY + ${deltaY} };
+  })()`);
+  assert.ok(result, "The experience sheet handle should exist for swipe verification.");
+  return result;
+}
+
 function apiResponseHeaders(request, domain) {
   return [
     { name: "Content-Type", value: "application/json" },
@@ -377,9 +411,15 @@ test("Explore Globe markers, city filtering, zoom controls, and categories stay 
           }
         } else if (url.pathname === "/api/experiences" && method === "GET") {
           const category = url.searchParams.get("category");
-          response = category
-            ? experiences.filter((experience) => experience.category === category)
-            : experiences;
+          const search = url.searchParams.get("search")?.trim().toLowerCase() ?? "";
+          response = experiences
+            .filter((experience) => !category || experience.category === category)
+            .filter((experience) => !search || [
+              experience.title,
+              experience.city,
+              experience.description,
+              experience.organisation.name,
+            ].some((value) => value.toLowerCase().includes(search)));
         } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
           status = 202;
           response = { accepted: true };
@@ -426,6 +466,19 @@ test("Explore Globe markers, city filtering, zoom controls, and categories stay 
     await client.evaluate(`[...document.querySelectorAll('*')].some((element) => element.children.length === 0 && element.textContent.trim() === 'Explore')`),
     "Explore screen should be displayed.",
   );
+  assert.equal(
+    await client.evaluate(`document.body.innerText.includes('EXPERIENCES.FUN')`),
+    false,
+    "The selected Experiences.fun brand block should be absent from the Explore header.",
+  );
+  assert.ok(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-notifications-button"]'))`),
+    "The notifications action should remain in the Explore header.",
+  );
+  assert.ok(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-profile-button"]'))`),
+    "The profile action should remain in the Explore header.",
+  );
 
   const initialCards = await client.evaluate(
     ` [...document.querySelectorAll('[data-testid^="explore-experience-card-"]')].map((element) => element.getAttribute('data-testid'))`,
@@ -436,43 +489,59 @@ test("Explore Globe markers, city filtering, zoom controls, and categories stay 
     await client.evaluate(`Boolean(document.querySelector('[aria-label="London: 2 experiences"]'))`),
     "The mapped London marker should show its aggregate count.",
   );
+  const fullScreenMetrics = await client.evaluate(`(() => {
+    const screen = document.querySelector('[data-testid="explore-screen-layout"]')?.getBoundingClientRect();
+    const globe = document.querySelector('[data-testid="explore-globe-map"]')?.getBoundingClientRect();
+    return { screenHeight: screen?.height ?? 0, globeHeight: globe?.height ?? 0 };
+  })()`);
+  assert.ok(fullScreenMetrics.screenHeight > 0, "Explore should fill its available app content area.");
+  assert.ok(
+    fullScreenMetrics.globeHeight >= fullScreenMetrics.screenHeight * 0.95,
+    `The globe should fill the Explore screen behind its overlays. Geometry: ${JSON.stringify(fullScreenMetrics)}`,
+  );
+  assert.ok(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-search-input"]'))`),
+    "Search should remain available over the full-screen globe.",
+  );
+  if (process.env.EXPLORE_GLOBE_INITIAL_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(process.env.EXPLORE_GLOBE_INITIAL_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
+  }
   assert.equal(
     await client.evaluate(`Boolean(document.querySelector('[aria-label="Springfield: 1 experiences"]'))`),
     false,
     "An unmapped city should not get a globe marker.",
   );
 
-  const markerPoint = await tapElement(client, '[aria-label="London: 2 experiences"]', "the London globe marker");
-  try {
-    await waitForValue(
-      client,
-      `document.querySelector('[data-testid="explore-globe-city-action"]')?.getAttribute('aria-label') ?? ''`,
-      (label) => label === "Explore experiences in London",
-      "the London city preview action",
-      5_000,
-    );
-  } catch (error) {
-    const markerState = await client.evaluate(`(() => {
-      const marker = document.querySelector('[aria-label="London: 2 experiences"]');
-      return {
-        markerHtml: marker?.outerHTML?.slice(0, 500) ?? null,
-        markerRole: marker?.getAttribute('role') ?? null,
-        previewExists: Boolean(document.querySelector('[data-testid="explore-globe-city-action"]')),
-      };
-    })()`);
-    throw new Error(`${error.message} Marker point: ${JSON.stringify(markerPoint)}. Marker state: ${JSON.stringify(markerState)}`);
-  }
-  if (process.env.EXPLORE_GLOBE_SCREENSHOT_PATH) {
-    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
-    await writeFile(process.env.EXPLORE_GLOBE_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
-  }
-  await tapTestId(client, "explore-globe-city-action");
+  await tapElement(client, '[aria-label="London: 2 experiences"]', "the London globe marker");
   await waitForValue(
     client,
     `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
     (text) => text === "2 experiences",
     "the London-filtered experience list",
+    5_000,
   );
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-sheet-toggle"]')?.getAttribute('aria-label') ?? ''`,
+    (label) => label === "Collapse experience list",
+    "the sheet opening after a city marker is selected",
+    5_000,
+  );
+  assert.ok(
+    await client.evaluate(`document.querySelector('[data-testid="explore-sheet-handle"]')?.innerText?.toLowerCase().includes('approximate') ?? false`),
+    "The sheet should disclose that city markers show approximate locations.",
+  );
+  await waitForValue(
+    client,
+    `Math.round(document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect().height ?? 0)`,
+    (height) => height > 320,
+    "the expanded sheet animation to settle",
+  );
+  if (process.env.EXPLORE_GLOBE_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(process.env.EXPLORE_GLOBE_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
+  }
   const londonCards = await client.evaluate(
     ` [...document.querySelectorAll('[data-testid^="explore-experience-card-"]')].map((element) => element.getAttribute('data-testid'))`,
   );
@@ -484,6 +553,46 @@ test("Explore Globe markers, city filtering, zoom controls, and categories stay 
     `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
     (text) => text === "5 experiences",
     "the restored unfiltered experience list",
+  );
+  const scrollMetrics = await waitForValue(
+    client,
+    `(() => {
+      const list = document.querySelector('[data-testid="explore-sheet-list"]');
+      return { clientHeight: list?.clientHeight ?? 0, scrollHeight: list?.scrollHeight ?? 0 };
+    })()`,
+    (metrics) => metrics.clientHeight > 0 && metrics.scrollHeight > metrics.clientHeight,
+    "a scrollable experience list inside the expanded sheet",
+  );
+  assert.ok(
+    scrollMetrics.scrollHeight > scrollMetrics.clientHeight,
+    `The experience list should overflow its own scroll area. Metrics: ${JSON.stringify(scrollMetrics)}`,
+  );
+
+  await dragSheetWithSyntheticTouch(client, 84);
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-sheet-toggle"]')?.getAttribute('aria-label') ?? ''`,
+    (label) => label === "Expand experience list",
+    "the sheet collapsing on a downward swipe",
+  );
+  await waitForValue(
+    client,
+    `Math.round(document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect().height ?? 0)`,
+    (height) => height < 250,
+    "the collapsed sheet animation to settle",
+  );
+  await dragSheetWithSyntheticTouch(client, -84);
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-sheet-toggle"]')?.getAttribute('aria-label') ?? ''`,
+    (label) => label === "Collapse experience list",
+    "the sheet expanding on an upward swipe",
+  );
+  await waitForValue(
+    client,
+    `Math.round(document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect().height ?? 0)`,
+    (height) => height > 320,
+    "the sheet reopening to its expanded position",
   );
 
   const globeRadius = () => client.evaluate(
@@ -552,6 +661,33 @@ test("Explore Globe markers, city filtering, zoom controls, and categories stay 
     await client.evaluate(`Boolean(document.querySelector('[aria-label="New York: 1 experiences"]'))`),
     false,
     "Cities without experiences in the selected category should disappear from the globe.",
+  );
+
+  await tapTestId(client, "explore-category-all");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+    (text) => text === "5 experiences",
+    "all categories before searching",
+  );
+  await tapTestId(client, "explore-search-input");
+  await client.send("Input.insertText", { text: "Toronto" });
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+    (text) => text === "1 experience",
+    "the search-filtered experience list",
+  );
+  assert.ok(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-experience-card-764"]'))`),
+    "Search should keep the matching experience card available.",
+  );
+  await tapTestId(client, "explore-clear-search");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+    (text) => text === "5 experiences",
+    "the cleared search results",
   );
 
   await waitForValue(client, "document.readyState", (state) => state === "complete", "the Explore page load");

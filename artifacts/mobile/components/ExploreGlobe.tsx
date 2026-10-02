@@ -18,6 +18,7 @@ type Props = {
   cities: GlobeCity[];
   selectedCity: string | null;
   status: 'loading' | 'ready' | 'error';
+  fullScreen?: boolean;
   onSelectCity: (city: string) => void;
   onExploreCity: (city: string) => void;
   onResetCity: () => void;
@@ -28,6 +29,7 @@ const HEIGHT = 300;
 const CENTER_X = WIDTH / 2;
 const CENTER_Y = 151;
 const BASE_RADIUS = 119;
+const FULLSCREEN_RADIUS = 140;
 const LAND_SHAPES: Array<Array<[number, number]>> = [
   [[-165, 70], [-140, 62], [-125, 50], [-112, 30], [-97, 20], [-82, 8], [-78, -8], [-95, -15], [-105, -4], [-117, 12], [-130, 28], [-150, 45]],
   [[-81, 12], [-68, 8], [-53, -5], [-48, -22], [-58, -39], [-69, -54], [-76, -34]],
@@ -63,7 +65,7 @@ function polygonPath(points: Array<[number, number]>, rotation: number, tilt: nu
   return path;
 }
 
-export function ExploreGlobe({ cities, selectedCity, status, onSelectCity, onExploreCity, onResetCity }: Props) {
+export function ExploreGlobe({ cities, selectedCity, status, fullScreen = false, onSelectCity, onExploreCity, onResetCity }: Props) {
   const colors = useColors();
   const space = colors.welcome;
   const [rotation, setRotation] = useState(0);
@@ -85,7 +87,7 @@ export function ExploreGlobe({ cities, selectedCity, status, onSelectCity, onExp
     },
   }), []);
   const selected = cities.find((item) => item.city === selectedCity) ?? null;
-  const radius = BASE_RADIUS * zoom;
+  const radius = (fullScreen ? FULLSCREEN_RADIUS : BASE_RADIUS) * zoom;
   const projectedCities = useMemo(
     () => cities
       .map((city) => ({ city, point: project(city.latitude, city.longitude, rotation, tilt, radius) }))
@@ -99,21 +101,31 @@ export function ExploreGlobe({ cities, selectedCity, status, onSelectCity, onExp
   const globeOffsetY = (stageSize.height - HEIGHT * globeScale) / 2;
 
   return (
-    <View style={[styles.shell, { backgroundColor: space.background, borderColor: space.border }]}>
-      <View style={styles.headingRow}>
-        <View>
-          <Text style={[styles.eyebrow, { color: colors.teal }]}>ACTIVITY, BY CITY</Text>
-          <Text style={[styles.title, { color: space.foreground }]}>Find your people.</Text>
-        </View>
-        <View style={[styles.liveBadge, { borderColor: space.border, backgroundColor: space.surface }]}>
-          <View style={[styles.liveDot, { backgroundColor: colors.teal }]} />
-          <Text style={[styles.liveText, { color: space.muted }]}>CITY ACTIVITY</Text>
-        </View>
-      </View>
-      <Text style={[styles.caption, { color: space.subdued }]}>A wider view of where communities are showing up. City positions are approximate.</Text>
+    <View
+      testID={fullScreen ? 'explore-globe-map' : 'explore-globe-card'}
+      style={fullScreen
+        ? [styles.fullScreenRoot, { backgroundColor: space.background }]
+        : [styles.shell, { backgroundColor: space.background, borderColor: space.border }]}
+    >
+      {!fullScreen ? (
+        <>
+          <View style={styles.headingRow}>
+            <View>
+              <Text style={[styles.eyebrow, { color: colors.teal }]}>ACTIVITY, BY CITY</Text>
+              <Text style={[styles.title, { color: space.foreground }]}>Find your people.</Text>
+            </View>
+            <View style={[styles.liveBadge, { borderColor: space.border, backgroundColor: space.surface }]}>
+              <View style={[styles.liveDot, { backgroundColor: colors.teal }]} />
+              <Text style={[styles.liveText, { color: space.muted }]}>CITY ACTIVITY</Text>
+            </View>
+          </View>
+          <Text style={[styles.caption, { color: space.subdued }]}>A wider view of where communities are showing up. City positions are approximate.</Text>
+        </>
+      ) : null}
 
       <View
-        style={styles.globeStage}
+        testID="explore-globe-stage"
+        style={fullScreen ? styles.fullScreenStage : styles.globeStage}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
           setStageSize((current) => current.width === width && current.height === height ? current : { width, height });
@@ -174,8 +186,12 @@ export function ExploreGlobe({ cities, selectedCity, status, onSelectCity, onExp
             })}
           </G>
           <Circle cx={CENTER_X} cy={CENTER_Y} r={radius} fill="none" stroke={space.subdued} strokeOpacity="0.32" strokeWidth="0.8" />
-          <Line x1="18" y1="266" x2="58" y2="266" stroke={colors.teal} strokeOpacity="0.6" strokeWidth="1" />
-          <SvgText x="65" y="269" fill={space.subdued} fontSize="8" letterSpacing="1.1">APPROX. CITY</SvgText>
+          {!fullScreen ? (
+            <>
+              <Line x1="18" y1="266" x2="58" y2="266" stroke={colors.teal} strokeOpacity="0.6" strokeWidth="1" />
+              <SvgText x="65" y="269" fill={space.subdued} fontSize="8" letterSpacing="1.1">APPROX. CITY</SvgText>
+            </>
+          ) : null}
           <SvgText x="322" y="269" fill={space.subdued} fontSize="8" textAnchor="end">{Math.round(rotation % 360)}°</SvgText>
         </Svg>
         <View style={[styles.markerLayer, { pointerEvents: 'box-none' }]}>
@@ -199,25 +215,31 @@ export function ExploreGlobe({ cities, selectedCity, status, onSelectCity, onExp
           )) : null}
         </View>
         <View style={[styles.atmosphere, { pointerEvents: 'none', backgroundColor: colors.violet }]} />
-        <View style={[styles.zoomControls, { backgroundColor: space.surface, borderColor: space.border }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Zoom in on globe" testID="explore-globe-zoom-in" onPress={() => setZoom((value) => Math.min(1.2, value + 0.1))} style={styles.zoomButton}>
+        <View style={[
+          styles.zoomControls,
+          fullScreen && styles.fullScreenZoomControls,
+          { backgroundColor: space.surface, borderColor: space.border },
+        ]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Zoom in on globe" testID="explore-globe-zoom-in" onPress={() => setZoom((value) => Math.min(1.2, value + 0.1))} style={[styles.zoomButton, fullScreen && styles.fullScreenZoomButton]}>
             <Feather name="plus" size={16} color={space.foreground} />
           </Pressable>
-          <View style={[styles.zoomDivider, { backgroundColor: space.border }]} />
-          <Pressable accessibilityRole="button" accessibilityLabel="Zoom out on globe" testID="explore-globe-zoom-out" onPress={() => setZoom((value) => Math.max(0.82, value - 0.1))} style={styles.zoomButton}>
+          <View style={[styles.zoomDivider, fullScreen && styles.fullScreenZoomDivider, { backgroundColor: space.border }]} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Zoom out on globe" testID="explore-globe-zoom-out" onPress={() => setZoom((value) => Math.max(0.82, value - 0.1))} style={[styles.zoomButton, fullScreen && styles.fullScreenZoomButton]}>
             <Feather name="minus" size={16} color={space.foreground} />
           </Pressable>
-          <View style={[styles.zoomDivider, { backgroundColor: space.border }]} />
-          <Pressable accessibilityRole="button" accessibilityLabel="Reset globe view" testID="explore-globe-reset" onPress={() => { setRotation(0); setTilt(0); setZoom(1); onResetCity(); }} style={styles.zoomButton}>
+          <View style={[styles.zoomDivider, fullScreen && styles.fullScreenZoomDivider, { backgroundColor: space.border }]} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Reset globe view" testID="explore-globe-reset" onPress={() => { setRotation(0); setTilt(0); setZoom(1); onResetCity(); }} style={[styles.zoomButton, fullScreen && styles.fullScreenZoomButton]}>
             <Feather name="rotate-ccw" size={14} color={space.muted} />
           </Pressable>
         </View>
       </View>
-      <View style={styles.globeFooter}>
-        <View style={styles.legend}><View style={[styles.legendDot, { backgroundColor: colors.teal }]} /><Text style={[styles.legendCopy, { color: space.subdued }]}>Experiences happening</Text></View>
-        <Text style={[styles.dragHint, { color: space.subdued }]}>DRAG TO ROTATE</Text>
-      </View>
-      {selected ? (
+      {!fullScreen ? (
+        <>
+          <View style={styles.globeFooter}>
+            <View style={styles.legend}><View style={[styles.legendDot, { backgroundColor: colors.teal }]} /><Text style={[styles.legendCopy, { color: space.subdued }]}>Experiences happening</Text></View>
+            <Text style={[styles.dragHint, { color: space.subdued }]}>DRAG TO ROTATE</Text>
+          </View>
+          {selected ? (
         <View style={[styles.preview, { backgroundColor: space.surface, borderColor: space.border }]}>
           <View style={styles.previewCopy}>
             <Text style={[styles.previewEyebrow, { color: colors.teal }]}>CITY OVERVIEW</Text>
@@ -230,7 +252,7 @@ export function ExploreGlobe({ cities, selectedCity, status, onSelectCity, onExp
             <Feather name="arrow-right" size={15} color={colors.primaryForeground} />
           </Pressable>
         </View>
-      ) : (
+          ) : (
         <View style={[styles.note, { borderTopColor: space.border }]}>
           <Feather name="info" size={13} color={colors.teal} />
           <Text style={[styles.noteText, { color: space.subdued }]}>
@@ -243,12 +265,16 @@ export function ExploreGlobe({ cities, selectedCity, status, onSelectCity, onExp
                   : 'No mapped cities in this result. All matches remain below.'}
           </Text>
         </View>
-      )}
+          )}
+        </>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  fullScreenRoot: { flex: 1, position: 'relative' },
+  fullScreenStage: { flex: 1, position: 'relative', alignItems: 'center', justifyContent: 'center' },
   shell: { borderWidth: 1, borderRadius: 24, paddingHorizontal: 17, paddingTop: 18, paddingBottom: 14, marginBottom: 25, overflow: 'hidden' },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   eyebrow: { fontSize: 9, fontFamily: 'Inter_700Bold', letterSpacing: 1.7, marginBottom: 5 },
@@ -262,8 +288,11 @@ const styles = StyleSheet.create({
   markerHitTarget: { position: 'absolute', width: 44, height: 44, borderRadius: 22, backgroundColor: 'transparent' },
   atmosphere: { position: 'absolute', width: 206, height: 34, borderRadius: 100, opacity: 0.08, bottom: 20, transform: [{ scaleX: 1.15 }] },
   zoomControls: { position: 'absolute', right: 0, top: 18, borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
+  fullScreenZoomControls: { right: 20, top: 60, flexDirection: 'row', alignItems: 'center' },
   zoomButton: { width: 36, height: 35, alignItems: 'center', justifyContent: 'center' },
   zoomDivider: { height: 1, marginHorizontal: 7 },
+  fullScreenZoomButton: { width: 32, height: 34 },
+  fullScreenZoomDivider: { width: 1, height: 18, marginHorizontal: 0 },
   globeFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4, marginTop: -4, marginBottom: 12 },
   legend: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { height: 6, width: 6, borderRadius: 4 },

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Alert,
   ActivityIndicator,
@@ -2084,6 +2084,34 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   }, [initialCategory]);
   const [search, setSearch] = useState('');
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [screenHeight, setScreenHeight] = useState(0);
+  const sheetHeight = useRef(new Animated.Value(190)).current;
+  const sheetTouchOrigin = useRef({ y: 0, active: false });
+  const collapsedSheetHeight = screenHeight > 0
+    ? Math.min(208, Math.max(176, screenHeight * 0.34))
+    : 190;
+  const expandedSheetHeight = screenHeight > 0
+    ? Math.max(collapsedSheetHeight, Math.min(screenHeight * 0.72, screenHeight - 212))
+    : 390;
+  const sheetPanResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_event, gesture) => Math.abs(gesture.dy) > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+    onPanResponderRelease: (_event, gesture) => {
+      if (gesture.dy < -40 || gesture.vy < -0.55) setSheetExpanded(true);
+      else if (gesture.dy > 40 || gesture.vy > 0.55) setSheetExpanded(false);
+    },
+  }), []);
+  useEffect(() => {
+    if (!screenHeight) return;
+    const animation = Animated.spring(sheetHeight, {
+      toValue: sheetExpanded ? expandedSheetHeight : collapsedSheetHeight,
+      tension: 115,
+      friction: 19,
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [collapsedSheetHeight, expandedSheetHeight, screenHeight, sheetExpanded, sheetHeight]);
   const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: false });
   const globeCities: GlobeCity[] = [];
   const cityAggregates = new Map<string, GlobeCity>();
@@ -2109,145 +2137,206 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   const visibleExperiences = selectedCity
     ? (query.data ?? []).filter((experience) => normalizeExploreCityName(experience.city) === normalizeExploreCityName(selectedCity))
     : (query.data ?? []);
+  const toggleSheet = () => setSheetExpanded((current) => !current);
+  const selectCity = (city: string) => {
+    setSelectedCity(city);
+    setSheetExpanded(true);
+  };
 
   return (
-    <KeyboardAwareScrollViewCompat
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={[styles.scrollContent, styles.exploreContent]}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="none"
-      bottomOffset={24}
-      showsVerticalScrollIndicator={false}
+    <View
+      testID="explore-screen-layout"
+      style={[styles.exploreScreen, { backgroundColor: colors.background }]}
+      onLayout={(event) => {
+        const { height } = event.nativeEvent.layout;
+        setScreenHeight((current) => current === height ? current : height);
+      }}
     >
-      <View style={styles.exploreTopBar}>
-        <View style={styles.exploreBrand}>
-          <View style={[styles.exploreBrandMark, { backgroundColor: colors.primary + '14' }]}>
-            <Feather name="compass" size={19} color={colors.primary} />
-          </View>
-          <Text style={[styles.exploreBrandName, { color: colors.foreground }]}>EXPERIENCES.FUN</Text>
-        </View>
-        <View style={styles.exploreTopActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open notifications"
-            testID="explore-notifications-button"
-            onPress={() => { triggerHaptic(); go('notifications'); }}
-            style={({ pressed }) => [styles.exploreTopAction, pressed && styles.exploreTopActionPressed]}
-          >
-            <Feather name="bell" size={19} color={colors.foreground} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open your profile"
-            testID="explore-profile-button"
-            onPress={() => { triggerHaptic(); go('profile'); }}
-            style={({ pressed }) => [styles.exploreAvatarButton, pressed && styles.exploreTopActionPressed]}
-          >
-            <UserAvatar
-              avatarUrl={user?.avatarUrl}
-              name={user?.name ?? 'Your profile'}
-              containerStyle={[styles.exploreAvatar, { backgroundColor: colors.muted }]}
-              initialStyle={{ color: colors.primary, fontFamily: 'Inter_700Bold' }}
-            />
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={styles.exploreIntro}>
-        <Text style={[styles.exploreTitle, { color: colors.foreground }]}>Explore</Text>
-        <Text style={[styles.exploreSubtitle, { color: colors.mutedForeground }]}>Find your next way to contribute.</Text>
-      </View>
-
-      <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
-        <Feather name="search" size={19} color={colors.mutedForeground} />
-        <TextInput
-          accessibilityLabel="Search experiences"
-          testID="explore-search-input"
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search experiences"
-          placeholderTextColor={colors.mutedForeground}
-          returnKeyType="search"
-          style={[styles.searchInput, { color: colors.foreground }]}
+      <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+        <ExploreGlobe
+          fullScreen
+          cities={globeCities}
+          selectedCity={selectedCity}
+          status={query.isLoading ? 'loading' : query.isError ? 'error' : 'ready'}
+          onSelectCity={selectCity}
+          onExploreCity={selectCity}
+          onResetCity={() => setSelectedCity(null)}
         />
-        {search.length > 0 ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Clear search"
-            testID="explore-clear-search"
-            onPress={() => { triggerHaptic(); setSearch(''); }}
-            style={styles.exploreClearButton}
-          >
-            <Feather name="x" size={17} color={colors.mutedForeground} />
-          </Pressable>
-        ) : null}
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-        {categories.map((item) => {
-          const selected = category === item.key;
-          return (
+      <View pointerEvents="box-none" style={styles.exploreTopOverlay}>
+        <View style={[styles.exploreTopBar, styles.exploreFullscreenTopBar]}>
+          <View style={styles.exploreTopActions}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Show ${item.label === 'All' ? 'all' : item.label} experiences`}
-              accessibilityState={{ selected }}
-              testID={`explore-category-${item.key}`}
-              key={item.key}
-              onPress={() => { triggerHaptic(); setCategory(item.key); }}
-              style={({ pressed }) => [
-                styles.filter,
-                {
-                  backgroundColor: selected ? colors.primary : colors.card,
-                  borderColor: selected ? colors.primary : colors.border,
-                  opacity: pressed ? 0.78 : 1,
-                },
-              ]}
+              accessibilityLabel="Open notifications"
+              testID="explore-notifications-button"
+              onPress={() => { triggerHaptic(); go('notifications'); }}
+              style={({ pressed }) => [styles.exploreTopAction, pressed && styles.exploreTopActionPressed]}
             >
-              <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
-              <Text style={[styles.filterText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
+              <Feather name="bell" size={19} color={colors.welcome.foreground} />
             </Pressable>
-          );
-        })}
-      </ScrollView>
-
-      <ExploreGlobe
-        cities={globeCities}
-        selectedCity={selectedCity}
-        status={query.isLoading ? 'loading' : query.isError ? 'error' : 'ready'}
-        onSelectCity={setSelectedCity}
-        onExploreCity={setSelectedCity}
-        onResetCity={() => setSelectedCity(null)}
-      />
-
-      <View style={styles.resultsHeading}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{selectedCity ? selectedCity : 'Experiences'}</Text>
-          {selectedCity ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Clear city filter"
-              testID="explore-clear-city"
-              onPress={() => setSelectedCity(null)}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 4, paddingHorizontal: 6 }}
+              accessibilityLabel="Open your profile"
+              testID="explore-profile-button"
+              onPress={() => { triggerHaptic(); go('profile'); }}
+              style={({ pressed }) => [styles.exploreAvatarButton, pressed && styles.exploreTopActionPressed]}
             >
-              <Feather name="x" size={13} color={colors.mutedForeground} />
-              <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_500Medium', fontSize: 11 }}>Clear</Text>
+              <UserAvatar
+                avatarUrl={user?.avatarUrl}
+                name={user?.name ?? 'Your profile'}
+                containerStyle={[styles.exploreAvatar, { backgroundColor: colors.muted }]}
+                initialStyle={{ color: colors.primary, fontFamily: 'Inter_700Bold' }}
+              />
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={[
+          styles.searchBox,
+          styles.exploreFullscreenSearchBox,
+          { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius },
+        ]}>
+          <Feather name="search" size={19} color={colors.mutedForeground} />
+          <TextInput
+            accessibilityLabel="Search experiences"
+            testID="explore-search-input"
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search experiences"
+            placeholderTextColor={colors.mutedForeground}
+            returnKeyType="search"
+            style={[styles.searchInput, { color: colors.foreground }]}
+          />
+          {search.length > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+              testID="explore-clear-search"
+              onPress={() => { triggerHaptic(); setSearch(''); }}
+              style={styles.exploreClearButton}
+            >
+              <Feather name="x" size={17} color={colors.mutedForeground} />
             </Pressable>
           ) : null}
         </View>
-        <Text
-          testID="explore-results-count"
-          style={[styles.resultCount, { color: colors.mutedForeground }]}
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.filterRow, styles.exploreFullscreenFilterRow]}
         >
-          {visibleExperiences.length} {visibleExperiences.length === 1 ? 'experience' : 'experiences'}
-        </Text>
+          {categories.map((item) => {
+            const selected = category === item.key;
+            return (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Show ${item.label === 'All' ? 'all' : item.label} experiences`}
+                accessibilityState={{ selected }}
+                testID={`explore-category-${item.key}`}
+                key={item.key}
+                onPress={() => { triggerHaptic(); setCategory(item.key); }}
+                style={({ pressed }) => [
+                  styles.filter,
+                  {
+                    backgroundColor: selected ? colors.primary : colors.card,
+                    borderColor: selected ? colors.primary : colors.border,
+                    opacity: pressed ? 0.78 : 1,
+                  },
+                ]}
+              >
+                <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+                <Text style={[styles.filterText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
-      {query.isLoading ? <LoadingState /> : query.isError ? (
-        <EmptyState title="Experiences didn’t load" body="Check your connection and try again." actionLabel="Try again" onAction={() => { void query.refetch(); }} />
-      ) : visibleExperiences.length ? visibleExperiences.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title={selectedCity ? `No experiences in ${selectedCity}` : 'No experiences match'} body="Try another category or come back when local hosts publish something new." actionLabel={selectedCity ? 'Clear city filter' : undefined} onAction={selectedCity ? () => setSelectedCity(null) : undefined} />}
-      <View style={{ height: 120 }} />
-    </KeyboardAwareScrollViewCompat>
+      <Animated.View
+        testID="explore-experience-sheet"
+        style={[
+          styles.exploreSheet,
+          { height: sheetHeight, backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
+        <View
+          testID="explore-sheet-handle"
+          style={styles.exploreSheetHeader}
+          {...(Platform.OS === 'web' ? {} : sheetPanResponder.panHandlers)}
+          onTouchStart={Platform.OS === 'web' ? (event) => {
+            const touch = event.nativeEvent.touches[0];
+            if (touch) sheetTouchOrigin.current = { y: touch.pageY, active: true };
+          } : undefined}
+          onTouchMove={Platform.OS === 'web' ? (event) => {
+            const touch = event.nativeEvent.touches[0];
+            if (!touch || !sheetTouchOrigin.current.active) return;
+            if (Math.abs(touch.pageY - sheetTouchOrigin.current.y) > 8) event.preventDefault();
+          } : undefined}
+          onTouchEnd={Platform.OS === 'web' ? (event) => {
+            const touch = event.nativeEvent.changedTouches[0];
+            if (!touch || !sheetTouchOrigin.current.active) return;
+            const deltaY = touch.pageY - sheetTouchOrigin.current.y;
+            if (deltaY < -40) setSheetExpanded(true);
+            else if (deltaY > 40) setSheetExpanded(false);
+            sheetTouchOrigin.current.active = false;
+          } : undefined}
+          onTouchCancel={Platform.OS === 'web' ? () => { sheetTouchOrigin.current.active = false; } : undefined}
+        >
+          <View style={[styles.exploreSheetGrabber, { backgroundColor: colors.border }]} />
+          <View style={styles.exploreSheetHeadingRow}>
+            <View style={styles.exploreSheetHeadingCopy}>
+              <Text style={[styles.exploreSheetTitle, { color: colors.foreground }]}>
+                {selectedCity ? `${selectedCity} experiences` : 'Experiences'}
+              </Text>
+              <Text style={[styles.exploreSheetHint, { color: colors.mutedForeground }]}>
+                {sheetExpanded ? 'Swipe down · city locations are approximate' : 'Swipe up · city locations are approximate'}
+              </Text>
+            </View>
+            <Text testID="explore-results-count" style={[styles.exploreSheetCount, { color: colors.mutedForeground }]}>
+              {visibleExperiences.length} {visibleExperiences.length === 1 ? 'experience' : 'experiences'}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={sheetExpanded ? 'Collapse experience list' : 'Expand experience list'}
+              accessibilityState={{ expanded: sheetExpanded }}
+              testID="explore-sheet-toggle"
+              onPress={toggleSheet}
+              style={styles.exploreSheetToggle}
+            >
+              <Feather name={sheetExpanded ? 'chevron-down' : 'chevron-up'} size={19} color={colors.foreground} />
+            </Pressable>
+          </View>
+          {selectedCity ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Clear ${selectedCity} city filter`}
+              testID="explore-clear-city"
+              onPress={() => setSelectedCity(null)}
+              style={[styles.exploreCityFilter, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="x" size={12} color={colors.mutedForeground} />
+              <Text style={[styles.exploreCityFilterText, { color: colors.mutedForeground }]}>{selectedCity}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+        <ScrollView
+          testID="explore-sheet-list"
+          style={styles.exploreSheetScroll}
+          contentContainerStyle={styles.exploreSheetScrollContent}
+          scrollEnabled={sheetExpanded}
+          showsVerticalScrollIndicator={sheetExpanded}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+        >
+          {query.isLoading ? <LoadingState /> : query.isError ? (
+            <EmptyState title="Experiences didn’t load" body="Check your connection and try again." actionLabel="Try again" onAction={() => { void query.refetch(); }} />
+          ) : visibleExperiences.length ? visibleExperiences.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title={selectedCity ? `No experiences in ${selectedCity}` : 'No experiences match'} body="Try another category or come back when local hosts publish something new." actionLabel={selectedCity ? 'Clear city filter' : undefined} onAction={selectedCity ? () => setSelectedCity(null) : undefined} />}
+          <View style={{ height: 24 }} />
+        </ScrollView>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -7102,11 +7191,38 @@ const styles = StyleSheet.create({
   dashboardXpText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   
   // Explore
+  exploreScreen: { flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' },
+  exploreTopOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, paddingHorizontal: 20, paddingTop: 8 },
+  exploreFullscreenTopBar: { marginBottom: 12, justifyContent: 'flex-end' },
+  exploreFullscreenSearchBox: { width: '60%', alignSelf: 'flex-start', marginBottom: 10 },
+  exploreFullscreenFilterRow: { paddingBottom: 0 },
+  exploreSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 4,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+    elevation: 16,
+  },
+  exploreSheetHeader: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 8 },
+  exploreSheetGrabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: 10 },
+  exploreSheetHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  exploreSheetHeadingCopy: { flex: 1, minWidth: 0 },
+  exploreSheetTitle: { fontSize: 17, lineHeight: 21, fontFamily: 'Inter_700Bold' },
+  exploreSheetHint: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular', marginTop: 1 },
+  exploreSheetCount: { fontSize: 10, fontFamily: 'Inter_500Medium', textAlign: 'right' },
+  exploreSheetToggle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  exploreCityFilter: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10, marginTop: 7 },
+  exploreCityFilterText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  exploreSheetScroll: { flex: 1, minHeight: 0 },
+  exploreSheetScrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 14 },
   exploreContent: { paddingTop: 8, paddingBottom: 12 },
   exploreTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 },
-  exploreBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  exploreBrandMark: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  exploreBrandName: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.05 },
   exploreTopActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   exploreTopAction: { width: 40, height: 42, alignItems: 'center', justifyContent: 'center' },
   exploreAvatarButton: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden' },
