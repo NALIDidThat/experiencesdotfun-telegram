@@ -973,6 +973,13 @@ router.post("/participations/:participationId/submit", async (req, res) => {
     error(res, 409, "This participation is no longer ready for completion submission.");
     return;
   }
+  recordAnalyticsEvent({
+    source: "server",
+    eventName: "completion_submit",
+    category: "experience",
+    platform: "server",
+    outcome: "success",
+  });
   const experience = await db.query.experiencesTable.findFirst({
     where: eq(experiencesTable.id, participation.experienceId),
   });
@@ -1099,6 +1106,13 @@ router.post(
       return;
     }
 
+    recordAnalyticsEvent({
+      source: "server",
+      eventName: "milestone_submit",
+      category: "experience",
+      platform: "server",
+      outcome: "success",
+    });
     const experience = await db.query.experiencesTable.findFirst({
       where: eq(experiencesTable.id, outcome.experienceId),
     });
@@ -1421,6 +1435,13 @@ router.patch("/host/experiences/:experienceId", async (req, res) => {
     );
     return;
   }
+  recordAnalyticsEvent({
+    source: "server",
+    eventName: "experience_edit",
+    category: "host",
+    platform: "server",
+    outcome: "success",
+  });
   res.json(await experienceResponse(outcome.experience));
 });
 
@@ -1471,6 +1492,13 @@ router.post("/host/experiences/:experienceId/cancel", async (req, res) => {
     error(res, 409, "This experience is no longer active.");
     return;
   }
+  recordAnalyticsEvent({
+    source: "server",
+    eventName: "experience_cancel",
+    category: "host",
+    platform: "server",
+    outcome: "success",
+  });
   res.json(await experienceResponse(outcome.experience));
 });
 
@@ -1754,6 +1782,13 @@ router.post("/host/participations/:participationId/attend", async (req, res) => 
     error(res, 409, "This participation can no longer be marked as attended.");
     return;
   }
+  recordAnalyticsEvent({
+    source: "server",
+    eventName: "experience_attend",
+    category: "host",
+    platform: "server",
+    outcome: "success",
+  });
   res.json(await participationResponse(updated));
 });
 
@@ -1839,6 +1874,13 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
     error(res, 409, "This contribution is no longer awaiting review.");
     return;
   }
+  recordAnalyticsEvent({
+    source: "server",
+    eventName: "completion_verify",
+    category: "host",
+    platform: "server",
+    outcome: "success",
+  });
   if (participantAccount && experience) {
     await sendContributionVerifiedNotification(participantAccount.telegramId, experience);
   }
@@ -2082,6 +2124,13 @@ router.post(
       error(res, 409, "This milestone is no longer awaiting review.");
       return;
     }
+    recordAnalyticsEvent({
+      source: "server",
+      eventName: outcome.action === "verify" ? "milestone_verify" : "milestone_reject",
+      category: "host",
+      platform: "server",
+      outcome: "success",
+    });
     if (outcome.action === "verify" && outcome.complete) {
       const experience = await db.query.experiencesTable.findFirst({
         where: eq(experiencesTable.id, outcome.experienceId),
@@ -2126,6 +2175,13 @@ router.post("/host/participations/:participationId/reject", async (req, res) => 
     error(res, 409, "This contribution is no longer awaiting review.");
     return;
   }
+  recordAnalyticsEvent({
+    source: "server",
+    eventName: "completion_reject",
+    category: "host",
+    platform: "server",
+    outcome: "success",
+  });
   const [experience, participant] = await Promise.all([
     db.query.experiencesTable.findFirst({
       where: eq(experiencesTable.id, participation.experienceId),
