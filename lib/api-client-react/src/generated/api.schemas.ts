@@ -570,7 +570,10 @@ export type HostExperience = Experience & {
   waitlistCount: number;
 };
 
-export type Friend = ParticipantSummary;
+export type Friend = ParticipantSummary & ({
+  /** @nullable */
+  city: string | null;
+});
 
 export interface FriendProfile {
   id: number;

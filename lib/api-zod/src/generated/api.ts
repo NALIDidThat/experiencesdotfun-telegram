@@ -2041,7 +2041,9 @@ export const ListFriendsResponseItem = zod.object({
   "name": zod.string(),
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
-})
+}).and(zod.object({
+  "city": zod.string().nullable()
+}))
 export const ListFriendsResponse = zod.array(ListFriendsResponseItem)
 
 

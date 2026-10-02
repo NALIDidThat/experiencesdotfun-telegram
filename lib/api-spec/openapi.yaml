@@ -2197,7 +2197,13 @@ components:
               type: integer
           required: [waitlistCount]
     Friend:
-      $ref: "#/components/schemas/ParticipantSummary"
+      allOf:
+        - $ref: "#/components/schemas/ParticipantSummary"
+        - type: object
+          properties:
+            city:
+              type: [string, "null"]
+          required: [city]
     FriendProfile:
       type: object
       properties:

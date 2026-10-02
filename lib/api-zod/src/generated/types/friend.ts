@@ -7,4 +7,7 @@
  */
 import type { ParticipantSummary } from './participantSummary';
 
-export type Friend = ParticipantSummary;
+export type Friend = ParticipantSummary & ({
+  /** @nullable */
+  city: string | null;
+});

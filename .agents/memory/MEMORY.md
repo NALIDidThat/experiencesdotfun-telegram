@@ -3,6 +3,7 @@
 - [Telegram auth bootstrap](telegram-auth-bootstrap.md) — keep Telegram authentication initialization stable across React Query mutation rerenders.
 - [Email auth sessions](email-auth-sessions.md) — email users use hashed passwords and expiring bearer sessions through the same protected API routes.
 - [Account identities and profiles](account-type-selection.md) — one Telegram or email login groups profiles; sessions stay profile-bound, and distinct logins are never merged implicitly.
+- [Friend map location privacy](friend-map-location-privacy.md) — use accepted friends’ profile cities at coarse city centres; never show live or precise device locations.
 - [Telegram polling ownership](telegram-polling-ownership.md) — run only one Telegram long-polling bot instance; local and deployed pollers conflict.
 - [Telegram group bot compatibility](telegram-group-keyboards.md) — group replies cannot use inline Web App buttons; keep personal actions private.
 - [Query invalidation cancellation](query-invalidation-cancellation.md) — treat expected AbortErrors from mutation-triggered query refreshes as cancellation, not app failure.

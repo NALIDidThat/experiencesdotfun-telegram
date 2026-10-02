@@ -56,6 +56,7 @@ import type {
   FeedReactionInput,
   FeedReactionState,
   FeedResponse,
+  Friend,
   FriendNotificationReadResponse,
   FriendNotificationsResponse,
   FriendProfile,
@@ -70,7 +71,6 @@ import type {
   ListMyParticipationsParams,
   MyCommunitiesResponse,
   NotFoundResponse,
-  ParticipantSummary,
   Participation,
   ProfileUpdateInput,
   RedeemXpAwardsResponse,
@@ -3567,9 +3567,9 @@ export const getListFriendsUrl = () => {
 /**
  * @summary List accepted friends
  */
-export const listFriends = async ( options?: Parameters<typeof customFetch>[1]): Promise<ParticipantSummary[]> => {
+export const listFriends = async ( options?: Parameters<typeof customFetch>[1]): Promise<Friend[]> => {
 
-  return customFetch<ParticipantSummary[]>(getListFriendsUrl(),
+  return customFetch<Friend[]>(getListFriendsUrl(),
   {
     ...options,
     method: 'GET'

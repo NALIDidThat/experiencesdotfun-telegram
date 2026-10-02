@@ -99,7 +99,7 @@ import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarn
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
-import { ExploreGlobe, type GlobeCity } from '@/components/ExploreGlobe';
+import { ExploreGlobe, type GlobeCity, type GlobeFriend } from '@/components/ExploreGlobe';
 import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
@@ -2084,6 +2084,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   }, [initialCategory]);
   const [search, setSearch] = useState('');
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [showFriends, setShowFriends] = useState(false);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [screenHeight, setScreenHeight] = useState(0);
   const sheetHeight = useRef(new Animated.Value(190)).current;
@@ -2113,6 +2114,22 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
     return () => animation.stop();
   }, [collapsedSheetHeight, expandedSheetHeight, screenHeight, sheetExpanded, sheetHeight]);
   const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: false });
+  const friendsQuery = useListFriends({ query: { queryKey: getListFriendsQueryKey(), enabled: Boolean(user) } });
+  const friendLocations = useMemo<GlobeFriend[]>(
+    () => (friendsQuery.data ?? []).flatMap((friend) => {
+      const city = friend.city?.trim();
+      const coordinates = city ? exploreCityCoordinates[normalizeExploreCityName(city)] : undefined;
+      if (!city || !coordinates) return [];
+      return [{
+        id: friend.id,
+        name: friend.name,
+        avatarUrl: friend.avatarUrl ?? null,
+        city,
+        ...coordinates,
+      }];
+    }),
+    [friendsQuery.data],
+  );
   const globeCities: GlobeCity[] = [];
   const cityAggregates = new Map<string, GlobeCity>();
   (query.data ?? []).forEach((experience) => {
@@ -2142,6 +2159,49 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
     setSelectedCity(city);
     setSheetExpanded(true);
   };
+  const friendMapHint = showFriends
+    ? friendsQuery.isLoading
+      ? 'Loading friend cities…'
+      : friendsQuery.isError
+        ? 'Friend locations could not load'
+        : friendLocations.length
+          ? 'Approximate profile cities · not live locations'
+          : 'No friends with a mapped profile city yet'
+    : sheetExpanded
+      ? 'Swipe down · city locations are approximate'
+      : 'Swipe up · city locations are approximate';
+  const categoryFilters = (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={[styles.filterRow, styles.exploreFullscreenFilterRow]}
+    >
+      {categories.map((item) => {
+        const selected = category === item.key;
+        return (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Show ${item.label === 'All' ? 'all' : item.label} experiences`}
+            accessibilityState={{ selected }}
+            testID={`explore-category-${item.key}`}
+            key={item.key}
+            onPress={() => { triggerHaptic(); setCategory(item.key); }}
+            style={({ pressed }) => [
+              styles.filter,
+              {
+                backgroundColor: selected ? colors.primary : colors.card,
+                borderColor: selected ? colors.primary : colors.border,
+                opacity: pressed ? 0.78 : 1,
+              },
+            ]}
+          >
+            <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+            <Text style={[styles.filterText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
 
   return (
     <View
@@ -2156,9 +2216,12 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         <ExploreGlobe
           fullScreen
           cities={globeCities}
+          friends={friendLocations}
           selectedCity={selectedCity}
           status={query.isLoading ? 'loading' : query.isError ? 'error' : 'ready'}
+          showFriends={showFriends}
           onSelectCity={selectCity}
+          onSelectFriend={(friendId) => go('friend-profile', { id: String(friendId) })}
           onExploreCity={selectCity}
           onResetCity={() => setSelectedCity(null)}
         />
@@ -2167,6 +2230,27 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
       <View pointerEvents="box-none" style={styles.exploreTopOverlay}>
         <View style={[styles.exploreTopBar, styles.exploreFullscreenTopBar]}>
           <View style={styles.exploreTopActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={showFriends ? 'Hide friend locations' : 'Show friend locations'}
+              accessibilityState={{ selected: showFriends }}
+              testID="explore-friends-toggle"
+              onPress={() => { triggerHaptic(); setShowFriends((current) => !current); }}
+              style={({ pressed }) => [
+                styles.exploreFriendsToggle,
+                {
+                  backgroundColor: showFriends ? colors.primary : colors.welcome.surface,
+                  borderColor: showFriends ? colors.primary : colors.welcome.border,
+                },
+                pressed && styles.exploreTopActionPressed,
+              ]}
+            >
+              <Feather name="users" size={15} color={showFriends ? colors.primaryForeground : colors.welcome.foreground} />
+              <Text style={[styles.exploreFriendsToggleText, { color: showFriends ? colors.primaryForeground : colors.welcome.foreground }]}>Friends</Text>
+              {friendLocations.length > 0 ? (
+                <Text style={[styles.exploreFriendsToggleCount, { color: showFriends ? colors.primaryForeground : colors.welcome.muted }]}>{friendLocations.length}</Text>
+              ) : null}
+            </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Open notifications"
@@ -2222,36 +2306,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           ) : null}
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.filterRow, styles.exploreFullscreenFilterRow]}
-        >
-          {categories.map((item) => {
-            const selected = category === item.key;
-            return (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Show ${item.label === 'All' ? 'all' : item.label} experiences`}
-                accessibilityState={{ selected }}
-                testID={`explore-category-${item.key}`}
-                key={item.key}
-                onPress={() => { triggerHaptic(); setCategory(item.key); }}
-                style={({ pressed }) => [
-                  styles.filter,
-                  {
-                    backgroundColor: selected ? colors.primary : colors.card,
-                    borderColor: selected ? colors.primary : colors.border,
-                    opacity: pressed ? 0.78 : 1,
-                  },
-                ]}
-              >
-                <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
-                <Text style={[styles.filterText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        {!showFriends ? categoryFilters : null}
       </View>
 
       <Animated.View
@@ -2291,7 +2346,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
                 {selectedCity ? `${selectedCity} experiences` : 'Experiences'}
               </Text>
               <Text style={[styles.exploreSheetHint, { color: colors.mutedForeground }]}>
-                {sheetExpanded ? 'Swipe down · city locations are approximate' : 'Swipe up · city locations are approximate'}
+                {friendMapHint}
               </Text>
             </View>
             <Text testID="explore-results-count" style={[styles.exploreSheetCount, { color: colors.mutedForeground }]}>
@@ -2321,6 +2376,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
             </Pressable>
           ) : null}
         </View>
+        {showFriends ? <View style={styles.exploreFriendsFilterSlot}>{categoryFilters}</View> : null}
         <ScrollView
           testID="explore-sheet-list"
           style={styles.exploreSheetScroll}
@@ -7224,6 +7280,10 @@ const styles = StyleSheet.create({
   exploreContent: { paddingTop: 8, paddingBottom: 12 },
   exploreTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 },
   exploreTopActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  exploreFriendsToggle: { height: 40, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, borderWidth: 1, borderRadius: 14 },
+  exploreFriendsToggleText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  exploreFriendsToggleCount: { minWidth: 12, textAlign: 'center', fontSize: 10, fontFamily: 'Inter_700Bold' },
+  exploreFriendsFilterSlot: { paddingHorizontal: 18, marginBottom: 8 },
   exploreTopAction: { width: 40, height: 42, alignItems: 'center', justifyContent: 'center' },
   exploreAvatarButton: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden' },
   exploreAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },

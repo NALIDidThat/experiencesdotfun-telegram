@@ -2214,6 +2214,7 @@ router.get("/friends", async (req, res) => {
     name: friend.name,
     username: friend.username,
     avatarUrl: friend.avatarUrl,
+    city: friend.city,
   })));
 });
 

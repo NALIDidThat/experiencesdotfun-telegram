@@ -358,8 +358,13 @@ const experiences = [
   makeExperience(764, "Toronto Park Planting", "environmental", "Toronto"),
   makeExperience(765, "Springfield Food Sharing", "community", "Springfield"),
 ];
+const friends = [
+  { id: 901, name: "Ava Harper", username: "ava", avatarUrl: null, city: "London" },
+  { id: 902, name: "Milo Chen", username: "milo", avatarUrl: null, city: "Toronto" },
+  { id: 903, name: "Casey Reed", username: "casey", avatarUrl: null, city: "Springfield" },
+];
 
-test("Explore Globe markers, city filtering, zoom controls, and categories stay interactive", async (t) => {
+test("Explore Globe activity and friend pins, city filtering, zoom controls, and categories stay interactive", async (t) => {
   const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
   assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the Explore Globe preview test.");
 
@@ -409,6 +414,8 @@ test("Explore Globe markers, city filtering, zoom controls, and categories stay 
           } else {
             response = user;
           }
+        } else if (url.pathname === "/api/friends" && method === "GET") {
+          response = friends;
         } else if (url.pathname === "/api/experiences" && method === "GET") {
           const category = url.searchParams.get("category");
           const search = url.searchParams.get("search")?.trim().toLowerCase() ?? "";
@@ -485,6 +492,43 @@ test("Explore Globe markers, city filtering, zoom controls, and categories stay 
   );
   assert.equal(initialCards.length, experiences.length, "All returned experiences should be listed.");
   assert.ok(initialCards.includes("explore-experience-card-765"), "The unmapped city's experience stays in the list.");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="explore-friends-toggle"]'))`,
+    Boolean,
+    "the friend-location toggle",
+  );
+  assert.ok(
+    await client.evaluate(`document.querySelector('[data-testid="explore-friends-toggle"]')?.getAttribute('aria-label')?.includes('friend locations') ?? false`),
+    "The friend-location control should expose an accessible label.",
+  );
+  await tapTestId(client, "explore-friends-toggle");
+  await waitForValue(
+    client,
+    `document.querySelectorAll('[data-testid^="explore-friend-pin-"]').length`,
+    (count) => count === 2,
+    "the mapped accepted-friend city pins",
+  );
+  assert.ok(
+    await client.evaluate(`document.querySelector('[data-testid="explore-sheet-handle"]')?.innerText?.toLowerCase().includes('approximate profile cities') ?? false`),
+    "The friend view should disclose that pins use approximate profile cities.",
+  );
+  if (process.env.EXPLORE_GLOBE_FRIENDS_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(process.env.EXPLORE_GLOBE_FRIENDS_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
+  }
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-friend-pin-903"]'))`),
+    false,
+    "Friends in unmapped cities should not be assigned invented coordinates.",
+  );
+  await tapTestId(client, "explore-friends-toggle");
+  await waitForValue(
+    client,
+    `document.querySelectorAll('[data-testid^="explore-friend-pin-"]').length`,
+    (count) => count === 0,
+    "friend pins to disappear when the view is hidden",
+  );
   assert.ok(
     await client.evaluate(`Boolean(document.querySelector('[aria-label="London: 2 experiences"]'))`),
     "The mapped London marker should show its aggregate count.",
@@ -534,8 +578,14 @@ test("Explore Globe markers, city filtering, zoom controls, and categories stay 
   );
   await waitForValue(
     client,
-    `Math.round(document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect().height ?? 0)`,
-    (height) => height > 320,
+    `(() => {
+      const screenHeight = document.querySelector('[data-testid="explore-screen-layout"]')?.getBoundingClientRect().height ?? 0;
+      const sheetHeight = document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect().height ?? 0;
+      const collapsedHeight = Math.min(208, Math.max(176, screenHeight * 0.34));
+      const expandedHeight = Math.max(collapsedHeight, Math.min(screenHeight * 0.72, screenHeight - 212));
+      return { sheetHeight, expandedHeight };
+    })()`,
+    (metrics) => metrics.sheetHeight >= metrics.expandedHeight - 2,
     "the expanded sheet animation to settle",
   );
   if (process.env.EXPLORE_GLOBE_SCREENSHOT_PATH) {
@@ -548,6 +598,13 @@ test("Explore Globe markers, city filtering, zoom controls, and categories stay 
   assert.deepEqual(londonCards.sort(), ["explore-experience-card-761", "explore-experience-card-762"]);
 
   await tapTestId(client, "explore-clear-city");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="explore-clear-city"]'))`,
+    (visible) => !visible,
+    "the city filter to clear",
+    5_000,
+  );
   await waitForValue(
     client,
     `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
@@ -692,6 +749,7 @@ test("Explore Globe markers, city filtering, zoom controls, and categories stay 
 
   await waitForValue(client, "document.readyState", (state) => state === "complete", "the Explore page load");
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/me")), "The mock-auth session should load.");
+  assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/friends")), "Accepted friends should be fetched for city-level map pins.");
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/experiences")), "Experiences should be fetched.");
   assert.equal(interceptionError, undefined, "API request interception should complete without errors.");
   assert.deepEqual(unexpectedApiRequests, [], "The Explore screen should make no unexpected API requests.");

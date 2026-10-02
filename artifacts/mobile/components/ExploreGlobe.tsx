@@ -3,6 +3,7 @@ import { PanResponder, Platform, Pressable, StyleSheet, Text, View } from 'react
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, Path, RadialGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { UserAvatar } from '@/components/UserAvatar';
 
 export type GlobeCity = {
   city: string;
@@ -14,12 +15,24 @@ export type GlobeCity = {
   xpOffered: number;
 };
 
+export type GlobeFriend = {
+  id: number;
+  name: string;
+  avatarUrl: string | null;
+  city: string;
+  latitude: number;
+  longitude: number;
+};
+
 type Props = {
   cities: GlobeCity[];
+  friends?: GlobeFriend[];
   selectedCity: string | null;
   status: 'loading' | 'ready' | 'error';
   fullScreen?: boolean;
+  showFriends?: boolean;
   onSelectCity: (city: string) => void;
+  onSelectFriend?: (friendId: number) => void;
   onExploreCity: (city: string) => void;
   onResetCity: () => void;
 };
@@ -65,7 +78,18 @@ function polygonPath(points: Array<[number, number]>, rotation: number, tilt: nu
   return path;
 }
 
-export function ExploreGlobe({ cities, selectedCity, status, fullScreen = false, onSelectCity, onExploreCity, onResetCity }: Props) {
+export function ExploreGlobe({
+  cities,
+  friends = [],
+  selectedCity,
+  status,
+  fullScreen = false,
+  showFriends = false,
+  onSelectCity,
+  onSelectFriend,
+  onExploreCity,
+  onResetCity,
+}: Props) {
   const colors = useColors();
   const space = colors.welcome;
   const [rotation, setRotation] = useState(0);
@@ -94,6 +118,30 @@ export function ExploreGlobe({ cities, selectedCity, status, fullScreen = false,
       .filter(({ point }) => point.z > 0.02),
     [cities, rotation, tilt, radius],
   );
+  const projectedFriends = useMemo(() => {
+    const cityCounts = new Map<string, number>();
+    const cityIndices = new Map<string, number>();
+    friends.forEach((friend) => {
+      const cityKey = friend.city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
+      cityCounts.set(cityKey, (cityCounts.get(cityKey) ?? 0) + 1);
+    });
+
+    return friends
+      .map((friend) => {
+        const cityKey = friend.city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
+        const cityIndex = cityIndices.get(cityKey) ?? 0;
+        cityIndices.set(cityKey, cityIndex + 1);
+        const columns = Math.min(3, cityCounts.get(cityKey) ?? 1);
+        return {
+          friend,
+          point: project(friend.latitude, friend.longitude, rotation, tilt, radius),
+          offsetX: (cityIndex % columns - (columns - 1) / 2) * 14,
+          offsetY: -Math.floor(cityIndex / columns) * 12,
+          zIndex: cityIndex + 1,
+        };
+      })
+      .filter(({ point }) => point.z > 0.02);
+  }, [friends, rotation, tilt, radius]);
   const globeScale = stageSize.width > 0 && stageSize.height > 0
     ? Math.min(stageSize.width / WIDTH, stageSize.height / HEIGHT)
     : 0;
@@ -115,7 +163,7 @@ export function ExploreGlobe({ cities, selectedCity, status, fullScreen = false,
               <Text style={[styles.title, { color: space.foreground }]}>Find your people.</Text>
             </View>
             <View style={[styles.liveBadge, { borderColor: space.border, backgroundColor: space.surface }]}>
-              <View style={[styles.liveDot, { backgroundColor: colors.teal }]} />
+              <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
               <Text style={[styles.liveText, { color: space.muted }]}>CITY ACTIVITY</Text>
             </View>
           </View>
@@ -178,7 +226,7 @@ export function ExploreGlobe({ cities, selectedCity, status, fullScreen = false,
                 <G key={city.city}>
                   <Circle cx={point.x} cy={point.y} r={dotRadius + 12} fill={colors.primary} fillOpacity="0.02" />
                   <Circle cx={point.x} cy={point.y} r={dotRadius + 10} fill={colors.primary} fillOpacity={active ? 0.2 : 0.08} />
-                  <Circle cx={point.x} cy={point.y} r={dotRadius} fill={active ? colors.primary : colors.teal} stroke={space.foreground} strokeOpacity="0.88" strokeWidth="1.3" />
+                  <Circle cx={point.x} cy={point.y} r={dotRadius} fill={colors.primary} stroke={space.foreground} strokeOpacity="0.88" strokeWidth="1.3" />
                   <Circle cx={point.x} cy={point.y} r={1.7} fill={space.foreground} />
                   {showLabel ? <SvgText x={point.x + 13} y={point.y - 9} fill={space.foreground} fontSize="10" fontWeight="600">{city.city} · {city.experiences}</SvgText> : null}
                 </G>
@@ -188,7 +236,7 @@ export function ExploreGlobe({ cities, selectedCity, status, fullScreen = false,
           <Circle cx={CENTER_X} cy={CENTER_Y} r={radius} fill="none" stroke={space.subdued} strokeOpacity="0.32" strokeWidth="0.8" />
           {!fullScreen ? (
             <>
-              <Line x1="18" y1="266" x2="58" y2="266" stroke={colors.teal} strokeOpacity="0.6" strokeWidth="1" />
+              <Line x1="18" y1="266" x2="58" y2="266" stroke={colors.primary} strokeOpacity="0.6" strokeWidth="1" />
               <SvgText x="65" y="269" fill={space.subdued} fontSize="8" letterSpacing="1.1">APPROX. CITY</SvgText>
             </>
           ) : null}
@@ -213,6 +261,36 @@ export function ExploreGlobe({ cities, selectedCity, status, fullScreen = false,
               ]}
             />
           )) : null}
+          {fullScreen && showFriends && globeScale > 0 ? projectedFriends.map(({ friend, point, offsetX, offsetY, zIndex }) => (
+            <Pressable
+              key={friend.id}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${friend.name}'s profile in ${friend.city}`}
+              accessibilityHint="Shows this friend's approximate profile city and opens their profile."
+              testID={`explore-friend-pin-${friend.id}`}
+              onPress={() => onSelectFriend?.(friend.id)}
+              style={[
+                styles.friendPin,
+                {
+                  left: globeOffsetX + point.x * globeScale + offsetX - 24,
+                  top: globeOffsetY + point.y * globeScale + offsetY - 52,
+                  zIndex,
+                  elevation: zIndex,
+                },
+              ]}
+            >
+              <View style={[styles.friendPinTail, { backgroundColor: colors.primary }]} />
+              <View style={[styles.friendPinHead, { backgroundColor: colors.primary, borderColor: space.background }]}>
+                <UserAvatar
+                  avatarUrl={friend.avatarUrl}
+                  name={friend.name}
+                  containerStyle={[styles.friendPinAvatar, { backgroundColor: space.background }]}
+                  initialStyle={{ color: colors.primaryForeground, fontFamily: 'Inter_700Bold', fontSize: 13 }}
+                />
+              </View>
+            </Pressable>
+          )) : null}
         </View>
         <View style={[styles.atmosphere, { pointerEvents: 'none', backgroundColor: colors.violet }]} />
         <View style={[
@@ -236,7 +314,7 @@ export function ExploreGlobe({ cities, selectedCity, status, fullScreen = false,
       {!fullScreen ? (
         <>
           <View style={styles.globeFooter}>
-            <View style={styles.legend}><View style={[styles.legendDot, { backgroundColor: colors.teal }]} /><Text style={[styles.legendCopy, { color: space.subdued }]}>Experiences happening</Text></View>
+            <View style={styles.legend}><View style={[styles.legendDot, { backgroundColor: colors.primary }]} /><Text style={[styles.legendCopy, { color: space.subdued }]}>Experiences happening</Text></View>
             <Text style={[styles.dragHint, { color: space.subdued }]}>DRAG TO ROTATE</Text>
           </View>
           {selected ? (
@@ -286,6 +364,10 @@ const styles = StyleSheet.create({
   globeStage: { height: 244, marginTop: 1, position: 'relative', alignItems: 'center', justifyContent: 'center' },
   markerLayer: { ...StyleSheet.absoluteFill },
   markerHitTarget: { position: 'absolute', width: 44, height: 44, borderRadius: 22, backgroundColor: 'transparent' },
+  friendPin: { position: 'absolute', width: 48, height: 54, alignItems: 'center' },
+  friendPinTail: { position: 'absolute', width: 14, height: 14, top: 35, transform: [{ rotate: '45deg' }] },
+  friendPinHead: { width: 46, height: 46, borderRadius: 23, borderWidth: 3, padding: 2, alignItems: 'center', justifyContent: 'center' },
+  friendPinAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   atmosphere: { position: 'absolute', width: 206, height: 34, borderRadius: 100, opacity: 0.08, bottom: 20, transform: [{ scaleX: 1.15 }] },
   zoomControls: { position: 'absolute', right: 0, top: 18, borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
   fullScreenZoomControls: { right: 20, top: 60, flexDirection: 'row', alignItems: 'center' },
