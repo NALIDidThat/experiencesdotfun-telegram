@@ -62,6 +62,7 @@ export function ExperienceXpSlider({
         <Text
           accessibilityLiveRegion="polite"
           style={[styles.value, { color: colors.primary }]}
+          testID="create-xp-reward-current-value"
         >
           {selectedValue} <Text style={styles.valueUnit}>XP</Text>
         </Text>

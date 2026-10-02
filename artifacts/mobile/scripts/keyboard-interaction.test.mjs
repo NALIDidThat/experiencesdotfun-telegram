@@ -590,6 +590,72 @@ test("experience creation shows one question and keeps it reachable with the key
   });
 });
 
+test("experience XP reward slider can be dragged across its full 0–1,000 XP range", async (t) => {
+  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile preview interaction test.");
+
+  const client = await launchBrowser(t);
+  await setViewport(client, initialViewport.height);
+  await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=create&step=12` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="create-xp-reward-slider"]'))`,
+    Boolean,
+    "the XP reward slider",
+  );
+
+  const currentValue = `document.querySelector('[data-testid="create-xp-reward-current-value"]')?.textContent?.trim() ?? null`;
+  await waitForValue(client, currentValue, (value) => value === "150 XP", "the default XP reward");
+
+  const dragTo = async (startRatio, progress) => {
+    await client.evaluate(`(() => {
+      const slider = document.querySelector('[data-testid="create-xp-reward-slider"]');
+      const rect = slider.getBoundingClientRect();
+      const y = Math.round(rect.top + rect.height / 2);
+      const makeTouch = (x) => new Touch({
+        identifier: 1,
+        target: slider,
+        clientX: x,
+        clientY: y,
+        pageX: x,
+        pageY: y,
+        screenX: x,
+        screenY: y,
+        radiusX: 1,
+        radiusY: 1,
+        rotationAngle: 0,
+        force: 1,
+      });
+      const dispatch = (type, touches, changedTouches) => slider.dispatchEvent(new TouchEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        touches,
+        changedTouches,
+      }));
+      const touch = makeTouch(Math.round(rect.left + rect.width * ${startRatio}));
+      dispatch('touchstart', [touch], [touch]);
+      window.__experienceXpSliderTouch = { makeTouch, dispatch, rect };
+    })()`);
+    await delay(50);
+    await client.evaluate(`(() => {
+      const { makeTouch, dispatch, rect } = window.__experienceXpSliderTouch;
+      let touch;
+      for (const progress of ${JSON.stringify(progress)}) {
+        touch = makeTouch(Math.round(rect.left + rect.width * progress));
+        dispatch('touchmove', [touch], [touch]);
+      }
+      dispatch('touchend', [], [touch]);
+      delete window.__experienceXpSliderTouch;
+    })()`);
+  };
+
+  await dragTo(0.15, [0.45, 0.7, 0.9, 1]);
+  await waitForValue(client, currentValue, (value) => value === "1000 XP", "the maximum XP reward");
+
+  await dragTo(0.85, [0.6, 0.3, 0]);
+  await waitForValue(client, currentValue, (value) => value === "0 XP", "the minimum XP reward");
+});
+
 test("experience review returns to the overview after saving an edited answer", async (t) => {
   const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
   assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile preview interaction test.");
