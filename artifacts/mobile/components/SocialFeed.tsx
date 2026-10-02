@@ -581,7 +581,11 @@ export function SocialFeed({
                       styles.choiceChip,
                       {
                         backgroundColor: selected ? colors.primary + "14" : colors.muted,
-                        borderColor: selected ? colors.primary : colors.border,
+                        borderColor: "#f20789",
+                        borderWidth: 1.5,
+                        boxShadow: selected
+                          ? "0px 0px 12px rgba(242, 7, 137, 0.55)"
+                          : "0px 0px 7px rgba(242, 7, 137, 0.3)",
                       },
                     ]}
                   >
