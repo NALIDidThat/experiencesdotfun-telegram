@@ -99,6 +99,7 @@ import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarn
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
+import { ExploreGlobe, type GlobeCity } from '@/components/ExploreGlobe';
 import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
@@ -116,6 +117,46 @@ const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: 
   { key: 'education', label: 'Education', icon: 'book-open' },
   { key: 'community', label: 'Community', icon: 'users' },
 ];
+
+// City-centre coordinates are deliberately coarse approximations, used only to
+// place city aggregates on the globe. Unknown cities remain available in the list.
+const exploreCityCoordinates: Record<string, { latitude: number; longitude: number }> = {
+  london: { latitude: 51.5072, longitude: -0.1276 },
+  'new york': { latitude: 40.7128, longitude: -74.006 },
+  'los angeles': { latitude: 34.0522, longitude: -118.2437 },
+  'san francisco': { latitude: 37.7749, longitude: -122.4194 },
+  toronto: { latitude: 43.6532, longitude: -79.3832 },
+  'mexico city': { latitude: 19.4326, longitude: -99.1332 },
+  'sao paulo': { latitude: -23.5505, longitude: -46.6333 },
+  'rio de janeiro': { latitude: -22.9068, longitude: -43.1729 },
+  'buenos aires': { latitude: -34.6037, longitude: -58.3816 },
+  dublin: { latitude: 53.3498, longitude: -6.2603 },
+  paris: { latitude: 48.8566, longitude: 2.3522 },
+  berlin: { latitude: 52.52, longitude: 13.405 },
+  amsterdam: { latitude: 52.3676, longitude: 4.9041 },
+  madrid: { latitude: 40.4168, longitude: -3.7038 },
+  lisbon: { latitude: 38.7223, longitude: -9.1393 },
+  rome: { latitude: 41.9028, longitude: 12.4964 },
+  istanbul: { latitude: 41.0082, longitude: 28.9784 },
+  cairo: { latitude: 30.0444, longitude: 31.2357 },
+  lagos: { latitude: 6.5244, longitude: 3.3792 },
+  nairobi: { latitude: -1.2921, longitude: 36.8219 },
+  mogadishu: { latitude: 2.0469, longitude: 45.3182 },
+  'cape town': { latitude: -33.9249, longitude: 18.4241 },
+  dubai: { latitude: 25.2048, longitude: 55.2708 },
+  mumbai: { latitude: 19.076, longitude: 72.8777 },
+  delhi: { latitude: 28.6139, longitude: 77.209 },
+  bangkok: { latitude: 13.7563, longitude: 100.5018 },
+  singapore: { latitude: 1.3521, longitude: 103.8198 },
+  tokyo: { latitude: 35.6762, longitude: 139.6503 },
+  seoul: { latitude: 37.5665, longitude: 126.978 },
+  sydney: { latitude: -33.8688, longitude: 151.2093 },
+  melbourne: { latitude: -37.8136, longitude: 144.9631 },
+};
+
+function normalizeExploreCityName(city: string) {
+  return city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
+}
 
 const categoryIcon: Record<ExperienceCategory, IconName> = {
   environmental: 'feather',
@@ -2042,7 +2083,32 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
     setCategory(initialCategory);
   }, [initialCategory]);
   const [search, setSearch] = useState('');
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: false });
+  const globeCities: GlobeCity[] = [];
+  const cityAggregates = new Map<string, GlobeCity>();
+  (query.data ?? []).forEach((experience) => {
+    const cityKey = normalizeExploreCityName(experience.city);
+    const coordinates = exploreCityCoordinates[cityKey];
+    if (!coordinates) return;
+    const aggregate = cityAggregates.get(cityKey) ?? {
+      city: experience.city,
+      ...coordinates,
+      experiences: 0,
+      participants: 0,
+      places: 0,
+      xpOffered: 0,
+    };
+    aggregate.experiences += 1;
+    aggregate.participants += experience.participantCount;
+    aggregate.places += experience.availablePlaces;
+    aggregate.xpOffered += experience.xpReward;
+    cityAggregates.set(cityKey, aggregate);
+  });
+  globeCities.push(...cityAggregates.values());
+  const visibleExperiences = selectedCity
+    ? (query.data ?? []).filter((experience) => normalizeExploreCityName(experience.city) === normalizeExploreCityName(selectedCity))
+    : (query.data ?? []);
 
   return (
     <KeyboardAwareScrollViewCompat
@@ -2144,19 +2210,42 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         })}
       </ScrollView>
 
+      <ExploreGlobe
+        cities={globeCities}
+        selectedCity={selectedCity}
+        status={query.isLoading ? 'loading' : query.isError ? 'error' : 'ready'}
+        onSelectCity={setSelectedCity}
+        onExploreCity={setSelectedCity}
+        onResetCity={() => setSelectedCity(null)}
+      />
+
       <View style={styles.resultsHeading}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Experiences</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{selectedCity ? selectedCity : 'Experiences'}</Text>
+          {selectedCity ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Clear city filter"
+              testID="explore-clear-city"
+              onPress={() => setSelectedCity(null)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 4, paddingHorizontal: 6 }}
+            >
+              <Feather name="x" size={13} color={colors.mutedForeground} />
+              <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_500Medium', fontSize: 11 }}>Clear</Text>
+            </Pressable>
+          ) : null}
+        </View>
         <Text
           testID="explore-results-count"
           style={[styles.resultCount, { color: colors.mutedForeground }]}
         >
-          {query.data?.length ?? 0} {query.data?.length === 1 ? 'experience' : 'experiences'}
+          {visibleExperiences.length} {visibleExperiences.length === 1 ? 'experience' : 'experiences'}
         </Text>
       </View>
 
       {query.isLoading ? <LoadingState /> : query.isError ? (
         <EmptyState title="Experiences didn’t load" body="Check your connection and try again." actionLabel="Try again" onAction={() => { void query.refetch(); }} />
-      ) : query.data?.length ? query.data.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title="No experiences match" body="Try another category or come back when local hosts publish something new." />}
+      ) : visibleExperiences.length ? visibleExperiences.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title={selectedCity ? `No experiences in ${selectedCity}` : 'No experiences match'} body="Try another category or come back when local hosts publish something new." actionLabel={selectedCity ? 'Clear city filter' : undefined} onAction={selectedCity ? () => setSelectedCity(null) : undefined} />}
       <View style={{ height: 120 }} />
     </KeyboardAwareScrollViewCompat>
   );
