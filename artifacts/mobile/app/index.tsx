@@ -1744,13 +1744,35 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
 
       <View style={[styles.dashboardHero, { borderRadius: 30, overflow: 'hidden' }]}>
         <LinearGradient colors={[colors.secondary, colors.primary, colors.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-        <View style={[styles.dashboardGlow, styles.dashboardGlowOne]} />
-        <View style={[styles.dashboardGlow, styles.dashboardGlowTwo]} />
         <View style={styles.dashboardGreeting}>
-          <View style={styles.dashboardGreetingAccent} />
           <View style={styles.dashboardGreetingCopy}>
             <Text style={styles.dashboardWelcome}>Welcome back</Text>
-            <Text style={styles.dashboardName} numberOfLines={1}>{firstName}🎉</Text>
+            <Text style={styles.dashboardName} numberOfLines={1}>{firstName}!</Text>
+          </View>
+          <View style={styles.dashboardGreetingActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Explore experiences"
+              testID="dashboard-explore-button"
+              onPress={() => { triggerHaptic(); go('explore'); }}
+              style={({ pressed }) => [styles.dashboardHeroAction, pressed && styles.dashboardHeroActionPressed]}
+            >
+              <Feather name="search" size={18} color="#ffffff" />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open your profile"
+              testID="dashboard-profile-button"
+              onPress={() => { triggerHaptic(); go('profile'); }}
+              style={({ pressed }) => [styles.dashboardHeroAvatarButton, pressed && styles.dashboardHeroActionPressed]}
+            >
+              <UserAvatar
+                avatarUrl={user.avatarUrl}
+                name={user.name}
+                containerStyle={[styles.dashboardHeroAvatar, { backgroundColor: colors.card }]}
+                initialStyle={{ color: colors.primary, fontFamily: 'Inter_700Bold' }}
+              />
+            </Pressable>
           </View>
         </View>
 
@@ -1766,42 +1788,66 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
             pressed && styles.dashboardStatusCardPressed,
           ]}
         >
-          <View style={styles.dashboardStatusCopy}>
-            <Text style={[styles.dashboardStatusTitle, { color: colors.foreground }]}>
-              {upcomingCount ? `${upcomingCount} experience${upcomingCount === 1 ? '' : 's'} coming up` : 'Ready for your first experience?'}
-            </Text>
-            <Text style={[styles.dashboardStatusSub, { color: colors.mutedForeground }]}>
-              {upcomingCount ? 'Your next plans are ready when you are.' : 'Find an experience you’ll look forward to.'}
-            </Text>
+          <View style={styles.dashboardStatusMain}>
+            <View style={[styles.dashboardStatusIcon, { backgroundColor: colors.primary + '12' }]}>
+              <Feather name={upcomingCount ? 'calendar' : 'compass'} size={18} color={colors.primary} />
+            </View>
+            <View style={styles.dashboardStatusCopy}>
+              <Text style={[styles.dashboardStatusTitle, { color: colors.foreground }]}>
+                {upcomingCount ? `${upcomingCount} experience${upcomingCount === 1 ? '' : 's'} coming up` : 'Ready for your first experience?'}
+              </Text>
+              <Text style={[styles.dashboardStatusSub, { color: colors.mutedForeground }]}>
+                {upcomingCount ? 'Your next plans are ready when you are.' : 'Find an experience you’ll look forward to.'}
+              </Text>
+            </View>
           </View>
-          <View style={[styles.dashboardStatusCta, { backgroundColor: colors.primary, borderRadius: colors.radius - 2 }]}>
-            <Text style={[styles.dashboardStatusCtaText, { color: colors.primaryForeground }]}>
+          <View style={[styles.dashboardStatusCta, { borderTopColor: colors.border }]}>
+            <Text style={[styles.dashboardStatusCtaText, { color: colors.primary }]}>
               {upcomingCount ? 'View upcoming experiences' : 'Explore experiences'}
             </Text>
-            <Feather name="arrow-right" size={17} color={colors.primaryForeground} />
+            <Feather name="arrow-right" size={15} color={colors.primary} />
           </View>
         </Pressable>
       </View>
       {participations.isError ? <InlineError message="Your upcoming bookings couldn’t be loaded. Pull down to try again." /> : null}
 
+      <View style={styles.dashboardSectionHeader}>
+        <Text style={[styles.dashboardSectionTitle, { color: colors.foreground }]}>Your progress</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="See your experience passport"
+          onPress={() => { triggerHaptic(); go('profile'); }}
+        >
+          <Text style={[styles.dashboardSeeAll, { color: colors.primary }]}>See all</Text>
+        </Pressable>
+      </View>
       <Pressable accessibilityRole="button" accessibilityLabel="Open your experience passport" onPress={() => { triggerHaptic(); go('profile'); }} style={[styles.dashboardPassportCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
         <View style={styles.dashboardPassportTop}>
           <View>
             <Text style={[styles.dashboardCardEyebrow, { color: colors.primary }]}>EXPERIENCE PASSPORT</Text>
             <Text style={[styles.dashboardPassportTitle, { color: colors.foreground }]}>{user.level}</Text>
-            <View style={styles.dashboardPassportMeta}>
-              <Feather name="zap" size={16} color={colors.primary} />
-              <Text style={[styles.dashboardPassportMetaText, { color: colors.mutedForeground }]}>{user.xp} XP earned</Text>
-            </View>
           </View>
           <View style={[styles.dashboardPassportArt, { backgroundColor: colors.primary + '12' }]}>
-            <Feather name="award" size={44} color={colors.primary} />
+            <Feather name="award" size={28} color={colors.primary} />
           </View>
         </View>
-        <View style={[styles.dashboardPassportFooter, { borderTopColor: colors.border }]}>
-          <Text style={[styles.dashboardPassportStat, { color: colors.foreground }]}>{user.completedCount} completed</Text>
-          <View style={[styles.dashboardPassportButton, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.dashboardPassportButtonText, { color: colors.card }]}>View EXP</Text>
+        <View style={styles.dashboardPassportMetrics}>
+          <View style={[styles.dashboardPassportMetric, { backgroundColor: colors.muted, borderRadius: colors.radius - 4 }]}>
+            <View style={styles.dashboardPassportMetricLabelRow}>
+              <Feather name="zap" size={13} color={colors.primary} />
+              <Text style={[styles.dashboardPassportMetricLabel, { color: colors.mutedForeground }]}>XP EARNED</Text>
+            </View>
+            <View style={styles.dashboardPassportMetricValueRow}>
+              <Text style={[styles.dashboardPassportMetricValue, { color: colors.foreground }]}>{user.xp.toLocaleString()}</Text>
+              <Text style={[styles.dashboardPassportMetricUnit, { color: colors.mutedForeground }]}>XP</Text>
+            </View>
+          </View>
+          <View style={[styles.dashboardPassportMetric, { backgroundColor: colors.muted, borderRadius: colors.radius - 4 }]}>
+            <View style={styles.dashboardPassportMetricLabelRow}>
+              <Feather name="check-circle" size={13} color={colors.primary} />
+              <Text style={[styles.dashboardPassportMetricLabel, { color: colors.mutedForeground }]}>COMPLETED</Text>
+            </View>
+            <Text style={[styles.dashboardPassportMetricValue, { color: colors.foreground }]}>{user.completedCount}</Text>
           </View>
         </View>
       </Pressable>
