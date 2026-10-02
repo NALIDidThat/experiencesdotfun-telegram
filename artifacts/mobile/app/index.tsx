@@ -98,6 +98,7 @@ import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
+import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
@@ -4939,7 +4940,7 @@ const createExperienceQuestions: CreateExperienceQuestion[] = [
   { key: 'city', prompt: 'What city is it in?', description: 'This helps people find experiences close to them.', label: 'City', placeholder: 'London' },
   { key: 'location', prompt: 'Where will everyone meet?', description: 'Add a venue, street, or landmark people can find.', label: 'Meeting point', placeholder: 'A clear place people can find' },
   { key: 'capacity', prompt: 'How many people can join?', description: 'Set the number of confirmed places available.', label: 'Places available', placeholder: '12', keyboardType: 'number-pad', hint: 'You can manage a waitlist if all places fill.' },
-  { key: 'xpReward', prompt: 'How will you recognise participants?', description: 'Choose the XP reward people earn after their participation is verified.', label: 'XP reward', placeholder: '150', keyboardType: 'number-pad', hint: 'Enter a whole number. You can set this to 0.' },
+  { key: 'xpReward', prompt: 'How will you recognise participants?', description: 'Choose the XP reward people earn after their participation is verified.', label: 'XP reward', placeholder: '', hint: 'Slide to select the XP reward.' },
   { key: 'milestones', prompt: 'What milestones will participants complete?', description: 'Split the XP reward across clear steps. Each step is submitted by the participant and verified by you before its XP is released.', label: 'Experience milestones', placeholder: '', kind: 'milestones' },
   { key: 'monetaryRewardPence', prompt: 'Will you offer a cash reward?', description: 'This is optional. Enter the amount in pence.', label: 'Cash reward in pence', placeholder: '2000', keyboardType: 'number-pad', optional: true, hint: 'For example, enter 2000 for a £20 reward.' },
   { key: 'whatYouWillDo', prompt: 'What will participants do?', description: 'Help people picture the activity before they sign up.', label: 'What participants will do', placeholder: 'Walk, make, chat, discover…', multiline: true, optional: true },
@@ -5054,9 +5055,12 @@ function Create({
         : 'Enter a whole number of places, at least 1.';
     }
     if (question.key === 'xpReward') {
-      return value != null && Number.isInteger(Number(value)) && Number(value) >= 0
+      return value != null
+        && Number.isInteger(Number(value))
+        && Number(value) >= 0
+        && Number(value) <= 1000
         ? null
-        : 'Enter a whole number of XP, or 0.';
+        : 'Choose a whole-number XP reward from 0 to 1,000.';
     }
     if (question.key === 'monetaryRewardPence') {
       return value == null || (Number.isInteger(Number(value)) && Number(value) >= 0)
@@ -5385,7 +5389,12 @@ function Create({
                 </View>
               ) : (
                 <>
-                  {activeQuestion.key === 'date' ? (
+                  {activeQuestion.key === 'xpReward' ? (
+                    <ExperienceXpSlider
+                      value={Number(form.xpReward ?? 0)}
+                      onChange={(value) => set('xpReward', value)}
+                    />
+                  ) : activeQuestion.key === 'date' ? (
                     <View style={styles.createField}>
                       <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>DATE</Text>
                       <DateSliderPicker
