@@ -218,6 +218,7 @@ export const ExperienceStatus = {
   full: 'full',
   completed: 'completed',
   archived: 'archived',
+  cancelled: 'cancelled',
 } as const;
 
 export type ParticipationStatus = typeof ParticipationStatus[keyof typeof ParticipationStatus];
@@ -452,6 +453,8 @@ export interface ExperienceMilestoneSubmission {
 export interface HostExperienceMilestonesResponse {
   milestones: ExperienceMilestone[];
   submissions: ExperienceMilestoneSubmission[];
+  /** False once any participant has submitted a milestone, so existing history cannot be changed. */
+  milestonesEditable: boolean;
 }
 
 export type ExperienceMilestoneReviewInputAction = typeof ExperienceMilestoneReviewInputAction[keyof typeof ExperienceMilestoneReviewInputAction];
@@ -557,6 +560,8 @@ export interface HostOverview {
   upcomingExperiences: number;
   participantCount: number;
   waitlistCount: number;
+  pendingCompletionReviews: number;
+  pendingMilestoneReviews: number;
   pendingVerifications: number;
   totalExperiences: number;
 }

@@ -1128,7 +1128,7 @@ export const ListExperiencesResponseItem = zod.object({
   "availablePlaces": zod.number().int(),
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
-  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
 })
 export const ListExperiencesResponse = zod.array(ListExperiencesResponseItem)
 
@@ -1209,7 +1209,7 @@ export const CreateExperienceResponse = zod.object({
   "availablePlaces": zod.number().int(),
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
-  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
 })
 
 
@@ -1252,7 +1252,7 @@ export const GetExperienceResponse = zod.object({
   "availablePlaces": zod.number().int(),
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
-  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
 }).and(zod.object({
   "whatToBring": zod.string().nullable(),
   "whatYouWillDo": zod.string().nullable(),
@@ -1283,7 +1283,7 @@ export const GetExperienceResponse = zod.object({
   "availablePlaces": zod.number().int(),
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
-  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
 }),
   "participant": zod.object({
   "id": zod.number().int(),
@@ -1350,7 +1350,7 @@ export const JoinExperienceResponse = zod.object({
   "availablePlaces": zod.number().int(),
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
-  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
 }),
   "participant": zod.object({
   "id": zod.number().int(),
@@ -1405,7 +1405,7 @@ export const ListMyParticipationsResponseItem = zod.object({
   "availablePlaces": zod.number().int(),
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
-  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
 }),
   "participant": zod.object({
   "id": zod.number().int(),
@@ -1461,7 +1461,7 @@ export const SubmitCompletionResponse = zod.object({
   "availablePlaces": zod.number().int(),
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
-  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
 }),
   "participant": zod.object({
   "id": zod.number().int(),
@@ -1518,6 +1518,8 @@ export const GetHostOverviewResponse = zod.object({
   "upcomingExperiences": zod.number().int(),
   "participantCount": zod.number().int(),
   "waitlistCount": zod.number().int(),
+  "pendingCompletionReviews": zod.number().int(),
+  "pendingMilestoneReviews": zod.number().int(),
   "pendingVerifications": zod.number().int(),
   "totalExperiences": zod.number().int()
 })
@@ -1555,11 +1557,135 @@ export const ListHostExperiencesResponseItem = zod.object({
   "availablePlaces": zod.number().int(),
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
-  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
 }).and(zod.object({
   "waitlistCount": zod.number().int()
 }))
 export const ListHostExperiencesResponse = zod.array(ListHostExperiencesResponseItem)
+
+
+/**
+ * @summary Update an active experience owned by the current organisation
+ */
+export const UpdateHostExperienceParams = zod.object({
+  "experienceId": zod.coerce.number().int()
+})
+
+
+
+
+export const updateHostExperienceBodyDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const updateHostExperienceBodyStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateHostExperienceBodyEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+export const updateHostExperienceBodyXpRewardMin = 0;
+
+export const updateHostExperienceBodyMonetaryRewardPenceMin = 0;
+
+export const updateHostExperienceBodyMilestonesItemTitleMax = 120;
+
+export const updateHostExperienceBodyMilestonesItemDescriptionMax = 500;
+
+export const updateHostExperienceBodyMilestonesItemXpRewardMin = 0;
+
+export const updateHostExperienceBodyMilestonesMax = 12;
+
+
+
+export const UpdateHostExperienceBody = zod.object({
+  "organisationName": zod.string().min(1),
+  "organisationDescription": zod.string().nullable(),
+  "title": zod.string().min(1),
+  "description": zod.string().min(1),
+  "category": zod.enum(['environmental', 'education', 'community']),
+  "date": zod.string().regex(updateHostExperienceBodyDateRegExp),
+  "startTime": zod.string().regex(updateHostExperienceBodyStartTimeRegExp),
+  "endTime": zod.string().regex(updateHostExperienceBodyEndTimeRegExp),
+  "location": zod.string(),
+  "city": zod.string(),
+  "capacity": zod.number().int().min(1),
+  "xpReward": zod.number().int().min(updateHostExperienceBodyXpRewardMin),
+  "monetaryRewardPence": zod.number().int().min(updateHostExperienceBodyMonetaryRewardPenceMin).nullable(),
+  "whatToBring": zod.string().nullable(),
+  "whatYouWillDo": zod.string().nullable(),
+  "milestones": zod.array(zod.object({
+  "title": zod.string().min(1).max(updateHostExperienceBodyMilestonesItemTitleMax),
+  "description": zod.string().max(updateHostExperienceBodyMilestonesItemDescriptionMax).nullable(),
+  "xpReward": zod.number().int().min(updateHostExperienceBodyMilestonesItemXpRewardMin)
+})).min(1).max(updateHostExperienceBodyMilestonesMax).optional()
+})
+
+export const updateHostExperienceResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const updateHostExperienceResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateHostExperienceResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const UpdateHostExperienceResponse = zod.object({
+  "id": zod.number().int(),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "verified": zod.boolean()
+}),
+  "title": zod.string(),
+  "description": zod.string(),
+  "category": zod.enum(['environmental', 'education', 'community']),
+  "date": zod.string().regex(updateHostExperienceResponseDateRegExp),
+  "startTime": zod.string().regex(updateHostExperienceResponseStartTimeRegExp),
+  "endTime": zod.string().regex(updateHostExperienceResponseEndTimeRegExp),
+  "location": zod.string(),
+  "city": zod.string(),
+  "capacity": zod.number().int(),
+  "participantCount": zod.number().int(),
+  "availablePlaces": zod.number().int(),
+  "xpReward": zod.number().int(),
+  "monetaryRewardPence": zod.number().int().nullable(),
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
+})
+
+
+/**
+ * @summary Cancel an active hosted experience without deleting its participation history
+ */
+export const CancelHostExperienceParams = zod.object({
+  "experienceId": zod.coerce.number().int()
+})
+
+export const cancelHostExperienceResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const cancelHostExperienceResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const cancelHostExperienceResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const CancelHostExperienceResponse = zod.object({
+  "id": zod.number().int(),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "verified": zod.boolean()
+}),
+  "title": zod.string(),
+  "description": zod.string(),
+  "category": zod.enum(['environmental', 'education', 'community']),
+  "date": zod.string().regex(cancelHostExperienceResponseDateRegExp),
+  "startTime": zod.string().regex(cancelHostExperienceResponseStartTimeRegExp),
+  "endTime": zod.string().regex(cancelHostExperienceResponseEndTimeRegExp),
+  "location": zod.string(),
+  "city": zod.string(),
+  "capacity": zod.number().int(),
+  "participantCount": zod.number().int(),
+  "availablePlaces": zod.number().int(),
+  "xpReward": zod.number().int(),
+  "monetaryRewardPence": zod.number().int().nullable(),
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
+})
 
 
 /**
@@ -1593,7 +1719,8 @@ export const GetHostExperienceMilestonesResponse = zod.object({
   "status": zod.enum(['submitted', 'verified', 'rejected']),
   "submittedAt": zod.coerce.date(),
   "verifiedAt": zod.coerce.date().nullable()
-}))
+})),
+  "milestonesEditable": zod.boolean().describe('False once any participant has submitted a milestone, so existing history cannot be changed.')
 })
 
 
@@ -1668,7 +1795,7 @@ export const ListExperienceParticipantsResponseItem = zod.object({
   "availablePlaces": zod.number().int(),
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
-  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
 }),
   "participant": zod.object({
   "id": zod.number().int(),
@@ -1724,7 +1851,7 @@ export const PromoteNextWaitlistedParticipantResponse = zod.object({
   "availablePlaces": zod.number().int(),
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
-  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
 }),
   "participant": zod.object({
   "id": zod.number().int(),
@@ -1779,7 +1906,7 @@ export const MarkAttendanceResponse = zod.object({
   "availablePlaces": zod.number().int(),
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
-  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
 }),
   "participant": zod.object({
   "id": zod.number().int(),
@@ -1834,7 +1961,7 @@ export const VerifyParticipationResponse = zod.object({
   "availablePlaces": zod.number().int(),
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
-  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
 }),
   "participant": zod.object({
   "id": zod.number().int(),
@@ -1889,7 +2016,7 @@ export const RejectParticipationResponse = zod.object({
   "availablePlaces": zod.number().int(),
   "xpReward": zod.number().int(),
   "monetaryRewardPence": zod.number().int().nullable(),
-  "status": zod.enum(['published', 'full', 'completed', 'archived'])
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
 }),
   "participant": zod.object({
   "id": zod.number().int(),

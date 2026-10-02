@@ -11,4 +11,6 @@ import type { ExperienceMilestoneSubmission } from './experienceMilestoneSubmiss
 export interface HostExperienceMilestonesResponse {
   milestones: ExperienceMilestone[];
   submissions: ExperienceMilestoneSubmission[];
+  /** False once any participant has submitted a milestone, so existing history cannot be changed. */
+  milestonesEditable: boolean;
 }

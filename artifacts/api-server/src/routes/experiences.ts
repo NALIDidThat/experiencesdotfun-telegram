@@ -3,6 +3,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import {
   AcceptFriendRequestParams,
   CreateExperienceBody,
+  CancelHostExperienceParams,
   CreateFriendRequestBody,
   GetFriendProfileParams,
   GetExperienceParams,
@@ -20,6 +21,8 @@ import {
   SignUpWithEmailBody,
   LoginWithEmailBody,
   UpdateMeBody,
+  UpdateHostExperienceBody,
+  UpdateHostExperienceParams,
   VerifyParticipationParams,
   CreateSocialInviteBody,
 } from "@workspace/api-zod";
@@ -1129,6 +1132,8 @@ router.get("/host/overview", async (req, res) => {
       upcomingExperiences: 0,
       participantCount: 0,
       waitlistCount: 0,
+      pendingCompletionReviews: 0,
+      pendingMilestoneReviews: 0,
       pendingVerifications: 0,
       totalExperiences: 0,
     });
@@ -1163,6 +1168,10 @@ router.get("/host/overview", async (req, res) => {
           ),
         )
     : [{ value: 0 }];
+  const pendingCompletionReviews = participations.filter(
+    (item) => item.status === "submitted",
+  ).length;
+  const pendingMilestoneReviews = Number(pendingMilestoneSubmissions?.value ?? 0);
   res.json({
     organisation: organisationResponse(organisation),
     upcomingExperiences: experiences.filter((item) => ["published", "full"].includes(item.status)).length,
@@ -1170,9 +1179,9 @@ router.get("/host/overview", async (req, res) => {
       ["joined", "attended", "submitted", "verified"].includes(item.status),
     ).length,
     waitlistCount: participations.filter((item) => item.status === "waitlisted").length,
-    pendingVerifications:
-      participations.filter((item) => item.status === "submitted").length +
-      Number(pendingMilestoneSubmissions?.value ?? 0),
+    pendingCompletionReviews,
+    pendingMilestoneReviews,
+    pendingVerifications: pendingCompletionReviews + pendingMilestoneReviews,
     totalExperiences: experiences.length,
   });
 });
@@ -1209,6 +1218,260 @@ router.get("/host/experiences", async (req, res) => {
       })),
     ),
   );
+});
+
+router.patch("/host/experiences/:experienceId", async (req, res) => {
+  if (!enforceAccountType(req, res, "organisation")) return;
+  const parsedParams = UpdateHostExperienceParams.safeParse({
+    experienceId: Number(req.params.experienceId),
+  });
+  if (!parsedParams.success) {
+    error(res, 400, "Invalid experience.");
+    return;
+  }
+  const parsedBody = UpdateHostExperienceBody.safeParse(req.body);
+  if (!parsedBody.success) {
+    const hasScheduleIssue = parsedBody.error.issues.some(({ path }) =>
+      ["date", "startTime", "endTime"].includes(String(path[0])),
+    );
+    error(
+      res,
+      400,
+      hasScheduleIssue
+        ? "Use a real date in YYYY-MM-DD format and 24-hour times in HH:MM format."
+        : "Please complete every experience field.",
+    );
+    return;
+  }
+
+  const user = currentUser(req);
+  const input = parsedBody.data;
+  if (!isValidExperienceSchedule(input.date, input.startTime, input.endTime)) {
+    error(res, 400, "End time must be later than the start time.");
+    return;
+  }
+  const organisation = await currentOrganisation(user.id);
+  if (!organisation) {
+    error(res, 404, "Hosted experience not found.");
+    return;
+  }
+
+  const outcome = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(experiencesTable)
+      .where(
+        and(
+          eq(experiencesTable.id, parsedParams.data.experienceId),
+          eq(experiencesTable.organisationId, organisation.id),
+        ),
+      )
+      .for("update");
+    if (!existing) return { kind: "not-found" as const };
+    if (!["published", "full"].includes(existing.status)) {
+      return { kind: "closed" as const };
+    }
+
+    const [participantCountRow] = await tx
+      .select({ value: count() })
+      .from(participationsTable)
+      .where(
+        and(
+          eq(participationsTable.experienceId, existing.id),
+          inArray(participationsTable.status, [
+            "joined",
+            "attended",
+            "submitted",
+            "verified",
+            "rejected",
+          ]),
+        ),
+      );
+    const participantCount = Number(participantCountRow?.value ?? 0);
+    if (input.capacity < participantCount) {
+      return { kind: "capacity" as const, participantCount };
+    }
+
+    const existingMilestones = await tx
+      .select()
+      .from(experienceMilestonesTable)
+      .where(eq(experienceMilestonesTable.experienceId, existing.id))
+      .orderBy(asc(experienceMilestonesTable.position))
+      .for("update");
+    const [submissionCountRow] = await tx
+      .select({ value: count() })
+      .from(experienceMilestoneSubmissionsTable)
+      .innerJoin(
+        experienceMilestonesTable,
+        eq(
+          experienceMilestonesTable.id,
+          experienceMilestoneSubmissionsTable.milestoneId,
+        ),
+      )
+      .where(eq(experienceMilestonesTable.experienceId, existing.id));
+    const hasMilestoneHistory = Number(submissionCountRow?.value ?? 0) > 0;
+    const requestedMilestones = input.milestones;
+    const effectiveMilestones = requestedMilestones ?? existingMilestones.map((milestone) => ({
+      title: milestone.title,
+      description: milestone.description,
+      xpReward: milestone.xpReward,
+    }));
+    if (
+      effectiveMilestones.length > 0 &&
+      !hasValidMilestoneRewardTotal(effectiveMilestones, input.xpReward)
+    ) {
+      return { kind: "milestone-rewards" as const };
+    }
+    if (
+      hasMilestoneHistory &&
+      requestedMilestones !== undefined &&
+      (
+        requestedMilestones.length !== existingMilestones.length ||
+        requestedMilestones.some((milestone, index) => {
+          const previous = existingMilestones[index];
+          return !previous
+            || milestone.title.trim() !== previous.title
+            || (milestone.description?.trim() || null) !== previous.description
+            || milestone.xpReward !== previous.xpReward;
+        })
+      )
+    ) {
+      return { kind: "milestones-locked" as const };
+    }
+
+    const [updatedOrganisation] = await tx
+      .update(organisationsTable)
+      .set({
+        name: input.organisationName.trim(),
+        description:
+          input.organisationDescription?.trim() || organisation.description,
+      })
+      .where(eq(organisationsTable.id, organisation.id))
+      .returning();
+    if (!updatedOrganisation) return { kind: "not-found" as const };
+
+    if (requestedMilestones !== undefined && !hasMilestoneHistory) {
+      await tx
+        .delete(experienceMilestonesTable)
+        .where(eq(experienceMilestonesTable.experienceId, existing.id));
+      if (requestedMilestones.length) {
+        await tx.insert(experienceMilestonesTable).values(
+          requestedMilestones.map((milestone, index) => ({
+            experienceId: existing.id,
+            position: index + 1,
+            title: milestone.title.trim(),
+            description: milestone.description?.trim() || null,
+            xpReward: milestone.xpReward,
+          })),
+        );
+      }
+    }
+
+    const nextStatus = participantCount >= input.capacity ? "full" : "published";
+    const [updatedExperience] = await tx
+      .update(experiencesTable)
+      .set({
+        title: input.title.trim(),
+        description: input.description.trim(),
+        category: input.category,
+        date: input.date,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        location: input.location.trim(),
+        city: input.city.trim(),
+        capacity: input.capacity,
+        xpReward: input.xpReward,
+        monetaryRewardPence: input.monetaryRewardPence,
+        whatToBring: input.whatToBring?.trim() || null,
+        whatYouWillDo: input.whatYouWillDo?.trim() || null,
+        status: nextStatus,
+      })
+      .where(eq(experiencesTable.id, existing.id))
+      .returning();
+    return updatedExperience
+      ? { kind: "updated" as const, experience: updatedExperience }
+      : { kind: "not-found" as const };
+  });
+
+  if (outcome.kind === "not-found") {
+    error(res, 404, "Hosted experience not found.");
+    return;
+  }
+  if (outcome.kind === "closed") {
+    error(res, 409, "Only active experiences can be edited.");
+    return;
+  }
+  if (outcome.kind === "capacity") {
+    error(
+      res,
+      409,
+      `Capacity cannot be lower than the ${outcome.participantCount} confirmed participants.`,
+    );
+    return;
+  }
+  if (outcome.kind === "milestone-rewards") {
+    error(res, 400, "Milestone XP rewards must add up to the experience XP reward.");
+    return;
+  }
+  if (outcome.kind === "milestones-locked") {
+    error(
+      res,
+      409,
+      "Milestones cannot be changed after participants have submitted them. Other experience details can still be edited.",
+    );
+    return;
+  }
+  res.json(await experienceResponse(outcome.experience));
+});
+
+router.post("/host/experiences/:experienceId/cancel", async (req, res) => {
+  if (!enforceAccountType(req, res, "organisation")) return;
+  const parsed = CancelHostExperienceParams.safeParse({
+    experienceId: Number(req.params.experienceId),
+  });
+  if (!parsed.success) {
+    error(res, 400, "Invalid experience.");
+    return;
+  }
+  const organisation = await currentOrganisation(currentUser(req).id);
+  if (!organisation) {
+    error(res, 404, "Hosted experience not found.");
+    return;
+  }
+
+  const outcome = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(experiencesTable)
+      .where(
+        and(
+          eq(experiencesTable.id, parsed.data.experienceId),
+          eq(experiencesTable.organisationId, organisation.id),
+        ),
+      )
+      .for("update");
+    if (!existing) return { kind: "not-found" as const };
+    if (!["published", "full"].includes(existing.status)) {
+      return { kind: "closed" as const };
+    }
+    const [cancelled] = await tx
+      .update(experiencesTable)
+      .set({ status: "cancelled" })
+      .where(eq(experiencesTable.id, existing.id))
+      .returning();
+    return cancelled
+      ? { kind: "cancelled" as const, experience: cancelled }
+      : { kind: "not-found" as const };
+  });
+  if (outcome.kind === "not-found") {
+    error(res, 404, "Hosted experience not found.");
+    return;
+  }
+  if (outcome.kind === "closed") {
+    error(res, 409, "This experience is no longer active.");
+    return;
+  }
+  res.json(await experienceResponse(outcome.experience));
 });
 
 router.get("/host/experiences/:experienceId/participants", async (req, res) => {
@@ -1264,7 +1527,7 @@ router.get("/host/experiences/:experienceId/milestones", async (req, res) => {
     return;
   }
 
-  const [milestones, submissions] = await Promise.all([
+  const [milestones, submissions, [submissionCount]] = await Promise.all([
     db
       .select({
         id: experienceMilestonesTable.id,
@@ -1320,8 +1583,23 @@ router.get("/host/experiences/:experienceId/milestones", async (req, res) => {
         asc(experienceMilestonesTable.position),
         asc(experienceMilestoneSubmissionsTable.submittedAt),
       ),
+    db
+      .select({ value: count() })
+      .from(experienceMilestoneSubmissionsTable)
+      .innerJoin(
+        experienceMilestonesTable,
+        eq(
+          experienceMilestonesTable.id,
+          experienceMilestoneSubmissionsTable.milestoneId,
+        ),
+      )
+      .where(eq(experienceMilestonesTable.experienceId, experience.id)),
   ]);
-  res.json({ milestones, submissions });
+  res.json({
+    milestones,
+    submissions,
+    milestonesEditable: Number(submissionCount?.value ?? 0) === 0,
+  });
 });
 
 router.post("/host/experiences/:experienceId/promote-next", async (req, res) => {

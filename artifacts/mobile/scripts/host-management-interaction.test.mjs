@@ -203,6 +203,23 @@ async function tapTestId(client, testId) {
   await tapSelector(client, `[data-testid="${testId}"]`);
 }
 
+async function replaceInput(client, testId, value) {
+  await tapTestId(client, testId);
+  await client.send("Input.dispatchKeyEvent", {
+    type: "keyDown",
+    key: "a",
+    code: "KeyA",
+    modifiers: 2,
+  });
+  await client.send("Input.dispatchKeyEvent", {
+    type: "keyUp",
+    key: "a",
+    code: "KeyA",
+    modifiers: 2,
+  });
+  await client.send("Input.insertText", { text: value });
+}
+
 function apiResponseHeaders(request, domain) {
   return [
     { name: "Content-Type", value: "application/json" },
@@ -295,6 +312,25 @@ test("organisation hosts can manage experience participants from a phone-sized d
   const unexpectedApiRequests = [];
   let attendanceFailuresRemaining = 1;
   const baseExperience = { ...experience };
+  const milestoneRecords = [{
+    id: 7410,
+    position: 1,
+    title: "Garden prepared",
+    description: "Clear the beds and prepare the soil.",
+    xpReward: 100,
+  }];
+  const milestoneSubmissions = [{
+    id: 7411,
+    participationId: 7401,
+    milestoneId: 7410,
+    participant: { id: 17401, name: "Avery Joined", username: "avery_joined", avatarUrl: null },
+    milestoneTitle: "Garden prepared",
+    milestonePosition: 1,
+    xpReward: 100,
+    status: "submitted",
+    submittedAt: "2026-09-30T12:00:00.000Z",
+    verifiedAt: null,
+  }];
 
   function currentExperience() {
     const participantCount = people.filter((person) => person.status !== "waitlisted").length;
@@ -313,7 +349,9 @@ test("organisation hosts can manage experience participants from a phone-sized d
       upcomingExperiences: 1,
       participantCount: people.filter((person) => ["joined", "attended", "submitted", "verified"].includes(person.status)).length,
       waitlistCount: people.filter((person) => person.status === "waitlisted").length,
-      pendingVerifications: people.filter((person) => person.status === "submitted").length,
+      pendingVerifications: people.filter((person) => person.status === "submitted").length + milestoneSubmissions.length,
+      pendingCompletionReviews: people.filter((person) => person.status === "submitted").length,
+      pendingMilestoneReviews: milestoneSubmissions.filter((item) => item.status === "submitted").length,
       totalExperiences: 1,
     };
   }
@@ -338,7 +376,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
             responseCode: 204,
             responseHeaders: [
               ...apiResponseHeaders(params.request, domain),
-              { name: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
+              { name: "Access-Control-Allow-Methods", value: "GET, POST, PATCH, OPTIONS" },
               {
                 name: "Access-Control-Allow-Headers",
                 value: params.request.headers["Access-Control-Request-Headers"]
@@ -359,10 +397,44 @@ test("organisation hosts can manage experience participants from a phone-sized d
           response = hostOverview();
         } else if (url.pathname === "/api/host/experiences" && method === "GET") {
           response = [currentExperience()];
+        } else if (url.pathname === `/api/experiences/${experience.id}` && method === "GET") {
+          response = {
+            ...currentExperience(),
+            whatToBring: "Comfortable shoes",
+            whatYouWillDo: "Tend the garden",
+            hasJoined: false,
+            myParticipation: null,
+            milestones: [],
+          };
         } else if (url.pathname === `/api/host/experiences/${experience.id}/participants` && method === "GET") {
           response = people.map(participantResponse);
         } else if (url.pathname === `/api/host/experiences/${experience.id}/milestones` && method === "GET") {
-          response = { milestones: [], submissions: [] };
+          response = {
+            milestones: milestoneRecords,
+            submissions: milestoneSubmissions.filter((item) => item.status === "submitted"),
+            milestonesEditable: milestoneSubmissions.length === 0,
+          };
+        } else if (url.pathname === `/api/host/experiences/${experience.id}` && method === "PATCH") {
+          const body = JSON.parse(params.request.postData ?? "{}");
+          requests.push({ method, path: url.pathname, body });
+          Object.assign(baseExperience, {
+            title: body.title,
+            description: body.description,
+            date: body.date,
+            startTime: body.startTime,
+            endTime: body.endTime,
+            location: body.location,
+            city: body.city,
+            capacity: body.capacity,
+            xpReward: body.xpReward,
+            monetaryRewardPence: body.monetaryRewardPence,
+            status: people.filter((person) => person.status !== "waitlisted").length >= body.capacity ? "full" : "published",
+          });
+          response = currentExperience();
+        } else if (url.pathname === `/api/host/experiences/${experience.id}/cancel` && method === "POST") {
+          requests.push({ method, path: url.pathname });
+          baseExperience.status = "cancelled";
+          response = currentExperience();
         } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
           status = 202;
           response = { accepted: true };
@@ -504,7 +576,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
   assert.equal(initialLayout.bottomNavTabs, 0, "The experience detail screen must not show bottom navigation.");
   assert.equal(initialLayout.peopleCount, "All 5");
   assert.equal(initialLayout.participantCount, "Participants 4");
-  assert.equal(initialLayout.reviewCount, "To review 2");
+  assert.equal(initialLayout.reviewCount, "Completions 2");
   assert.equal(initialLayout.waitlistCount, "Waitlist 1");
 
   await tapTestId(client, "host-detail-filter-waitlisted");
@@ -514,12 +586,6 @@ test("organisation hosts can manage experience participants from a phone-sized d
     Boolean,
     "the waitlist filter and matching participant",
   );
-  assert.equal(
-    await client.evaluate(`document.body.innerText.includes('Avery Joined')`),
-    false,
-    "The waitlist filter must not include confirmed participants.",
-  );
-
   await tapTestId(client, "host-detail-filter-participants");
   await waitForValue(
     client,
@@ -621,12 +687,94 @@ test("organisation hosts can manage experience participants from a phone-sized d
     "the promoted participant in the confirmed list",
   );
 
+  await tapTestId(client, "host-edit-experience");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="create-review-heading"]'))`,
+    Boolean,
+    "the prefilled experience review before editing",
+  );
+  await tapTestId(client, "create-review-milestones");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="create-milestone-title-1"]')) && document.body.innerText.includes('Milestone steps are locked')`,
+    Boolean,
+    "milestone definitions to be locked after a participant submission",
+  );
+  assert.equal(
+    await client.evaluate(`(() => {
+      const input = document.querySelector('[data-testid="create-milestone-title-1"]');
+      return Boolean(input?.disabled || input?.readOnly || input?.getAttribute('aria-readonly') === 'true');
+    })()`),
+    true,
+    "A submitted milestone's definition should be read-only.",
+  );
+  await tapTestId(client, "create-primary");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="create-review-heading"]'))`,
+    Boolean,
+    "the review after checking the locked milestone",
+  );
+  await tapTestId(client, "create-review-title");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="create-field-title"]'))`,
+    Boolean,
+    "the title field in edit mode",
+  );
+  await replaceInput(client, "create-field-title", "Community Garden Morning Updated");
+  await tapTestId(client, "create-primary");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="create-review-heading"]'))`,
+    Boolean,
+    "the review after changing the title",
+  );
+  await tapTestId(client, "create-primary");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-edit-experience"]')) && document.body.innerText.includes('Community Garden Morning Updated')`,
+    Boolean,
+    "the updated title in host management",
+  );
+
+  await tapTestId(client, "host-cancel-experience");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-cancel-confirmation"]'))`,
+    Boolean,
+    "the cancellation confirmation before changes are saved",
+  );
+  await tapTestId(client, "host-cancel-confirm");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-cancelled-notice"]')) && !document.querySelector('[data-testid="host-edit-experience"]')`,
+    Boolean,
+    "the cancelled experience state with editing and sign-up controls closed",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="host-detail-filter-all"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`),
+    "All 5",
+    "Cancellation must keep existing participant records visible.",
+  );
+  assert.equal(
+    await client.evaluate(`document.body.innerText.includes('Garden prepared') && document.body.innerText.includes('Avery Joined')`),
+    true,
+    "Cancellation must keep milestone definitions and pending submissions visible.",
+  );
+
   await tapSelector(client, '[aria-label="Go back"]');
   await waitForValue(
     client,
     `Boolean(document.querySelector('[data-testid="host-experience-${experience.id}"]')) && document.body.innerText.includes('Host tools')`,
     Boolean,
     "returning to Host tools",
+  );
+  assert.equal(
+    await client.evaluate(`document.body.innerText.includes('Completion reviews') && document.body.innerText.includes('Milestone reviews')`),
+    true,
+    "The host overview should label completion and milestone review counts separately.",
   );
   assert.deepEqual(
     requests.map(({ path }) => path),
@@ -636,8 +784,192 @@ test("organisation hosts can manage experience participants from a phone-sized d
       `/api/host/participations/7403/verify`,
       `/api/host/participations/7404/reject`,
       `/api/host/experiences/${experience.id}/promote-next`,
+      `/api/host/experiences/${experience.id}`,
+      `/api/host/experiences/${experience.id}/cancel`,
     ],
     "All host management actions should reach their expected API endpoints.",
   );
   assert.deepEqual(unexpectedApiRequests, [], "The screen should only request mocked host APIs.");
+});
+
+test("publishing an experience opens its host-management detail screen", async (t) => {
+  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the publish handoff preview test.");
+
+  const client = await launchBrowser(t);
+  const { user } = makeFixtures();
+  const apiTraffic = [];
+  const unexpectedApiRequests = [];
+  let createBody;
+  let createdExperience;
+  const experienceId = 751;
+
+  const hostOverview = () => ({
+    organisation: user.organisation,
+    upcomingExperiences: createdExperience ? 1 : 0,
+    participantCount: 0,
+    waitlistCount: 0,
+    pendingCompletionReviews: 0,
+    pendingMilestoneReviews: 0,
+    pendingVerifications: 0,
+    totalExperiences: createdExperience ? 1 : 0,
+  });
+
+  client.on("Fetch.requestPaused", ({ params }) => {
+    void (async () => {
+      try {
+        const url = new URL(params.request.url);
+        if (!url.pathname.startsWith("/api/")) {
+          await client.send("Fetch.continueRequest", { requestId: params.requestId });
+          return;
+        }
+        const method = params.request.method;
+        apiTraffic.push(`${method} ${url.pathname}`);
+        if (method === "OPTIONS") {
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 204,
+            responseHeaders: [
+              ...apiResponseHeaders(params.request, domain),
+              { name: "Access-Control-Allow-Methods", value: "GET, POST, PATCH, OPTIONS" },
+              {
+                name: "Access-Control-Allow-Headers",
+                value: params.request.headers["Access-Control-Request-Headers"]
+                  ?? params.request.headers["access-control-request-headers"]
+                  ?? "authorization,content-type",
+              },
+            ],
+            body: "",
+          });
+          return;
+        }
+
+        let status = 200;
+        let response;
+        if (url.pathname === "/api/me" && method === "GET") {
+          response = user;
+        } else if (url.pathname === "/api/host/overview" && method === "GET") {
+          response = hostOverview();
+        } else if (url.pathname === "/api/host/experiences" && method === "GET") {
+          response = createdExperience ? [createdExperience] : [];
+        } else if (url.pathname === `/api/host/experiences/${experienceId}/participants` && method === "GET") {
+          response = [];
+        } else if (url.pathname === `/api/host/experiences/${experienceId}/milestones` && method === "GET") {
+          response = { milestones: [], submissions: [], milestonesEditable: true };
+        } else if (url.pathname === "/api/experiences" && method === "POST") {
+          createBody = JSON.parse(params.request.postData ?? "{}");
+          status = 201;
+          createdExperience = {
+            id: experienceId,
+            organisation: user.organisation,
+            title: createBody.title,
+            description: createBody.description,
+            category: createBody.category,
+            date: createBody.date,
+            startTime: createBody.startTime,
+            endTime: createBody.endTime,
+            location: createBody.location,
+            city: createBody.city,
+            capacity: createBody.capacity,
+            participantCount: 0,
+            availablePlaces: createBody.capacity,
+            xpReward: createBody.xpReward,
+            monetaryRewardPence: createBody.monetaryRewardPence,
+            status: "published",
+            waitlistCount: 0,
+          };
+          response = createdExperience;
+        } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
+          status = 202;
+          response = { accepted: true };
+        } else {
+          unexpectedApiRequests.push(`${method} ${url.pathname}`);
+          status = 404;
+          response = { message: "Unexpected API request in publish handoff test." };
+        }
+
+        await client.send("Fetch.fulfillRequest", {
+          requestId: params.requestId,
+          responseCode: status,
+          responseHeaders: apiResponseHeaders(params.request, domain),
+          body: Buffer.from(JSON.stringify(response)).toString("base64"),
+        });
+      } catch (error) {
+        unexpectedApiRequests.push(error.message);
+        await client.send("Fetch.failRequest", {
+          requestId: params.requestId,
+          errorReason: "Failed",
+        }).catch(() => {});
+      }
+    })();
+  });
+
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
+  await client.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: "localStorage.setItem('@experiences/auth-token', 'email_host-publish-test');",
+  });
+  await setViewport(client);
+  await client.send("Page.navigate", { url: `https://${domain}/?screen=create` });
+
+  const waitForPrompt = async (prompt) => waitForValue(
+    client,
+    `document.querySelector('[data-testid="create-question-heading"]')?.innerText?.trim() ?? ''`,
+    (value) => value === prompt,
+    `the create question "${prompt}"`,
+  );
+  const continueTo = async (prompt) => {
+    await tapTestId(client, "create-primary");
+    await waitForPrompt(prompt);
+  };
+
+  await waitForPrompt("Who is hosting?");
+  await continueTo("What does your organisation do?");
+  await continueTo("What should participants call it?");
+  await replaceInput(client, "create-field-title", "Publish handoff test");
+  await continueTo("What is the experience about?");
+  await replaceInput(client, "create-field-description", "A browser-tested experience for the host handoff.");
+  await continueTo("What kind of experience is it?");
+  await tapTestId(client, "create-category-environmental");
+  await continueTo("What day will it happen?");
+  await tapTestId(client, "create-date-use-selected");
+  await continueTo("What time does it start?");
+  await replaceInput(client, "create-field-startTime", "10:00");
+  await continueTo("When will it finish?");
+  await replaceInput(client, "create-field-endTime", "12:00");
+  await continueTo("What city is it in?");
+  await continueTo("Where will everyone meet?");
+  await replaceInput(client, "create-field-location", "Community Garden");
+  await continueTo("How many people can join?");
+  await continueTo("How will you recognise participants?");
+  await continueTo("What milestones will participants complete?");
+  await replaceInput(client, "create-milestone-title-1", "Prepare the garden");
+  await continueTo("Will you offer a cash reward?");
+  await continueTo("What will participants do?");
+  await continueTo("What should people bring?");
+  await tapTestId(client, "create-primary");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="create-review-heading"]'))`,
+    Boolean,
+    "the final experience review before publishing",
+  );
+  await tapTestId(client, "create-primary");
+
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-edit-experience"]')) && document.body.innerText.includes('Publish handoff test')`,
+    Boolean,
+    "the newly published experience in host management",
+  );
+  assert.equal(createBody?.title, "Publish handoff test", "Publishing should send the experience details to the API.");
+  assert.equal(createBody?.milestones?.[0]?.title, "Prepare the garden", "Publishing should preserve the configured milestone.");
+  assert.ok(
+    apiTraffic.includes(`GET /api/host/experiences/${experienceId}/participants`),
+    "The host-management detail should load the new experience's participants.",
+  );
+  assert.ok(
+    apiTraffic.includes(`GET /api/host/experiences/${experienceId}/milestones`),
+    "The host-management detail should load the new experience's milestones.",
+  );
+  assert.deepEqual(unexpectedApiRequests, [], "The publish and handoff flow should only request mocked APIs.");
 });

@@ -14,4 +14,5 @@ export const ExperienceStatus = {
   full: 'full',
   completed: 'completed',
   archived: 'archived',
+  cancelled: 'cancelled',
 } as const;

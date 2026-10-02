@@ -38,6 +38,8 @@ import {
   getGetHostOverviewQueryKey,
   useAcceptFriendRequest,
   useCreateExperience,
+  useUpdateHostExperience,
+  useCancelHostExperience,
   useCreateFriendRequest,
   useCreateSocialInvite,
   useDeclineFriendRequest,
@@ -139,11 +141,12 @@ const hostExperienceFilters: Array<{ key: HostExperienceFilter; label: string }>
   { key: 'full', label: 'Full' },
   { key: 'completed', label: 'Completed' },
   { key: 'archived', label: 'Archived' },
+  { key: 'cancelled', label: 'Cancelled' },
 ];
 
 const hostParticipantFilters: Array<{ key: HostParticipantFilter; label: string }> = [
   { key: 'all', label: 'All' },
-  { key: 'review', label: 'To review' },
+  { key: 'review', label: 'Completions' },
   { key: 'participants', label: 'Participants' },
   { key: 'waitlisted', label: 'Waitlist' },
 ];
@@ -153,6 +156,7 @@ const hostExperienceStatusLabels: Record<Experience['status'], string> = {
   full: 'Full',
   completed: 'Completed',
   archived: 'Archived',
+  cancelled: 'Cancelled',
 };
 
 const hostParticipationStatusLabels: Record<Participation['status'], string> = {
@@ -2251,6 +2255,18 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           <Text style={[styles.detailToolbarTitle, { color: colors.foreground }]}>Experience details</Text>
           <View style={styles.detailToolbarSpacer} />
         </View>
+
+        {item.status === 'cancelled' ? (
+          <View
+            testID="experience-cancelled-notice"
+            style={[styles.createTip, { backgroundColor: colors.destructive + '10', borderRadius: colors.radius, marginBottom: 12, padding: 13 }]}
+          >
+            <Feather name="slash" size={18} color={colors.destructive} />
+            <Text style={[styles.createTipText, { color: colors.foreground, flex: 1 }]}>
+              This experience was cancelled. New sign-ups are closed.
+            </Text>
+          </View>
+        ) : null}
 
         <View style={[styles.detailHero, { borderRadius: colors.radius + 8 }]}>
           {item.category === 'community' ? (
@@ -4393,7 +4409,8 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
           { label: 'Live', value: overview.data?.upcomingExperiences ?? 0, icon: 'calendar' as const },
           { label: 'Participants', value: overview.data?.participantCount ?? 0, icon: 'users' as const },
           { label: 'Waitlist', value: overview.data?.waitlistCount ?? 0, icon: 'clock' as const },
-          { label: 'To review', value: overview.data?.pendingVerifications ?? 0, icon: 'check-circle' as const },
+          { label: 'Completion reviews', value: overview.data?.pendingCompletionReviews ?? 0, icon: 'check-circle' as const },
+          { label: 'Milestone reviews', value: overview.data?.pendingMilestoneReviews ?? 0, icon: 'award' as const },
         ].map((item) => (
           <View key={item.label} style={[styles.hostStat, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
             <View style={styles.hostStatTop}>
@@ -4575,11 +4592,31 @@ function HostExperienceDetail({
   const [participantSearch, setParticipantSearch] = useState('');
   const [participantFilter, setParticipantFilter] = useState<HostParticipantFilter>('all');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmingCancellation, setConfirmingCancellation] = useState(false);
   const attend = useMarkAttendance({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const verify = useVerifyParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const reject = useRejectParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const reviewMilestone = useReviewExperienceMilestoneSubmission({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const promoteNext = usePromoteNextWaitlistedParticipant({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const cancelExperience = useCancelHostExperience({
+    mutation: {
+      onSuccess: (cancelledExperience) => {
+        queryClient.setQueryData<Experience[]>(
+          getListHostExperiencesQueryKey(),
+          (current) => current?.map((item) => item.id === cancelledExperience.id
+            ? {
+                ...cancelledExperience,
+                waitlistCount: 'waitlistCount' in item && typeof item.waitlistCount === 'number' ? item.waitlistCount : 0,
+              }
+            : item),
+        );
+        void queryClient.invalidateQueries({ queryKey: getListHostExperiencesQueryKey() });
+        void queryClient.invalidateQueries({ queryKey: getGetHostOverviewQueryKey() });
+        setConfirmingCancellation(false);
+        triggerHaptic();
+      },
+    },
+  });
 
   const experience = validExperienceId
     ? experiences.data?.find((item) => item.id === experienceId)
@@ -4738,6 +4775,71 @@ function HostExperienceDetail({
             </View>
           </View>
 
+          {experience.status === 'cancelled' ? (
+            <View
+              testID="host-cancelled-notice"
+              style={[styles.createTip, { backgroundColor: colors.destructive + '10', borderRadius: colors.radius, marginBottom: 14, padding: 13 }]}
+            >
+              <Feather name="slash" size={18} color={colors.destructive} />
+              <Text style={[styles.createTipText, { color: colors.foreground, flex: 1 }]}>
+                This experience is cancelled. New sign-ups are closed. Existing participant and milestone records are kept.
+              </Text>
+            </View>
+          ) : null}
+
+          {['published', 'full'].includes(experience.status) ? (
+            <View style={{ flexDirection: 'row', gap: 9, marginBottom: 14 }}>
+              <Button
+                testID="host-edit-experience"
+                label="Edit experience"
+                icon="edit-2"
+                variant="secondary"
+                style={{ flex: 1 }}
+                onPress={() => go('create', { id: String(experience.id), step: String(createExperienceQuestions.length + 1) })}
+              />
+              <Button
+                testID="host-cancel-experience"
+                label="Cancel"
+                icon="x-circle"
+                color={colors.destructive + '12'}
+                textColor={colors.destructive}
+                style={{ flex: 1 }}
+                onPress={() => setConfirmingCancellation(true)}
+              />
+            </View>
+          ) : null}
+
+          {confirmingCancellation && ['published', 'full'].includes(experience.status) ? (
+            <View
+              testID="host-cancel-confirmation"
+              style={[styles.createReviewCard, { backgroundColor: colors.card, borderColor: colors.destructive + '55', borderRadius: colors.radius, marginBottom: 14 }]}
+            >
+              <Text style={[styles.createReviewSectionTitle, { color: colors.destructive }]}>CANCEL THIS EXPERIENCE?</Text>
+              <Text style={[styles.mutedParagraph, { color: colors.mutedForeground, marginTop: 4 }]}>
+                This closes sign-ups. Participant and milestone records will remain available. Participants are not notified automatically.
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 9, marginTop: 12 }}>
+                <Button
+                  testID="host-cancel-confirm"
+                  label={cancelExperience.isPending ? 'Cancelling…' : 'Confirm cancellation'}
+                  icon="x-circle"
+                  color={colors.destructive}
+                  disabled={cancelExperience.isPending}
+                  style={{ flex: 1 }}
+                  onPress={() => void runHostAction(() => cancelExperience.mutateAsync({ experienceId: experience.id }))}
+                />
+                <Button
+                  testID="host-cancel-dismiss"
+                  label="Keep active"
+                  variant="secondary"
+                  disabled={cancelExperience.isPending}
+                  style={{ flex: 1 }}
+                  onPress={() => setConfirmingCancellation(false)}
+                />
+              </View>
+            </View>
+          ) : null}
+
           <View style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
             <View style={styles.infoBlockHeading}>
               <View style={[styles.infoBlockIcon, { backgroundColor: colors.primary + '12' }]}>
@@ -4847,7 +4949,7 @@ function HostExperienceDetail({
               {
                 key: 'review' as const,
                 filter: 'review' as const,
-                label: 'To review',
+                label: 'Completions',
                 value: participants.isLoading ? '…' : participants.isError ? '—' : pendingReviewCount,
                 icon: 'check-circle' as const,
               },
@@ -5148,15 +5250,96 @@ const createExperienceReviewSections: Array<{ title: string; keys: Array<keyof E
 function Create({
   go,
   initialStep = 1,
+  editExperienceId,
 }: {
   go: (screen: Screen, params?: Record<string, string>) => void;
   initialStep?: number;
+  editExperienceId?: number;
+}) {
+  const colors = useColors();
+  const { user } = useAuth();
+  const validEditId = Number.isSafeInteger(editExperienceId) && (editExperienceId ?? 0) > 0;
+  const id = validEditId ? editExperienceId! : 0;
+  const experience = useGetExperience(id, {
+    query: {
+      queryKey: getGetExperienceQueryKey(id),
+      enabled: validEditId && user?.userType === 'organisation',
+    },
+  });
+  const milestones = useGetHostExperienceMilestones(id, {
+    query: {
+      queryKey: getGetHostExperienceMilestonesQueryKey(id),
+      enabled: validEditId && user?.userType === 'organisation',
+    },
+  });
+
+  if (!validEditId) {
+    return <CreateExperienceForm go={go} initialStep={initialStep} />;
+  }
+  if (experience.isLoading || milestones.isLoading) {
+    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Edit experience" onBack={() => go('host')} /><LoadingState /></View>;
+  }
+  if (experience.isError || milestones.isError || !experience.data || !milestones.data) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        <Header title="Edit experience" onBack={() => go('host-detail', { id: String(id) })} />
+        <EmptyState
+          title="Experience details couldn’t be loaded"
+          body="Check your connection and try again. Only the organisation that owns this experience can edit it."
+          actionLabel="Try again"
+          onAction={() => { void Promise.all([experience.refetch(), milestones.refetch()]); }}
+        />
+      </View>
+    );
+  }
+  if (!['published', 'full'].includes(experience.data.status)) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        <Header title="Edit experience" onBack={() => go('host-detail', { id: String(id) })} />
+        <EmptyState
+          title="This experience can’t be edited"
+          body="Only active experiences can be changed."
+          actionLabel="Back to experience"
+          onAction={() => go('host-detail', { id: String(id) })}
+        />
+      </View>
+    );
+  }
+  return (
+    <CreateExperienceForm
+      key={`edit-${id}`}
+      go={go}
+      initialStep={initialStep}
+      editingExperienceId={id}
+      initialExperience={experience.data}
+      initialMilestones={milestones.data.milestones}
+      milestonesEditable={milestones.data.milestonesEditable}
+    />
+  );
+}
+
+function CreateExperienceForm({
+  go,
+  initialStep = 1,
+  editingExperienceId,
+  initialExperience,
+  initialMilestones = [],
+  milestonesEditable = true,
+}: {
+  go: (screen: Screen, params?: Record<string, string>) => void;
+  initialStep?: number;
+  editingExperienceId?: number;
+  initialExperience?: ExperienceDetail;
+  initialMilestones?: Array<{ title: string; description: string | null; xpReward: number }>;
+  milestonesEditable?: boolean;
 }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const create = useCreateExperience();
+  const update = useUpdateHostExperience();
+  const isEditing = editingExperienceId !== undefined;
   const inputStepCount = createExperienceQuestions.length;
   const totalSteps = inputStepCount + 1;
   const [step, setStep] = useState(() => Math.min(totalSteps, Math.max(1, initialStep)));
@@ -5164,17 +5347,31 @@ function Create({
   const [inputError, setInputError] = useState<string | null>(null);
   const [returnToReview, setReturnToReview] = useState(false);
   const [form, setForm] = useState<Partial<ExperienceCreateInput>>({
-    organisationName: user?.organisation?.name ?? '',
-    organisationDescription: user?.organisation?.description ?? '',
-    category: 'community',
-    city: user?.city ?? 'London',
-    capacity: 12,
-    xpReward: 150,
-    monetaryRewardPence: null,
+    organisationName: initialExperience?.organisation.name ?? user?.organisation?.name ?? '',
+    organisationDescription: initialExperience?.organisation.description ?? user?.organisation?.description ?? '',
+    title: initialExperience?.title,
+    description: initialExperience?.description,
+    category: initialExperience?.category ?? 'community',
+    date: initialExperience?.date,
+    startTime: initialExperience?.startTime,
+    endTime: initialExperience?.endTime,
+    location: initialExperience?.location,
+    city: initialExperience?.city ?? user?.city ?? 'London',
+    capacity: initialExperience?.capacity ?? 12,
+    xpReward: initialExperience?.xpReward ?? 150,
+    monetaryRewardPence: initialExperience?.monetaryRewardPence ?? null,
+    whatToBring: initialExperience?.whatToBring ?? null,
+    whatYouWillDo: initialExperience?.whatYouWillDo ?? null,
   });
-  const [milestoneDrafts, setMilestoneDrafts] = useState<MilestoneDraft[]>([
-    { title: '', description: '', xpReward: '150' },
-  ]);
+  const [milestoneDrafts, setMilestoneDrafts] = useState<MilestoneDraft[]>(() => initialMilestones.length
+    ? initialMilestones.map((milestone) => ({
+        title: milestone.title,
+        description: milestone.description ?? '',
+        xpReward: String(milestone.xpReward),
+      }))
+    : isEditing
+      ? []
+      : [{ title: '', description: '', xpReward: '150' }]);
 
   const set = (key: Exclude<keyof ExperienceCreateInput, 'milestones'>, value: string | number | null) => {
     const numeric = key === 'capacity' || key === 'xpReward' || key === 'monetaryRewardPence';
@@ -5210,6 +5407,9 @@ function Create({
   const timeInMinutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
   const validateQuestion = (question: CreateExperienceQuestion) => {
     if (question.key === 'milestones') {
+      if (milestoneDrafts.length === 0 && isEditing && initialMilestones.length === 0) {
+        return null;
+      }
       if (milestoneDrafts.length < 1 || milestoneDrafts.length > 12) {
         return 'Add between 1 and 12 milestones.';
       }
@@ -5287,51 +5487,74 @@ function Create({
 
   const publish = async () => {
     triggerHaptic();
-    if (!valid || create.isPending) return;
+    if (!valid || create.isPending || update.isPending) return;
     setPublishError(null);
     if (!user) {
-      setPublishError('Open Experiences.fun from Telegram to publish an experience.');
+      setPublishError(isEditing ? 'Sign in to save these changes.' : 'Open Experiences.fun from Telegram to publish an experience.');
       return;
     }
     try {
-      const createdExperience = await create.mutateAsync({
-        data: {
-          organisationName: form.organisationName!.trim(),
-          organisationDescription: form.organisationDescription?.trim() || null,
-          title: form.title!.trim(),
-          description: form.description!.trim(),
-          category: form.category!,
-          date: form.date!.trim(),
-          startTime: form.startTime!.trim(),
-          endTime: form.endTime!.trim(),
-          location: form.location!.trim(),
-          city: form.city!.trim(),
-          capacity: Number(form.capacity),
-          xpReward: Number(form.xpReward),
-          monetaryRewardPence: form.monetaryRewardPence == null ? null : Number(form.monetaryRewardPence),
-          whatToBring: form.whatToBring?.trim() || null,
-          whatYouWillDo: form.whatYouWillDo?.trim() || null,
-          milestones: milestoneDrafts.map((milestone) => ({
-            title: milestone.title.trim(),
-            description: milestone.description.trim() || null,
-            xpReward: Number(milestone.xpReward),
-          })),
-        },
-      });
-      const hostExperiencesQueryKey = getListHostExperiencesQueryKey();
-      const cachedExperiences = queryClient.getQueryData<Experience[]>(hostExperiencesQueryKey);
-      if (cachedExperiences) {
-        queryClient.setQueryData<Experience[]>(hostExperiencesQueryKey, [
-          createdExperience,
-          ...cachedExperiences.filter((experience) => experience.id !== createdExperience.id),
-        ]);
+      const data: ExperienceCreateInput = {
+        organisationName: form.organisationName!.trim(),
+        organisationDescription: form.organisationDescription?.trim() || null,
+        title: form.title!.trim(),
+        description: form.description!.trim(),
+        category: form.category!,
+        date: form.date!.trim(),
+        startTime: form.startTime!.trim(),
+        endTime: form.endTime!.trim(),
+        location: form.location!.trim(),
+        city: form.city!.trim(),
+        capacity: Number(form.capacity),
+        xpReward: Number(form.xpReward),
+        monetaryRewardPence: form.monetaryRewardPence == null ? null : Number(form.monetaryRewardPence),
+        whatToBring: form.whatToBring?.trim() || null,
+        whatYouWillDo: form.whatYouWillDo?.trim() || null,
+        ...(milestoneDrafts.length > 0
+          ? {
+              milestones: milestoneDrafts.map((milestone) => ({
+                title: milestone.title.trim(),
+                description: milestone.description.trim() || null,
+                xpReward: Number(milestone.xpReward),
+              })),
+            }
+          : {}),
+      };
+      const savedExperience = isEditing
+        ? await update.mutateAsync({ experienceId: editingExperienceId, data })
+        : await create.mutateAsync({ data });
+      if (!isEditing) {
+        const hostExperiencesQueryKey = getListHostExperiencesQueryKey();
+        const cachedExperiences = queryClient.getQueryData<Experience[]>(hostExperiencesQueryKey);
+        if (cachedExperiences) {
+          queryClient.setQueryData<Experience[]>(hostExperiencesQueryKey, [
+            savedExperience,
+            ...cachedExperiences.filter((experience) => experience.id !== savedExperience.id),
+          ]);
+        }
+      } else {
+        queryClient.setQueryData<Experience[]>(
+          getListHostExperiencesQueryKey(),
+          (current) => current?.map((experience) => experience.id === savedExperience.id
+            ? {
+                ...savedExperience,
+                waitlistCount: 'waitlistCount' in experience && typeof experience.waitlistCount === 'number' ? experience.waitlistCount : 0,
+              }
+            : experience),
+        );
       }
-      void queryClient.invalidateQueries({ queryKey: hostExperiencesQueryKey });
+      void queryClient.invalidateQueries({ queryKey: getListHostExperiencesQueryKey() });
       void queryClient.invalidateQueries({ queryKey: getGetHostOverviewQueryKey() });
-      go('host-detail', { id: String(createdExperience.id) });
+      if (isEditing) {
+        void queryClient.invalidateQueries({ queryKey: getGetExperienceQueryKey(savedExperience.id) });
+        void queryClient.invalidateQueries({ queryKey: getGetHostExperienceMilestonesQueryKey(savedExperience.id) });
+      }
+      go('host-detail', { id: String(savedExperience.id) });
     } catch (publishRequestError: unknown) {
       const responseMessage = (publishRequestError as { data?: { message?: string } })?.data?.message;
-      setPublishError(responseMessage ?? 'We couldn’t publish this experience. Please try again.');
+      setPublishError(responseMessage ?? (isEditing
+        ? 'We couldn’t save these changes. Your edits are still here—please try again.'
+        : 'We couldn’t publish this experience. Please try again.'));
     }
   };
 
@@ -5393,13 +5616,13 @@ function Create({
         <View style={styles.createTopBar}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={returnToReview ? 'Back to overview' : step === 1 ? 'Close create experience' : 'Previous step'}
+            accessibilityLabel={returnToReview ? 'Back to overview' : step === 1 ? (isEditing ? 'Close edit experience' : 'Close create experience') : 'Previous step'}
             onPress={() => {
               if (returnToReview) {
                 setReturnToReview(false);
                 goToStep(totalSteps);
               } else if (step > 1) goToStep(step - 1);
-              else { Keyboard.dismiss(); triggerHaptic(); go('host'); }
+              else { Keyboard.dismiss(); triggerHaptic(); go(isEditing ? 'host-detail' : 'host', isEditing ? { id: String(editingExperienceId) } : undefined); }
             }}
             style={[styles.createRoundButton, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
           >
@@ -5416,7 +5639,7 @@ function Create({
 
         <View style={styles.createHeading}>
           <Text style={[styles.createEyebrow, { color: colors.primary }]}>
-            {step === totalSteps ? 'FINAL CHECK' : returnToReview ? 'EDIT DETAIL' : 'CREATE EXPERIENCE'}
+            {step === totalSteps ? (isEditing ? 'REVIEW CHANGES' : 'FINAL CHECK') : returnToReview ? 'EDIT DETAIL' : isEditing ? 'EDIT EXPERIENCE' : 'CREATE EXPERIENCE'}
           </Text>
           <Text
             testID={step === totalSteps ? 'create-review-heading' : 'create-question-heading'}
@@ -5425,7 +5648,9 @@ function Create({
             {activeQuestion?.prompt ?? 'Review your experience'}
           </Text>
           <Text style={[styles.createDescription, { color: colors.mutedForeground }]}>
-            {activeQuestion?.description ?? 'Check the details below. Tap any row to make an edit before publishing.'}
+            {activeQuestion?.description ?? (isEditing
+              ? 'Check the changes below. Tap any row to make an edit before saving.'
+              : 'Check the details below. Tap any row to make an edit before publishing.')}
           </Text>
         </View>
 
@@ -5481,6 +5706,21 @@ function Create({
                       Participants submit each step separately. You verify it before its XP becomes available to redeem.
                     </Text>
                   </View>
+                  {isEditing && !milestonesEditable ? (
+                    <View style={[styles.createTip, { backgroundColor: colors.secondary + '15' }]}>
+                      <Feather name="lock" size={17} color={colors.secondary} />
+                      <Text style={[styles.createTipText, { color: colors.foreground }]}>
+                        Milestone steps are locked because a participant has submitted one. You can still edit the other experience details.
+                      </Text>
+                    </View>
+                  ) : isEditing && initialMilestones.length === 0 && milestoneDrafts.length === 0 ? (
+                    <View style={[styles.createTip, { backgroundColor: colors.muted }]}>
+                      <Feather name="info" size={17} color={colors.primary} />
+                      <Text style={[styles.createTipText, { color: colors.foreground }]}>
+                        This experience uses one completion submission and has no milestones. Leave the list empty to keep it that way, or add steps if you want milestone tracking.
+                      </Text>
+                    </View>
+                  ) : null}
                   {milestoneDrafts.map((milestone, index) => (
                     <View
                       key={`milestone-${index}`}
@@ -5498,7 +5738,7 @@ function Create({
                         <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700', letterSpacing: 0.7 }}>
                           MILESTONE {index + 1}
                         </Text>
-                        {milestoneDrafts.length > 1 ? (
+                        {milestoneDrafts.length > 1 && milestonesEditable ? (
                           <Pressable
                             accessibilityRole="button"
                             accessibilityLabel={`Remove milestone ${index + 1}`}
@@ -5521,6 +5761,7 @@ function Create({
                           testID={`create-milestone-title-${index + 1}`}
                           value={milestone.title}
                           onChangeText={(value) => updateMilestoneDraft(index, 'title', value)}
+                          editable={milestonesEditable}
                           placeholder="e.g. Complete the community garden"
                           placeholderTextColor={colors.mutedForeground}
                           style={[styles.createInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius - 8 }]}
@@ -5533,6 +5774,7 @@ function Create({
                           testID={`create-milestone-description-${index + 1}`}
                           value={milestone.description}
                           onChangeText={(value) => updateMilestoneDraft(index, 'description', value)}
+                          editable={milestonesEditable}
                           placeholder="Explain what counts as complete"
                           placeholderTextColor={colors.mutedForeground}
                           multiline
@@ -5546,6 +5788,7 @@ function Create({
                           testID={`create-milestone-xp-${index + 1}`}
                           value={milestone.xpReward}
                           onChangeText={(value) => updateMilestoneDraft(index, 'xpReward', value)}
+                          editable={milestonesEditable}
                           placeholder="0"
                           placeholderTextColor={colors.mutedForeground}
                           keyboardType="number-pad"
@@ -5556,10 +5799,10 @@ function Create({
                   ))}
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityState={{ disabled: milestoneDrafts.length >= 12 }}
-                    accessibilityLabel="Add a milestone"
+                    accessibilityState={{ disabled: milestoneDrafts.length >= 12 || !milestonesEditable }}
+                    accessibilityLabel={milestonesEditable ? 'Add a milestone' : 'Milestones are locked'}
                     testID="create-milestone-add"
-                    disabled={milestoneDrafts.length >= 12}
+                    disabled={milestoneDrafts.length >= 12 || !milestonesEditable}
                     onPress={() => { triggerHaptic(); addMilestoneDraft(); }}
                     style={({ pressed }) => ({
                       alignItems: 'center',
@@ -5571,13 +5814,17 @@ function Create({
                       flexDirection: 'row',
                       gap: 8,
                       justifyContent: 'center',
-                      opacity: milestoneDrafts.length >= 12 ? 0.5 : pressed ? 0.75 : 1,
+                      opacity: milestoneDrafts.length >= 12 || !milestonesEditable ? 0.5 : pressed ? 0.75 : 1,
                       paddingVertical: 13,
                     })}
                   >
                     <Feather name="plus" size={16} color={colors.primary} />
                     <Text style={{ color: colors.primary, fontSize: 14, fontWeight: '600' }}>
-                      {milestoneDrafts.length >= 12 ? 'Maximum of 12 milestones' : 'Add another milestone'}
+                      {!milestonesEditable
+                        ? 'Milestones are locked'
+                        : milestoneDrafts.length >= 12
+                          ? 'Maximum of 12 milestones'
+                          : 'Add another milestone'}
                     </Text>
                   </Pressable>
                   <View style={[styles.createTip, { backgroundColor: colors.muted }]}>
@@ -5651,9 +5898,11 @@ function Create({
           )}
         </View>
 
-        {(publishError || create.isError) && (
+        {(publishError || create.isError || update.isError) && (
           <Text accessibilityRole="alert" style={[styles.createError, { color: colors.destructive }]}>
-            {publishError ?? 'We couldn’t publish this experience. Please try again.'}
+            {publishError ?? (isEditing
+              ? 'We couldn’t save these changes. Please try again.'
+              : 'We couldn’t publish this experience. Please try again.')}
           </Text>
         )}
 
@@ -5661,8 +5910,8 @@ function Create({
           <Pressable
             accessibilityRole="button"
             testID="create-primary"
-            accessibilityState={{ disabled: create.isPending || (step === totalSteps && !valid) }}
-            disabled={create.isPending || (step === totalSteps && !valid)}
+            accessibilityState={{ disabled: create.isPending || update.isPending || (step === totalSteps && !valid) }}
+            disabled={create.isPending || update.isPending || (step === totalSteps && !valid)}
             onPress={() => {
               Keyboard.dismiss();
               if (step === totalSteps) void publish();
@@ -5670,25 +5919,27 @@ function Create({
             }}
             style={({ pressed }) => [
               styles.createPrimary,
-              { backgroundColor: (step !== totalSteps || valid) && !create.isPending ? colors.primary : colors.muted, borderRadius: colors.radius - 8 },
-              pressed && (step !== totalSteps || valid) && !create.isPending && styles.createPrimaryPressed,
+              { backgroundColor: (step !== totalSteps || valid) && !create.isPending && !update.isPending ? colors.primary : colors.muted, borderRadius: colors.radius - 8 },
+              pressed && (step !== totalSteps || valid) && !create.isPending && !update.isPending && styles.createPrimaryPressed,
             ]}
           >
-            {create.isPending
+            {create.isPending || update.isPending
               ? <ActivityIndicator color={colors.primaryForeground} />
               : (
                 <>
                   <Text style={[styles.createPrimaryText, { color: (step !== totalSteps || valid) ? colors.primaryForeground : colors.mutedForeground }]}>
-                    {step === totalSteps ? 'Publish experience' : returnToReview ? 'Save changes' : step === inputStepCount ? 'Review details' : 'Continue'}
+                    {step === totalSteps
+                      ? isEditing ? 'Save changes' : 'Publish experience'
+                      : returnToReview ? 'Save changes' : step === inputStepCount ? 'Review details' : 'Continue'}
                   </Text>
-                  <Feather name={step === totalSteps ? 'send' : returnToReview ? 'check' : 'arrow-right'} size={20} color={(step !== totalSteps || valid) ? colors.primaryForeground : colors.mutedForeground} />
+                  <Feather name={step === totalSteps ? isEditing ? 'save' : 'send' : returnToReview ? 'check' : 'arrow-right'} size={20} color={(step !== totalSteps || valid) ? colors.primaryForeground : colors.mutedForeground} />
                 </>
               )}
           </Pressable>
         </View>
         <Text style={[styles.createFooterNote, { color: colors.mutedForeground }]}>
           {step === totalSteps
-            ? 'Nothing is published until you tap Publish experience.'
+            ? isEditing ? 'Your changes are saved when you tap Save changes.' : 'Nothing is published until you tap Publish experience.'
             : returnToReview
               ? 'Save this answer to return to your overview.'
             : activeQuestion?.optional
@@ -6141,7 +6392,7 @@ export default function App() {
     if (routeScreen && screenNames.includes(routeScreen as Screen)) {
       setScreen(routeScreen as Screen);
     }
-    if (routeScreen === 'experience' || routeScreen === 'host-detail') setExperienceId(params.id);
+    if (routeScreen === 'experience' || routeScreen === 'host-detail' || (routeScreen === 'create' && params.id)) setExperienceId(params.id);
     else if (routeScreen) setExperienceId(undefined);
   }, [params.screen, params.id]);
 
@@ -6163,13 +6414,14 @@ export default function App() {
   const go = (next: Screen, nextParams?: Record<string, string>) => {
     Keyboard.dismiss();
     setScreen(next);
-    const screenUsesExperienceId = next === 'experience' || next === 'host-detail';
+    const screenUsesExperienceId = next === 'experience' || next === 'host-detail' || (next === 'create' && Boolean(nextParams?.id));
     setExperienceId(screenUsesExperienceId ? nextParams?.id : undefined);
     router.setParams({
       screen: next,
       id: screenUsesExperienceId ? nextParams?.id : undefined,
       friendId: next === 'friend-profile' ? nextParams?.friendId : undefined,
       category: next === 'explore' ? nextParams?.category : undefined,
+      step: next === 'create' ? nextParams?.step : undefined,
     });
   };
   const continueAccountLogin = async (accountType: UserType) => {
@@ -6391,7 +6643,7 @@ export default function App() {
     if (screen === 'experiences') return user.userType === 'organisation' ? <Host go={go} /> : <Experiences go={go} />;
     if (screen === 'profile') return <Profile user={user} go={go} />;
     if (screen === 'host') return <Host go={go} />;
-    if (screen === 'create') return <Create go={go} initialStep={Number(params.step) || 1} />;
+    if (screen === 'create') return <Create go={go} initialStep={Number(params.step) || 1} editExperienceId={experienceId ? Number(experienceId) : undefined} />;
     return <Home user={user} go={go} />;
   })();
 

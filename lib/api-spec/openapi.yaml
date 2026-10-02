@@ -720,6 +720,56 @@ paths:
                   $ref: "#/components/schemas/HostExperience"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /host/experiences/{experienceId}:
+    patch:
+      operationId: updateHostExperience
+      tags: [host]
+      summary: Update an active experience owned by the current organisation
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ExperienceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExperienceCreateInput"
+      responses:
+        "200":
+          description: Updated experience
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Experience"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /host/experiences/{experienceId}/cancel:
+    post:
+      operationId: cancelHostExperience
+      tags: [host]
+      summary: Cancel an active hosted experience without deleting its participation history
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ExperienceId"
+      responses:
+        "200":
+          description: Cancelled experience
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Experience"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /host/experiences/{experienceId}/milestones:
     get:
       operationId: getHostExperienceMilestones
@@ -1523,7 +1573,7 @@ components:
       enum: [participant, organisation]
     ExperienceStatus:
       type: string
-      enum: [published, full, completed, archived]
+      enum: [published, full, completed, archived, cancelled]
     ParticipationStatus:
       type: string
       enum: [joined, attended, submitted, verified, rejected, waitlisted]
@@ -1926,7 +1976,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ExperienceMilestoneSubmission"
-      required: [milestones, submissions]
+        milestonesEditable:
+          type: boolean
+          description: False once any participant has submitted a milestone, so existing history cannot be changed.
+      required: [milestones, submissions, milestonesEditable]
     ExperienceMilestoneReviewInput:
       type: object
       properties:
@@ -2126,11 +2179,15 @@ components:
           type: integer
         waitlistCount:
           type: integer
+        pendingCompletionReviews:
+          type: integer
+        pendingMilestoneReviews:
+          type: integer
         pendingVerifications:
           type: integer
         totalExperiences:
           type: integer
-      required: [organisation, upcomingExperiences, participantCount, waitlistCount, pendingVerifications, totalExperiences]
+      required: [organisation, upcomingExperiences, participantCount, waitlistCount, pendingCompletionReviews, pendingMilestoneReviews, pendingVerifications, totalExperiences]
     HostExperience:
       allOf:
         - $ref: "#/components/schemas/Experience"

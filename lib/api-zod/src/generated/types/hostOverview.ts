@@ -12,6 +12,8 @@ export interface HostOverview {
   upcomingExperiences: number;
   participantCount: number;
   waitlistCount: number;
+  pendingCompletionReviews: number;
+  pendingMilestoneReviews: number;
   pendingVerifications: number;
   totalExperiences: number;
 }

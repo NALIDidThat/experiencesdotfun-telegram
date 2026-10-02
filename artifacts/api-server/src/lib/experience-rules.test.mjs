@@ -20,6 +20,7 @@ test("published and full experiences can accept a join or waitlist request", () 
   assert.equal(canJoinOrWaitlist("full"), true);
   assert.equal(canJoinOrWaitlist("completed"), false);
   assert.equal(canJoinOrWaitlist("archived"), false);
+  assert.equal(canJoinOrWaitlist("cancelled"), false);
 });
 
 test("capacity determines whether a new request gets a place or waits", () => {
