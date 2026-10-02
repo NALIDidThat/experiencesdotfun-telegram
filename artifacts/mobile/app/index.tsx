@@ -418,68 +418,82 @@ function TelegramConnectCard() {
 function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => void }) {
   const colors = useColors();
   const icon = categoryIcon[item.category];
-  const gradient = categoryGradients[item.category] || categoryGradients.community;
+  const gradient = categoryGradients[item.category] ?? categoryGradients.community;
   const scale = useRef(new Animated.Value(1)).current;
+  const availabilityColor = item.availablePlaces < 4 ? colors.primary : colors.mutedForeground;
+  const availabilityLabel = item.availablePlaces === 0 ? 'Waitlist open' : `${item.availablePlaces} spots left`;
 
   return (
-    <Animated.View style={{ transform: [{ scale }], marginBottom: 20 }}>
+    <Animated.View style={[styles.experienceCardWrap, { transform: [{ scale }] }]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`View ${item.title}`}
+        accessibilityLabel={`View ${item.title}. ${categoryLabel[item.category]}. ${dateLabel(item.date)} in ${item.city}. ${availabilityLabel}. Earn ${item.xpReward} XP.`}
+        accessibilityHint="Opens experience details"
+        testID={`explore-experience-card-${item.id}`}
         onPressIn={() => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true }).start()}
         onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
         onPress={() => { triggerHaptic(); onPress(); }}
         style={[styles.experienceCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
       >
-        {item.category === 'community' ? (
-          <ImageBackground
-            source={require('../assets/images/community-cover.jpg')}
-            accessibilityLabel={`Artwork for ${item.title}`}
-            resizeMode="cover"
-            style={styles.cardImage}
-          >
-            <LinearGradient
-              colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.28)']}
+        <View style={styles.experienceCardArtwork}>
+          {item.category === 'community' ? (
+            <ImageBackground
+              source={require('../assets/images/community-cover.jpg')}
+              resizeMode="cover"
               style={StyleSheet.absoluteFill}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
             />
-          </ImageBackground>
-        ) : (
-          <LinearGradient colors={gradient} style={styles.cardImage} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-            <Feather name={icon} size={48} color="#ffffff" style={{ opacity: 0.2 }} />
-          </LinearGradient>
-        )}
-
-        <View style={styles.cardContent}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardHeaderLeft}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]} numberOfLines={2}>{item.title}</Text>
-              <Text style={[styles.cardOrg, { color: colors.mutedForeground }]}>{item.organisation.name}</Text>
+          ) : (
+            <LinearGradient colors={gradient} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+          )}
+          {item.category !== 'community' ? (
+            <View style={[StyleSheet.absoluteFill, styles.experienceCardFallback]}>
+              <Feather name={icon} size={72} color={colors.primaryForeground} style={{ opacity: 0.2 }} />
             </View>
-            <View style={[styles.xpBadge, { backgroundColor: colors.primary + '15' }]}>
-              <Text style={[styles.xpBadgeText, { color: colors.primary }]}>+{item.xpReward} XP</Text>
+          ) : null}
+          <LinearGradient
+            colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.66)']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+          />
+
+          <View style={styles.experienceCardArtworkTop}>
+            <View style={[styles.experienceCardCategory, { backgroundColor: colors.card }]}>
+              <Feather name={icon} size={14} color={colors.primary} />
+              <Text style={[styles.experienceCardCategoryText, { color: colors.foreground }]}>{categoryLabel[item.category]}</Text>
+            </View>
+            <View style={[styles.experienceCardXp, { backgroundColor: colors.card }]}>
+              <Feather name="zap" size={13} color={colors.primary} />
+              <Text style={[styles.experienceCardXpText, { color: colors.primary }]}>+{item.xpReward} XP</Text>
             </View>
           </View>
 
-          <View style={styles.cardDetails}>
-            <View style={styles.detailItem}>
-              <Feather name={icon} size={15} color={colors.primary} />
-              <Text style={[styles.detailText, { color: colors.foreground }]}>{categoryLabel[item.category]}</Text>
+          <View style={styles.experienceCardArtworkCopy}>
+            <Text style={[styles.experienceCardOrg, { color: colors.primaryForeground }]} numberOfLines={1}>{item.organisation.name}</Text>
+            <Text style={[styles.experienceCardTitle, { color: colors.primaryForeground }]} numberOfLines={2}>{item.title}</Text>
+          </View>
+        </View>
+
+        <View style={styles.experienceCardContent}>
+          <View style={styles.experienceCardMetaRow}>
+            <View style={[styles.experienceCardMetaChip, { backgroundColor: colors.muted }]}>
+              <Feather name="calendar" size={14} color={colors.primary} />
+              <Text style={[styles.experienceCardMetaText, { color: colors.foreground }]} numberOfLines={1}>{dateLabel(item.date)}</Text>
             </View>
-            <View style={styles.detailItem}>
-              <Feather name="calendar" size={15} color={colors.mutedForeground} />
-              <Text style={[styles.detailText, { color: colors.mutedForeground }]}>{dateLabel(item.date)}</Text>
+            <View style={[styles.experienceCardMetaChip, { backgroundColor: colors.muted }]}>
+              <Feather name="map-pin" size={14} color={colors.mutedForeground} />
+              <Text style={[styles.experienceCardMetaText, { color: colors.mutedForeground }]} numberOfLines={1}>{item.city}</Text>
             </View>
-            <View style={styles.detailItem}>
-              <Feather name="map-pin" size={15} color={colors.mutedForeground} />
-              <Text style={[styles.detailText, { color: colors.mutedForeground }]}>{item.city}</Text>
+          </View>
+
+          <View style={[styles.experienceCardBottomRow, { borderTopColor: colors.border }]}>
+            <View style={styles.experienceAvailability}>
+              <Feather name="users" size={15} color={availabilityColor} />
+              <Text style={[styles.experienceAvailabilityText, { color: availabilityColor }]} numberOfLines={1}>{availabilityLabel}</Text>
             </View>
-            <View style={styles.detailItem}>
-              <Feather name="users" size={15} color={colors.mutedForeground} />
-              <Text style={[styles.detailText, { color: item.availablePlaces < 4 ? colors.primary : colors.mutedForeground }]}>
-                {item.availablePlaces === 0 ? 'Waitlist open' : `${item.availablePlaces} spots left`}
-              </Text>
+            <View style={[styles.experienceDetailsButton, { backgroundColor: colors.primary, borderRadius: colors.radius }]}>
+              <Text style={[styles.experienceDetailsButtonText, { color: colors.primaryForeground }]}>See details</Text>
+              <Feather name="arrow-right" size={15} color={colors.primaryForeground} />
             </View>
           </View>
         </View>
@@ -2016,6 +2030,7 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
 
 function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
+  const { user } = useAuth();
   const routeParams = useLocalSearchParams<{ category?: string }>();
   const initialCategory = categories.find((item) => item.key === routeParams.category)?.key ?? 'all';
   const [category, setCategory] = useState<ExperienceCategory | 'all'>(initialCategory);
@@ -2028,25 +2043,97 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   return (
     <KeyboardAwareScrollViewCompat
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, styles.exploreContent]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="none"
       bottomOffset={24}
       showsVerticalScrollIndicator={false}
     >
-      <Header title="Explore" subtitle="Find your next way to contribute." />
+      <View style={styles.exploreTopBar}>
+        <View style={styles.exploreBrand}>
+          <View style={[styles.exploreBrandMark, { backgroundColor: colors.primary + '14' }]}>
+            <Feather name="compass" size={19} color={colors.primary} />
+          </View>
+          <Text style={[styles.exploreBrandName, { color: colors.foreground }]}>EXPERIENCES.FUN</Text>
+        </View>
+        <View style={styles.exploreTopActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open notifications"
+            testID="explore-notifications-button"
+            onPress={() => { triggerHaptic(); go('notifications'); }}
+            style={({ pressed }) => [styles.exploreTopAction, pressed && styles.exploreTopActionPressed]}
+          >
+            <Feather name="bell" size={19} color={colors.foreground} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open your profile"
+            testID="explore-profile-button"
+            onPress={() => { triggerHaptic(); go('profile'); }}
+            style={({ pressed }) => [styles.exploreAvatarButton, pressed && styles.exploreTopActionPressed]}
+          >
+            <UserAvatar
+              avatarUrl={user?.avatarUrl}
+              name={user?.name ?? 'Your profile'}
+              containerStyle={[styles.exploreAvatar, { backgroundColor: colors.muted }]}
+              initialStyle={{ color: colors.primary, fontFamily: 'Inter_700Bold' }}
+            />
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.exploreIntro}>
+        <Text style={[styles.exploreTitle, { color: colors.foreground }]}>Explore</Text>
+        <Text style={[styles.exploreSubtitle, { color: colors.mutedForeground }]}>Find your next way to contribute.</Text>
+      </View>
 
       <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
-        <Feather name="search" size={22} color={colors.mutedForeground} />
-        <TextInput accessibilityLabel="Search experiences" value={search} onChangeText={setSearch} placeholder="Search experiences" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />
+        <Feather name="search" size={19} color={colors.mutedForeground} />
+        <TextInput
+          accessibilityLabel="Search experiences"
+          testID="explore-search-input"
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search experiences"
+          placeholderTextColor={colors.mutedForeground}
+          returnKeyType="search"
+          style={[styles.searchInput, { color: colors.foreground }]}
+        />
+        {search.length > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+            testID="explore-clear-search"
+            onPress={() => { triggerHaptic(); setSearch(''); }}
+            style={styles.exploreClearButton}
+          >
+            <Feather name="x" size={17} color={colors.mutedForeground} />
+          </Pressable>
+        ) : null}
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
         {categories.map((item) => {
           const selected = category === item.key;
           return (
-            <Pressable accessibilityRole="button" accessibilityState={{ selected }} key={item.key} onPress={() => { triggerHaptic(); setCategory(item.key); }} style={[styles.filter, { backgroundColor: selected ? colors.primary : colors.card, borderColor: selected ? colors.primary : colors.border }]}>
-              <Feather name={item.icon} size={18} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Show ${item.label === 'All' ? 'all' : item.label} experiences`}
+              accessibilityState={{ selected }}
+              testID={`explore-category-${item.key}`}
+              key={item.key}
+              onPress={() => { triggerHaptic(); setCategory(item.key); }}
+              style={({ pressed }) => [
+                styles.filter,
+                {
+                  backgroundColor: selected ? colors.primary : colors.card,
+                  borderColor: selected ? colors.primary : colors.border,
+                  opacity: pressed ? 0.78 : 1,
+                },
+              ]}
+            >
+              <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
               <Text style={[styles.filterText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
             </Pressable>
           );
@@ -2054,8 +2141,13 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
       </ScrollView>
 
       <View style={styles.resultsHeading}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Experiences</Text>
-          <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{query.data?.length ?? 0} listings</Text>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Experiences</Text>
+        <Text
+          testID="explore-results-count"
+          style={[styles.resultCount, { color: colors.mutedForeground }]}
+        >
+          {query.data?.length ?? 0} {query.data?.length === 1 ? 'experience' : 'experiences'}
+        </Text>
       </View>
 
       {query.isLoading ? <LoadingState /> : query.isError ? (
@@ -6347,18 +6439,27 @@ const styles = StyleSheet.create({
   telegramButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   
   // Experience Card
+  experienceCardWrap: { marginBottom: 18 },
   experienceCard: { borderWidth: 1, overflow: 'hidden' },
-  cardImage: { height: 160, alignItems: 'center', justifyContent: 'center' },
-  cardContent: { padding: 16 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-  cardHeaderLeft: { flex: 1, paddingRight: 12 },
-  cardTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 4, lineHeight: 24 },
-  cardOrg: { fontSize: 14, fontFamily: 'Inter_500Medium' },
-  xpBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  xpBadgeText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  cardDetails: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 16 },
-  detailItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  detailText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
+  experienceCardArtwork: { height: 226, position: 'relative', overflow: 'hidden', justifyContent: 'space-between' },
+  experienceCardFallback: { alignItems: 'center', justifyContent: 'center' },
+  experienceCardArtworkTop: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
+  experienceCardCategory: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, borderRadius: 999 },
+  experienceCardCategoryText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  experienceCardXp: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, borderRadius: 999 },
+  experienceCardXpText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  experienceCardArtworkCopy: { paddingHorizontal: 16, paddingBottom: 15 },
+  experienceCardOrg: { fontSize: 10, lineHeight: 15, fontFamily: 'Inter_700Bold', letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 4 },
+  experienceCardTitle: { fontSize: 22, lineHeight: 27, fontFamily: 'Inter_700Bold', letterSpacing: -0.45 },
+  experienceCardContent: { padding: 14, gap: 12 },
+  experienceCardMetaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  experienceCardMetaChip: { minHeight: 32, maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
+  experienceCardMetaText: { flexShrink: 1, fontSize: 12, lineHeight: 16, fontFamily: 'Inter_500Medium' },
+  experienceCardBottomRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12 },
+  experienceAvailability: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 },
+  experienceAvailabilityText: { flexShrink: 1, fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  experienceDetailsButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 12 },
+  experienceDetailsButtonText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   
   // Talent / Onboarding
   talentScreen: { flex: 1 },
@@ -6649,14 +6750,28 @@ const styles = StyleSheet.create({
   dashboardXpText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   
   // Explore
-  searchBox: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 56, borderWidth: 1, marginBottom: 16 },
+  exploreContent: { paddingTop: 8, paddingBottom: 12 },
+  exploreTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 },
+  exploreBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  exploreBrandMark: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  exploreBrandName: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.05 },
+  exploreTopActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  exploreTopAction: { width: 40, height: 42, alignItems: 'center', justifyContent: 'center' },
+  exploreAvatarButton: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden' },
+  exploreAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  exploreTopActionPressed: { opacity: 0.68, transform: [{ scale: 0.96 }] },
+  exploreIntro: { marginBottom: 20 },
+  exploreTitle: { fontSize: 32, lineHeight: 38, fontFamily: 'Inter_700Bold', letterSpacing: -0.8 },
+  exploreSubtitle: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, height: 54, borderWidth: 1, marginBottom: 15 },
   searchInput: { flex: 1, marginLeft: 12, fontSize: 16, fontFamily: 'Inter_400Regular' },
-  filterRow: { gap: 12, paddingBottom: 24 },
-  filter: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 40, borderRadius: 20, borderWidth: 1, gap: 8 },
-  sectionTitle: { fontSize: 20, fontFamily: 'Inter_700Bold' },
-  filterText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  resultsHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 },
-  resultCount: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+  exploreClearButton: { width: 32, height: 36, alignItems: 'center', justifyContent: 'center' },
+  filterRow: { gap: 8, paddingBottom: 22 },
+  filter: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, height: 38, borderRadius: 19, borderWidth: 1, gap: 7 },
+  sectionTitle: { fontSize: 19, lineHeight: 25, fontFamily: 'Inter_700Bold' },
+  filterText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  resultsHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 },
+  resultCount: { fontSize: 12, fontFamily: 'Inter_500Medium' },
   
   // Detail
   detailScrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 28 },
