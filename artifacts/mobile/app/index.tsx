@@ -97,6 +97,7 @@ import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarn
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
+import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
 import { openTelegramBot } from '@/lib/telegram';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
@@ -4932,7 +4933,7 @@ const createExperienceQuestions: CreateExperienceQuestion[] = [
   { key: 'title', prompt: 'What should participants call it?', description: 'Choose a clear, welcoming title for your experience.', label: 'Experience title', placeholder: 'e.g. Make a river wild again' },
   { key: 'description', prompt: 'What is the experience about?', description: 'Tell people what makes this worth showing up for.', label: 'Experience description', placeholder: 'Give your experience a warm, inviting introduction', multiline: true },
   { key: 'category', prompt: 'What kind of experience is it?', description: 'Choose the category that best fits what people will do.', label: 'Category', placeholder: '', kind: 'category' },
-  { key: 'date', prompt: 'What day will it happen?', description: 'Enter the date using year-month-day format.', label: 'Date', placeholder: 'YYYY-MM-DD', hint: 'For example, 2026-10-24.' },
+  { key: 'date', prompt: 'What day will it happen?', description: 'Choose the day, month and year in UK date order.', label: 'Date', placeholder: 'DD/MM/YYYY', hint: 'Drag a slider or use +/− to set each part.' },
   { key: 'startTime', prompt: 'What time does it start?', description: 'Use 24-hour time so the schedule is clear.', label: 'Start time', placeholder: '10:00', hint: 'For example, 09:30.' },
   { key: 'endTime', prompt: 'When will it finish?', description: 'Choose an end time that comes after the start time.', label: 'End time', placeholder: '13:00', hint: 'For example, 12:30.' },
   { key: 'city', prompt: 'What city is it in?', description: 'This helps people find experiences close to them.', label: 'City', placeholder: 'London' },
@@ -5038,7 +5039,7 @@ function Create({
     if (question.optional && empty) return null;
 
     if (question.key === 'category') return value ? null : 'Choose a category to continue.';
-    if (question.key === 'date') return isValidDateValue(text) ? null : 'Enter a real date using YYYY-MM-DD.';
+    if (question.key === 'date') return isValidDateValue(text) ? null : 'Choose a real date using the day, month and year sliders.';
     if (question.key === 'startTime') return isValidTimeValue(text) ? null : 'Enter a time in 24-hour HH:MM format.';
     if (question.key === 'endTime') {
       if (!isValidTimeValue(text)) return 'Enter a time in 24-hour HH:MM format.';
@@ -5161,6 +5162,7 @@ function Create({
     const value = form[key];
     if (value == null || value === '') return 'Not added';
     if (key === 'category') return categoryLabel[value as ExperienceCategory];
+    if (key === 'date') return formatExperienceDateUk(String(value));
     if (key === 'capacity') return `${value} places`;
     if (key === 'xpReward') return `${value} XP`;
     if (key === 'monetaryRewardPence') return Number(value) > 0 ? money(Number(value)) ?? `${value}p` : 'No cash reward';
@@ -5383,7 +5385,15 @@ function Create({
                 </View>
               ) : (
                 <>
-                  {field(activeQuestion.key as Exclude<keyof ExperienceCreateInput, 'milestones'>, activeQuestion.label, activeQuestion.placeholder, activeQuestion.multiline, activeQuestion.keyboardType)}
+                  {activeQuestion.key === 'date' ? (
+                    <View style={styles.createField}>
+                      <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>DATE</Text>
+                      <DateSliderPicker
+                        value={form.date ?? ''}
+                        onChange={(value) => set('date', value)}
+                      />
+                    </View>
+                  ) : field(activeQuestion.key as Exclude<keyof ExperienceCreateInput, 'milestones'>, activeQuestion.label, activeQuestion.placeholder, activeQuestion.multiline, activeQuestion.keyboardType)}
                   {activeQuestion.optional ? (
                     <Text style={[styles.createOptionalNote, { color: colors.mutedForeground }]}>Optional · leave this blank if it doesn’t apply.</Text>
                   ) : null}

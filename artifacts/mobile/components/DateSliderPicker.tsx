@@ -113,7 +113,7 @@ function DatePartSlider({
           accessibilityRole="button"
           disabled={value <= min}
           onPress={() => onChange(Math.max(min, value - 1))}
-          style={{ alignItems: 'center', borderColor: colors.border, borderRadius: 12, borderWidth: 1, height: 40, justifyContent: 'center', opacity: value <= min ? 0.4 : 1, width: 40 }}
+          style={{ alignItems: 'center', borderColor: colors.border, borderRadius: 12, borderWidth: 1, height: 44, justifyContent: 'center', opacity: value <= min ? 0.4 : 1, width: 44 }}
         >
           <Feather name="minus" size={15} color={colors.foreground} />
         </Pressable>
@@ -133,7 +133,7 @@ function DatePartSlider({
         >
           <View style={{ backgroundColor: colors.border, borderRadius: 3, height: 6, overflow: 'visible' }}>
             <View style={{ backgroundColor: colors.primary, borderRadius: 3, height: 6, width: percentage }} />
-            <View style={{ alignItems: 'center', backgroundColor: colors.card, borderColor: colors.primary, borderRadius: 12, borderWidth: 3, height: 20, justifyContent: 'center', left: percentage, marginLeft: -10, marginTop: -13, position: 'absolute', width: 20 }}>
+              <View style={{ alignItems: 'center', backgroundColor: colors.card, borderColor: colors.primary, borderRadius: 12, borderWidth: 3, height: 20, justifyContent: 'center', left: percentage, marginLeft: -10, marginTop: -7, position: 'absolute', width: 20 }}>
               <View style={{ backgroundColor: colors.primary, borderRadius: 3, height: 6, width: 6 }} />
             </View>
           </View>
@@ -143,7 +143,7 @@ function DatePartSlider({
           accessibilityRole="button"
           disabled={value >= max}
           onPress={() => onChange(Math.min(max, value + 1))}
-          style={{ alignItems: 'center', borderColor: colors.border, borderRadius: 12, borderWidth: 1, height: 40, justifyContent: 'center', opacity: value >= max ? 0.4 : 1, width: 40 }}
+          style={{ alignItems: 'center', borderColor: colors.border, borderRadius: 12, borderWidth: 1, height: 44, justifyContent: 'center', opacity: value >= max ? 0.4 : 1, width: 44 }}
         >
           <Feather name="plus" size={15} color={colors.foreground} />
         </Pressable>
