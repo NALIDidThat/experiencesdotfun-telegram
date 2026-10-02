@@ -361,6 +361,8 @@ test("organisation hosts can manage experience participants from a phone-sized d
           response = [currentExperience()];
         } else if (url.pathname === `/api/host/experiences/${experience.id}/participants` && method === "GET") {
           response = people.map(participantResponse);
+        } else if (url.pathname === `/api/host/experiences/${experience.id}/milestones` && method === "GET") {
+          response = { milestones: [], submissions: [] };
         } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
           status = 202;
           response = { accepted: true };

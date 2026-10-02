@@ -5154,6 +5154,7 @@ function Create({
 }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const create = useCreateExperience();
   const inputStepCount = createExperienceQuestions.length;
@@ -5293,7 +5294,7 @@ function Create({
       return;
     }
     try {
-      await create.mutateAsync({
+      const createdExperience = await create.mutateAsync({
         data: {
           organisationName: form.organisationName!.trim(),
           organisationDescription: form.organisationDescription?.trim() || null,
@@ -5317,7 +5318,17 @@ function Create({
           })),
         },
       });
-      go('host');
+      const hostExperiencesQueryKey = getListHostExperiencesQueryKey();
+      const cachedExperiences = queryClient.getQueryData<Experience[]>(hostExperiencesQueryKey);
+      if (cachedExperiences) {
+        queryClient.setQueryData<Experience[]>(hostExperiencesQueryKey, [
+          createdExperience,
+          ...cachedExperiences.filter((experience) => experience.id !== createdExperience.id),
+        ]);
+      }
+      void queryClient.invalidateQueries({ queryKey: hostExperiencesQueryKey });
+      void queryClient.invalidateQueries({ queryKey: getGetHostOverviewQueryKey() });
+      go('host-detail', { id: String(createdExperience.id) });
     } catch (publishRequestError: unknown) {
       const responseMessage = (publishRequestError as { data?: { message?: string } })?.data?.message;
       setPublishError(responseMessage ?? 'We couldn’t publish this experience. Please try again.');

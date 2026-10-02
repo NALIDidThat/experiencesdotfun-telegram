@@ -662,7 +662,7 @@ test("experience review returns to the overview after saving an edited answer", 
 
   const client = await launchBrowser(t);
   await setViewport(client, initialViewport.height);
-  await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=create&step=16` });
+  await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=create&step=17` });
   await waitForValue(
     client,
     `Boolean(document.querySelector('[data-testid="create-review-heading"]'))`,
