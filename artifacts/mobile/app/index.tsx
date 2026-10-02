@@ -34,6 +34,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import {
   getGetAccountabilityDashboardQueryKey,
+  getGetHostExperienceMilestonesQueryKey,
   getGetHostOverviewQueryKey,
   useAcceptFriendRequest,
   useCreateExperience,
@@ -42,6 +43,7 @@ import {
   useDeclineFriendRequest,
   useGetExperience,
   useGetFriendProfile,
+  useGetHostExperienceMilestones,
   useGetAccountabilityDashboard,
   useGetHostOverview,
   useGetMe,
@@ -60,9 +62,11 @@ import {
   useRejectParticipation,
   useRedeemMyXpAwards,
   useSubmitCompletion,
+  useSubmitExperienceMilestone,
   useTrackAnalyticsEvent,
   useUpdateMe,
   useVerifyParticipation,
+  useReviewExperienceMilestoneSubmission,
   getGetExperienceQueryKey,
   getGetFriendProfileQueryKey,
   getGetMyXpAwardsQueryKey,
@@ -77,6 +81,7 @@ import {
   type ExperienceCategory,
   type ExperienceDetail,
   type ExperienceCreateInput,
+  type ExperienceMilestoneSubmission,
   type Participation,
   type User,
   type UserType,
@@ -1970,6 +1975,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
   const query = useGetExperience(id, { query: { queryKey: getGetExperienceQueryKey(id), enabled: Number.isSafeInteger(id) && id > 0 } });
   const join = useJoinExperience({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const submit = useSubmitCompletion({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const submitMilestone = useSubmitExperienceMilestone({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const [actionError, setActionError] = useState<string | null>(null);
   const item = query.data as ExperienceDetail | undefined;
 
@@ -1989,6 +1995,14 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
       setActionError(requestErrorMessage(error, 'Your completion wasn’t submitted. Please try again.'));
     }
   };
+  const submitMilestoneCompletion = async (participationId: number, milestoneId: number) => {
+    setActionError(null);
+    try {
+      await submitMilestone.mutateAsync({ participationId, milestoneId });
+    } catch (error) {
+      setActionError(requestErrorMessage(error, 'This milestone wasn’t submitted. Please try again.'));
+    }
+  };
 
   if (!Number.isSafeInteger(id) || id <= 0) {
     return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Experience" onBack={() => go('explore')} /><EmptyState title="This experience link is invalid" body="Return to Explore and choose an available experience." actionLabel="Explore experiences" onAction={() => go('explore')} /></View>;
@@ -2002,6 +2016,27 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
 
   const participation = item.participation as Participation | null;
   const isWaitlisted = participation?.status === 'waitlisted';
+  const configuredMilestones = item.milestones ?? [];
+  const hasConfiguredMilestones = configuredMilestones.length > 0;
+  const legacyTimelineStatus = participation?.status === 'verified'
+    ? 'verified'
+    : participation?.status === 'submitted'
+      ? 'submitted'
+      : participation?.status === 'rejected'
+        ? 'rejected'
+        : 'not_started';
+  const timelineMilestones = hasConfiguredMilestones
+    ? configuredMilestones
+    : [{
+        id: 0,
+        position: 1,
+        title: 'Complete this experience',
+        description: 'This experience uses a single completion submission. XP is released after the host verifies it.',
+        xpReward: item.xpReward,
+        status: legacyTimelineStatus,
+        submittedAt: participation?.submittedAt ?? null,
+        verifiedAt: participation?.verifiedAt ?? null,
+      }];
   const acceptsParticipants = item.status === 'published' || item.status === 'full';
   const gradient = categoryGradients[item.category] || categoryGradients.community;
 
@@ -2148,6 +2183,109 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           </View>
         </View>
 
+        <View style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
+          <View style={styles.infoBlockHeading}>
+            <View style={[styles.infoBlockIcon, { backgroundColor: colors.primary + '12' }]}>
+              <Feather name="list" size={16} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Completion timeline</Text>
+              <Text style={[styles.detailBody, { color: colors.mutedForeground, fontSize: 12, marginTop: 3 }]}>
+                {hasConfiguredMilestones
+                  ? 'Each reward is released after its milestone is submitted and verified by the host.'
+                  : 'XP is released after the host verifies your completion.'}
+              </Text>
+            </View>
+          </View>
+          <View style={{ marginTop: 14 }}>
+            {timelineMilestones.map((milestone, index) => {
+              const verified = milestone.status === 'verified';
+              const awaitingReview = milestone.status === 'submitted';
+              const rejected = milestone.status === 'rejected';
+              const milestoneStatusColor = verified
+                ? colors.success
+                : awaitingReview
+                  ? colors.secondary
+                  : rejected
+                    ? colors.destructive
+                    : colors.mutedForeground;
+              const canSubmitMilestone = milestone.id > 0
+                && user?.userType === 'participant'
+                && Boolean(participation)
+                && ['joined', 'attended'].includes(participation?.status ?? '')
+                && (milestone.status === 'not_started' || milestone.status === 'rejected');
+              const activityTime = awaitingReview
+                ? milestone.submittedAt
+                : verified
+                  ? milestone.verifiedAt
+                  : null;
+              return (
+                <View key={`timeline-${milestone.id || 'legacy'}`} style={{ flexDirection: 'row', gap: 11 }}>
+                  <View style={{ alignItems: 'center', width: 18 }}>
+                    <View style={{ alignItems: 'center', backgroundColor: milestoneStatusColor + '16', borderColor: milestoneStatusColor, borderRadius: 12, borderWidth: 1.5, height: 22, justifyContent: 'center', width: 22 }}>
+                      <Feather
+                        name={verified ? 'check' : awaitingReview ? 'clock' : rejected ? 'rotate-ccw' : 'circle'}
+                        size={12}
+                        color={milestoneStatusColor}
+                      />
+                    </View>
+                    {index < timelineMilestones.length - 1 ? (
+                      <View style={{ backgroundColor: colors.border, flex: 1, minHeight: 16, width: 2 }} />
+                    ) : null}
+                  </View>
+                  <View style={{ flex: 1, paddingBottom: index < timelineMilestones.length - 1 ? 12 : 0 }}>
+                    <View style={{ backgroundColor: colors.muted, borderColor: colors.border, borderRadius: colors.radius - 6, borderWidth: 1, gap: 7, padding: 12 }}>
+                      <View style={{ alignItems: 'flex-start', flexDirection: 'row', gap: 8, justifyContent: 'space-between' }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: colors.mutedForeground, fontSize: 10, fontWeight: '700', letterSpacing: 0.6 }}>
+                            STEP {milestone.position}
+                          </Text>
+                          <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: '700', marginTop: 3 }}>
+                            {milestone.title}
+                          </Text>
+                        </View>
+                        <View style={{ backgroundColor: colors.primary + '12', borderRadius: 20, paddingHorizontal: 9, paddingVertical: 5 }}>
+                          <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>+{milestone.xpReward} XP</Text>
+                        </View>
+                      </View>
+                      {milestone.description ? (
+                        <Text style={{ color: colors.inkSoft, fontSize: 13, lineHeight: 19 }}>{milestone.description}</Text>
+                      ) : null}
+                      <View style={{ alignItems: 'center', flexDirection: 'row', gap: 6 }}>
+                        <Feather name={verified ? 'check-circle' : awaitingReview ? 'clock' : rejected ? 'alert-circle' : 'circle'} size={13} color={milestoneStatusColor} />
+                        <Text style={{ color: milestoneStatusColor, flex: 1, fontSize: 12, fontWeight: '600' }}>
+                          {verified
+                            ? 'Verified · XP ready to redeem'
+                            : awaitingReview
+                              ? 'Submitted · awaiting host review'
+                              : rejected
+                                ? 'Update requested · submit again when ready'
+                                : 'Not submitted'}
+                          {activityTime ? ` · ${new Date(activityTime).toLocaleDateString()}` : ''}
+                        </Text>
+                      </View>
+                      {canSubmitMilestone ? (
+                        <Button
+                          testID={`submit-milestone-${milestone.id}`}
+                          label={submitMilestone.isPending ? 'Submitting…' : rejected ? 'Resubmit milestone' : 'Submit milestone'}
+                          icon="send"
+                          disabled={submitMilestone.isPending}
+                          onPress={() => void submitMilestoneCompletion(participation!.id, milestone.id)}
+                        />
+                      ) : null}
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+          {!item.joined && user?.userType !== 'organisation' ? (
+            <Text style={[styles.createHint, { color: colors.mutedForeground, marginTop: 12 }]}>
+              Join this experience to track and submit milestone progress.
+            </Text>
+          ) : null}
+        </View>
+
         {item.whatYouWillDo ? (
           <View style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
             <View style={styles.infoBlockHeading}>
@@ -2203,20 +2341,32 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
                   {isWaitlisted
                     ? 'Your place is not confirmed. The host will promote you when a place opens.'
                     : participation.status === 'verified'
-                      ? 'Completion verified and reward issued.'
+                      ? hasConfiguredMilestones
+                        ? 'All milestones are verified. Their XP awards are ready to redeem.'
+                        : 'Completion verified and reward issued.'
                       : participation.status === 'submitted'
                         ? 'Awaiting host verification.'
-                        : 'Show up, then submit your completion.'}
+                        : hasConfiguredMilestones
+                          ? 'Complete each step above and submit it for host verification.'
+                          : 'Show up, then submit your completion.'}
                 </Text>
               </View>
             </View>
-            {['joined', 'attended', 'waitlisted'].includes(participation.status) ? (
+            {participation.status === 'waitlisted' ? (
+              <Button
+                label={query.isRefetching ? 'Checking…' : 'Check waitlist status'}
+                disabled={query.isRefetching}
+                onPress={() => void query.refetch()}
+              />
+            ) : hasConfiguredMilestones && ['joined', 'attended'].includes(participation.status) ? (
+              <Text style={[styles.joinedSub, { color: colors.mutedForeground, marginTop: 10 }]}>
+                Submit milestones from the timeline above. Each verified step releases its XP award.
+              </Text>
+            ) : ['joined', 'attended'].includes(participation.status) ? (
               <Button
                 label={participation.status === 'attended'
                   ? (submit.isPending ? 'Submitting…' : 'Submit completion')
-                  : participation.status === 'waitlisted'
-                    ? (query.isRefetching ? 'Checking…' : 'Check waitlist status')
-                    : (query.isRefetching ? 'Refreshing…' : 'Refresh status')}
+                  : (query.isRefetching ? 'Refreshing…' : 'Refresh status')}
                 disabled={participation.status === 'attended' ? submit.isPending : query.isRefetching}
                 onPress={() => {
                   if (participation.status === 'attended') void submitCompletion(participation.id);
@@ -4225,18 +4375,27 @@ function HostExperienceDetail({
       enabled: validExperienceId && user?.userType === 'organisation',
     },
   });
+  const milestoneTracking = useGetHostExperienceMilestones(participantExperienceId, {
+    query: {
+      queryKey: getGetHostExperienceMilestonesQueryKey(participantExperienceId),
+      enabled: validExperienceId && user?.userType === 'organisation',
+    },
+  });
   const [participantSearch, setParticipantSearch] = useState('');
   const [participantFilter, setParticipantFilter] = useState<HostParticipantFilter>('all');
   const [actionError, setActionError] = useState<string | null>(null);
   const attend = useMarkAttendance({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const verify = useVerifyParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const reject = useRejectParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const reviewMilestone = useReviewExperienceMilestoneSubmission({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const promoteNext = usePromoteNextWaitlistedParticipant({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
 
   const experience = validExperienceId
     ? experiences.data?.find((item) => item.id === experienceId)
     : undefined;
   const allParticipants = participants.data ?? [];
+  const milestoneDefinitions = milestoneTracking.data?.milestones ?? [];
+  const pendingMilestoneSubmissions: ExperienceMilestoneSubmission[] = milestoneTracking.data?.submissions ?? [];
   const waitlistedParticipants = allParticipants
     .filter((item) => item.status === 'waitlisted')
     .sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime() || a.id - b.id);
@@ -4259,12 +4418,13 @@ function HostExperienceDetail({
       || (participantFilter === 'waitlisted' && item.status === 'waitlisted');
     return matchesSearch && matchesFilter;
   });
-  const isRefreshing = experiences.isRefetching || participants.isRefetching;
+  const isRefreshing = experiences.isRefetching || participants.isRefetching || milestoneTracking.isRefetching;
   const refreshHostData = () => {
     triggerHaptic();
     void Promise.all([
       experiences.refetch(),
       validExperienceId ? participants.refetch() : Promise.resolve(),
+      validExperienceId ? milestoneTracking.refetch() : Promise.resolve(),
     ]);
   };
   const runHostAction = async (action: () => Promise<unknown>) => {
@@ -4275,6 +4435,9 @@ function HostExperienceDetail({
       setActionError(requestErrorMessage(error, 'That host action could not be completed. Please try again.'));
     }
   };
+  const reviewMilestoneSubmission = (submissionId: number, action: 'verify' | 'reject') => runHostAction(
+    () => reviewMilestone.mutateAsync({ submissionId, data: { action } }),
+  );
   const statusColor = experience?.status === 'published'
     ? colors.success
     : experience?.status === 'full'
@@ -4382,6 +4545,108 @@ function HostExperienceDetail({
                 {experience.availablePlaces === 0 ? 'No places left' : `${experience.availablePlaces} places left`}
               </Text>
             </View>
+          </View>
+
+          <View style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
+            <View style={styles.infoBlockHeading}>
+              <View style={[styles.infoBlockIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name="list" size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Milestone timeline</Text>
+                <Text style={[styles.hostSectionHint, { color: colors.mutedForeground, marginTop: 3 }]}>
+                  Each verified milestone releases its XP award to the participant.
+                </Text>
+              </View>
+            </View>
+            {milestoneTracking.isLoading && !milestoneTracking.data ? (
+              <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>Loading milestones…</Text>
+              </View>
+            ) : milestoneTracking.isError ? (
+              <View style={{ marginTop: 12 }}>
+                <InlineError message="Milestone details couldn’t be loaded. Refresh to try again." />
+              </View>
+            ) : milestoneDefinitions.length ? (
+              <View style={{ gap: 8, marginTop: 12 }}>
+                {milestoneDefinitions.map((milestone) => (
+                  <View
+                    key={milestone.id}
+                    testID={`host-milestone-${milestone.id}`}
+                    style={{ alignItems: 'flex-start', backgroundColor: colors.muted, borderColor: colors.border, borderRadius: colors.radius - 6, borderWidth: 1, flexDirection: 'row', gap: 10, padding: 12 }}
+                  >
+                    <View style={{ alignItems: 'center', backgroundColor: colors.primary + '13', borderRadius: 18, height: 30, justifyContent: 'center', width: 30 }}>
+                      <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>{milestone.position}</Text>
+                    </View>
+                    <View style={{ flex: 1, gap: 3 }}>
+                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '700' }}>{milestone.title}</Text>
+                      {milestone.description ? (
+                        <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 17 }}>{milestone.description}</Text>
+                      ) : null}
+                    </View>
+                    <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>+{milestone.xpReward} XP</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={[styles.hostSectionHint, { color: colors.mutedForeground, marginTop: 12 }]}>
+                This experience uses a single completion submission instead of milestones.
+              </Text>
+            )}
+
+            {pendingMilestoneSubmissions.length ? (
+              <View style={{ borderTopColor: colors.border, borderTopWidth: 1, gap: 10, marginTop: 14, paddingTop: 14 }}>
+                <View style={{ alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: '700' }}>Milestones to review</Text>
+                  <View style={{ backgroundColor: colors.secondary + '18', borderRadius: 16, paddingHorizontal: 9, paddingVertical: 4 }}>
+                    <Text style={{ color: colors.secondary, fontSize: 12, fontWeight: '700' }}>{pendingMilestoneSubmissions.length}</Text>
+                  </View>
+                </View>
+                {pendingMilestoneSubmissions.map((submission) => (
+                  <View
+                    key={submission.id}
+                    testID={`host-milestone-submission-${submission.id}`}
+                    style={{ backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 6, borderWidth: 1, gap: 9, padding: 12 }}
+                  >
+                    <View style={{ alignItems: 'center', flexDirection: 'row', gap: 9 }}>
+                      <View style={[styles.participantAvatar, { backgroundColor: colors.primary + '15' }]}>
+                        <Text style={[styles.participantInitial, { color: colors.primary }]}>{submission.participant.name.slice(0, 1).toUpperCase()}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '700' }}>{submission.participant.name}</Text>
+                        <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                          {submission.milestoneTitle} · +{submission.xpReward} XP
+                        </Text>
+                      </View>
+                      <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
+                        {hostTimestampLabel(submission.submittedAt) ?? 'Submitted'}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <Button
+                        testID={`host-verify-milestone-${submission.id}`}
+                        label={reviewMilestone.isPending ? 'Saving…' : 'Verify'}
+                        icon="check"
+                        color={colors.secondary}
+                        disabled={reviewMilestone.isPending}
+                        style={styles.hostActionButton}
+                        onPress={() => void reviewMilestoneSubmission(submission.id, 'verify')}
+                      />
+                      <Button
+                        testID={`host-reject-milestone-${submission.id}`}
+                        label={reviewMilestone.isPending ? 'Saving…' : 'Request update'}
+                        icon="x"
+                        variant="secondary"
+                        disabled={reviewMilestone.isPending}
+                        style={styles.hostActionButton}
+                        onPress={() => void reviewMilestoneSubmission(submission.id, 'reject')}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.hostDetailMetrics}>
@@ -4651,8 +4916,14 @@ type CreateExperienceQuestion = {
   multiline?: boolean;
   keyboardType?: 'default' | 'number-pad';
   optional?: boolean;
-  kind?: 'category';
+  kind?: 'category' | 'milestones';
   hint?: string;
+};
+
+type MilestoneDraft = {
+  title: string;
+  description: string;
+  xpReward: string;
 };
 
 const createExperienceQuestions: CreateExperienceQuestion[] = [
@@ -4668,6 +4939,7 @@ const createExperienceQuestions: CreateExperienceQuestion[] = [
   { key: 'location', prompt: 'Where will everyone meet?', description: 'Add a venue, street, or landmark people can find.', label: 'Meeting point', placeholder: 'A clear place people can find' },
   { key: 'capacity', prompt: 'How many people can join?', description: 'Set the number of confirmed places available.', label: 'Places available', placeholder: '12', keyboardType: 'number-pad', hint: 'You can manage a waitlist if all places fill.' },
   { key: 'xpReward', prompt: 'How will you recognise participants?', description: 'Choose the XP reward people earn after their participation is verified.', label: 'XP reward', placeholder: '150', keyboardType: 'number-pad', hint: 'Enter a whole number. You can set this to 0.' },
+  { key: 'milestones', prompt: 'What milestones will participants complete?', description: 'Split the XP reward across clear steps. Each step is submitted by the participant and verified by you before its XP is released.', label: 'Experience milestones', placeholder: '', kind: 'milestones' },
   { key: 'monetaryRewardPence', prompt: 'Will you offer a cash reward?', description: 'This is optional. Enter the amount in pence.', label: 'Cash reward in pence', placeholder: '2000', keyboardType: 'number-pad', optional: true, hint: 'For example, enter 2000 for a £20 reward.' },
   { key: 'whatYouWillDo', prompt: 'What will participants do?', description: 'Help people picture the activity before they sign up.', label: 'What participants will do', placeholder: 'Walk, make, chat, discover…', multiline: true, optional: true },
   { key: 'whatToBring', prompt: 'What should people bring?', description: 'Share anything participants should have with them.', label: 'What to bring', placeholder: 'Comfortable shoes and a curious mind', multiline: true, optional: true },
@@ -4678,7 +4950,7 @@ const createExperienceReviewSections: Array<{ title: string; keys: Array<keyof E
   { title: 'Experience', keys: ['title', 'description', 'category'] },
   { title: 'When', keys: ['date', 'startTime', 'endTime'] },
   { title: 'Where', keys: ['city', 'location'] },
-  { title: 'Places and rewards', keys: ['capacity', 'xpReward', 'monetaryRewardPence'] },
+  { title: 'Places and rewards', keys: ['capacity', 'xpReward', 'milestones', 'monetaryRewardPence'] },
   { title: 'What to expect', keys: ['whatYouWillDo', 'whatToBring'] },
 ];
 
@@ -4708,13 +4980,29 @@ function Create({
     xpReward: 150,
     monetaryRewardPence: null,
   });
+  const [milestoneDrafts, setMilestoneDrafts] = useState<MilestoneDraft[]>([
+    { title: '', description: '', xpReward: '150' },
+  ]);
 
-  const set = (key: keyof ExperienceCreateInput, value: string | number | null) => {
+  const set = (key: Exclude<keyof ExperienceCreateInput, 'milestones'>, value: string | number | null) => {
     const numeric = key === 'capacity' || key === 'xpReward' || key === 'monetaryRewardPence';
     const nextValue = numeric ? (value === '' || value === null ? null : Number(value)) : value;
     setForm((current) => ({ ...current, [key]: nextValue }));
     setInputError(null);
     setPublishError(null);
+  };
+  const updateMilestoneDraft = (index: number, field: keyof MilestoneDraft, value: string) => {
+    setMilestoneDrafts((current) => current.map((milestone, itemIndex) => (
+      itemIndex === index ? { ...milestone, [field]: value } : milestone
+    )));
+    setInputError(null);
+    setPublishError(null);
+  };
+  const addMilestoneDraft = () => {
+    setMilestoneDrafts((current) => current.length >= 12
+      ? current
+      : [...current, { title: '', description: '', xpReward: '0' }]);
+    setInputError(null);
   };
 
   useEffect(() => {
@@ -4729,6 +5017,21 @@ function Create({
   const isValidTimeValue = (value: string) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
   const timeInMinutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
   const validateQuestion = (question: CreateExperienceQuestion) => {
+    if (question.key === 'milestones') {
+      if (milestoneDrafts.length < 1 || milestoneDrafts.length > 12) {
+        return 'Add between 1 and 12 milestones.';
+      }
+      for (const [index, milestone] of milestoneDrafts.entries()) {
+        if (!milestone.title.trim()) return `Add a title for milestone ${index + 1}.`;
+        if (!Number.isInteger(Number(milestone.xpReward)) || Number(milestone.xpReward) < 0) {
+          return `Enter a whole-number XP reward for milestone ${index + 1}.`;
+        }
+      }
+      const allocatedXp = milestoneDrafts.reduce((sum, milestone) => sum + Number(milestone.xpReward), 0);
+      return allocatedXp === Number(form.xpReward)
+        ? null
+        : `Milestone rewards total ${allocatedXp} XP. Make them add up to ${form.xpReward ?? 0} XP.`;
+    }
     const value = form[question.key];
     const text = typeof value === 'string' ? value.trim() : '';
     const empty = value == null || (typeof value === 'string' && !text);
@@ -4813,6 +5116,11 @@ function Create({
           monetaryRewardPence: form.monetaryRewardPence == null ? null : Number(form.monetaryRewardPence),
           whatToBring: form.whatToBring?.trim() || null,
           whatYouWillDo: form.whatYouWillDo?.trim() || null,
+          milestones: milestoneDrafts.map((milestone) => ({
+            title: milestone.title.trim(),
+            description: milestone.description.trim() || null,
+            xpReward: Number(milestone.xpReward),
+          })),
         },
       });
       go('host');
@@ -4822,7 +5130,7 @@ function Create({
     }
   };
 
-  const field = (key: keyof ExperienceCreateInput, label: string, placeholder: string, multiline = false, keyboardType: 'default' | 'number-pad' = 'default') => (
+  const field = (key: Exclude<keyof ExperienceCreateInput, 'milestones'>, label: string, placeholder: string, multiline = false, keyboardType: 'default' | 'number-pad' = 'default') => (
     <View style={styles.createField}>
       <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>{label.toUpperCase()}</Text>
       <TextInput
@@ -4846,6 +5154,10 @@ function Create({
   );
 
   const reviewValue = (key: keyof ExperienceCreateInput) => {
+    if (key === 'milestones') {
+      const total = milestoneDrafts.reduce((sum, milestone) => sum + (Number(milestone.xpReward) || 0), 0);
+      return `${milestoneDrafts.length} ${milestoneDrafts.length === 1 ? 'milestone' : 'milestones'} · ${total} XP allocated`;
+    }
     const value = form[key];
     if (value == null || value === '') return 'Not added';
     if (key === 'category') return categoryLabel[value as ExperienceCategory];
@@ -4854,6 +5166,10 @@ function Create({
     if (key === 'monetaryRewardPence') return Number(value) > 0 ? money(Number(value)) ?? `${value}p` : 'No cash reward';
     return String(value);
   };
+  const milestoneXpTotal = milestoneDrafts.reduce(
+    (sum, milestone) => sum + (Number(milestone.xpReward) || 0),
+    0,
+  );
 
   return (
     <KeyboardAwareScrollViewCompat
@@ -4951,9 +5267,123 @@ function Create({
                     );
                   })}
                 </View>
+              ) : activeQuestion.kind === 'milestones' ? (
+                <View style={{ gap: 12 }}>
+                  <View style={[styles.createTip, { backgroundColor: colors.primary + '0D' }]}>
+                    <Feather name="award" size={19} color={colors.primary} />
+                    <Text style={[styles.createTipText, { color: colors.foreground }]}>
+                      Participants submit each step separately. You verify it before its XP becomes available to redeem.
+                    </Text>
+                  </View>
+                  {milestoneDrafts.map((milestone, index) => (
+                    <View
+                      key={`milestone-${index}`}
+                      testID={`create-milestone-${index + 1}`}
+                      style={{
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                        borderRadius: colors.radius,
+                        borderWidth: 1,
+                        gap: 10,
+                        padding: 14,
+                      }}
+                    >
+                      <View style={{ alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700', letterSpacing: 0.7 }}>
+                          MILESTONE {index + 1}
+                        </Text>
+                        {milestoneDrafts.length > 1 ? (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Remove milestone ${index + 1}`}
+                            testID={`create-milestone-remove-${index + 1}`}
+                            onPress={() => {
+                              setMilestoneDrafts((current) => current.filter((_, itemIndex) => itemIndex !== index));
+                              setInputError(null);
+                            }}
+                            hitSlop={8}
+                            style={{ padding: 4 }}
+                          >
+                            <Feather name="trash-2" size={16} color={colors.destructive} />
+                          </Pressable>
+                        ) : null}
+                      </View>
+                      <View style={styles.createField}>
+                        <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>TITLE</Text>
+                        <TextInput
+                          accessibilityLabel={`Milestone ${index + 1} title`}
+                          testID={`create-milestone-title-${index + 1}`}
+                          value={milestone.title}
+                          onChangeText={(value) => updateMilestoneDraft(index, 'title', value)}
+                          placeholder="e.g. Complete the community garden"
+                          placeholderTextColor={colors.mutedForeground}
+                          style={[styles.createInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius - 8 }]}
+                        />
+                      </View>
+                      <View style={styles.createField}>
+                        <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>DETAILS · OPTIONAL</Text>
+                        <TextInput
+                          accessibilityLabel={`Milestone ${index + 1} details`}
+                          testID={`create-milestone-description-${index + 1}`}
+                          value={milestone.description}
+                          onChangeText={(value) => updateMilestoneDraft(index, 'description', value)}
+                          placeholder="Explain what counts as complete"
+                          placeholderTextColor={colors.mutedForeground}
+                          multiline
+                          style={[styles.createInput, styles.createTextArea, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius - 8 }]}
+                        />
+                      </View>
+                      <View style={styles.createField}>
+                        <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>XP FOR THIS MILESTONE</Text>
+                        <TextInput
+                          accessibilityLabel={`Milestone ${index + 1} XP reward`}
+                          testID={`create-milestone-xp-${index + 1}`}
+                          value={milestone.xpReward}
+                          onChangeText={(value) => updateMilestoneDraft(index, 'xpReward', value)}
+                          placeholder="0"
+                          placeholderTextColor={colors.mutedForeground}
+                          keyboardType="number-pad"
+                          style={[styles.createInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius - 8 }]}
+                        />
+                      </View>
+                    </View>
+                  ))}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: milestoneDrafts.length >= 12 }}
+                    accessibilityLabel="Add a milestone"
+                    testID="create-milestone-add"
+                    disabled={milestoneDrafts.length >= 12}
+                    onPress={() => { triggerHaptic(); addMilestoneDraft(); }}
+                    style={({ pressed }) => ({
+                      alignItems: 'center',
+                      backgroundColor: colors.card,
+                      borderColor: colors.primary,
+                      borderRadius: colors.radius - 8,
+                      borderStyle: 'dashed',
+                      borderWidth: 1,
+                      flexDirection: 'row',
+                      gap: 8,
+                      justifyContent: 'center',
+                      opacity: milestoneDrafts.length >= 12 ? 0.5 : pressed ? 0.75 : 1,
+                      paddingVertical: 13,
+                    })}
+                  >
+                    <Feather name="plus" size={16} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontSize: 14, fontWeight: '600' }}>
+                      {milestoneDrafts.length >= 12 ? 'Maximum of 12 milestones' : 'Add another milestone'}
+                    </Text>
+                  </Pressable>
+                  <View style={[styles.createTip, { backgroundColor: colors.muted }]}>
+                    <Feather name="zap" size={17} color={colors.secondary} />
+                    <Text style={[styles.createTipText, { color: colors.foreground }]}>
+                      XP allocated: {milestoneXpTotal} / {Number(form.xpReward ?? 0)} XP
+                    </Text>
+                  </View>
+                </View>
               ) : (
                 <>
-                  {field(activeQuestion.key, activeQuestion.label, activeQuestion.placeholder, activeQuestion.multiline, activeQuestion.keyboardType)}
+                  {field(activeQuestion.key as Exclude<keyof ExperienceCreateInput, 'milestones'>, activeQuestion.label, activeQuestion.placeholder, activeQuestion.multiline, activeQuestion.keyboardType)}
                   {activeQuestion.optional ? (
                     <Text style={[styles.createOptionalNote, { color: colors.mutedForeground }]}>Optional · leave this blank if it doesn’t apply.</Text>
                   ) : null}

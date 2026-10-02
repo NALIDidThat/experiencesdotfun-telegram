@@ -12,5 +12,6 @@ export type XpAwardSourceType = typeof XpAwardSourceType[keyof typeof XpAwardSou
 export const XpAwardSourceType = {
   email_signup: 'email_signup',
   experience: 'experience',
+  milestone: 'milestone',
   legacy_balance: 'legacy_balance',
 } as const;

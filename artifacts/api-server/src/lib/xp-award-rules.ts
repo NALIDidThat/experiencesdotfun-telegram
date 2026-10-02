@@ -2,7 +2,7 @@ export const EMAIL_SIGNUP_XP_SOURCE_ID = "signup-bonus";
 
 export type XpAwardView = {
   id: string;
-  sourceType: "email_signup" | "experience" | "legacy_balance";
+  sourceType: "email_signup" | "experience" | "milestone" | "legacy_balance";
   sourceId: string;
   title: string;
   amount: number;
@@ -12,7 +12,7 @@ export type XpAwardView = {
 
 type PersistedXpAward = {
   id: number;
-  sourceType: "email_signup" | "experience";
+  sourceType: "email_signup" | "experience" | "milestone";
   sourceId: string;
   sourceTitle: string;
   amount: number;

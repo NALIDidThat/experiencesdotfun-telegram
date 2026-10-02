@@ -661,6 +661,33 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "409":
           $ref: "#/components/responses/Conflict"
+  /participations/{participationId}/milestones/{milestoneId}/submit:
+    post:
+      operationId: submitExperienceMilestone
+      tags: [experiences]
+      summary: Submit one completed experience milestone for host verification
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ParticipationId"
+        - name: milestoneId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Updated milestone progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExperienceMilestoneProgress"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /host/overview:
     get:
       operationId: getHostOverview
@@ -693,6 +720,57 @@ paths:
                   $ref: "#/components/schemas/HostExperience"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /host/experiences/{experienceId}/milestones:
+    get:
+      operationId: getHostExperienceMilestones
+      tags: [host]
+      summary: Get milestone definitions and pending reviews for a hosted experience
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ExperienceId"
+      responses:
+        "200":
+          description: Milestones and pending milestone submissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostExperienceMilestonesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /host/milestone-submissions/{submissionId}/review:
+    post:
+      operationId: reviewExperienceMilestoneSubmission
+      tags: [host]
+      summary: Verify or reject a participant's submitted experience milestone
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExperienceMilestoneReviewInput"
+      responses:
+        "200":
+          description: Reviewed milestone submission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExperienceMilestoneSubmission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /host/experiences/{experienceId}/participants:
     get:
       operationId: listExperienceParticipants
@@ -1565,7 +1643,7 @@ components:
           type: string
         sourceType:
           type: string
-          enum: [email_signup, experience, legacy_balance]
+          enum: [email_signup, experience, milestone, legacy_balance]
         sourceId:
           type: string
         title:
@@ -1766,6 +1844,97 @@ components:
             $ref: "#/components/schemas/ExperienceCategory"
       required: [name, description, city, categories]
       additionalProperties: false
+    ExperienceMilestoneInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: [string, "null"]
+          maxLength: 500
+        xpReward:
+          type: integer
+          minimum: 0
+      required: [title, description, xpReward]
+      additionalProperties: false
+    ExperienceMilestone:
+      type: object
+      properties:
+        id:
+          type: integer
+        position:
+          type: integer
+        title:
+          type: string
+        description:
+          type: [string, "null"]
+        xpReward:
+          type: integer
+      required: [id, position, title, description, xpReward]
+    ExperienceMilestoneProgress:
+      allOf:
+        - $ref: "#/components/schemas/ExperienceMilestone"
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [not_started, submitted, verified, rejected]
+            submittedAt:
+              type: [string, "null"]
+              format: date-time
+            verifiedAt:
+              type: [string, "null"]
+              format: date-time
+          required: [status, submittedAt, verifiedAt]
+    ExperienceMilestoneSubmission:
+      type: object
+      properties:
+        id:
+          type: integer
+        participationId:
+          type: integer
+        milestoneId:
+          type: integer
+        participant:
+          $ref: "#/components/schemas/ParticipantSummary"
+        milestoneTitle:
+          type: string
+        milestonePosition:
+          type: integer
+        xpReward:
+          type: integer
+        status:
+          type: string
+          enum: [submitted, verified, rejected]
+        submittedAt:
+          type: string
+          format: date-time
+        verifiedAt:
+          type: [string, "null"]
+          format: date-time
+      required: [id, participationId, milestoneId, participant, milestoneTitle, milestonePosition, xpReward, status, submittedAt, verifiedAt]
+    HostExperienceMilestonesResponse:
+      type: object
+      properties:
+        milestones:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExperienceMilestone"
+        submissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExperienceMilestoneSubmission"
+      required: [milestones, submissions]
+    ExperienceMilestoneReviewInput:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [verify, reject]
+      required: [action]
+      additionalProperties: false
     Experience:
       type: object
       properties:
@@ -1836,7 +2005,11 @@ components:
               anyOf:
                 - $ref: "#/components/schemas/Participation"
                 - type: "null"
-          required: [whatToBring, whatYouWillDo, joined, participation]
+            milestones:
+              type: array
+              items:
+                $ref: "#/components/schemas/ExperienceMilestoneProgress"
+          required: [whatToBring, whatYouWillDo, joined, participation, milestones]
     ExperienceCreateInput:
       type: object
       properties:
@@ -1879,6 +2052,12 @@ components:
           type: [string, "null"]
         whatYouWillDo:
           type: [string, "null"]
+        milestones:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items:
+            $ref: "#/components/schemas/ExperienceMilestoneInput"
       required:
         - organisationName
         - organisationDescription

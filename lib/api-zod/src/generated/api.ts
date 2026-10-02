@@ -961,7 +961,7 @@ export const GetMyXpAwardsResponse = zod.object({
   "pendingXp": zod.number().int().describe('Experience XP that is available to redeem.'),
   "awards": zod.array(zod.object({
   "id": zod.string(),
-  "sourceType": zod.enum(['email_signup', 'experience', 'legacy_balance']),
+  "sourceType": zod.enum(['email_signup', 'experience', 'milestone', 'legacy_balance']),
   "sourceId": zod.string(),
   "title": zod.string(),
   "amount": zod.number().int(),
@@ -1147,6 +1147,14 @@ export const createExperienceBodyXpRewardMin = 0;
 
 export const createExperienceBodyMonetaryRewardPenceMin = 0;
 
+export const createExperienceBodyMilestonesItemTitleMax = 120;
+
+export const createExperienceBodyMilestonesItemDescriptionMax = 500;
+
+export const createExperienceBodyMilestonesItemXpRewardMin = 0;
+
+export const createExperienceBodyMilestonesMax = 12;
+
 
 
 export const CreateExperienceBody = zod.object({
@@ -1164,7 +1172,12 @@ export const CreateExperienceBody = zod.object({
   "xpReward": zod.number().int().min(createExperienceBodyXpRewardMin),
   "monetaryRewardPence": zod.number().int().min(createExperienceBodyMonetaryRewardPenceMin).nullable(),
   "whatToBring": zod.string().nullable(),
-  "whatYouWillDo": zod.string().nullable()
+  "whatYouWillDo": zod.string().nullable(),
+  "milestones": zod.array(zod.object({
+  "title": zod.string().min(1).max(createExperienceBodyMilestonesItemTitleMax),
+  "description": zod.string().max(createExperienceBodyMilestonesItemDescriptionMax).nullable(),
+  "xpReward": zod.number().int().min(createExperienceBodyMilestonesItemXpRewardMin)
+})).min(1).max(createExperienceBodyMilestonesMax).optional()
 })
 
 export const createExperienceResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
@@ -1284,7 +1297,18 @@ export const GetExperienceResponse = zod.object({
   "submittedAt": zod.coerce.date().nullable(),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
-}),zod.null()])
+}),zod.null()]),
+  "milestones": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "xpReward": zod.number().int()
+}).and(zod.object({
+  "status": zod.enum(['not_started', 'submitted', 'verified', 'rejected']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "verifiedAt": zod.coerce.date().nullable()
+})))
 }))
 
 
@@ -1455,6 +1479,30 @@ export const SubmitCompletionResponse = zod.object({
 
 
 /**
+ * @summary Submit one completed experience milestone for host verification
+ */
+
+
+
+export const SubmitExperienceMilestoneParams = zod.object({
+  "participationId": zod.coerce.number().int(),
+  "milestoneId": zod.coerce.number().int().min(1)
+})
+
+export const SubmitExperienceMilestoneResponse = zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "xpReward": zod.number().int()
+}).and(zod.object({
+  "status": zod.enum(['not_started', 'submitted', 'verified', 'rejected']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "verifiedAt": zod.coerce.date().nullable()
+}))
+
+
+/**
  * @summary Get organisation activity summary
  */
 export const GetHostOverviewResponse = zod.object({
@@ -1512,6 +1560,74 @@ export const ListHostExperiencesResponseItem = zod.object({
   "waitlistCount": zod.number().int()
 }))
 export const ListHostExperiencesResponse = zod.array(ListHostExperiencesResponseItem)
+
+
+/**
+ * @summary Get milestone definitions and pending reviews for a hosted experience
+ */
+export const GetHostExperienceMilestonesParams = zod.object({
+  "experienceId": zod.coerce.number().int()
+})
+
+export const GetHostExperienceMilestonesResponse = zod.object({
+  "milestones": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "xpReward": zod.number().int()
+})),
+  "submissions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "participationId": zod.number().int(),
+  "milestoneId": zod.number().int(),
+  "participant": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "milestoneTitle": zod.string(),
+  "milestonePosition": zod.number().int(),
+  "xpReward": zod.number().int(),
+  "status": zod.enum(['submitted', 'verified', 'rejected']),
+  "submittedAt": zod.coerce.date(),
+  "verifiedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary Verify or reject a participant's submitted experience milestone
+ */
+
+
+
+export const ReviewExperienceMilestoneSubmissionParams = zod.object({
+  "submissionId": zod.coerce.number().int().min(1)
+})
+
+export const ReviewExperienceMilestoneSubmissionBody = zod.object({
+  "action": zod.enum(['verify', 'reject'])
+})
+
+export const ReviewExperienceMilestoneSubmissionResponse = zod.object({
+  "id": zod.number().int(),
+  "participationId": zod.number().int(),
+  "milestoneId": zod.number().int(),
+  "participant": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "milestoneTitle": zod.string(),
+  "milestonePosition": zod.number().int(),
+  "xpReward": zod.number().int(),
+  "status": zod.enum(['submitted', 'verified', 'rejected']),
+  "submittedAt": zod.coerce.date(),
+  "verifiedAt": zod.coerce.date().nullable()
+})
 
 
 /**

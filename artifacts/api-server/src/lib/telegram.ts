@@ -200,6 +200,19 @@ export async function sendCompletionSubmittedNotification(
   );
 }
 
+export async function sendMilestoneSubmittedNotification(
+  hostTelegramId: number | string,
+  participantName: string,
+  experience: TelegramExperienceNotice,
+  milestoneTitle: string,
+) {
+  return sendTelegramMessage(
+    hostTelegramId,
+    `${participantName} submitted the “${milestoneTitle}” milestone for “${experience.title}”.`,
+    [[openButton("Review milestone", "/?screen=host")]],
+  );
+}
+
 export async function sendContributionVerifiedNotification(
   participantTelegramId: number | string,
   experience: TelegramExperienceNotice,

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, notExists, or, sql } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   AcceptFriendRequestParams,
@@ -6,11 +6,15 @@ import {
   CreateFriendRequestBody,
   GetFriendProfileParams,
   GetExperienceParams,
+  GetHostExperienceMilestonesParams,
   ListExperiencesQueryParams,
   ListExperienceParticipantsParams,
   ListMyParticipationsQueryParams,
   MarkAttendanceParams,
   RejectParticipationParams,
+  ReviewExperienceMilestoneSubmissionBody,
+  ReviewExperienceMilestoneSubmissionParams,
+  SubmitExperienceMilestoneParams,
   SubmitCompletionParams,
   AuthenticateTelegramBody,
   SignUpWithEmailBody,
@@ -22,6 +26,8 @@ import {
 import { db, pool } from "@workspace/db";
 import {
   emailAccountsTable,
+  experienceMilestoneSubmissionsTable,
+  experienceMilestonesTable,
   feedActivityEventsTable,
   feedPreferencesTable,
   experiencesTable,
@@ -56,6 +62,10 @@ import {
   participationStatusForCapacity,
   isValidExperienceSchedule,
 } from "../lib/experience-rules";
+import {
+  areAllMilestoneStatusesVerified,
+  hasValidMilestoneRewardTotal,
+} from "../lib/experience-milestone-rules.mjs";
 import { mergeDefinedFields } from "../lib/profile-rules";
 import { hasSameTelegramIdentity } from "../lib/telegram-identity";
 import {
@@ -82,6 +92,7 @@ import {
   sendFriendRequestNotification,
   sendFriendRequestSentNotification,
   sendHostNewParticipantNotification,
+  sendMilestoneSubmittedNotification,
 } from "../lib/telegram";
 import { createOrReopenFriendRequest, updateFriendRequestStatus } from "../lib/friends";
 import { createSocialInvite } from "../lib/social-invites";
@@ -95,6 +106,46 @@ const socialLinkDomains: Record<keyof PersistedSocialLinks, readonly string[]> =
   x: ["x.com", "twitter.com"],
   youtube: ["youtube.com", "youtu.be"],
 };
+
+async function listExperienceMilestoneProgress(
+  experienceId: number,
+  participationId: number | null,
+) {
+  const rows = await db
+    .select({
+      id: experienceMilestonesTable.id,
+      position: experienceMilestonesTable.position,
+      title: experienceMilestonesTable.title,
+      description: experienceMilestonesTable.description,
+      xpReward: experienceMilestonesTable.xpReward,
+      status: experienceMilestoneSubmissionsTable.status,
+      submittedAt: experienceMilestoneSubmissionsTable.submittedAt,
+      verifiedAt: experienceMilestoneSubmissionsTable.verifiedAt,
+    })
+    .from(experienceMilestonesTable)
+    .leftJoin(
+      experienceMilestoneSubmissionsTable,
+      and(
+        eq(
+          experienceMilestoneSubmissionsTable.milestoneId,
+          experienceMilestonesTable.id,
+        ),
+        eq(
+          experienceMilestoneSubmissionsTable.participationId,
+          participationId ?? 0,
+        ),
+      ),
+    )
+    .where(eq(experienceMilestonesTable.experienceId, experienceId))
+    .orderBy(asc(experienceMilestonesTable.position));
+
+  return rows.map((row) => ({
+    ...row,
+    status: row.status ?? "not_started",
+    submittedAt: row.submittedAt ?? null,
+    verifiedAt: row.verifiedAt ?? null,
+  }));
+}
 
 function isAllowedSocialLink(platform: string, value: string): boolean {
   const domains = socialLinkDomains[platform as keyof PersistedSocialLinks];
@@ -364,6 +415,17 @@ router.get("/me/xp-awards", async (req, res) => {
         and(
           eq(participationsTable.userId, user.id),
           eq(participationsTable.status, "verified"),
+          notExists(
+            db
+              .select({ id: experienceMilestonesTable.id })
+              .from(experienceMilestonesTable)
+              .where(
+                eq(
+                  experienceMilestonesTable.experienceId,
+                  experiencesTable.id,
+                ),
+              ),
+          ),
         ),
       )
       .orderBy(desc(participationsTable.verifiedAt)),
@@ -599,6 +661,14 @@ router.post("/experiences", async (req, res) => {
   }
   const user = currentUser(req);
   const input = parsed.data;
+  if (!hasValidMilestoneRewardTotal(input.milestones, input.xpReward)) {
+    error(
+      res,
+      400,
+      "Milestone XP rewards must add up to the experience XP reward.",
+    );
+    return;
+  }
   if (!isValidExperienceSchedule(input.date, input.startTime, input.endTime)) {
     error(res, 400, "End time must be later than the start time.");
     return;
@@ -640,6 +710,17 @@ router.post("/experiences", async (req, res) => {
         })
         .returning();
       if (!createdExperience) throw new Error("Unable to create experience.");
+      if (input.milestones?.length) {
+        await transaction.insert(experienceMilestonesTable).values(
+          input.milestones.map((milestone, index) => ({
+            experienceId: createdExperience.id,
+            position: index + 1,
+            title: milestone.title.trim(),
+            description: milestone.description?.trim() || null,
+            xpReward: milestone.xpReward,
+          })),
+        );
+      }
       await transaction.insert(feedActivityEventsTable).values({
         actorId: user.id,
         type: "experience_published",
@@ -699,6 +780,10 @@ router.get("/experiences/:experienceId", async (req, res) => {
     whatYouWillDo: experience.whatYouWillDo,
     joined: Boolean(participation),
     participation: participation ? await participationResponse(participation) : null,
+    milestones: await listExperienceMilestoneProgress(
+      experience.id,
+      participation?.id ?? null,
+    ),
   });
 });
 
@@ -858,6 +943,15 @@ router.post("/participations/:participationId/submit", async (req, res) => {
     error(res, 404, "Participation not found.");
     return;
   }
+  const [configuredMilestone] = await db
+    .select({ id: experienceMilestonesTable.id })
+    .from(experienceMilestonesTable)
+    .where(eq(experienceMilestonesTable.experienceId, participation.experienceId))
+    .limit(1);
+  if (configuredMilestone) {
+    error(res, 409, "Submit each milestone from the experience timeline.");
+    return;
+  }
   if (!["joined", "attended"].includes(participation.status)) {
     error(res, 409, "This participation is not ready for completion submission.");
     return;
@@ -891,6 +985,142 @@ router.post("/participations/:participationId/submit", async (req, res) => {
   res.json(await participationResponse(updated));
 });
 
+router.post(
+  "/participations/:participationId/milestones/:milestoneId/submit",
+  async (req, res) => {
+    if (!enforceAccountType(req, res, "participant")) return;
+    const parsed = SubmitExperienceMilestoneParams.safeParse({
+      participationId: Number(req.params.participationId),
+      milestoneId: Number(req.params.milestoneId),
+    });
+    if (!parsed.success) {
+      error(res, 400, "Invalid milestone submission.");
+      return;
+    }
+
+    const user = currentUser(req);
+    const outcome = await db.transaction(async (transaction) => {
+      const [participation] = await transaction
+        .select()
+        .from(participationsTable)
+        .where(
+          and(
+            eq(participationsTable.id, parsed.data.participationId),
+            eq(participationsTable.userId, user.id),
+          ),
+        )
+        .for("update");
+      if (!participation) return { kind: "not-found" as const };
+      if (!["joined", "attended"].includes(participation.status)) {
+        return { kind: "not-ready" as const };
+      }
+
+      const [milestone] = await transaction
+        .select()
+        .from(experienceMilestonesTable)
+        .where(
+          and(
+            eq(experienceMilestonesTable.id, parsed.data.milestoneId),
+            eq(experienceMilestonesTable.experienceId, participation.experienceId),
+          ),
+        )
+        .limit(1);
+      if (!milestone) return { kind: "not-found" as const };
+
+      const [existingSubmission] = await transaction
+        .select()
+        .from(experienceMilestoneSubmissionsTable)
+        .where(
+          and(
+            eq(experienceMilestoneSubmissionsTable.milestoneId, milestone.id),
+            eq(
+              experienceMilestoneSubmissionsTable.participationId,
+              participation.id,
+            ),
+          ),
+        )
+        .for("update");
+      if (
+        existingSubmission?.status === "submitted" ||
+        existingSubmission?.status === "verified"
+      ) {
+        return { kind: "not-submittable" as const };
+      }
+
+      const submittedAt = new Date();
+      const [submission] = existingSubmission
+        ? await transaction
+            .update(experienceMilestoneSubmissionsTable)
+            .set({ status: "submitted", submittedAt, verifiedAt: null })
+            .where(
+              and(
+                eq(experienceMilestoneSubmissionsTable.id, existingSubmission.id),
+                eq(experienceMilestoneSubmissionsTable.status, "rejected"),
+              ),
+            )
+            .returning()
+        : await transaction
+            .insert(experienceMilestoneSubmissionsTable)
+            .values({
+              milestoneId: milestone.id,
+              participationId: participation.id,
+              status: "submitted",
+              submittedAt,
+            })
+            .onConflictDoNothing()
+            .returning();
+      if (!submission) return { kind: "not-submittable" as const };
+
+      return {
+        kind: "submitted" as const,
+        experienceId: participation.experienceId,
+        progress: {
+          id: milestone.id,
+          position: milestone.position,
+          title: milestone.title,
+          description: milestone.description,
+          xpReward: milestone.xpReward,
+          status: "submitted" as const,
+          submittedAt: submission.submittedAt,
+          verifiedAt: null,
+        },
+      };
+    });
+
+    if (outcome.kind === "not-found") {
+      error(res, 404, "Participation or milestone not found.");
+      return;
+    }
+    if (outcome.kind !== "submitted") {
+      error(res, 409, "This milestone cannot be submitted in its current state.");
+      return;
+    }
+
+    const experience = await db.query.experiencesTable.findFirst({
+      where: eq(experiencesTable.id, outcome.experienceId),
+    });
+    if (experience) {
+      const organisation = await db.query.organisationsTable.findFirst({
+        where: eq(organisationsTable.id, experience.organisationId),
+      });
+      const host = organisation
+        ? await db.query.usersTable.findFirst({
+            where: eq(usersTable.id, organisation.ownerUserId),
+          })
+        : undefined;
+      if (host) {
+        await sendMilestoneSubmittedNotification(
+          host.telegramId,
+          user.name,
+          experience,
+          outcome.progress.title,
+        );
+      }
+    }
+    res.json(outcome.progress);
+  },
+);
+
 router.get("/host/overview", async (req, res) => {
   const organisation = await currentOrganisation(currentUser(req).id);
   if (!organisation) {
@@ -915,6 +1145,24 @@ router.get("/host/overview", async (req, res) => {
         .from(participationsTable)
         .where(inArray(participationsTable.experienceId, experienceIds))
     : [];
+  const [pendingMilestoneSubmissions] = experienceIds.length
+    ? await db
+        .select({ value: count() })
+        .from(experienceMilestoneSubmissionsTable)
+        .innerJoin(
+          experienceMilestonesTable,
+          eq(
+            experienceMilestonesTable.id,
+            experienceMilestoneSubmissionsTable.milestoneId,
+          ),
+        )
+        .where(
+          and(
+            inArray(experienceMilestonesTable.experienceId, experienceIds),
+            eq(experienceMilestoneSubmissionsTable.status, "submitted"),
+          ),
+        )
+    : [{ value: 0 }];
   res.json({
     organisation: organisationResponse(organisation),
     upcomingExperiences: experiences.filter((item) => ["published", "full"].includes(item.status)).length,
@@ -922,7 +1170,9 @@ router.get("/host/overview", async (req, res) => {
       ["joined", "attended", "submitted", "verified"].includes(item.status),
     ).length,
     waitlistCount: participations.filter((item) => item.status === "waitlisted").length,
-    pendingVerifications: participations.filter((item) => item.status === "submitted").length,
+    pendingVerifications:
+      participations.filter((item) => item.status === "submitted").length +
+      Number(pendingMilestoneSubmissions?.value ?? 0),
     totalExperiences: experiences.length,
   });
 });
@@ -988,6 +1238,90 @@ router.get("/host/experiences/:experienceId/participants", async (req, res) => {
     .where(eq(participationsTable.experienceId, experience.id))
     .orderBy(desc(participationsTable.joinedAt));
   res.json(await Promise.all(rows.map((row) => participationResponse(row))));
+});
+
+router.get("/host/experiences/:experienceId/milestones", async (req, res) => {
+  if (!enforceAccountType(req, res, "organisation")) return;
+  const parsed = GetHostExperienceMilestonesParams.safeParse({
+    experienceId: Number(req.params.experienceId),
+  });
+  if (!parsed.success) {
+    error(res, 400, "Invalid experience.");
+    return;
+  }
+
+  const organisation = await currentOrganisation(currentUser(req).id);
+  const experience = organisation
+    ? await db.query.experiencesTable.findFirst({
+        where: and(
+          eq(experiencesTable.id, parsed.data.experienceId),
+          eq(experiencesTable.organisationId, organisation.id),
+        ),
+      })
+    : undefined;
+  if (!experience) {
+    error(res, 404, "Hosted experience not found.");
+    return;
+  }
+
+  const [milestones, submissions] = await Promise.all([
+    db
+      .select({
+        id: experienceMilestonesTable.id,
+        position: experienceMilestonesTable.position,
+        title: experienceMilestonesTable.title,
+        description: experienceMilestonesTable.description,
+        xpReward: experienceMilestonesTable.xpReward,
+      })
+      .from(experienceMilestonesTable)
+      .where(eq(experienceMilestonesTable.experienceId, experience.id))
+      .orderBy(asc(experienceMilestonesTable.position)),
+    db
+      .select({
+        id: experienceMilestoneSubmissionsTable.id,
+        participationId: experienceMilestoneSubmissionsTable.participationId,
+        milestoneId: experienceMilestonesTable.id,
+        participant: {
+          id: usersTable.id,
+          name: usersTable.name,
+          username: usersTable.username,
+          avatarUrl: usersTable.avatarUrl,
+        },
+        milestoneTitle: experienceMilestonesTable.title,
+        milestonePosition: experienceMilestonesTable.position,
+        xpReward: experienceMilestonesTable.xpReward,
+        status: experienceMilestoneSubmissionsTable.status,
+        submittedAt: experienceMilestoneSubmissionsTable.submittedAt,
+        verifiedAt: experienceMilestoneSubmissionsTable.verifiedAt,
+      })
+      .from(experienceMilestoneSubmissionsTable)
+      .innerJoin(
+        experienceMilestonesTable,
+        eq(
+          experienceMilestonesTable.id,
+          experienceMilestoneSubmissionsTable.milestoneId,
+        ),
+      )
+      .innerJoin(
+        participationsTable,
+        eq(
+          participationsTable.id,
+          experienceMilestoneSubmissionsTable.participationId,
+        ),
+      )
+      .innerJoin(usersTable, eq(usersTable.id, participationsTable.userId))
+      .where(
+        and(
+          eq(experienceMilestonesTable.experienceId, experience.id),
+          eq(experienceMilestoneSubmissionsTable.status, "submitted"),
+        ),
+      )
+      .orderBy(
+        asc(experienceMilestonesTable.position),
+        asc(experienceMilestoneSubmissionsTable.submittedAt),
+      ),
+  ]);
+  res.json({ milestones, submissions });
 });
 
 router.post("/host/experiences/:experienceId/promote-next", async (req, res) => {
@@ -1170,6 +1504,15 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
   const experience = await db.query.experiencesTable.findFirst({
     where: eq(experiencesTable.id, participation.experienceId),
   });
+  const [configuredMilestone] = await db
+    .select({ id: experienceMilestonesTable.id })
+    .from(experienceMilestonesTable)
+    .where(eq(experienceMilestonesTable.experienceId, participation.experienceId))
+    .limit(1);
+  if (configuredMilestone) {
+    error(res, 409, "Review each milestone from the host milestone queue.");
+    return;
+  }
   const verifiedAt = new Date();
   const updated = await db.transaction(async (transaction) => {
     const [verified] = await transaction
@@ -1223,6 +1566,258 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
   }
   res.json(await participationResponse(updated));
 });
+
+router.post(
+  "/host/milestone-submissions/:submissionId/review",
+  async (req, res) => {
+    if (!enforceAccountType(req, res, "organisation")) return;
+    const params = ReviewExperienceMilestoneSubmissionParams.safeParse({
+      submissionId: Number(req.params.submissionId),
+    });
+    const body = ReviewExperienceMilestoneSubmissionBody.safeParse(req.body);
+    if (!params.success || !body.success) {
+      error(res, 400, "Choose whether to verify or reject this milestone.");
+      return;
+    }
+
+    const reviewer = currentUser(req);
+    const organisation = await currentOrganisation(reviewer.id);
+    if (!organisation) {
+      error(res, 404, "Hosted milestone submission not found.");
+      return;
+    }
+
+    const outcome = await db.transaction(async (transaction) => {
+      const [context] = await transaction
+        .select({
+          participationId: experienceMilestoneSubmissionsTable.participationId,
+          milestoneId: experienceMilestonesTable.id,
+          experienceId: experiencesTable.id,
+          experienceTitle: experiencesTable.title,
+          organisationId: experiencesTable.organisationId,
+          milestoneTitle: experienceMilestonesTable.title,
+          milestonePosition: experienceMilestonesTable.position,
+          xpReward: experienceMilestonesTable.xpReward,
+        })
+        .from(experienceMilestoneSubmissionsTable)
+        .innerJoin(
+          experienceMilestonesTable,
+          eq(
+            experienceMilestonesTable.id,
+            experienceMilestoneSubmissionsTable.milestoneId,
+          ),
+        )
+        .innerJoin(
+          experiencesTable,
+          eq(experiencesTable.id, experienceMilestonesTable.experienceId),
+        )
+        .where(
+          and(
+            eq(experienceMilestoneSubmissionsTable.id, params.data.submissionId),
+            eq(experiencesTable.organisationId, organisation.id),
+          ),
+        );
+      if (!context) return { kind: "not-found" as const };
+
+      const [participation] = await transaction
+        .select()
+        .from(participationsTable)
+        .where(eq(participationsTable.id, context.participationId))
+        .for("update");
+      if (!participation) return { kind: "not-found" as const };
+
+      const [submission] = await transaction
+        .select()
+        .from(experienceMilestoneSubmissionsTable)
+        .where(
+          and(
+            eq(experienceMilestoneSubmissionsTable.id, params.data.submissionId),
+            eq(
+              experienceMilestoneSubmissionsTable.participationId,
+              participation.id,
+            ),
+          ),
+        )
+        .for("update");
+      if (!submission || submission.status !== "submitted") {
+        return { kind: "conflict" as const };
+      }
+
+      const participant = await transaction.query.usersTable.findFirst({
+        where: eq(usersTable.id, participation.userId),
+      });
+      if (!participant) return { kind: "not-found" as const };
+      if (hasSameTelegramIdentity(participant, reviewer)) {
+        return { kind: "forbidden" as const };
+      }
+
+      if (body.data.action === "reject") {
+        const [rejected] = await transaction
+          .update(experienceMilestoneSubmissionsTable)
+          .set({ status: "rejected", verifiedAt: null })
+          .where(
+            and(
+              eq(experienceMilestoneSubmissionsTable.id, submission.id),
+              eq(experienceMilestoneSubmissionsTable.status, "submitted"),
+            ),
+          )
+          .returning();
+        if (!rejected) return { kind: "conflict" as const };
+        return {
+          kind: "reviewed" as const,
+          complete: false,
+          action: "reject" as const,
+          result: {
+            id: rejected.id,
+            participationId: rejected.participationId,
+            milestoneId: context.milestoneId,
+            participant: {
+              id: participant.id,
+              name: participant.name,
+              username: participant.username,
+              avatarUrl: participant.avatarUrl,
+            },
+            milestoneTitle: context.milestoneTitle,
+            milestonePosition: context.milestonePosition,
+            xpReward: context.xpReward,
+            status: rejected.status,
+            submittedAt: rejected.submittedAt,
+            verifiedAt: rejected.verifiedAt,
+          },
+        };
+      }
+
+      const verifiedAt = new Date();
+      const [verified] = await transaction
+        .update(experienceMilestoneSubmissionsTable)
+        .set({ status: "verified", verifiedAt })
+        .where(
+          and(
+            eq(experienceMilestoneSubmissionsTable.id, submission.id),
+            eq(experienceMilestoneSubmissionsTable.status, "submitted"),
+          ),
+        )
+        .returning();
+      if (!verified) return { kind: "conflict" as const };
+
+      if (context.xpReward > 0) {
+        await transaction
+          .insert(xpAwardsTable)
+          .values({
+            userId: participation.userId,
+            sourceType: "milestone",
+            sourceId: String(verified.id),
+            sourceTitle: `${context.experienceTitle} · ${context.milestoneTitle}`,
+            amount: context.xpReward,
+            status: "pending",
+            awardedAt: verifiedAt,
+          })
+          .onConflictDoNothing();
+      }
+
+      const statuses = await transaction
+        .select({
+          status: experienceMilestoneSubmissionsTable.status,
+        })
+        .from(experienceMilestonesTable)
+        .leftJoin(
+          experienceMilestoneSubmissionsTable,
+          and(
+            eq(
+              experienceMilestoneSubmissionsTable.milestoneId,
+              experienceMilestonesTable.id,
+            ),
+            eq(
+              experienceMilestoneSubmissionsTable.participationId,
+              participation.id,
+            ),
+          ),
+        )
+        .where(eq(experienceMilestonesTable.experienceId, context.experienceId));
+      const complete = areAllMilestoneStatusesVerified(
+        statuses.map((item) => item.status ?? "not_started"),
+      );
+
+      if (complete) {
+        await transaction
+          .update(participationsTable)
+          .set({ status: "verified", verifiedAt, rewardStatus: "issued" })
+          .where(eq(participationsTable.id, participation.id));
+
+        const visibility = await automaticActivityVisibility(
+          transaction,
+          participation.userId,
+        );
+        await transaction
+          .insert(feedActivityEventsTable)
+          .values({
+            actorId: participation.userId,
+            type: "experience_verified",
+            targetType: "experience",
+            targetId: context.experienceId,
+            metadata: { participationId: participation.id },
+            visibility,
+            createdAt: verifiedAt,
+          })
+          .onConflictDoNothing();
+      }
+
+      return {
+        kind: "reviewed" as const,
+        complete,
+        action: "verify" as const,
+        experienceId: context.experienceId,
+        participantTelegramId: participant.telegramId,
+        result: {
+          id: verified.id,
+          participationId: verified.participationId,
+          milestoneId: context.milestoneId,
+          participant: {
+            id: participant.id,
+            name: participant.name,
+            username: participant.username,
+            avatarUrl: participant.avatarUrl,
+          },
+          milestoneTitle: context.milestoneTitle,
+          milestonePosition: context.milestonePosition,
+          xpReward: context.xpReward,
+          status: verified.status,
+          submittedAt: verified.submittedAt,
+          verifiedAt: verified.verifiedAt,
+        },
+      };
+    });
+
+    if (outcome.kind === "not-found") {
+      error(res, 404, "Hosted milestone submission not found.");
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      error(
+        res,
+        403,
+        "You can’t review a milestone from another profile linked to your Telegram account.",
+      );
+      return;
+    }
+    if (outcome.kind === "conflict") {
+      error(res, 409, "This milestone is no longer awaiting review.");
+      return;
+    }
+    if (outcome.action === "verify" && outcome.complete) {
+      const experience = await db.query.experiencesTable.findFirst({
+        where: eq(experiencesTable.id, outcome.experienceId),
+      });
+      if (experience) {
+        await sendContributionVerifiedNotification(
+          outcome.participantTelegramId,
+          experience,
+        );
+      }
+    }
+    res.json(outcome.result);
+  },
+);
 
 router.post("/host/participations/:participationId/reject", async (req, res) => {
   const parsed = RejectParticipationParams.safeParse({ participationId: Number(req.params.participationId) });

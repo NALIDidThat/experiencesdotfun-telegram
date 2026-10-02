@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ExperienceCategory } from './experienceCategory';
+import type { ExperienceMilestoneInput } from './experienceMilestoneInput';
 
 export interface ExperienceCreateInput {
   /** @minLength 1 */
@@ -38,4 +39,9 @@ export interface ExperienceCreateInput {
   whatToBring: string | null;
   /** @nullable */
   whatYouWillDo: string | null;
+  /**
+     * @minItems 1
+     * @maxItems 12
+     */
+  milestones?: ExperienceMilestoneInput[];
 }

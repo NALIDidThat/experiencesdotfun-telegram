@@ -17,7 +17,7 @@ export const xpAwardsTable = pgTable(
       .notNull()
       .references(() => usersTable.id),
     sourceType: text("source_type", {
-      enum: ["email_signup", "experience"],
+      enum: ["email_signup", "experience", "milestone"],
     }).notNull(),
     sourceId: text("source_id").notNull(),
     sourceTitle: text("source_title").notNull(),

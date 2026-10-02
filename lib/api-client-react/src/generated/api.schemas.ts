@@ -246,6 +246,7 @@ export type XpAwardSourceType = typeof XpAwardSourceType[keyof typeof XpAwardSou
 export const XpAwardSourceType = {
   email_signup: 'email_signup',
   experience: 'experience',
+  milestone: 'milestone',
   legacy_balance: 'legacy_balance',
 } as const;
 
@@ -374,6 +375,97 @@ export interface CommunityDetails {
   recentContributions: CommunityContribution[];
 }
 
+export interface ExperienceMilestoneInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title: string;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  description: string | null;
+  /** @minimum 0 */
+  xpReward: number;
+}
+
+export interface ExperienceMilestone {
+  id: number;
+  position: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  xpReward: number;
+}
+
+export type ExperienceMilestoneProgressStatus = typeof ExperienceMilestoneProgressStatus[keyof typeof ExperienceMilestoneProgressStatus];
+
+
+export const ExperienceMilestoneProgressStatus = {
+  not_started: 'not_started',
+  submitted: 'submitted',
+  verified: 'verified',
+  rejected: 'rejected',
+} as const;
+
+export type ExperienceMilestoneProgress = ExperienceMilestone & ({
+  status: ExperienceMilestoneProgressStatus;
+  /** @nullable */
+  submittedAt: string | null;
+  /** @nullable */
+  verifiedAt: string | null;
+});
+
+export type ExperienceMilestoneSubmissionStatus = typeof ExperienceMilestoneSubmissionStatus[keyof typeof ExperienceMilestoneSubmissionStatus];
+
+
+export const ExperienceMilestoneSubmissionStatus = {
+  submitted: 'submitted',
+  verified: 'verified',
+  rejected: 'rejected',
+} as const;
+
+export interface ParticipantSummary {
+  id: number;
+  name: string;
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  avatarUrl?: string | null;
+}
+
+export interface ExperienceMilestoneSubmission {
+  id: number;
+  participationId: number;
+  milestoneId: number;
+  participant: ParticipantSummary;
+  milestoneTitle: string;
+  milestonePosition: number;
+  xpReward: number;
+  status: ExperienceMilestoneSubmissionStatus;
+  submittedAt: string;
+  /** @nullable */
+  verifiedAt: string | null;
+}
+
+export interface HostExperienceMilestonesResponse {
+  milestones: ExperienceMilestone[];
+  submissions: ExperienceMilestoneSubmission[];
+}
+
+export type ExperienceMilestoneReviewInputAction = typeof ExperienceMilestoneReviewInputAction[keyof typeof ExperienceMilestoneReviewInputAction];
+
+
+export const ExperienceMilestoneReviewInputAction = {
+  verify: 'verify',
+  reject: 'reject',
+} as const;
+
+export interface ExperienceMilestoneReviewInput {
+  action: ExperienceMilestoneReviewInputAction;
+}
+
 export interface Experience {
   id: number;
   organisation: Organisation;
@@ -395,15 +487,6 @@ export interface Experience {
   /** @nullable */
   monetaryRewardPence: number | null;
   status: ExperienceStatus;
-}
-
-export interface ParticipantSummary {
-  id: number;
-  name: string;
-  /** @nullable */
-  username: string | null;
-  /** @nullable */
-  avatarUrl?: string | null;
 }
 
 export interface Participation {
@@ -428,6 +511,7 @@ export type ExperienceDetail = Experience & ({
   whatYouWillDo: string | null;
   joined: boolean;
   participation: Participation | null;
+  milestones: ExperienceMilestoneProgress[];
 });
 
 export interface ExperienceCreateInput {
@@ -461,6 +545,11 @@ export interface ExperienceCreateInput {
   whatToBring: string | null;
   /** @nullable */
   whatYouWillDo: string | null;
+  /**
+     * @minItems 1
+     * @maxItems 12
+     */
+  milestones?: ExperienceMilestoneInput[];
 }
 
 export interface HostOverview {

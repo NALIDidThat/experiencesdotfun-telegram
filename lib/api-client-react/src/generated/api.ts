@@ -44,6 +44,9 @@ import type {
   Experience,
   ExperienceCreateInput,
   ExperienceDetail,
+  ExperienceMilestoneProgress,
+  ExperienceMilestoneReviewInput,
+  ExperienceMilestoneSubmission,
   FeedComment,
   FeedCommentInput,
   FeedCommentsResponse,
@@ -61,6 +64,7 @@ import type {
   GetFeedParams,
   HealthStatus,
   HostExperience,
+  HostExperienceMilestonesResponse,
   HostOverview,
   ListExperiencesParams,
   ListMyParticipationsParams,
@@ -2620,6 +2624,82 @@ export const useSubmitCompletion = <TError = ErrorType<UnauthorizedResponse | Co
       return useMutation(getSubmitCompletionMutationOptions(options));
     }
 
+export const getSubmitExperienceMilestoneUrl = (participationId: number,
+    milestoneId: number,) => {
+
+
+
+
+  return `/api/participations/${participationId}/milestones/${milestoneId}/submit`
+}
+
+/**
+ * @summary Submit one completed experience milestone for host verification
+ */
+export const submitExperienceMilestone = async (participationId: number,
+    milestoneId: number, options?: Parameters<typeof customFetch>[1]): Promise<ExperienceMilestoneProgress> => {
+
+  return customFetch<ExperienceMilestoneProgress>(getSubmitExperienceMilestoneUrl(participationId,milestoneId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSubmitExperienceMilestoneMutationKey = () => ['submitExperienceMilestone'] as const;
+
+export const getSubmitExperienceMilestoneMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitExperienceMilestone>>, TError,SubmitExperienceMilestoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitExperienceMilestone>>, TError,SubmitExperienceMilestoneMutationVariables, TContext> => {
+
+const mutationKey = getSubmitExperienceMilestoneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitExperienceMilestone>>, SubmitExperienceMilestoneMutationVariables> = (props) => {
+          const {participationId,milestoneId} = props ?? {};
+
+          return  submitExperienceMilestone(participationId,milestoneId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitExperienceMilestoneMutationResult = NonNullable<Awaited<ReturnType<typeof submitExperienceMilestone>>>
+
+    export type SubmitExperienceMilestoneMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type SubmitExperienceMilestoneMutationVariables = {participationId: number;milestoneId: number}
+
+    /**
+ * @summary Submit one completed experience milestone for host verification
+ */
+export const useSubmitExperienceMilestone = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitExperienceMilestone>>, TError,SubmitExperienceMilestoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitExperienceMilestone>>,
+        TError,
+        SubmitExperienceMilestoneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitExperienceMilestoneMutationOptions(options));
+    }
+
 export const getGetHostOverviewUrl = () => {
 
 
@@ -2773,6 +2853,172 @@ export function useListHostExperiences<TData = Awaited<ReturnType<typeof listHos
 
 
 
+
+export const getGetHostExperienceMilestonesUrl = (experienceId: number,) => {
+
+
+
+
+  return `/api/host/experiences/${experienceId}/milestones`
+}
+
+/**
+ * @summary Get milestone definitions and pending reviews for a hosted experience
+ */
+export const getHostExperienceMilestones = async (experienceId: number, options?: Parameters<typeof customFetch>[1]): Promise<HostExperienceMilestonesResponse> => {
+
+  return customFetch<HostExperienceMilestonesResponse>(getGetHostExperienceMilestonesUrl(experienceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHostExperienceMilestonesQueryKey = (experienceId: number,) => {
+    return [
+    `/api/host/experiences/${experienceId}/milestones`
+    ] as const;
+    }
+
+
+export const getGetHostExperienceMilestonesQueryOptions = <TData = Awaited<ReturnType<typeof getHostExperienceMilestones>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(experienceId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHostExperienceMilestones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHostExperienceMilestonesQueryKey(experienceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHostExperienceMilestones>>> = ({ signal }) => getHostExperienceMilestones(experienceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: experienceId !== null && experienceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHostExperienceMilestones>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetHostExperienceMilestonesQueryResult = NonNullable<Awaited<ReturnType<typeof getHostExperienceMilestones>>>
+export type GetHostExperienceMilestonesQueryError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+
+
+/**
+ * @summary Get milestone definitions and pending reviews for a hosted experience
+ */
+
+export function useGetHostExperienceMilestones<TData = Awaited<ReturnType<typeof getHostExperienceMilestones>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(
+ experienceId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHostExperienceMilestones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetHostExperienceMilestonesQueryOptions(experienceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReviewExperienceMilestoneSubmissionUrl = (submissionId: number,) => {
+
+
+
+
+  return `/api/host/milestone-submissions/${submissionId}/review`
+}
+
+/**
+ * @summary Verify or reject a participant's submitted experience milestone
+ */
+export const reviewExperienceMilestoneSubmission = async (submissionId: number,
+    experienceMilestoneReviewInput: ExperienceMilestoneReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<ExperienceMilestoneSubmission> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ExperienceMilestoneSubmission>(getReviewExperienceMilestoneSubmissionUrl(submissionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(experienceMilestoneReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewExperienceMilestoneSubmissionMutationKey = () => ['reviewExperienceMilestoneSubmission'] as const;
+
+export const getReviewExperienceMilestoneSubmissionMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewExperienceMilestoneSubmission>>, TError,ReviewExperienceMilestoneSubmissionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewExperienceMilestoneSubmission>>, TError,ReviewExperienceMilestoneSubmissionMutationVariables, TContext> => {
+
+const mutationKey = getReviewExperienceMilestoneSubmissionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewExperienceMilestoneSubmission>>, ReviewExperienceMilestoneSubmissionMutationVariables> = (props) => {
+          const {submissionId,data} = props ?? {};
+
+          return  reviewExperienceMilestoneSubmission(submissionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewExperienceMilestoneSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof reviewExperienceMilestoneSubmission>>>
+    export type ReviewExperienceMilestoneSubmissionMutationBody = BodyType<ExperienceMilestoneReviewInput>
+    export type ReviewExperienceMilestoneSubmissionMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type ReviewExperienceMilestoneSubmissionMutationVariables = {submissionId: number;data: BodyType<ExperienceMilestoneReviewInput>}
+
+    /**
+ * @summary Verify or reject a participant's submitted experience milestone
+ */
+export const useReviewExperienceMilestoneSubmission = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewExperienceMilestoneSubmission>>, TError,ReviewExperienceMilestoneSubmissionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewExperienceMilestoneSubmission>>,
+        TError,
+        ReviewExperienceMilestoneSubmissionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewExperienceMilestoneSubmissionMutationOptions(options));
+    }
 
 export const getListExperienceParticipantsUrl = (experienceId: number,) => {
 

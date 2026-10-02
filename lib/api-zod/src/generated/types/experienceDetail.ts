@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Experience } from './experience';
+import type { ExperienceMilestoneProgress } from './experienceMilestoneProgress';
 import type { Participation } from './participation';
 
 export type ExperienceDetail = Experience & ({
@@ -15,4 +16,5 @@ export type ExperienceDetail = Experience & ({
   whatYouWillDo: string | null;
   joined: boolean;
   participation: Participation | null;
+  milestones: ExperienceMilestoneProgress[];
 });
