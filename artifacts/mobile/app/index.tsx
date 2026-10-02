@@ -1725,7 +1725,7 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
 
   return (
       <ScrollView
-      style={[styles.dashboardScreen, { backgroundColor: colors.muted }]}
+      style={[styles.dashboardScreen, { backgroundColor: colors.background }]}
       contentContainerStyle={[styles.dashboardContent, { paddingTop: 12 }]}
       refreshControl={
         <RefreshControl
@@ -1742,72 +1742,118 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
     >
       {!authenticatedUser ? <TelegramConnectCard /> : null}
 
-      <View style={[styles.dashboardHero, { borderRadius: 30, overflow: 'hidden' }]}>
-        <LinearGradient colors={[colors.secondary, colors.primary, colors.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View style={styles.dashboardHero}>
         <View style={styles.dashboardGreeting}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open your profile"
+            testID="dashboard-profile-button"
+            onPress={() => { triggerHaptic(); go('profile'); }}
+            style={({ pressed }) => [styles.dashboardHeroAvatarButton, pressed && styles.dashboardHeroActionPressed]}
+          >
+            <UserAvatar
+              avatarUrl={user.avatarUrl}
+              name={user.name}
+              containerStyle={[styles.dashboardHeroAvatar, { backgroundColor: colors.muted }]}
+              initialStyle={{ color: colors.primary, fontFamily: 'Inter_700Bold' }}
+            />
+          </Pressable>
           <View style={styles.dashboardGreetingCopy}>
-            <Text style={styles.dashboardWelcome}>Welcome back</Text>
-            <Text style={styles.dashboardName} numberOfLines={1}>{firstName}!</Text>
+            <Text style={[styles.dashboardName, { color: colors.foreground }]} numberOfLines={1}>Hi, {firstName}</Text>
+            <Text style={[styles.dashboardWelcome, { color: colors.mutedForeground }]}>Find your next way to contribute</Text>
           </View>
           <View style={styles.dashboardGreetingActions}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Explore experiences"
-              testID="dashboard-explore-button"
-              onPress={() => { triggerHaptic(); go('explore'); }}
+              accessibilityLabel="Open notifications"
+              testID="dashboard-notifications-button"
+              onPress={() => { triggerHaptic(); go('notifications'); }}
               style={({ pressed }) => [styles.dashboardHeroAction, pressed && styles.dashboardHeroActionPressed]}
             >
-              <Feather name="search" size={18} color="#ffffff" />
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open your profile"
-              testID="dashboard-profile-button"
-              onPress={() => { triggerHaptic(); go('profile'); }}
-              style={({ pressed }) => [styles.dashboardHeroAvatarButton, pressed && styles.dashboardHeroActionPressed]}
-            >
-              <UserAvatar
-                avatarUrl={user.avatarUrl}
-                name={user.name}
-                containerStyle={[styles.dashboardHeroAvatar, { backgroundColor: colors.card }]}
-                initialStyle={{ color: colors.primary, fontFamily: 'Inter_700Bold' }}
-              />
+              <Feather name="bell" size={19} color={colors.foreground} />
             </Pressable>
           </View>
         </View>
 
-        <Pressable
-          testID="dashboard-first-experience"
-          accessibilityRole="button"
-          accessibilityLabel={upcomingCount ? 'Open your upcoming experiences' : 'Explore your first experience'}
-          accessibilityHint={upcomingCount ? 'View your experience journey' : 'Find an experience to join'}
-          onPress={() => { triggerHaptic(); go('experiences'); }}
-          style={({ pressed }) => [
-            styles.dashboardStatusCard,
-            { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 8 },
-            pressed && styles.dashboardStatusCardPressed,
-          ]}
-        >
-          <View style={styles.dashboardStatusMain}>
-            <View style={[styles.dashboardStatusIcon, { backgroundColor: colors.primary + '12' }]}>
-              <Feather name={upcomingCount ? 'calendar' : 'compass'} size={18} color={colors.primary} />
+        <View style={[styles.dashboardStatusCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <Pressable
+            testID="dashboard-first-experience"
+            accessibilityRole="button"
+            accessibilityLabel={upcomingCount ? 'Open your upcoming experiences' : 'Explore your first experience'}
+            accessibilityHint={upcomingCount ? 'View your experience journey' : 'Find an experience to join'}
+            onPress={() => { triggerHaptic(); go('experiences'); }}
+            style={({ pressed }) => [
+              styles.dashboardStatusPrompt,
+              pressed && styles.dashboardStatusCardPressed,
+            ]}
+          >
+            <View style={styles.dashboardStatusMain}>
+              <View style={[styles.dashboardStatusIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name={upcomingCount ? 'calendar' : 'compass'} size={18} color={colors.primary} />
+              </View>
+              <View style={styles.dashboardStatusCopy}>
+                <Text style={[styles.dashboardStatusTitle, { color: colors.foreground }]}>
+                  {upcomingCount ? `${upcomingCount} experience${upcomingCount === 1 ? '' : 's'} coming up` : 'Ready for your first experience?'}
+                </Text>
+                <Text style={[styles.dashboardStatusSub, { color: colors.mutedForeground }]}>
+                  {upcomingCount ? 'Your next plans are ready when you are.' : 'Find an experience you’ll look forward to.'}
+                </Text>
+                <View style={styles.dashboardStatusCta}>
+                  <Text style={[styles.dashboardStatusCtaText, { color: colors.primary }]}>
+                    {upcomingCount ? 'View upcoming experiences' : 'Explore experiences'}
+                  </Text>
+                  <Feather name="arrow-right" size={15} color={colors.primary} />
+                </View>
+              </View>
             </View>
-            <View style={styles.dashboardStatusCopy}>
-              <Text style={[styles.dashboardStatusTitle, { color: colors.foreground }]}>
-                {upcomingCount ? `${upcomingCount} experience${upcomingCount === 1 ? '' : 's'} coming up` : 'Ready for your first experience?'}
-              </Text>
-              <Text style={[styles.dashboardStatusSub, { color: colors.mutedForeground }]}>
-                {upcomingCount ? 'Your next plans are ready when you are.' : 'Find an experience you’ll look forward to.'}
-              </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Search experiences"
+            accessibilityHint="Browse and filter available experiences"
+            testID="dashboard-explore-button"
+            onPress={() => { triggerHaptic(); go('explore'); }}
+            style={({ pressed }) => [
+              styles.dashboardHomeSearch,
+              { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: colors.radius },
+              pressed && styles.dashboardStatusCardPressed,
+            ]}
+          >
+            <Feather name="search" size={18} color={colors.mutedForeground} />
+            <Text style={[styles.dashboardHomeSearchLabel, { color: colors.mutedForeground }]}>Search experiences</Text>
+            <View style={[styles.dashboardHomeSearchFilter, { backgroundColor: colors.card }]}>
+              <Feather name="sliders" size={16} color={colors.foreground} />
             </View>
-          </View>
-          <View style={[styles.dashboardStatusCta, { borderTopColor: colors.border }]}>
-            <Text style={[styles.dashboardStatusCtaText, { color: colors.primary }]}>
-              {upcomingCount ? 'View upcoming experiences' : 'Explore experiences'}
-            </Text>
-            <Feather name="arrow-right" size={15} color={colors.primary} />
-          </View>
-        </Pressable>
+          </Pressable>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dashboardCategoryRow}>
+            {categories.map((item) => {
+              const selected = item.key === 'all';
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Explore ${item.label === 'All' ? 'all categories' : item.label} experiences`}
+                  accessibilityState={{ selected }}
+                  testID={`dashboard-category-${item.key}`}
+                  key={item.key}
+                  onPress={() => { triggerHaptic(); go('explore', { category: item.key }); }}
+                  style={({ pressed }) => [
+                    styles.dashboardCategory,
+                    {
+                      backgroundColor: selected ? colors.primary : colors.card,
+                      borderColor: selected ? colors.primary : colors.border,
+                      opacity: pressed ? 0.76 : 1,
+                    },
+                  ]}
+                >
+                  <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+                  <Text style={[styles.dashboardCategoryText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
       </View>
       {participations.isError ? <InlineError message="Your upcoming bookings couldn’t be loaded. Pull down to try again." /> : null}
 
@@ -1970,7 +2016,12 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
 
 function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
-  const [category, setCategory] = useState<ExperienceCategory | 'all'>('all');
+  const routeParams = useLocalSearchParams<{ category?: string }>();
+  const initialCategory = categories.find((item) => item.key === routeParams.category)?.key ?? 'all';
+  const [category, setCategory] = useState<ExperienceCategory | 'all'>(initialCategory);
+  useEffect(() => {
+    setCategory(initialCategory);
+  }, [initialCategory]);
   const [search, setSearch] = useState('');
   const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: false });
 
@@ -5955,7 +6006,7 @@ function BottomNavInteractionHarness() {
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; step?: string; keyboardTest?: string; navTest?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; category?: string; step?: string; keyboardTest?: string; navTest?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -6015,6 +6066,7 @@ export default function App() {
       screen: next,
       id: screenUsesExperienceId ? nextParams?.id : undefined,
       friendId: next === 'friend-profile' ? nextParams?.friendId : undefined,
+      category: next === 'explore' ? nextParams?.category : undefined,
     });
   };
   const continueAccountLogin = async (accountType: UserType) => {
@@ -6528,25 +6580,32 @@ const styles = StyleSheet.create({
   // Home
   dashboardScreen: { flex: 1 },
   dashboardContent: { paddingHorizontal: 18, paddingBottom: 20 },
-  dashboardHero: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16, marginBottom: 0, position: 'relative' },
-  dashboardGreeting: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 15 },
+  dashboardHero: { paddingTop: 8, marginBottom: 22 },
+  dashboardGreeting: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 18 },
   dashboardGreetingCopy: { flex: 1, minWidth: 0 },
-  dashboardWelcome: { color: 'rgba(255,255,255,0.82)', fontSize: 12, fontFamily: 'Inter_600SemiBold', textAlign: 'left', marginBottom: 2 },
-  dashboardName: { color: '#ffffff', fontSize: 28, lineHeight: 34, fontFamily: 'Inter_700Bold', textAlign: 'left', letterSpacing: -0.7 },
-  dashboardGreetingActions: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  dashboardHeroAction: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.16)', borderColor: 'rgba(255,255,255,0.32)', borderRadius: 21, borderWidth: 1, height: 42, justifyContent: 'center', width: 42 },
-  dashboardHeroAvatarButton: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.88)', borderColor: 'rgba(255,255,255,0.72)', borderRadius: 21, borderWidth: 1, height: 42, justifyContent: 'center', overflow: 'hidden', width: 42 },
-  dashboardHeroAvatar: { alignItems: 'center', borderRadius: 20, height: 40, justifyContent: 'center', width: 40 },
-  dashboardHeroActionPressed: { opacity: 0.76, transform: [{ scale: 0.96 }] },
-  dashboardStatusCard: { borderWidth: 1, gap: 0, padding: 14, marginTop: 0 },
+  dashboardWelcome: { fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'left', marginBottom: 2 },
+  dashboardName: { fontSize: 22, lineHeight: 28, fontFamily: 'Inter_700Bold', textAlign: 'left', letterSpacing: -0.45 },
+  dashboardGreetingActions: { flexDirection: 'row', alignItems: 'center' },
+  dashboardHeroAction: { alignItems: 'center', height: 42, justifyContent: 'center', width: 42 },
+  dashboardHeroAvatarButton: { alignItems: 'center', borderRadius: 21, height: 42, justifyContent: 'center', overflow: 'hidden', width: 42 },
+  dashboardHeroAvatar: { alignItems: 'center', borderRadius: 21, height: 42, justifyContent: 'center', width: 42 },
+  dashboardHeroActionPressed: { opacity: 0.68, transform: [{ scale: 0.96 }] },
+  dashboardStatusCard: { borderWidth: 1, gap: 14, padding: 16 },
+  dashboardStatusPrompt: { minWidth: 0 },
   dashboardStatusCardPressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
-  dashboardStatusMain: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  dashboardStatusMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
   dashboardStatusIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   dashboardStatusCopy: { flex: 1, minWidth: 0, gap: 3 },
   dashboardStatusTitle: { fontSize: 16, lineHeight: 21, fontFamily: 'Inter_700Bold', letterSpacing: -0.25 },
   dashboardStatusSub: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_400Regular' },
-  dashboardStatusCta: { minHeight: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, borderTopWidth: StyleSheet.hairlineWidth, marginTop: 10, paddingTop: 8 },
-  dashboardStatusCtaText: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_700Bold' },
+  dashboardStatusCta: { minHeight: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 6, marginTop: 8 },
+  dashboardStatusCtaText: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_700Bold' },
+  dashboardHomeSearch: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, paddingHorizontal: 12 },
+  dashboardHomeSearchLabel: { flex: 1, minWidth: 0, fontSize: 14, fontFamily: 'Inter_500Medium' },
+  dashboardHomeSearchFilter: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  dashboardCategoryRow: { gap: 8, paddingRight: 2, paddingVertical: 1 },
+  dashboardCategory: { height: 36, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, borderRadius: 18, borderWidth: 1 },
+  dashboardCategoryText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   dashboardPassportCard: { marginHorizontal: 0, borderWidth: 1, overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4, marginBottom: 28 },
   dashboardPassportTop: { minHeight: 78, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dashboardCardEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1, marginBottom: 5 },
