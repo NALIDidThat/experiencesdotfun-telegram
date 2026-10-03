@@ -71,12 +71,15 @@ import type {
   ListMyParticipationsParams,
   MyCommunitiesResponse,
   NotFoundResponse,
+  OrganisationPartnership,
+  OrganisationPartnershipCreateInput,
   Participation,
   ProfileUpdateInput,
   RedeemXpAwardsResponse,
   SocialInvite,
   SocialInviteCreateInput,
   TelegramAuthInput,
+  TopFriendsInput,
   UnauthorizedResponse,
   UpdateFeedPreferencesInput,
   User,
@@ -3632,6 +3635,558 @@ export function useListFriends<TData = Awaited<ReturnType<typeof listFriends>>, 
 
 
 
+
+export const getListTopFriendsUrl = () => {
+
+
+
+
+  return `/api/friends/top`
+}
+
+/**
+ * @summary List the signed-in user's pinned friends in saved order
+ */
+export const listTopFriends = async ( options?: Parameters<typeof customFetch>[1]): Promise<Friend[]> => {
+
+  return customFetch<Friend[]>(getListTopFriendsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTopFriendsQueryKey = () => {
+    return [
+    `/api/friends/top`
+    ] as const;
+    }
+
+
+export const getListTopFriendsQueryOptions = <TData = Awaited<ReturnType<typeof listTopFriends>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTopFriends>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTopFriendsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTopFriends>>> = ({ signal }) => listTopFriends({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTopFriends>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTopFriendsQueryResult = NonNullable<Awaited<ReturnType<typeof listTopFriends>>>
+export type ListTopFriendsQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary List the signed-in user's pinned friends in saved order
+ */
+
+export function useListTopFriends<TData = Awaited<ReturnType<typeof listTopFriends>>, TError = ErrorType<UnauthorizedResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTopFriends>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTopFriendsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveTopFriendsUrl = () => {
+
+
+
+
+  return `/api/friends/top`
+}
+
+/**
+ * @summary Replace the signed-in user's ordered list of up to three pinned friends
+ */
+export const saveTopFriends = async (topFriendsInput: TopFriendsInput, options?: Parameters<typeof customFetch>[1]): Promise<Friend[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Friend[]>(getSaveTopFriendsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(topFriendsInput)
+  }
+);}
+
+
+
+
+
+export const getSaveTopFriendsMutationKey = () => ['saveTopFriends'] as const;
+
+export const getSaveTopFriendsMutationOptions = <TError = ErrorType<ConflictResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveTopFriends>>, TError,SaveTopFriendsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveTopFriends>>, TError,SaveTopFriendsMutationVariables, TContext> => {
+
+const mutationKey = getSaveTopFriendsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveTopFriends>>, SaveTopFriendsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveTopFriends(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveTopFriendsMutationResult = NonNullable<Awaited<ReturnType<typeof saveTopFriends>>>
+    export type SaveTopFriendsMutationBody = BodyType<TopFriendsInput>
+    export type SaveTopFriendsMutationError = ErrorType<ConflictResponse | UnauthorizedResponse>
+    export type SaveTopFriendsMutationVariables = {data: BodyType<TopFriendsInput>}
+
+    /**
+ * @summary Replace the signed-in user's ordered list of up to three pinned friends
+ */
+export const useSaveTopFriends = <TError = ErrorType<ConflictResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveTopFriends>>, TError,SaveTopFriendsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveTopFriends>>,
+        TError,
+        SaveTopFriendsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveTopFriendsMutationOptions(options));
+    }
+
+export const getListOrganisationPartnershipsUrl = () => {
+
+
+
+
+  return `/api/organisation-partnerships`
+}
+
+/**
+ * @summary List pending and active organisation partnerships for the signed-in organisation
+ */
+export const listOrganisationPartnerships = async ( options?: Parameters<typeof customFetch>[1]): Promise<OrganisationPartnership[]> => {
+
+  return customFetch<OrganisationPartnership[]>(getListOrganisationPartnershipsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOrganisationPartnershipsQueryKey = () => {
+    return [
+    `/api/organisation-partnerships`
+    ] as const;
+    }
+
+
+export const getListOrganisationPartnershipsQueryOptions = <TData = Awaited<ReturnType<typeof listOrganisationPartnerships>>, TError = ErrorType<UnauthorizedResponse | ConflictResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganisationPartnerships>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOrganisationPartnershipsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganisationPartnerships>>> = ({ signal }) => listOrganisationPartnerships({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOrganisationPartnerships>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOrganisationPartnershipsQueryResult = NonNullable<Awaited<ReturnType<typeof listOrganisationPartnerships>>>
+export type ListOrganisationPartnershipsQueryError = ErrorType<UnauthorizedResponse | ConflictResponse>
+
+
+/**
+ * @summary List pending and active organisation partnerships for the signed-in organisation
+ */
+
+export function useListOrganisationPartnerships<TData = Awaited<ReturnType<typeof listOrganisationPartnerships>>, TError = ErrorType<UnauthorizedResponse | ConflictResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganisationPartnerships>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOrganisationPartnershipsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateOrganisationPartnershipUrl = () => {
+
+
+
+
+  return `/api/organisation-partnerships`
+}
+
+/**
+ * @summary Send a separate partnership request to an organisation profile
+ */
+export const createOrganisationPartnership = async (organisationPartnershipCreateInput: OrganisationPartnershipCreateInput, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationPartnership> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrganisationPartnership>(getCreateOrganisationPartnershipUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(organisationPartnershipCreateInput)
+  }
+);}
+
+
+
+
+
+export const getCreateOrganisationPartnershipMutationKey = () => ['createOrganisationPartnership'] as const;
+
+export const getCreateOrganisationPartnershipMutationOptions = <TError = ErrorType<ConflictResponse | UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrganisationPartnership>>, TError,CreateOrganisationPartnershipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOrganisationPartnership>>, TError,CreateOrganisationPartnershipMutationVariables, TContext> => {
+
+const mutationKey = getCreateOrganisationPartnershipMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOrganisationPartnership>>, CreateOrganisationPartnershipMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createOrganisationPartnership(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOrganisationPartnershipMutationResult = NonNullable<Awaited<ReturnType<typeof createOrganisationPartnership>>>
+    export type CreateOrganisationPartnershipMutationBody = BodyType<OrganisationPartnershipCreateInput>
+    export type CreateOrganisationPartnershipMutationError = ErrorType<ConflictResponse | UnauthorizedResponse | NotFoundResponse>
+    export type CreateOrganisationPartnershipMutationVariables = {data: BodyType<OrganisationPartnershipCreateInput>}
+
+    /**
+ * @summary Send a separate partnership request to an organisation profile
+ */
+export const useCreateOrganisationPartnership = <TError = ErrorType<ConflictResponse | UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrganisationPartnership>>, TError,CreateOrganisationPartnershipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOrganisationPartnership>>,
+        TError,
+        CreateOrganisationPartnershipMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateOrganisationPartnershipMutationOptions(options));
+    }
+
+export const getAcceptOrganisationPartnershipUrl = (partnershipId: number,) => {
+
+
+
+
+  return `/api/organisation-partnerships/${partnershipId}/accept`
+}
+
+/**
+ * @summary Accept an incoming organisation partnership request
+ */
+export const acceptOrganisationPartnership = async (partnershipId: number, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationPartnership> => {
+
+  return customFetch<OrganisationPartnership>(getAcceptOrganisationPartnershipUrl(partnershipId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAcceptOrganisationPartnershipMutationKey = () => ['acceptOrganisationPartnership'] as const;
+
+export const getAcceptOrganisationPartnershipMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptOrganisationPartnership>>, TError,AcceptOrganisationPartnershipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptOrganisationPartnership>>, TError,AcceptOrganisationPartnershipMutationVariables, TContext> => {
+
+const mutationKey = getAcceptOrganisationPartnershipMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptOrganisationPartnership>>, AcceptOrganisationPartnershipMutationVariables> = (props) => {
+          const {partnershipId} = props ?? {};
+
+          return  acceptOrganisationPartnership(partnershipId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptOrganisationPartnershipMutationResult = NonNullable<Awaited<ReturnType<typeof acceptOrganisationPartnership>>>
+
+    export type AcceptOrganisationPartnershipMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type AcceptOrganisationPartnershipMutationVariables = {partnershipId: number}
+
+    /**
+ * @summary Accept an incoming organisation partnership request
+ */
+export const useAcceptOrganisationPartnership = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptOrganisationPartnership>>, TError,AcceptOrganisationPartnershipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acceptOrganisationPartnership>>,
+        TError,
+        AcceptOrganisationPartnershipMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAcceptOrganisationPartnershipMutationOptions(options));
+    }
+
+export const getDeclineOrganisationPartnershipUrl = (partnershipId: number,) => {
+
+
+
+
+  return `/api/organisation-partnerships/${partnershipId}/decline`
+}
+
+/**
+ * @summary Decline an incoming organisation partnership request
+ */
+export const declineOrganisationPartnership = async (partnershipId: number, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationPartnership> => {
+
+  return customFetch<OrganisationPartnership>(getDeclineOrganisationPartnershipUrl(partnershipId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeclineOrganisationPartnershipMutationKey = () => ['declineOrganisationPartnership'] as const;
+
+export const getDeclineOrganisationPartnershipMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineOrganisationPartnership>>, TError,DeclineOrganisationPartnershipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof declineOrganisationPartnership>>, TError,DeclineOrganisationPartnershipMutationVariables, TContext> => {
+
+const mutationKey = getDeclineOrganisationPartnershipMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof declineOrganisationPartnership>>, DeclineOrganisationPartnershipMutationVariables> = (props) => {
+          const {partnershipId} = props ?? {};
+
+          return  declineOrganisationPartnership(partnershipId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeclineOrganisationPartnershipMutationResult = NonNullable<Awaited<ReturnType<typeof declineOrganisationPartnership>>>
+
+    export type DeclineOrganisationPartnershipMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type DeclineOrganisationPartnershipMutationVariables = {partnershipId: number}
+
+    /**
+ * @summary Decline an incoming organisation partnership request
+ */
+export const useDeclineOrganisationPartnership = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineOrganisationPartnership>>, TError,DeclineOrganisationPartnershipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof declineOrganisationPartnership>>,
+        TError,
+        DeclineOrganisationPartnershipMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeclineOrganisationPartnershipMutationOptions(options));
+    }
+
+export const getEndOrganisationPartnershipUrl = (partnershipId: number,) => {
+
+
+
+
+  return `/api/organisation-partnerships/${partnershipId}/end`
+}
+
+/**
+ * @summary End an active organisation partnership
+ */
+export const endOrganisationPartnership = async (partnershipId: number, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationPartnership> => {
+
+  return customFetch<OrganisationPartnership>(getEndOrganisationPartnershipUrl(partnershipId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEndOrganisationPartnershipMutationKey = () => ['endOrganisationPartnership'] as const;
+
+export const getEndOrganisationPartnershipMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endOrganisationPartnership>>, TError,EndOrganisationPartnershipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof endOrganisationPartnership>>, TError,EndOrganisationPartnershipMutationVariables, TContext> => {
+
+const mutationKey = getEndOrganisationPartnershipMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof endOrganisationPartnership>>, EndOrganisationPartnershipMutationVariables> = (props) => {
+          const {partnershipId} = props ?? {};
+
+          return  endOrganisationPartnership(partnershipId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EndOrganisationPartnershipMutationResult = NonNullable<Awaited<ReturnType<typeof endOrganisationPartnership>>>
+
+    export type EndOrganisationPartnershipMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type EndOrganisationPartnershipMutationVariables = {partnershipId: number}
+
+    /**
+ * @summary End an active organisation partnership
+ */
+export const useEndOrganisationPartnership = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endOrganisationPartnership>>, TError,EndOrganisationPartnershipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof endOrganisationPartnership>>,
+        TError,
+        EndOrganisationPartnershipMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEndOrganisationPartnershipMutationOptions(options));
+    }
 
 export const getCreateSocialInviteUrl = () => {
 

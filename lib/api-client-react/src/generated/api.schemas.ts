@@ -575,6 +575,57 @@ export type Friend = ParticipantSummary & ({
   city: string | null;
 });
 
+export interface TopFriendsInput {
+  /**
+     * @maxItems 3
+     * @items.minimum 1
+     */
+  friendIds: number[];
+}
+
+export interface OrganisationPartnershipCreateInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  username: string;
+}
+
+export interface OrganisationPartnerSummary {
+  id: number;
+  name: string;
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  avatarUrl: string | null;
+}
+
+export type OrganisationPartnershipStatus = typeof OrganisationPartnershipStatus[keyof typeof OrganisationPartnershipStatus];
+
+
+export const OrganisationPartnershipStatus = {
+  pending: 'pending',
+  active: 'active',
+  declined: 'declined',
+  ended: 'ended',
+} as const;
+
+export type OrganisationPartnershipDirection = typeof OrganisationPartnershipDirection[keyof typeof OrganisationPartnershipDirection];
+
+
+export const OrganisationPartnershipDirection = {
+  incoming: 'incoming',
+  outgoing: 'outgoing',
+} as const;
+
+export interface OrganisationPartnership {
+  id: number;
+  partner: OrganisationPartnerSummary;
+  status: OrganisationPartnershipStatus;
+  direction: OrganisationPartnershipDirection;
+  createdAt: string;
+}
+
 export interface FriendProfile {
   id: number;
   name: string;

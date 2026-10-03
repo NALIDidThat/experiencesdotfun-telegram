@@ -7,6 +7,8 @@ import accountabilityRouter from "./accountability";
 import accountsRouter from "./accounts";
 import analyticsRouter from "./analytics";
 import feedRouter from "./feed";
+import topFriendsRouter from "./top-friends";
+import organisationPartnershipsRouter from "./organisation-partnerships";
 
 const router: IRouter = Router();
 
@@ -15,6 +17,8 @@ router.use(botRouter);
 router.use("/accountability", accountabilityRouter);
 router.use("/analytics", analyticsRouter);
 router.use(feedRouter);
+router.use(topFriendsRouter);
+router.use("/organisation-partnerships", organisationPartnershipsRouter);
 // Telegram/email auth routes are public and must be checked before the
 // community router's authentication middleware.
 router.use(experiencesRouter);

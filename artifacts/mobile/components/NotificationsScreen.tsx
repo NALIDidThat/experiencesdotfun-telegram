@@ -190,7 +190,7 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
           >
             <Feather name="users" size={14} color={colors.primaryForeground} />
             <Text style={{ color: colors.primaryForeground, fontSize: 13, fontWeight: "700" }}>
-              Open Friends & Partners
+              Open My Connections
             </Text>
           </Pressable>
         </View>

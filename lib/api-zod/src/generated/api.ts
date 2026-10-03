@@ -2048,6 +2048,158 @@ export const ListFriendsResponse = zod.array(ListFriendsResponseItem)
 
 
 /**
+ * @summary List the signed-in user's pinned friends in saved order
+ */
+export const ListTopFriendsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}).and(zod.object({
+  "city": zod.string().nullable()
+}))
+export const ListTopFriendsResponse = zod.array(ListTopFriendsResponseItem)
+
+
+/**
+ * @summary Replace the signed-in user's ordered list of up to three pinned friends
+ */
+
+export const saveTopFriendsBodyFriendIdsMax = 3;
+
+
+
+export const SaveTopFriendsBody = zod.object({
+  "friendIds": zod.array(zod.number().int().min(1)).max(saveTopFriendsBodyFriendIdsMax)
+})
+
+export const SaveTopFriendsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}).and(zod.object({
+  "city": zod.string().nullable()
+}))
+export const SaveTopFriendsResponse = zod.array(SaveTopFriendsResponseItem)
+
+
+/**
+ * @summary List pending and active organisation partnerships for the signed-in organisation
+ */
+export const ListOrganisationPartnershipsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "partner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable()
+}),
+  "status": zod.enum(['pending', 'active', 'declined', 'ended']),
+  "direction": zod.enum(['incoming', 'outgoing']),
+  "createdAt": zod.coerce.date()
+})
+export const ListOrganisationPartnershipsResponse = zod.array(ListOrganisationPartnershipsResponseItem)
+
+
+/**
+ * @summary Send a separate partnership request to an organisation profile
+ */
+export const createOrganisationPartnershipBodyUsernameMax = 80;
+
+
+
+export const CreateOrganisationPartnershipBody = zod.object({
+  "username": zod.string().min(1).max(createOrganisationPartnershipBodyUsernameMax)
+})
+
+export const CreateOrganisationPartnershipResponse = zod.object({
+  "id": zod.number().int(),
+  "partner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable()
+}),
+  "status": zod.enum(['pending', 'active', 'declined', 'ended']),
+  "direction": zod.enum(['incoming', 'outgoing']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Accept an incoming organisation partnership request
+ */
+
+
+
+export const AcceptOrganisationPartnershipParams = zod.object({
+  "partnershipId": zod.coerce.number().int().min(1)
+})
+
+export const AcceptOrganisationPartnershipResponse = zod.object({
+  "id": zod.number().int(),
+  "partner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable()
+}),
+  "status": zod.enum(['pending', 'active', 'declined', 'ended']),
+  "direction": zod.enum(['incoming', 'outgoing']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Decline an incoming organisation partnership request
+ */
+
+
+
+export const DeclineOrganisationPartnershipParams = zod.object({
+  "partnershipId": zod.coerce.number().int().min(1)
+})
+
+export const DeclineOrganisationPartnershipResponse = zod.object({
+  "id": zod.number().int(),
+  "partner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable()
+}),
+  "status": zod.enum(['pending', 'active', 'declined', 'ended']),
+  "direction": zod.enum(['incoming', 'outgoing']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary End an active organisation partnership
+ */
+
+
+
+export const EndOrganisationPartnershipParams = zod.object({
+  "partnershipId": zod.coerce.number().int().min(1)
+})
+
+export const EndOrganisationPartnershipResponse = zod.object({
+  "id": zod.number().int(),
+  "partner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable()
+}),
+  "status": zod.enum(['pending', 'active', 'declined', 'ended']),
+  "direction": zod.enum(['incoming', 'outgoing']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Create a private, one-time Telegram invitation link
  */
 export const createSocialInviteBodyUsernameMin = 5;

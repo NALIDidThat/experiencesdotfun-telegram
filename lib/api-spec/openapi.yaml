@@ -935,6 +935,157 @@ paths:
                   $ref: "#/components/schemas/Friend"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /friends/top:
+    get:
+      operationId: listTopFriends
+      tags: [friends]
+      summary: List the signed-in user's pinned friends in saved order
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Pinned friends, ordered by the signed-in user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Friend"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      operationId: saveTopFriends
+      tags: [friends]
+      summary: Replace the signed-in user's ordered list of up to three pinned friends
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TopFriendsInput"
+      responses:
+        "200":
+          description: Saved pinned friends in the requested order
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Friend"
+        "400":
+          $ref: "#/components/responses/Conflict"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /organisation-partnerships:
+    get:
+      operationId: listOrganisationPartnerships
+      tags: [friends]
+      summary: List pending and active organisation partnerships for the signed-in organisation
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Incoming, outgoing, and active organisation partnerships
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrganisationPartnership"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    post:
+      operationId: createOrganisationPartnership
+      tags: [friends]
+      summary: Send a separate partnership request to an organisation profile
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganisationPartnershipCreateInput"
+      responses:
+        "201":
+          description: Organisation partnership request sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationPartnership"
+        "400":
+          $ref: "#/components/responses/Conflict"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /organisation-partnerships/{partnershipId}/accept:
+    post:
+      operationId: acceptOrganisationPartnership
+      tags: [friends]
+      summary: Accept an incoming organisation partnership request
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OrganisationPartnershipId"
+      responses:
+        "200":
+          description: Organisation partnership activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationPartnership"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /organisation-partnerships/{partnershipId}/decline:
+    post:
+      operationId: declineOrganisationPartnership
+      tags: [friends]
+      summary: Decline an incoming organisation partnership request
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OrganisationPartnershipId"
+      responses:
+        "200":
+          description: Organisation partnership request declined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationPartnership"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /organisation-partnerships/{partnershipId}/end:
+    post:
+      operationId: endOrganisationPartnership
+      tags: [friends]
+      summary: End an active organisation partnership
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OrganisationPartnershipId"
+      responses:
+        "200":
+          description: Organisation partnership ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationPartnership"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /social-invites:
     post:
       operationId: createSocialInvite
@@ -1371,6 +1522,13 @@ components:
         type: integer
         minimum: 1
     AccountabilityPartnershipId:
+      name: partnershipId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    OrganisationPartnershipId:
       name: partnershipId
       in: path
       required: true
@@ -2204,6 +2362,55 @@ components:
             city:
               type: [string, "null"]
           required: [city]
+    TopFriendsInput:
+      type: object
+      properties:
+        friendIds:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: integer
+            minimum: 1
+      required: [friendIds]
+    OrganisationPartnershipCreateInput:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 80
+      required: [username]
+    OrganisationPartnerSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        username:
+          type: [string, "null"]
+        avatarUrl:
+          type: [string, "null"]
+          format: uri
+      required: [id, name, username, avatarUrl]
+    OrganisationPartnership:
+      type: object
+      properties:
+        id:
+          type: integer
+        partner:
+          $ref: "#/components/schemas/OrganisationPartnerSummary"
+        status:
+          type: string
+          enum: [pending, active, declined, ended]
+        direction:
+          type: string
+          enum: [incoming, outgoing]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, partner, status, direction, createdAt]
     FriendProfile:
       type: object
       properties:

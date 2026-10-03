@@ -56,6 +56,7 @@ import {
   useListFriendRequests,
   useListFriendNotifications,
   useListFriends,
+  useListTopFriends,
   useListHostExperiences,
   useListMyParticipations,
   useListSentFriendRequests,
@@ -66,6 +67,7 @@ import {
   useSubmitCompletion,
   useSubmitExperienceMilestone,
   useTrackAnalyticsEvent,
+  useSaveTopFriends,
   useUpdateMe,
   useVerifyParticipation,
   useReviewExperienceMilestoneSubmission,
@@ -78,6 +80,7 @@ import {
   getListFriendRequestsQueryKey,
   getListFriendNotificationsQueryKey,
   getListFriendsQueryKey,
+  getListTopFriendsQueryKey,
   getListSentFriendRequestsQueryKey,
   type Experience,
   type ExperienceCategory,
@@ -92,6 +95,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { AccountabilitySection } from '@/components/AccountabilitySection';
+import { OrganisationPartnershipsSection } from '@/components/OrganisationPartnershipsSection';
 import { SocialFeed } from '@/components/SocialFeed';
 import { AccountsCenterScreen } from '@/components/AccountsCenterScreen';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -3746,6 +3750,12 @@ function FriendsOverviewScreen({
   const friends = useListFriends({
     query: { queryKey: getListFriendsQueryKey(), enabled: Boolean(user) },
   });
+  const topFriends = useListTopFriends({
+    query: {
+      queryKey: [...getListTopFriendsQueryKey(), user?.id],
+      enabled: Boolean(user),
+    },
+  });
   const requests = useListFriendRequests({
     query: { queryKey: getListFriendRequestsQueryKey(), refetchInterval: 5_000, enabled: Boolean(user) },
   });
@@ -3760,6 +3770,9 @@ function FriendsOverviewScreen({
     mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } },
   });
   const decline = useDeclineFriendRequest({
+    mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } },
+  });
+  const saveTopFriends = useSaveTopFriends({
     mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } },
   });
   const [username, setUsername] = useState('');
@@ -3866,6 +3879,49 @@ function FriendsOverviewScreen({
     }
   };
 
+  const savePinnedFriendOrder = async (friendIds: number[]) => {
+    if (!user || saveTopFriends.isPending) return;
+    setFriendFeedback(null);
+    try {
+      await saveTopFriends.mutateAsync({ data: { friendIds } });
+      setFriendFeedback({ message: 'My Top Friend list saved.', tone: 'success' });
+    } catch (saveError: unknown) {
+      const message = (saveError as { data?: { message?: string } })?.data?.message;
+      setFriendFeedback({
+        message: message ?? 'Could not update My Top Friend. Please try again.',
+        tone: 'error',
+      });
+    }
+  };
+
+  const togglePinnedFriend = (friendId: number) => {
+    if (topFriends.isLoading || topFriends.isError || saveTopFriends.isPending) return;
+    const currentIds = (topFriends.data ?? []).map((friend) => friend.id);
+    const nextIds = currentIds.includes(friendId)
+      ? currentIds.filter((id) => id !== friendId)
+      : currentIds.length < 3
+        ? [...currentIds, friendId]
+        : null;
+    if (!nextIds) {
+      setFriendFeedback({
+        message: 'My Top Friend is full. Remove one before pinning another.',
+        tone: 'error',
+      });
+      return;
+    }
+    void savePinnedFriendOrder(nextIds);
+  };
+
+  const movePinnedFriend = (friendId: number, direction: -1 | 1) => {
+    if (topFriends.isLoading || topFriends.isError || saveTopFriends.isPending) return;
+    const nextIds = (topFriends.data ?? []).map((friend) => friend.id);
+    const index = nextIds.indexOf(friendId);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= nextIds.length) return;
+    [nextIds[index], nextIds[nextIndex]] = [nextIds[nextIndex], nextIds[index]];
+    void savePinnedFriendOrder(nextIds);
+  };
+
   return (
     <KeyboardAwareScrollViewCompat
       style={{ flex: 1, backgroundColor: colors.background }}
@@ -3876,7 +3932,7 @@ function FriendsOverviewScreen({
       showsVerticalScrollIndicator={false}
     >
       <Header
-        title="Friends & Partners"
+        title="My Connections"
         subtitle="Your circle, requests, and connections."
         onBack={onBack}
       />
@@ -3890,6 +3946,128 @@ function FriendsOverviewScreen({
           <Text style={[styles.friendCountText, { color: colors.primary }]}>{friends.data?.length ?? 0}</Text>
         </View>
       </View>
+
+      {user ? (
+        <View testID="friends-top-section" style={{ gap: 11, marginBottom: 18 }}>
+          <View style={{ gap: 4 }}>
+            <View style={{ alignItems: 'center', flexDirection: 'row', gap: 7 }}>
+              <Feather name="star" size={17} color={colors.primary} />
+              <Text style={[styles.friendSectionTitle, { color: colors.foreground }]}>My Top Friend</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>· {topFriends.data?.length ?? 0}/3</Text>
+            </View>
+            <Text style={[styles.friendsSubtitle, { color: colors.mutedForeground }]}>
+              Pin up to three friends and choose the order they appear in.
+            </Text>
+          </View>
+          {topFriends.isLoading ? (
+            <View style={[styles.friendInlineState, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.friendInlineStateText, { color: colors.mutedForeground }]}>Loading pinned friends…</Text>
+            </View>
+          ) : topFriends.isError ? (
+            <Pressable
+              testID="friends-top-retry"
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading My Top Friend"
+              onPress={() => void topFriends.refetch()}
+              style={[styles.friendInlineState, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: colors.radius }]}
+            >
+              <Feather name="refresh-cw" size={16} color={colors.primary} />
+              <Text style={[styles.friendInlineStateText, { color: colors.foreground }]}>Pinned friends couldn’t load. Tap to retry.</Text>
+            </Pressable>
+          ) : topFriends.data?.length ? (
+            topFriends.data.map((friend, index) => (
+              <View
+                key={friend.id}
+                testID={`friends-top-friend-${friend.id}`}
+                style={{
+                  alignItems: 'center',
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  borderRadius: colors.radius,
+                  borderWidth: 1,
+                  flexDirection: 'row',
+                  gap: 8,
+                  paddingHorizontal: 10,
+                  paddingVertical: 9,
+                }}
+              >
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`View ${friend.name}'s profile`}
+                  onPress={() => go('friend-profile', { friendId: String(friend.id) })}
+                  style={({ pressed }) => ({
+                    alignItems: 'center',
+                    flex: 1,
+                    flexDirection: 'row',
+                    gap: 10,
+                    minWidth: 0,
+                    opacity: pressed ? 0.72 : 1,
+                  })}
+                >
+                  <UserAvatar
+                    avatarUrl={friend.avatarUrl}
+                    name={friend.name}
+                    containerStyle={[styles.friendAvatar, { backgroundColor: colors.primary + '12' }]}
+                    initialStyle={[styles.friendAvatarInitial, { color: colors.primary }]}
+                  />
+                  <View style={styles.friendPersonCopy}>
+                    <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>{friend.name}</Text>
+                    <Text numberOfLines={1} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>
+                      {friend.username ? `@${friend.username}` : 'Experiences.fun friend'}
+                    </Text>
+                  </View>
+                </Pressable>
+                <View style={{ alignItems: 'center', flexDirection: 'row' }}>
+                  <Pressable
+                    testID={`friends-top-move-up-${friend.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Move ${friend.name} up`}
+                    accessibilityState={{ disabled: index === 0 || saveTopFriends.isPending }}
+                    disabled={index === 0 || saveTopFriends.isPending}
+                    onPress={() => movePinnedFriend(friend.id, -1)}
+                    style={({ pressed }) => ({ alignItems: 'center', height: 38, justifyContent: 'center', opacity: index === 0 || saveTopFriends.isPending ? 0.35 : pressed ? 0.65 : 1, width: 34 })}
+                  >
+                    <Feather name="arrow-up" size={16} color={colors.mutedForeground} />
+                  </Pressable>
+                  <Pressable
+                    testID={`friends-top-move-down-${friend.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Move ${friend.name} down`}
+                    accessibilityState={{ disabled: index === (topFriends.data?.length ?? 0) - 1 || saveTopFriends.isPending }}
+                    disabled={index === (topFriends.data?.length ?? 0) - 1 || saveTopFriends.isPending}
+                    onPress={() => movePinnedFriend(friend.id, 1)}
+                    style={({ pressed }) => ({ alignItems: 'center', height: 38, justifyContent: 'center', opacity: index === (topFriends.data?.length ?? 0) - 1 || saveTopFriends.isPending ? 0.35 : pressed ? 0.65 : 1, width: 34 })}
+                  >
+                    <Feather name="arrow-down" size={16} color={colors.mutedForeground} />
+                  </Pressable>
+                  <Pressable
+                    testID={`friends-top-remove-${friend.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${friend.name} from My Top Friend`}
+                    accessibilityState={{ disabled: saveTopFriends.isPending }}
+                    disabled={saveTopFriends.isPending}
+                    onPress={() => togglePinnedFriend(friend.id)}
+                    style={({ pressed }) => ({ alignItems: 'center', height: 38, justifyContent: 'center', opacity: saveTopFriends.isPending ? 0.35 : pressed ? 0.65 : 1, width: 34 })}
+                  >
+                    <Feather name="x" size={17} color={colors.mutedForeground} />
+                  </Pressable>
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={[styles.friendEmpty, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+              <View style={[styles.friendEmptyIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name="star" size={16} color={colors.primary} />
+              </View>
+              <View style={styles.friendPersonCopy}>
+                <Text style={[styles.friendPersonName, { color: colors.foreground }]}>Choose your three favourites</Text>
+                <Text style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>Pin friends from your list below. You can change their order at any time.</Text>
+              </View>
+            </View>
+          )}
+        </View>
+      ) : null}
 
       {!user ? <TelegramConnectCard /> : (
         <>
@@ -4107,18 +4285,7 @@ function FriendsOverviewScreen({
           {user.userType === 'participant' ? (
             <AccountabilitySection friends={friends.data ?? []} />
           ) : user.userType === 'organisation' ? (
-            <View
-              testID="friends-accountability-unavailable"
-              style={[styles.friendEmpty, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, marginBottom: 18 }]}
-            >
-              <View style={[styles.friendEmptyIcon, { backgroundColor: colors.primary + '12' }]}>
-                <Feather name="target" size={16} color={colors.primary} />
-              </View>
-              <View style={styles.friendPersonCopy}>
-                <Text style={[styles.friendPersonName, { color: colors.foreground }]}>Accountability partners are for Participant profiles</Text>
-                <Text style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>This Organisation profile can manage friends, but can’t create accountability partnerships.</Text>
-              </View>
-            </View>
+            <OrganisationPartnershipsSection />
           ) : null}
 
           <View style={styles.friendSection}>
@@ -4144,37 +4311,70 @@ function FriendsOverviewScreen({
                 <Text style={[styles.friendInlineStateText, { color: colors.foreground }]}>Couldn’t load your friends. Tap to retry.</Text>
               </Pressable>
             ) : friends.data?.length ? (
-              friends.data.map((friend) => (
-                <Pressable
-                  key={friend.id}
-                  testID={`friends-profile-${friend.id}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={`View ${friend.name}'s profile`}
-                  accessibilityHint="Opens their Experiences.fun profile."
-                  onPress={() => {
-                    triggerHaptic();
-                    go('friend-profile', { friendId: String(friend.id) });
-                  }}
-                  style={({ pressed }) => [
-                    styles.friendPersonRow,
-                    { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.72 : 1 },
-                  ]}
-                >
-                  <UserAvatar
-                    avatarUrl={friend.avatarUrl}
-                    name={friend.name}
-                    containerStyle={[styles.friendAvatar, { backgroundColor: colors.primary + '12' }]}
-                    initialStyle={[styles.friendAvatarInitial, { color: colors.primary }]}
-                  />
-                  <View style={styles.friendPersonCopy}>
-                    <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>{friend.name}</Text>
-                    <Text numberOfLines={1} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>
-                      {friend.username ? `@${friend.username}` : 'Experiences.fun friend'}
-                    </Text>
+              friends.data.map((friend) => {
+                const isPinned = (topFriends.data ?? []).some((pinned) => pinned.id === friend.id);
+                const canPin = isPinned || (topFriends.data?.length ?? 0) < 3;
+                return (
+                  <View
+                    key={friend.id}
+                    style={[
+                      styles.friendPersonRow,
+                      { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+                    ]}
+                  >
+                    <Pressable
+                      testID={`friends-profile-${friend.id}`}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View ${friend.name}'s profile`}
+                      accessibilityHint="Opens their Experiences.fun profile."
+                      onPress={() => {
+                        triggerHaptic();
+                        go('friend-profile', { friendId: String(friend.id) });
+                      }}
+                      style={({ pressed }) => ({
+                        alignItems: 'center',
+                        flex: 1,
+                        flexDirection: 'row',
+                        gap: 12,
+                        minWidth: 0,
+                        opacity: pressed ? 0.72 : 1,
+                      })}
+                    >
+                      <UserAvatar
+                        avatarUrl={friend.avatarUrl}
+                        name={friend.name}
+                        containerStyle={[styles.friendAvatar, { backgroundColor: colors.primary + '12' }]}
+                        initialStyle={[styles.friendAvatarInitial, { color: colors.primary }]}
+                      />
+                      <View style={styles.friendPersonCopy}>
+                        <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>{friend.name}</Text>
+                        <Text numberOfLines={1} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>
+                          {friend.username ? `@${friend.username}` : 'Experiences.fun friend'}
+                        </Text>
+                      </View>
+                      <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+                    </Pressable>
+                    <Pressable
+                      testID={`friends-pin-${friend.id}`}
+                      accessibilityRole="button"
+                      accessibilityLabel={isPinned ? `Remove ${friend.name} from My Top Friend` : `Pin ${friend.name} in My Top Friend`}
+                      accessibilityHint={!isPinned && !canPin ? 'Remove a pinned friend before adding another.' : undefined}
+                      accessibilityState={{ disabled: saveTopFriends.isPending || topFriends.isLoading || topFriends.isError || !canPin }}
+                      disabled={saveTopFriends.isPending || topFriends.isLoading || topFriends.isError || !canPin}
+                      onPress={() => togglePinnedFriend(friend.id)}
+                      style={({ pressed }) => ({
+                        alignItems: 'center',
+                        height: 42,
+                        justifyContent: 'center',
+                        opacity: saveTopFriends.isPending || topFriends.isLoading || topFriends.isError || !canPin ? 0.35 : pressed ? 0.65 : 1,
+                        width: 38,
+                      })}
+                    >
+                      <Feather name="star" size={18} color={isPinned ? colors.primary : colors.mutedForeground} />
+                    </Pressable>
                   </View>
-                  <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-                </Pressable>
-              ))
+                );
+              })
             ) : (
               <View style={[styles.friendEmpty, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
                 <View style={[styles.friendEmptyIcon, { backgroundColor: colors.primary + '12' }]}>
@@ -4338,7 +4538,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           },
           {
             key: 'friends',
-            label: 'Friends & Partners',
+            label: 'My Connections',
             icon: 'users',
             onPress: () => go('friends'),
           },
@@ -4574,7 +4774,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       <Pressable
         testID="profile-friends-overview"
         accessibilityRole="button"
-        accessibilityLabel="Open Friends & Partners"
+        accessibilityLabel="Open My Connections"
         accessibilityHint="Manage friend requests and view your friends."
         onPress={() => { triggerHaptic(); go('friends'); }}
         style={({ pressed }) => [
@@ -4586,7 +4786,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           <Feather name="users" size={20} color={colors.primary} />
         </View>
         <View style={styles.friendPersonCopy}>
-          <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>Friends & Partners</Text>
+          <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>My Connections</Text>
           <Text numberOfLines={2} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>Manage requests and view your circle.</Text>
         </View>
         <View style={[styles.friendCountPill, { backgroundColor: colors.primary + '12' }]}>
