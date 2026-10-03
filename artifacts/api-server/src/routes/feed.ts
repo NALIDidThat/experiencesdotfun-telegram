@@ -502,6 +502,116 @@ router.get("/feed", requireTelegramUser, async (req, res) => {
   });
 });
 
+router.get("/profiles/:profileId/posts", requireTelegramUser, async (req, res) => {
+  const profileId = parsePositiveId(req.params.profileId);
+  if (!profileId) {
+    error(res, 400, "This profile identifier is invalid.");
+    return;
+  }
+
+  const user = currentUser(req);
+  const friendIds = await getAcceptedFriendIds(user.id);
+  const rows = await db
+    .select({
+      event: feedActivityEventsTable,
+      actor: usersTable,
+      post: postsTable,
+      experienceId: experiencesTable.id,
+      experienceTitle: experiencesTable.title,
+      experienceCategory: experiencesTable.category,
+      experienceDate: experiencesTable.date,
+      experienceStartTime: experiencesTable.startTime,
+      experienceEndTime: experiencesTable.endTime,
+      experienceCity: experiencesTable.city,
+      experienceLocation: experiencesTable.location,
+      experienceXpReward: experiencesTable.xpReward,
+      organisationName: organisationsTable.name,
+    })
+    .from(feedActivityEventsTable)
+    .innerJoin(usersTable, eq(usersTable.id, feedActivityEventsTable.actorId))
+    .leftJoin(
+      postsTable,
+      and(
+        eq(postsTable.id, feedActivityEventsTable.targetId),
+        eq(feedActivityEventsTable.targetType, "post"),
+      ),
+    )
+    .leftJoin(
+      experiencesTable,
+      and(
+        eq(experiencesTable.id, feedActivityEventsTable.targetId),
+        eq(feedActivityEventsTable.targetType, "experience"),
+      ),
+    )
+    .leftJoin(
+      organisationsTable,
+      eq(organisationsTable.id, experiencesTable.organisationId),
+    )
+    .where(
+      and(
+        eq(feedActivityEventsTable.actorId, profileId),
+        eq(feedActivityEventsTable.type, "status_posted"),
+        eq(feedActivityEventsTable.targetType, "post"),
+        visibleToViewer(user.id, [...new Set([user.id, ...friendIds])]),
+      ),
+    )
+    .orderBy(desc(feedActivityEventsTable.createdAt), desc(feedActivityEventsTable.id))
+    .limit(20);
+
+  const pageRows = rows.filter((row) => row.post !== null);
+  const activityIds = pageRows.map((row) => row.event.id);
+  const [reactionCounts, commentCounts, viewerReactions] = activityIds.length
+    ? await Promise.all([
+        db
+          .select({ activityId: postReactionsTable.activityId, value: count() })
+          .from(postReactionsTable)
+          .where(inArray(postReactionsTable.activityId, activityIds))
+          .groupBy(postReactionsTable.activityId),
+        db
+          .select({ activityId: commentsTable.activityId, value: count() })
+          .from(commentsTable)
+          .where(inArray(commentsTable.activityId, activityIds))
+          .groupBy(commentsTable.activityId),
+        db
+          .select({
+            activityId: postReactionsTable.activityId,
+            reactionType: postReactionsTable.reactionType,
+          })
+          .from(postReactionsTable)
+          .where(
+            and(
+              inArray(postReactionsTable.activityId, activityIds),
+              eq(postReactionsTable.userId, user.id),
+            ),
+          ),
+      ])
+    : [[], [], []];
+
+  const reactionCountsById = new Map(
+    reactionCounts.map((row) => [row.activityId, Number(row.value)]),
+  );
+  const commentCountsById = new Map(
+    commentCounts.map((row) => [row.activityId, Number(row.value)]),
+  );
+  const viewerReactionsById = new Map(
+    viewerReactions.map((row) => [row.activityId, row.reactionType]),
+  );
+  const friendIdSet = new Set(friendIds);
+
+  res.json({
+    items: pageRows.map((row) =>
+      itemFromRow(
+        row,
+        user.id,
+        friendIdSet,
+        reactionCountsById.get(row.event.id) ?? 0,
+        commentCountsById.get(row.event.id) ?? 0,
+        viewerReactionsById.get(row.event.id) ?? null,
+      ),
+    ),
+  });
+});
+
 router.get("/feed/preferences", requireTelegramUser, async (req, res) => {
   const user = currentUser(req);
   const preference = await db.query.feedPreferencesTable.findFirst({

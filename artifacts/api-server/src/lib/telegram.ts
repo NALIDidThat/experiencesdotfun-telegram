@@ -27,6 +27,8 @@ import {
 } from "./contribution";
 import {
   getMessageQualification,
+  isTelegramChatMember,
+  normalizePublicTelegramGroupUsername,
   parseAdminRewardAmount,
 } from "./community-rules";
 import { recordAnalyticsEvent } from "./analytics";
@@ -146,6 +148,58 @@ async function telegramCall<T>(method: string, body: Record<string, unknown>): P
     logger.warn({ err: error, method }, "Telegram API request failed");
     return null;
   }
+}
+
+type TelegramCommunityChat = {
+  id: number;
+  type: string;
+  title?: string;
+  username?: string;
+};
+
+type TelegramCommunityMember = {
+  status: "creator" | "administrator" | "member" | "restricted" | "left" | "kicked";
+  is_member?: boolean;
+};
+
+export async function verifyTelegramCommunityMembership(
+  group: string,
+  telegramUserId: number,
+): Promise<
+  | { status: "verified"; chatId: string; title: string }
+  | { status: "not_member" }
+  | { status: "invalid" }
+  | { status: "unavailable" }
+> {
+  const username = normalizePublicTelegramGroupUsername(group);
+  if (!username || !Number.isSafeInteger(telegramUserId) || telegramUserId <= 0) {
+    return { status: "invalid" };
+  }
+
+  const chat = await telegramCall<TelegramCommunityChat>("getChat", {
+    chat_id: `@${username}`,
+  });
+  if (!chat) return { status: "unavailable" };
+  if (
+    !Number.isSafeInteger(chat.id) ||
+    (chat.type !== "group" && chat.type !== "supergroup")
+  ) {
+    return { status: "invalid" };
+  }
+
+  const member = await telegramCall<TelegramCommunityMember>("getChatMember", {
+    chat_id: chat.id,
+    user_id: telegramUserId,
+  });
+  if (!member) return { status: "unavailable" };
+
+  if (!isTelegramChatMember(member)) return { status: "not_member" };
+
+  return {
+    status: "verified",
+    chatId: String(chat.id),
+    title: chat.title?.trim() || chat.username || `@${username}`,
+  };
 }
 
 export async function sendTelegramMessage(

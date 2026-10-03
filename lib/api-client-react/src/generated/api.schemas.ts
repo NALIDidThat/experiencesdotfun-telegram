@@ -344,6 +344,15 @@ export interface MyCommunitiesResponse {
   communities: CommunitySummary[];
 }
 
+export interface AddCommunityInput {
+  /**
+     * Public Telegram group username or t.me link
+     * @minLength 1
+     * @maxLength 500
+     */
+  group: string;
+}
+
 export interface CommunityLeaderboardMember {
   rank: number;
   name: string;
@@ -1043,6 +1052,10 @@ export interface FeedResponse {
   mode: FeedMode;
   /** @nullable */
   city: string | null;
+}
+
+export interface ProfilePostsResponse {
+  items: FeedItem[];
 }
 
 export interface CreateFeedPostInput {

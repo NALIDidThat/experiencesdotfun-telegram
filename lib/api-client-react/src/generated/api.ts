@@ -29,12 +29,14 @@ import type {
   AccountabilityEncouragementInput,
   AccountabilityInvitationInput,
   AccountabilityMutationResult,
+  AddCommunityInput,
   AnalyticsEventAccepted,
   AnalyticsEventInput,
   AuthResponse,
   BadRequestResponse,
   BotInfo,
   CommunityDetails,
+  CommunitySummary,
   ConflictResponse,
   CreateAccountProfileInput,
   CreateFeedPostInput,
@@ -74,6 +76,7 @@ import type {
   OrganisationPartnership,
   OrganisationPartnershipCreateInput,
   Participation,
+  ProfilePostsResponse,
   ProfileUpdateInput,
   RedeemXpAwardsResponse,
   SocialInvite,
@@ -956,6 +959,83 @@ export const useCreateFeedPost = <TError = ErrorType<BadRequestResponse | Unauth
       > => {
       return useMutation(getCreateFeedPostMutationOptions(options));
     }
+
+export const getGetProfilePostsUrl = (profileId: number,) => {
+
+
+
+
+  return `/api/profiles/${profileId}/posts`
+}
+
+/**
+ * @summary List posts visible to the current viewer on a profile
+ */
+export const getProfilePosts = async (profileId: number, options?: Parameters<typeof customFetch>[1]): Promise<ProfilePostsResponse> => {
+
+  return customFetch<ProfilePostsResponse>(getGetProfilePostsUrl(profileId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProfilePostsQueryKey = (profileId: number,) => {
+    return [
+    `/api/profiles/${profileId}/posts`
+    ] as const;
+    }
+
+
+export const getGetProfilePostsQueryOptions = <TData = Awaited<ReturnType<typeof getProfilePosts>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse>>(profileId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProfilePosts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProfilePostsQueryKey(profileId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProfilePosts>>> = ({ signal }) => getProfilePosts(profileId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: profileId !== null && profileId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProfilePosts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProfilePostsQueryResult = NonNullable<Awaited<ReturnType<typeof getProfilePosts>>>
+export type GetProfilePostsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse>
+
+
+/**
+ * @summary List posts visible to the current viewer on a profile
+ */
+
+export function useGetProfilePosts<TData = Awaited<ReturnType<typeof getProfilePosts>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse>>(
+ profileId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProfilePosts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProfilePostsQueryOptions(profileId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetFeedItemUrl = (postId: number,) => {
 
@@ -2001,7 +2081,7 @@ export const getGetMyCommunitiesUrl = () => {
 }
 
 /**
- * @summary List Telegram groups where the current user has Community XP
+ * @summary List Telegram groups linked to the current user and their Community XP
  */
 export const getMyCommunities = async ( options?: Parameters<typeof customFetch>[1]): Promise<MyCommunitiesResponse> => {
 
@@ -2048,7 +2128,7 @@ export type GetMyCommunitiesQueryError = ErrorType<UnauthorizedResponse>
 
 
 /**
- * @summary List Telegram groups where the current user has Community XP
+ * @summary List Telegram groups linked to the current user and their Community XP
  */
 
 export function useGetMyCommunities<TData = Awaited<ReturnType<typeof getMyCommunities>>, TError = ErrorType<UnauthorizedResponse>>(
@@ -2068,6 +2148,94 @@ export function useGetMyCommunities<TData = Awaited<ReturnType<typeof getMyCommu
 
 
 
+
+export const getAddMyCommunityUrl = () => {
+
+
+
+
+  return `/api/community/me`
+}
+
+/**
+ * @summary Verify and link a public Telegram group to the current profile
+ */
+export const addMyCommunity = async (addCommunityInput: AddCommunityInput, options?: Parameters<typeof customFetch>[1]): Promise<CommunitySummary> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CommunitySummary>(getAddMyCommunityUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(addCommunityInput)
+  }
+);}
+
+
+
+
+
+export const getAddMyCommunityMutationKey = () => ['addMyCommunity'] as const;
+
+export const getAddMyCommunityMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMyCommunity>>, TError,AddMyCommunityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addMyCommunity>>, TError,AddMyCommunityMutationVariables, TContext> => {
+
+const mutationKey = getAddMyCommunityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addMyCommunity>>, AddMyCommunityMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  addMyCommunity(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddMyCommunityMutationResult = NonNullable<Awaited<ReturnType<typeof addMyCommunity>>>
+    export type AddMyCommunityMutationBody = BodyType<AddCommunityInput>
+    export type AddMyCommunityMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error>
+    export type AddMyCommunityMutationVariables = {data: BodyType<AddCommunityInput>}
+
+    /**
+ * @summary Verify and link a public Telegram group to the current profile
+ */
+export const useAddMyCommunity = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMyCommunity>>, TError,AddMyCommunityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addMyCommunity>>,
+        TError,
+        AddMyCommunityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddMyCommunityMutationOptions(options));
+    }
 
 export const getGetCommunityDetailsUrl = (chatId: string,) => {
 

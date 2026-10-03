@@ -919,7 +919,7 @@ router.get("/participations", async (req, res) => {
   const results = await Promise.all(rows.map((row) => participationResponse(row)));
   res.json(
     parsed.data.status === "completed"
-      ? results.filter((item) => ["verified", "rejected", "submitted"].includes(item.status))
+      ? results.filter((item) => item.status === "verified")
       : parsed.data.status === "upcoming"
         ? results.filter((item) => ["joined", "attended", "waitlisted"].includes(item.status))
         : results,

@@ -32,6 +32,41 @@ export type CommunityMessageReason =
   | "rate_limited"
   | "daily_cap";
 
+export function normalizePublicTelegramGroupUsername(value: string): string | null {
+  let candidate = value.trim();
+  if (!candidate) return null;
+
+  if (/^(?:https?:\/\/)?(?:www\.)?(?:t\.me|telegram\.me)\//i.test(candidate)) {
+    try {
+      const url = new URL(
+        /^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`,
+      );
+      if (!["t.me", "www.t.me", "telegram.me", "www.telegram.me"].includes(url.hostname.toLowerCase())) {
+        return null;
+      }
+      candidate = url.pathname.replace(/^\/+|\/+$/g, "");
+      if (candidate.includes("/")) return null;
+    } catch {
+      return null;
+    }
+  }
+
+  candidate = candidate.replace(/^@/, "");
+  return /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(candidate) ? candidate : null;
+}
+
+export function isTelegramChatMember(member: {
+  status: string;
+  is_member?: boolean;
+}): boolean {
+  return (
+    member.status === "creator" ||
+    member.status === "administrator" ||
+    member.status === "member" ||
+    (member.status === "restricted" && member.is_member === true)
+  );
+}
+
 export function countWords(text: string): number {
   const trimmed = text.trim();
   return trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;

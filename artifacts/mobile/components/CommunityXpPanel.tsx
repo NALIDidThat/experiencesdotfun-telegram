@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetCommunityDetailsQueryKey,
   getGetMyCommunitiesQueryKey,
+  useAddMyCommunity,
   useGetCommunityDetails,
   useGetMyCommunities,
   type CommunityContribution,
@@ -113,6 +115,88 @@ function EmptyState() {
       <Text style={[styles.stateBody, { color: colors.mutedForeground }]}>
         Join a Telegram group where the Experiences.fun bot is active. A normal message of at least seven words can earn Community XP, separate from Experience XP.
       </Text>
+    </View>
+  );
+}
+
+function AddCommunityForm({
+  visible,
+  value,
+  onChange,
+  onSubmit,
+  isPending,
+  error,
+  success,
+}: {
+  visible: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  isPending: boolean;
+  error: string;
+  success: string;
+}) {
+  const colors = useColors();
+  if (!visible) return null;
+
+  return (
+    <View style={[styles.addCommunityForm, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+      <View style={styles.addCommunityIntro}>
+        <View style={[styles.addCommunityIcon, { backgroundColor: colors.primary + '12' }]}>
+          <Feather name="shield" size={16} color={colors.primary} />
+        </View>
+        <View style={styles.addCommunityCopy}>
+          <Text style={[styles.addCommunityTitle, { color: colors.foreground }]}>Verify a Telegram community</Text>
+          <Text style={[styles.addCommunityBody, { color: colors.mutedForeground }]}>
+            Use a public group link or @username. The Experiences.fun bot must be an administrator to confirm membership. Linking does not award XP.
+          </Text>
+        </View>
+      </View>
+      <TextInput
+        accessibilityLabel="Public Telegram group link or username"
+        testID="community-group-input"
+        value={value}
+        onChangeText={onChange}
+        autoCapitalize="none"
+        autoCorrect={false}
+        maxLength={500}
+        placeholder="@communityname or t.me/communityname"
+        placeholderTextColor={colors.mutedForeground}
+        style={[styles.addCommunityInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 4 }]}
+      />
+      {error ? (
+        <Text accessibilityRole="alert" style={[styles.addCommunityFeedback, { color: colors.destructive }]}>
+          {error}
+        </Text>
+      ) : success ? (
+        <Text accessibilityRole="alert" style={[styles.addCommunityFeedback, { color: colors.success }]}>
+          {success}
+        </Text>
+      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Verify and add Telegram community"
+        testID="community-group-submit"
+        disabled={isPending}
+        onPress={onSubmit}
+        style={({ pressed }) => [
+          styles.addCommunityButton,
+          {
+            backgroundColor: colors.primary,
+            borderRadius: colors.radius - 4,
+            opacity: isPending ? 0.62 : pressed ? 0.8 : 1,
+          },
+        ]}
+      >
+        {isPending ? (
+          <ActivityIndicator size="small" color={colors.primaryForeground} />
+        ) : (
+          <Feather name="check-circle" size={16} color={colors.primaryForeground} />
+        )}
+        <Text style={[styles.addCommunityButtonText, { color: colors.primaryForeground }]}>
+          {isPending ? 'Verifying membership…' : 'Verify and add'}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -316,14 +400,45 @@ function ContributionHistory({ contributions }: { contributions: CommunityContri
 export function CommunityXpPanel() {
   const colors = useColors();
   const { user, login } = useAuth();
+  const queryClient = useQueryClient();
   const authenticated = Boolean(user);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [addingCommunity, setAddingCommunity] = useState(false);
+  const [communityInput, setCommunityInput] = useState('');
+  const [communityError, setCommunityError] = useState('');
+  const [communitySuccess, setCommunitySuccess] = useState('');
   const communitiesQuery = useGetMyCommunities({
     query: {
       enabled: authenticated,
       queryKey: getGetMyCommunitiesQueryKey(),
       refetchInterval: 15_000,
       retry: 1,
+    },
+  });
+  const addCommunity = useAddMyCommunity({
+    mutation: {
+      onSuccess: async (community) => {
+        setCommunityError('');
+        setCommunitySuccess('Community verified. This link did not award XP.');
+        setCommunityInput('');
+        setSelectedChatId(community.chatId);
+        setAddingCommunity(false);
+        await queryClient.invalidateQueries({ queryKey: getGetMyCommunitiesQueryKey() });
+      },
+      onError: (error) => {
+        const data =
+          typeof error === 'object' && error !== null && 'data' in error
+            ? error.data
+            : null;
+        const message =
+          typeof data === 'object' &&
+          data !== null &&
+          'message' in data &&
+          typeof data.message === 'string'
+            ? data.message
+            : "Telegram couldn’t verify this community. Check the link and try again.";
+        setCommunityError(message);
+      },
     },
   });
   const communities = communitiesQuery.data?.communities ?? [];
@@ -339,6 +454,17 @@ export function CommunityXpPanel() {
       retry: 1,
     },
   });
+  const submitCommunity = () => {
+    const group = communityInput.trim();
+    if (!group) {
+      setCommunityError('Enter a public Telegram group link or username.');
+      setCommunitySuccess('');
+      return;
+    }
+    setCommunityError('');
+    setCommunitySuccess('');
+    addCommunity.mutate({ data: { group } });
+  };
 
   if (!authenticated) return <LoginState onLogin={() => { void login(); }} />;
 
@@ -346,7 +472,26 @@ export function CommunityXpPanel() {
 
   if (communitiesQuery.isError) return <ErrorState onRetry={() => { void communitiesQuery.refetch(); }} />;
 
-  if (!communities.length) return <EmptyState />;
+  if (!communities.length) {
+    return (
+      <View style={styles.wrapper}>
+        <EmptyState />
+        <AddCommunityForm
+          visible
+          value={communityInput}
+          onChange={(value) => {
+            setCommunityInput(value);
+            setCommunityError('');
+            setCommunitySuccess('');
+          }}
+          onSubmit={submitCommunity}
+          isPending={addCommunity.isPending}
+          error={communityError}
+          success={communitySuccess}
+        />
+      </View>
+    );
+  }
 
   const details = detailsQuery.data;
   return (
@@ -363,7 +508,37 @@ export function CommunityXpPanel() {
           </View>
         </View>
         <CommunityPicker communities={communities} selectedChatId={activeChatId} onSelect={(chatId) => setSelectedChatId(chatId)} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={addingCommunity ? 'Close add community form' : 'Add a Telegram community'}
+          testID="community-group-toggle"
+          onPress={() => {
+            setAddingCommunity((value) => !value);
+            setCommunityError('');
+            setCommunitySuccess('');
+          }}
+          style={({ pressed }) => [styles.addCommunityToggle, { opacity: pressed ? 0.72 : 1 }]}
+        >
+          <Feather name={addingCommunity ? 'x' : 'plus-circle'} size={15} color={colors.primary} />
+          <Text style={[styles.addCommunityToggleText, { color: colors.primary }]}>
+            {addingCommunity ? 'Close' : 'Add a Telegram group'}
+          </Text>
+        </Pressable>
       </View>
+
+      <AddCommunityForm
+        visible={addingCommunity}
+        value={communityInput}
+        onChange={(value) => {
+          setCommunityInput(value);
+          setCommunityError('');
+          setCommunitySuccess('');
+        }}
+        onSubmit={submitCommunity}
+        isPending={addCommunity.isPending}
+        error={communityError}
+        success={communitySuccess}
+      />
 
       {detailsQuery.isLoading ? (
         <View style={[styles.detailSkeleton, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
@@ -447,6 +622,18 @@ const styles = StyleSheet.create({
   historyMeta: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 3 },
   historyXp: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   inlineEmpty: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular', paddingVertical: 18, paddingHorizontal: 5 },
+  addCommunityForm: { borderWidth: 1, gap: 12, padding: 16 },
+  addCommunityIntro: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  addCommunityIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  addCommunityCopy: { flex: 1, gap: 4 },
+  addCommunityTitle: { fontSize: 14, lineHeight: 19, fontFamily: 'Inter_700Bold' },
+  addCommunityBody: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
+  addCommunityInput: { minHeight: 46, borderWidth: 1, paddingHorizontal: 12, fontSize: 13, fontFamily: 'Inter_400Regular' },
+  addCommunityFeedback: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_500Medium' },
+  addCommunityButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 14 },
+  addCommunityButtonText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  addCommunityToggle: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 8 },
+  addCommunityToggleText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   skeleton: { borderRadius: 8, opacity: 0.72 },
   detailSkeleton: { gap: 12, padding: 12, borderWidth: 1 },
   stateCard: { alignItems: 'center', borderWidth: 1, padding: 22, marginBottom: 28 },

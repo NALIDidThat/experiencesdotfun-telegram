@@ -410,6 +410,61 @@ export const CreateFeedPostResponse = zod.object({
 
 
 /**
+ * @summary List posts visible to the current viewer on a profile
+ */
+
+
+
+export const GetProfilePostsParams = zod.object({
+  "profileId": zod.coerce.number().int().min(1)
+})
+
+export const GetProfilePostsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['experience_published', 'experience_joined', 'experience_verified', 'xp_earned', 'achievement_unlocked', 'accountability_checkin', 'accountability_goal_completed', 'status_posted']),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "userType": zod.string().nullable(),
+  "isFriend": zod.boolean()
+}),
+  "createdAt": zod.coerce.date(),
+  "visibility": zod.enum(['public', 'friends', 'community', 'private']),
+  "experience": zod.union([zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "date": zod.string(),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "city": zod.string(),
+  "location": zod.string(),
+  "xpReward": zod.number().int(),
+  "organisationName": zod.string()
+}),zod.null()]),
+  "post": zod.union([zod.object({
+  "id": zod.number().int(),
+  "kind": zod.enum(['goal', 'doing', 'thought']),
+  "body": zod.string()
+}),zod.null()]),
+  "xpAmount": zod.number().int().nullable(),
+  "sourceTitle": zod.string().nullable(),
+  "summary": zod.string(),
+  "reaction": zod.object({
+  "count": zod.number().int(),
+  "reacted": zod.boolean(),
+  "reactionType": zod.string().nullable()
+}),
+  "commentCount": zod.number().int()
+}))
+})
+
+
+/**
  * @summary Get one visible feed item
  */
 
@@ -1033,7 +1088,7 @@ export const RedeemMyXpAwardsResponse = zod.object({
 
 
 /**
- * @summary List Telegram groups where the current user has Community XP
+ * @summary List Telegram groups linked to the current user and their Community XP
  */
 export const GetMyCommunitiesResponse = zod.object({
   "communities": zod.array(zod.object({
@@ -1047,6 +1102,30 @@ export const GetMyCommunitiesResponse = zod.object({
   "levelProgress": zod.number(),
   "nextLevelXp": zod.number().int().nullable()
 }))
+})
+
+
+/**
+ * @summary Verify and link a public Telegram group to the current profile
+ */
+export const addMyCommunityBodyGroupMax = 500;
+
+
+
+export const AddMyCommunityBody = zod.object({
+  "group": zod.string().min(1).max(addMyCommunityBodyGroupMax).describe('Public Telegram group username or t.me link')
+})
+
+export const AddMyCommunityResponse = zod.object({
+  "chatId": zod.string(),
+  "title": zod.string(),
+  "communityXp": zod.number().int(),
+  "contributionCount": zod.number().int(),
+  "qualifyingMessages": zod.number().int(),
+  "rank": zod.number().int(),
+  "level": zod.string(),
+  "levelProgress": zod.number(),
+  "nextLevelXp": zod.number().int().nullable()
 })
 
 

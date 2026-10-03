@@ -8,6 +8,8 @@ import {
   getMessageQualification,
   parseAdminRewardAmount,
   countWords,
+  isTelegramChatMember,
+  normalizePublicTelegramGroupUsername,
 } from "./community-rules.ts";
 
 test("word counting uses whitespace and enforces the seven-word threshold", () => {
@@ -93,4 +95,37 @@ test("community leaderboard tie-breakers are deterministic", () => {
     { communityXp: 100, contributionCount: 6, communityXpUpdatedAt: later, userId: 2 },
     { communityXp: 100, contributionCount: 5, communityXpUpdatedAt: earlier, userId: 1 },
   ) < 0);
+});
+
+test("public Telegram group identifiers normalize safely", () => {
+  assert.equal(normalizePublicTelegramGroupUsername("@local_community"), "local_community");
+  assert.equal(normalizePublicTelegramGroupUsername("t.me/local_community"), "local_community");
+  assert.equal(
+    normalizePublicTelegramGroupUsername("https://telegram.me/local_community/"),
+    "local_community",
+  );
+  for (const value of [
+    "",
+    "@tiny",
+    "https://example.com/local_community",
+    "https://t.me/+privateInvite",
+    "t.me/local_community/extra",
+  ]) {
+    assert.equal(normalizePublicTelegramGroupUsername(value), null, value);
+  }
+});
+
+test("Telegram group membership accepts active members but not departed or restricted non-members", () => {
+  for (const status of ["creator", "administrator", "member"]) {
+    assert.equal(isTelegramChatMember({ status }), true);
+  }
+  assert.equal(isTelegramChatMember({ status: "restricted", is_member: true }), true);
+  for (const member of [
+    { status: "restricted", is_member: false },
+    { status: "left" },
+    { status: "kicked" },
+    { status: "unknown" },
+  ]) {
+    assert.equal(isTelegramChatMember(member), false);
+  }
 });

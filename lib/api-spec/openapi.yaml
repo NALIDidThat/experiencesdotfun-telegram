@@ -237,6 +237,30 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /profiles/{profileId}/posts:
+    get:
+      operationId: getProfilePosts
+      tags: [profile]
+      summary: List posts visible to the current viewer on a profile
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Recent visible posts for the profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfilePostsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /posts/{postId}:
     get:
       operationId: getFeedItem
@@ -501,17 +525,57 @@ paths:
     get:
       operationId: getMyCommunities
       tags: [community]
-      summary: List Telegram groups where the current user has Community XP
+      summary: List Telegram groups linked to the current user and their Community XP
       security: [{ telegramInitData: [] }]
       responses:
         "200":
-          description: User's group memberships and Community XP
+          description: Verified group memberships and Community XP
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MyCommunitiesResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: addMyCommunity
+      tags: [community]
+      summary: Verify and link a public Telegram group to the current profile
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCommunityInput"
+      responses:
+        "200":
+          description: Group was already linked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunitySummary"
+        "201":
+          description: Group membership was verified and linked without awarding XP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunitySummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The current Telegram account is not a member of the group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Telegram membership could not be verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /community/{chatId}:
     get:
       operationId: getCommunityDetails
@@ -1926,6 +1990,16 @@ components:
           items:
             $ref: "#/components/schemas/CommunitySummary"
       required: [communities]
+    AddCommunityInput:
+      type: object
+      properties:
+        group:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Public Telegram group username or t.me link
+      required: [group]
+      additionalProperties: false
     CommunitySummary:
       type: object
       properties:
@@ -2950,6 +3024,14 @@ components:
         city:
           type: [string, "null"]
       required: [items, nextCursor, mode, city]
+    ProfilePostsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedItem"
+      required: [items]
     CreateFeedPostInput:
       type: object
       properties:
