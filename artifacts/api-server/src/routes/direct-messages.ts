@@ -165,7 +165,7 @@ async function serializeConversations(rows: DirectConversationRow[], viewerId: n
   });
 }
 
-router.get("/direct-messages/profiles", async (req, res): Promise<void> => {
+router.get("/profiles", async (req, res): Promise<void> => {
   const parsed = SearchDirectMessageProfilesQueryParams.safeParse(req.query);
   const search = parsed.success ? parsed.data.search.trim() : "";
   if (!parsed.success || search.length < 2) {
@@ -199,7 +199,7 @@ router.get("/direct-messages/profiles", async (req, res): Promise<void> => {
   res.json(profiles.map(publicProfile));
 });
 
-router.get("/direct-messages/conversations", async (req, res): Promise<void> => {
+router.get("/conversations", async (req, res): Promise<void> => {
   const userId = currentUser(req).id;
   const conversations = await db
     .select()
@@ -219,7 +219,7 @@ router.get("/direct-messages/conversations", async (req, res): Promise<void> => 
   res.json(await serializeConversations(conversations, userId));
 });
 
-router.post("/direct-messages/conversations", async (req, res): Promise<void> => {
+router.post("/conversations", async (req, res): Promise<void> => {
   const parsed = CreateDirectConversationBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: "Choose a profile to message." });
@@ -272,7 +272,7 @@ router.post("/direct-messages/conversations", async (req, res): Promise<void> =>
   res.json((await serializeConversations([conversation], userId))[0]);
 });
 
-router.get("/direct-messages/conversations/:conversationId", async (req, res): Promise<void> => {
+router.get("/conversations/:conversationId", async (req, res): Promise<void> => {
   const parsed = GetDirectConversationParams.safeParse({
     conversationId: Number(req.params.conversationId),
   });
@@ -292,7 +292,7 @@ router.get("/direct-messages/conversations/:conversationId", async (req, res): P
   res.json((await serializeConversations([conversation], currentUser(req).id))[0]);
 });
 
-router.get("/direct-messages/messages", async (req, res): Promise<void> => {
+router.get("/messages", async (req, res): Promise<void> => {
   const parsed = ListDirectMessagesQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ message: "The conversation message request is invalid." });
@@ -326,7 +326,7 @@ router.get("/direct-messages/messages", async (req, res): Promise<void> => {
 });
 
 router.post(
-  "/direct-messages/conversations/:conversationId/messages",
+  "/conversations/:conversationId/messages",
   async (req, res): Promise<void> => {
     const params = SendDirectMessageParams.safeParse({
       conversationId: Number(req.params.conversationId),
@@ -406,7 +406,7 @@ router.post(
 );
 
 router.post(
-  "/direct-messages/conversations/:conversationId/read",
+  "/conversations/:conversationId/read",
   async (req, res): Promise<void> => {
     const parsed = MarkDirectConversationReadParams.safeParse({
       conversationId: Number(req.params.conversationId),

@@ -20,7 +20,7 @@ router.use("/analytics", analyticsRouter);
 router.use(feedRouter);
 router.use(topFriendsRouter);
 router.use("/organisation-partnerships", organisationPartnershipsRouter);
-router.use(directMessagesRouter);
+router.use("/direct-messages", directMessagesRouter);
 // Telegram/email auth routes are public and must be checked before the
 // community router's authentication middleware.
 router.use(experiencesRouter);

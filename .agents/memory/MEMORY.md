@@ -20,3 +20,4 @@
 - [Expo preview API mocks](expo-preview-api-mocking.md) — mock CORS preflight requests before asserting an authenticated Expo web preview has restored its test session.
 - [Expo in-app navigation tests](expo-router-in-app-navigation.md) — assert the rendered destination after router state changes; browser query strings may not track in-app screen state.
 - [Host milestone history](host-milestone-history.md) — lock milestone definitions after submissions exist, while keeping unrelated experience details editable.
+- [Express router auth scope](express-router-auth-scope.md) — mount protected subrouters at their resource prefix so auth guards cannot intercept unrelated public routes.
