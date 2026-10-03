@@ -40,6 +40,13 @@ import type {
   ConflictResponse,
   CreateAccountProfileInput,
   CreateFeedPostInput,
+  DirectConversation,
+  DirectConversationInput,
+  DirectMessage,
+  DirectMessageInput,
+  DirectMessageProfile,
+  DirectMessageReadResponse,
+  DirectMessagesPage,
   EmailLoginInput,
   EmailSignupInput,
   Error,
@@ -69,6 +76,7 @@ import type {
   HostExperience,
   HostExperienceMilestonesResponse,
   HostOverview,
+  ListDirectMessagesParams,
   ListExperiencesParams,
   ListMyParticipationsParams,
   MyCommunitiesResponse,
@@ -79,6 +87,7 @@ import type {
   ProfilePostsResponse,
   ProfileUpdateInput,
   RedeemXpAwardsResponse,
+  SearchDirectMessageProfilesParams,
   SocialInvite,
   SocialInviteCreateInput,
   TelegramAuthInput,
@@ -3803,6 +3812,579 @@ export function useListFriends<TData = Awaited<ReturnType<typeof listFriends>>, 
 
 
 
+
+export const getSearchDirectMessageProfilesUrl = (params: SearchDirectMessageProfilesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/direct-messages/profiles?${stringifiedParams}` : `/api/direct-messages/profiles`
+}
+
+/**
+ * @summary Search public profiles to start a direct conversation
+ */
+export const searchDirectMessageProfiles = async (params: SearchDirectMessageProfilesParams, options?: Parameters<typeof customFetch>[1]): Promise<DirectMessageProfile[]> => {
+
+  return customFetch<DirectMessageProfile[]>(getSearchDirectMessageProfilesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchDirectMessageProfilesQueryKey = (params?: SearchDirectMessageProfilesParams,) => {
+    return [
+    `/api/direct-messages/profiles`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchDirectMessageProfilesQueryOptions = <TData = Awaited<ReturnType<typeof searchDirectMessageProfiles>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse>>(params: SearchDirectMessageProfilesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchDirectMessageProfiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchDirectMessageProfilesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchDirectMessageProfiles>>> = ({ signal }) => searchDirectMessageProfiles(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchDirectMessageProfiles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchDirectMessageProfilesQueryResult = NonNullable<Awaited<ReturnType<typeof searchDirectMessageProfiles>>>
+export type SearchDirectMessageProfilesQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse>
+
+
+/**
+ * @summary Search public profiles to start a direct conversation
+ */
+
+export function useSearchDirectMessageProfiles<TData = Awaited<ReturnType<typeof searchDirectMessageProfiles>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse>>(
+ params: SearchDirectMessageProfilesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchDirectMessageProfiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchDirectMessageProfilesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListDirectConversationsUrl = () => {
+
+
+
+
+  return `/api/direct-messages/conversations`
+}
+
+/**
+ * @summary List the signed-in profile's direct conversations
+ */
+export const listDirectConversations = async ( options?: Parameters<typeof customFetch>[1]): Promise<DirectConversation[]> => {
+
+  return customFetch<DirectConversation[]>(getListDirectConversationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDirectConversationsQueryKey = () => {
+    return [
+    `/api/direct-messages/conversations`
+    ] as const;
+    }
+
+
+export const getListDirectConversationsQueryOptions = <TData = Awaited<ReturnType<typeof listDirectConversations>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDirectConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDirectConversationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDirectConversations>>> = ({ signal }) => listDirectConversations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDirectConversations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDirectConversationsQueryResult = NonNullable<Awaited<ReturnType<typeof listDirectConversations>>>
+export type ListDirectConversationsQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary List the signed-in profile's direct conversations
+ */
+
+export function useListDirectConversations<TData = Awaited<ReturnType<typeof listDirectConversations>>, TError = ErrorType<UnauthorizedResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDirectConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDirectConversationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateDirectConversationUrl = () => {
+
+
+
+
+  return `/api/direct-messages/conversations`
+}
+
+/**
+ * @summary Create or retrieve a direct conversation with any other profile
+ */
+export const createDirectConversation = async (directConversationInput: DirectConversationInput, options?: Parameters<typeof customFetch>[1]): Promise<DirectConversation> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DirectConversation>(getCreateDirectConversationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(directConversationInput)
+  }
+);}
+
+
+
+
+
+export const getCreateDirectConversationMutationKey = () => ['createDirectConversation'] as const;
+
+export const getCreateDirectConversationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDirectConversation>>, TError,CreateDirectConversationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDirectConversation>>, TError,CreateDirectConversationMutationVariables, TContext> => {
+
+const mutationKey = getCreateDirectConversationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDirectConversation>>, CreateDirectConversationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createDirectConversation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDirectConversationMutationResult = NonNullable<Awaited<ReturnType<typeof createDirectConversation>>>
+    export type CreateDirectConversationMutationBody = BodyType<DirectConversationInput>
+    export type CreateDirectConversationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>
+    export type CreateDirectConversationMutationVariables = {data: BodyType<DirectConversationInput>}
+
+    /**
+ * @summary Create or retrieve a direct conversation with any other profile
+ */
+export const useCreateDirectConversation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDirectConversation>>, TError,CreateDirectConversationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createDirectConversation>>,
+        TError,
+        CreateDirectConversationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateDirectConversationMutationOptions(options));
+    }
+
+export const getGetDirectConversationUrl = (conversationId: number,) => {
+
+
+
+
+  return `/api/direct-messages/conversations/${conversationId}`
+}
+
+/**
+ * @summary Get a conversation visible to the signed-in profile
+ */
+export const getDirectConversation = async (conversationId: number, options?: Parameters<typeof customFetch>[1]): Promise<DirectConversation> => {
+
+  return customFetch<DirectConversation>(getGetDirectConversationUrl(conversationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDirectConversationQueryKey = (conversationId: number,) => {
+    return [
+    `/api/direct-messages/conversations/${conversationId}`
+    ] as const;
+    }
+
+
+export const getGetDirectConversationQueryOptions = <TData = Awaited<ReturnType<typeof getDirectConversation>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>>(conversationId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDirectConversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDirectConversationQueryKey(conversationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDirectConversation>>> = ({ signal }) => getDirectConversation(conversationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: conversationId !== null && conversationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDirectConversation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDirectConversationQueryResult = NonNullable<Awaited<ReturnType<typeof getDirectConversation>>>
+export type GetDirectConversationQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>
+
+
+/**
+ * @summary Get a conversation visible to the signed-in profile
+ */
+
+export function useGetDirectConversation<TData = Awaited<ReturnType<typeof getDirectConversation>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>>(
+ conversationId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDirectConversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDirectConversationQueryOptions(conversationId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListDirectMessagesUrl = (params: ListDirectMessagesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/direct-messages/messages?${stringifiedParams}` : `/api/direct-messages/messages`
+}
+
+/**
+ * @summary List recent messages in a conversation, newest first
+ */
+export const listDirectMessages = async (params: ListDirectMessagesParams, options?: Parameters<typeof customFetch>[1]): Promise<DirectMessagesPage> => {
+
+  return customFetch<DirectMessagesPage>(getListDirectMessagesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDirectMessagesQueryKey = (params?: ListDirectMessagesParams,) => {
+    return [
+    `/api/direct-messages/messages`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListDirectMessagesQueryOptions = <TData = Awaited<ReturnType<typeof listDirectMessages>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>>(params: ListDirectMessagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDirectMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDirectMessagesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDirectMessages>>> = ({ signal }) => listDirectMessages(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDirectMessages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDirectMessagesQueryResult = NonNullable<Awaited<ReturnType<typeof listDirectMessages>>>
+export type ListDirectMessagesQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>
+
+
+/**
+ * @summary List recent messages in a conversation, newest first
+ */
+
+export function useListDirectMessages<TData = Awaited<ReturnType<typeof listDirectMessages>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>>(
+ params: ListDirectMessagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDirectMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDirectMessagesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSendDirectMessageUrl = (conversationId: number,) => {
+
+
+
+
+  return `/api/direct-messages/conversations/${conversationId}/messages`
+}
+
+/**
+ * @summary Send a message as the authenticated profile
+ */
+export const sendDirectMessage = async (conversationId: number,
+    directMessageInput: DirectMessageInput, options?: Parameters<typeof customFetch>[1]): Promise<DirectMessage> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DirectMessage>(getSendDirectMessageUrl(conversationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(directMessageInput)
+  }
+);}
+
+
+
+
+
+export const getSendDirectMessageMutationKey = () => ['sendDirectMessage'] as const;
+
+export const getSendDirectMessageMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendDirectMessage>>, TError,SendDirectMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendDirectMessage>>, TError,SendDirectMessageMutationVariables, TContext> => {
+
+const mutationKey = getSendDirectMessageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendDirectMessage>>, SendDirectMessageMutationVariables> = (props) => {
+          const {conversationId,data} = props ?? {};
+
+          return  sendDirectMessage(conversationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendDirectMessageMutationResult = NonNullable<Awaited<ReturnType<typeof sendDirectMessage>>>
+    export type SendDirectMessageMutationBody = BodyType<DirectMessageInput>
+    export type SendDirectMessageMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | Error>
+    export type SendDirectMessageMutationVariables = {conversationId: number;data: BodyType<DirectMessageInput>}
+
+    /**
+ * @summary Send a message as the authenticated profile
+ */
+export const useSendDirectMessage = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendDirectMessage>>, TError,SendDirectMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendDirectMessage>>,
+        TError,
+        SendDirectMessageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendDirectMessageMutationOptions(options));
+    }
+
+export const getMarkDirectConversationReadUrl = (conversationId: number,) => {
+
+
+
+
+  return `/api/direct-messages/conversations/${conversationId}/read`
+}
+
+/**
+ * @summary Mark incoming messages in a conversation as read
+ */
+export const markDirectConversationRead = async (conversationId: number, options?: Parameters<typeof customFetch>[1]): Promise<DirectMessageReadResponse> => {
+
+  return customFetch<DirectMessageReadResponse>(getMarkDirectConversationReadUrl(conversationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkDirectConversationReadMutationKey = () => ['markDirectConversationRead'] as const;
+
+export const getMarkDirectConversationReadMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markDirectConversationRead>>, TError,MarkDirectConversationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markDirectConversationRead>>, TError,MarkDirectConversationReadMutationVariables, TContext> => {
+
+const mutationKey = getMarkDirectConversationReadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markDirectConversationRead>>, MarkDirectConversationReadMutationVariables> = (props) => {
+          const {conversationId} = props ?? {};
+
+          return  markDirectConversationRead(conversationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkDirectConversationReadMutationResult = NonNullable<Awaited<ReturnType<typeof markDirectConversationRead>>>
+
+    export type MarkDirectConversationReadMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>
+    export type MarkDirectConversationReadMutationVariables = {conversationId: number}
+
+    /**
+ * @summary Mark incoming messages in a conversation as read
+ */
+export const useMarkDirectConversationRead = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markDirectConversationRead>>, TError,MarkDirectConversationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markDirectConversationRead>>,
+        TError,
+        MarkDirectConversationReadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkDirectConversationReadMutationOptions(options));
+    }
 
 export const getListTopFriendsUrl = () => {
 

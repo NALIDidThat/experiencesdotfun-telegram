@@ -257,7 +257,7 @@ export const LoginWithEmailResponse = zod.object({
  * @summary Record a privacy-minimized app screen view
  */
 export const TrackAnalyticsEventBody = zod.object({
-  "screen": zod.enum(['home', 'explore', 'experiences', 'profile', 'notifications', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email']),
+  "screen": zod.enum(['home', 'explore', 'experiences', 'profile', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email']),
   "platform": zod.enum(['ios', 'android', 'web'])
 })
 
@@ -2124,6 +2124,191 @@ export const ListFriendsResponseItem = zod.object({
   "city": zod.string().nullable()
 }))
 export const ListFriendsResponse = zod.array(ListFriendsResponseItem)
+
+
+/**
+ * @summary Search public profiles to start a direct conversation
+ */
+export const searchDirectMessageProfilesQuerySearchMin = 2;
+export const searchDirectMessageProfilesQuerySearchMax = 64;
+
+export const searchDirectMessageProfilesQueryLimitDefault = 20;
+export const searchDirectMessageProfilesQueryLimitMax = 50;
+
+
+
+export const SearchDirectMessageProfilesQueryParams = zod.object({
+  "search": zod.coerce.string().min(searchDirectMessageProfilesQuerySearchMin).max(searchDirectMessageProfilesQuerySearchMax),
+  "limit": zod.coerce.number().int().min(1).max(searchDirectMessageProfilesQueryLimitMax).default(searchDirectMessageProfilesQueryLimitDefault)
+})
+
+export const SearchDirectMessageProfilesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()])
+})
+export const SearchDirectMessageProfilesResponse = zod.array(SearchDirectMessageProfilesResponseItem)
+
+
+/**
+ * @summary List the signed-in profile's direct conversations
+ */
+export const ListDirectConversationsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "otherUser": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()])
+}),
+  "lastMessage": zod.union([zod.object({
+  "id": zod.number().int(),
+  "senderId": zod.number().int(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+}),zod.null()]),
+  "lastMessageAt": zod.coerce.date().nullable(),
+  "unreadCount": zod.number().int()
+})
+export const ListDirectConversationsResponse = zod.array(ListDirectConversationsResponseItem)
+
+
+/**
+ * @summary Create or retrieve a direct conversation with any other profile
+ */
+
+
+
+export const CreateDirectConversationBody = zod.object({
+  "recipientId": zod.number().int().min(1)
+})
+
+export const CreateDirectConversationResponse = zod.object({
+  "id": zod.number().int(),
+  "otherUser": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()])
+}),
+  "lastMessage": zod.union([zod.object({
+  "id": zod.number().int(),
+  "senderId": zod.number().int(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+}),zod.null()]),
+  "lastMessageAt": zod.coerce.date().nullable(),
+  "unreadCount": zod.number().int()
+})
+
+
+/**
+ * @summary Get a conversation visible to the signed-in profile
+ */
+
+
+
+export const GetDirectConversationParams = zod.object({
+  "conversationId": zod.coerce.number().int().min(1)
+})
+
+export const GetDirectConversationResponse = zod.object({
+  "id": zod.number().int(),
+  "otherUser": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "userType": zod.union([zod.enum(['participant', 'organisation']),zod.null()])
+}),
+  "lastMessage": zod.union([zod.object({
+  "id": zod.number().int(),
+  "senderId": zod.number().int(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+}),zod.null()]),
+  "lastMessageAt": zod.coerce.date().nullable(),
+  "unreadCount": zod.number().int()
+})
+
+
+/**
+ * @summary List recent messages in a conversation, newest first
+ */
+
+
+export const listDirectMessagesQueryLimitDefault = 50;
+export const listDirectMessagesQueryLimitMax = 50;
+
+
+
+export const ListDirectMessagesQueryParams = zod.object({
+  "conversationId": zod.coerce.number().int().min(1),
+  "beforeId": zod.coerce.number().int().min(1).optional(),
+  "limit": zod.coerce.number().int().min(1).max(listDirectMessagesQueryLimitMax).default(listDirectMessagesQueryLimitDefault)
+})
+
+export const ListDirectMessagesResponse = zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.number().int(),
+  "senderId": zod.number().int(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+})),
+  "hasMore": zod.boolean()
+})
+
+
+/**
+ * @summary Send a message as the authenticated profile
+ */
+
+
+
+export const SendDirectMessageParams = zod.object({
+  "conversationId": zod.coerce.number().int().min(1)
+})
+
+export const sendDirectMessageBodyBodyMax = 2000;
+
+
+export const sendDirectMessageBodyBodyRegExp = new RegExp('\\S');
+
+
+export const SendDirectMessageBody = zod.object({
+  "body": zod.string().min(1).max(sendDirectMessageBodyBodyMax).regex(sendDirectMessageBodyBodyRegExp)
+})
+
+export const SendDirectMessageResponse = zod.object({
+  "id": zod.number().int(),
+  "senderId": zod.number().int(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Mark incoming messages in a conversation as read
+ */
+
+
+
+export const MarkDirectConversationReadParams = zod.object({
+  "conversationId": zod.coerce.number().int().min(1)
+})
+
+export const MarkDirectConversationReadResponse = zod.object({
+  "updatedCount": zod.number().int()
+})
 
 
 /**

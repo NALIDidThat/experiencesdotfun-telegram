@@ -56,6 +56,7 @@ import {
   useListFriendRequests,
   useListFriendNotifications,
   useListFriends,
+  useListDirectConversations,
   useListTopFriends,
   useListHostExperiences,
   useListMyParticipations,
@@ -80,6 +81,7 @@ import {
   getListFriendRequestsQueryKey,
   getListFriendNotificationsQueryKey,
   getListFriendsQueryKey,
+  getListDirectConversationsQueryKey,
   getListTopFriendsQueryKey,
   getListSentFriendRequestsQueryKey,
   type Experience,
@@ -103,18 +105,19 @@ import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarn
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
+import { DirectMessagesScreen } from '@/components/DirectMessagesScreen';
 import { ExploreGlobe, type GlobeCity, type GlobeFriend } from '@/components/ExploreGlobe';
 import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'accounts' | 'notifications' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
+type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
 type BottomNavQuickAction = 'post' | 'create' | 'progress';
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
-const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'accounts', 'notifications', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -1786,9 +1789,19 @@ function Home({
     { status: 'upcoming' },
     { query: { enabled: user.userType === 'participant', queryKey: getListMyParticipationsQueryKey({ status: 'upcoming' }) } },
   );
+  const directConversations = useListDirectConversations({
+    query: {
+      enabled: Boolean(authenticatedUser),
+      queryKey: [...getListDirectConversationsQueryKey(), user.id],
+      staleTime: 10_000,
+      refetchInterval: 30_000,
+    },
+  });
   const items = query.data ?? [];
   const firstName = user.name.split(' ')[0];
   const upcomingCount = participations.data?.length ?? 0;
+  const unreadDirectMessageCount = (directConversations.data ?? [])
+    .reduce((total, conversation) => total + conversation.unreadCount, 0);
 
   return (
       <ScrollView
@@ -1830,6 +1843,24 @@ function Home({
             <Text style={[styles.dashboardWelcome, { color: colors.mutedForeground }]}>Find your next way to contribute</Text>
           </View>
           <View style={styles.dashboardGreetingActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={unreadDirectMessageCount > 0
+                ? `Open messages, ${unreadDirectMessageCount} unread`
+                : 'Open messages'}
+              testID="dashboard-messages-button"
+              onPress={() => { triggerHaptic(); go('messages'); }}
+              style={({ pressed }) => [styles.dashboardHeroAction, pressed && styles.dashboardHeroActionPressed]}
+            >
+              <Feather name="message-circle" size={19} color={colors.foreground} />
+              {unreadDirectMessageCount > 0 ? (
+                <View style={[styles.dashboardMessageBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.dashboardMessageBadgeText}>
+                    {unreadDirectMessageCount > 99 ? '99+' : unreadDirectMessageCount}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Open notifications"
@@ -6995,9 +7026,10 @@ export default function App() {
     setScreen(next);
     const screenUsesExperienceId = next === 'experience' || next === 'host-detail' || (next === 'create' && Boolean(nextParams?.id));
     setExperienceId(screenUsesExperienceId ? nextParams?.id : undefined);
+    const routeId = screenUsesExperienceId || next === 'direct-message' ? nextParams?.id : undefined;
     router.setParams({
       screen: next,
-      id: screenUsesExperienceId ? nextParams?.id : undefined,
+      id: routeId,
       friendId: next === 'friend-profile' ? nextParams?.friendId : undefined,
       category: next === 'explore' ? nextParams?.category : undefined,
       step: next === 'create' ? nextParams?.step : undefined,
@@ -7215,6 +7247,23 @@ export default function App() {
   const content = (() => {
     if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
     if (screen === 'host-detail') return <HostExperienceDetail experienceId={Number(experienceId)} go={go} />;
+    if (screen === 'messages') {
+      return (
+        <DirectMessagesScreen
+          onBack={() => go('home')}
+          onOpenConversation={(conversationId) => go('direct-message', { id: String(conversationId) })}
+        />
+      );
+    }
+    if (screen === 'direct-message') {
+      return (
+        <DirectMessagesScreen
+          conversationId={Number(params.id)}
+          onBack={() => go('messages')}
+          onOpenConversation={(conversationId) => go('direct-message', { id: String(conversationId) })}
+        />
+      );
+    }
     if (screen === 'accounts') {
       return (
         <AccountsCenterScreen
@@ -7255,11 +7304,13 @@ export default function App() {
     );
   })();
 
-  const noNav = ['experience', 'host-detail', 'create'].includes(screen);
+  const noNav = ['experience', 'host-detail', 'create', 'direct-message'].includes(screen);
   const navActive = user.userType === 'organisation' && screen === 'experiences'
     ? 'host'
     : screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts'
       ? 'profile'
+      : screen === 'messages' || screen === 'direct-message'
+        ? 'home'
       : screen;
   return (
     <AppShell
@@ -7569,7 +7620,9 @@ const styles = StyleSheet.create({
   dashboardWelcome: { fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'left', marginBottom: 2 },
   dashboardName: { fontSize: 22, lineHeight: 28, fontFamily: 'Inter_700Bold', textAlign: 'left', letterSpacing: -0.45 },
   dashboardGreetingActions: { flexDirection: 'row', alignItems: 'center' },
-  dashboardHeroAction: { alignItems: 'center', height: 42, justifyContent: 'center', width: 42 },
+  dashboardHeroAction: { alignItems: 'center', height: 42, justifyContent: 'center', position: 'relative', width: 42 },
+  dashboardMessageBadge: { alignItems: 'center', borderRadius: 8, height: 16, justifyContent: 'center', minWidth: 16, paddingHorizontal: 3, position: 'absolute', right: 0, top: 0 },
+  dashboardMessageBadgeText: { color: '#FFFFFF', fontFamily: 'Inter_700Bold', fontSize: 8 },
   dashboardHeroAvatarButton: { alignItems: 'center', borderRadius: 21, height: 42, justifyContent: 'center', overflow: 'hidden', width: 42 },
   dashboardHeroAvatar: { alignItems: 'center', borderRadius: 21, height: 42, justifyContent: 'center', width: 42 },
   dashboardHeroActionPressed: { opacity: 0.68, transform: [{ scale: 0.96 }] },

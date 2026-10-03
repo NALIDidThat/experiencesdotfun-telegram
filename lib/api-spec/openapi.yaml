@@ -1097,14 +1097,19 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-  /direct-messages/conversations/{conversationId}/messages:
+  /direct-messages/messages:
     get:
       operationId: listDirectMessages
       tags: [messaging]
       summary: List recent messages in a conversation, newest first
       security: [{ telegramInitData: [] }]
       parameters:
-        - $ref: "#/components/parameters/DirectConversationId"
+        - name: conversationId
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
         - name: beforeId
           in: query
           schema:
@@ -1130,6 +1135,7 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /direct-messages/conversations/{conversationId}/messages:
     post:
       operationId: sendDirectMessage
       tags: [messaging]
@@ -1878,7 +1884,9 @@ components:
         avatarUrl:
           type: [string, "null"]
         userType:
-          $ref: "#/components/schemas/UserType"
+          oneOf:
+            - $ref: "#/components/schemas/UserType"
+            - type: "null"
       required: [id, name, username, avatarUrl, userType]
     DirectMessage:
       type: object
@@ -2044,7 +2052,7 @@ components:
       properties:
         screen:
           type: string
-          enum: [home, explore, experiences, profile, notifications, friends, friend-profile, experience, host, create, email]
+          enum: [home, explore, experiences, profile, notifications, messages, direct-message, friends, friend-profile, experience, host, create, email]
         platform:
           type: string
           enum: [ios, android, web]

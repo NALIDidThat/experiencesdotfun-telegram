@@ -15,6 +15,8 @@ export const AnalyticsEventInputScreen = {
   experiences: 'experiences',
   profile: 'profile',
   notifications: 'notifications',
+  messages: 'messages',
+  'direct-message': 'direct-message',
   friends: 'friends',
   'friend-profile': 'friend-profile',
   experience: 'experience',

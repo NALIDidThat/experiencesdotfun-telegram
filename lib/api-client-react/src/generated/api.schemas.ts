@@ -5,6 +5,65 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type UserType = typeof UserType[keyof typeof UserType];
+
+
+export const UserType = {
+  participant: 'participant',
+  organisation: 'organisation',
+} as const;
+
+export interface DirectMessageProfile {
+  id: number;
+  name: string;
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  avatarUrl: string | null;
+  userType: UserType | null;
+}
+
+export interface DirectMessage {
+  id: number;
+  senderId: number;
+  body: string;
+  createdAt: string;
+  /** @nullable */
+  readAt: string | null;
+}
+
+export interface DirectConversation {
+  id: number;
+  otherUser: DirectMessageProfile;
+  lastMessage: DirectMessage | null;
+  /** @nullable */
+  lastMessageAt: string | null;
+  unreadCount: number;
+}
+
+export interface DirectMessagesPage {
+  messages: DirectMessage[];
+  hasMore: boolean;
+}
+
+export interface DirectConversationInput {
+  /** @minimum 1 */
+  recipientId: number;
+}
+
+export interface DirectMessageInput {
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     * @pattern \S
+     */
+  body: string;
+}
+
+export interface DirectMessageReadResponse {
+  updatedCount: number;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -17,14 +76,6 @@ export interface BotInfo {
   /** @nullable */
   username: string | null;
 }
-
-export type UserType = typeof UserType[keyof typeof UserType];
-
-
-export const UserType = {
-  participant: 'participant',
-  organisation: 'organisation',
-} as const;
 
 export interface TelegramAuthInput {
   /**
@@ -175,6 +226,8 @@ export const AnalyticsEventInputScreen = {
   experiences: 'experiences',
   profile: 'profile',
   notifications: 'notifications',
+  messages: 'messages',
+  'direct-message': 'direct-message',
   friends: 'friends',
   'friend-profile': 'friend-profile',
   experience: 'experience',
@@ -1162,4 +1215,33 @@ export const ListMyParticipationsStatus = {
   upcoming: 'upcoming',
   completed: 'completed',
 } as const;
+
+export type SearchDirectMessageProfilesParams = {
+/**
+ * @minLength 2
+ * @maxLength 64
+ */
+search: string;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+};
+
+export type ListDirectMessagesParams = {
+/**
+ * @minimum 1
+ */
+conversationId: number;
+/**
+ * @minimum 1
+ */
+beforeId?: number;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+};
 

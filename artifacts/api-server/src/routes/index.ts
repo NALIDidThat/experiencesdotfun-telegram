@@ -9,6 +9,7 @@ import analyticsRouter from "./analytics";
 import feedRouter from "./feed";
 import topFriendsRouter from "./top-friends";
 import organisationPartnershipsRouter from "./organisation-partnerships";
+import directMessagesRouter from "./direct-messages";
 
 const router: IRouter = Router();
 
@@ -19,6 +20,7 @@ router.use("/analytics", analyticsRouter);
 router.use(feedRouter);
 router.use(topFriendsRouter);
 router.use("/organisation-partnerships", organisationPartnershipsRouter);
+router.use(directMessagesRouter);
 // Telegram/email auth routes are public and must be checked before the
 // community router's authentication middleware.
 router.use(experiencesRouter);

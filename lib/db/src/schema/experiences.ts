@@ -256,6 +256,8 @@ export const analyticsEventCategories = [
   "experiences",
   "profile",
   "notifications",
+  "messages",
+  "direct-message",
   "friends",
   "friend-profile",
   "experience",
@@ -306,7 +308,7 @@ export const analyticsEventsTable = pgTable(
     ),
     categoryCheck: check(
       "analytics_events_category_check",
-      sql`${table.category} IN ('home', 'explore', 'experiences', 'profile', 'notifications', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email', 'telegram', 'start', 'menu', 'onboarding', 'help', 'xp', 'progress', 'rank', 'leaderboard', 'requests', 'add', 'accountability', 'friendship', 'community', 'other')`,
+      sql`${table.category} IN ('home', 'explore', 'experiences', 'profile', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email', 'telegram', 'start', 'menu', 'onboarding', 'help', 'xp', 'progress', 'rank', 'leaderboard', 'requests', 'add', 'accountability', 'friendship', 'community', 'other')`,
     ),
     platformCheck: check(
       "analytics_events_platform_check",
