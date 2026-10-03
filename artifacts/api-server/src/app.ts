@@ -5,6 +5,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { startAnalyticsRetentionCleanup } from "./lib/analytics";
 import { startTelegramBot } from "./lib/telegram";
+import { shouldStartTelegramPolling } from "./lib/telegram-polling-policy";
 
 const app: Express = express();
 
@@ -33,12 +34,12 @@ app.use(express.urlencoded({ extended: true }));
 
 startAnalyticsRetentionCleanup();
 app.use("/api", router);
-if (process.env.NODE_ENV === "development") {
+if (shouldStartTelegramPolling(process.env.NODE_ENV, process.env.TELEGRAM_POLLING_ENABLED)) {
   void startTelegramBot();
 } else {
   logger.info(
     { nodeEnv: process.env.NODE_ENV ?? "unset" },
-    "Telegram polling is disabled outside development.",
+    "Telegram polling is disabled for this process.",
   );
 }
 

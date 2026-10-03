@@ -99,7 +99,7 @@ async function serializeConversations(rows: DirectConversationRow[], viewerId: n
   const latestMessageIds = db
     .select({
       conversationId: directMessagesTable.conversationId,
-      latestMessageId: max(directMessagesTable.id),
+      latestMessageId: max(directMessagesTable.id).as("latest_message_id"),
     })
     .from(directMessagesTable)
     .where(inArray(directMessagesTable.conversationId, conversationIds))

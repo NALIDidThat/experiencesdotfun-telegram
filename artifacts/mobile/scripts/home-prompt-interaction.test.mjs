@@ -334,6 +334,8 @@ test("the signed-in Home prompt fits, stays accessible, and opens My journey", a
           response = { shareActivityWithFriends: false };
         } else if (url.pathname === "/api/friends" && method === "GET") {
           response = [];
+        } else if (url.pathname === "/api/direct-messages/conversations" && method === "GET") {
+          response = [];
         } else if (url.pathname === "/api/experiences" && method === "GET") {
           response = [];
         } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
