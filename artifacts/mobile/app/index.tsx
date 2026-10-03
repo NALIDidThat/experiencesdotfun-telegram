@@ -101,7 +101,6 @@ import { AccountsCenterScreen } from '@/components/AccountsCenterScreen';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
-import { ProfilePosts } from '@/components/ProfilePosts';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { ExploreGlobe, type GlobeCity, type GlobeFriend } from '@/components/ExploreGlobe';
@@ -2898,8 +2897,6 @@ function ContributionDashboard({ user, completed }: { user: User; completed: Par
   const colors = useColors();
   const weeks = 16;
   const days = 7;
-  const dateKey = (date: Date) =>
-    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   const today = new Date();
   today.setHours(12, 0, 0, 0);
   const end = new Date(today);
@@ -2909,11 +2906,7 @@ function ContributionDashboard({ user, completed }: { user: User; completed: Par
 
   const activityByDate = new Map<string, number>();
   completed?.forEach((item) => {
-    if (!item.verifiedAt) return;
-    const verifiedAt = new Date(item.verifiedAt);
-    if (Number.isNaN(verifiedAt.getTime())) return;
-    const key = dateKey(verifiedAt);
-    if (key < dateKey(start) || key > dateKey(end)) return;
+    const key = item.experience.date;
     activityByDate.set(key, (activityByDate.get(key) ?? 0) + 1);
   });
 
@@ -2921,14 +2914,12 @@ function ContributionDashboard({ user, completed }: { user: User; completed: Par
     Array.from({ length: days }, (_, dayIndex) => {
       const date = new Date(start);
       date.setDate(start.getDate() + weekIndex * days + dayIndex);
-      const key = dateKey(date);
+      const key = date.toISOString().slice(0, 10);
       const count = activityByDate.get(key) ?? 0;
       return { key, count, date };
     }),
   );
-  const total = completed
-    ? [...activityByDate.values()].reduce((sum, count) => sum + count, 0)
-    : user.completedCount;
+  const total = completed?.length ?? user.completedCount;
   const monthLabels = cells.map((week) => {
     const first = week[0].date;
     return first.getDate() <= 7 ? first.toLocaleDateString(undefined, { month: 'short' }) : '';
@@ -3697,26 +3688,23 @@ function FriendProfileScreen({
           onAction={() => { void profile.refetch(); }}
         />
       ) : friend ? (
-        <>
-          <SocialProfileHeader
-            user={{
-              name: friend.name,
-              username: friend.username,
-              avatarUrl: friend.avatarUrl,
-              createdAt: friend.memberSince,
-              level: friend.level,
-              completedCount: friend.completedCount,
-              hostedCount: friend.hostedCount,
-              xp: friend.xp,
-              bio: friend.bio,
-              city: friend.city,
-              interests: friend.interests,
-              socialLinks: friend.socialLinks,
-            }}
-            friendsCount={friend.friendsCount}
-          />
-          <ProfilePosts profileId={friendId} />
-        </>
+        <SocialProfileHeader
+          user={{
+            name: friend.name,
+            username: friend.username,
+            avatarUrl: friend.avatarUrl,
+            createdAt: friend.memberSince,
+            level: friend.level,
+            completedCount: friend.completedCount,
+            hostedCount: friend.hostedCount,
+            xp: friend.xp,
+            bio: friend.bio,
+            city: friend.city,
+            interests: friend.interests,
+            socialLinks: friend.socialLinks,
+          }}
+          friendsCount={friend.friendsCount}
+        />
       ) : null}
     </ScrollView>
   );
@@ -4423,14 +4411,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const [profileMenuError, setProfileMenuError] = useState<string | null>(null);
   const [selectedProfileMetric, setSelectedProfileMetric] = useState<ProfileMetricKey | null>(null);
   const current = profile.data ?? user;
-  const recentVerified = completed.data
-    ?.slice()
-    .sort(
-      (a, b) =>
-        new Date(b.verifiedAt ?? 0).getTime() -
-        new Date(a.verifiedAt ?? 0).getTime(),
-    )
-    .slice(0, 3) ?? [];
 
   const toggleProfileEditor = () => {
     if (!editing) {
@@ -4694,8 +4674,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         }}
       />
 
-      <ProfilePosts profileId={current.id} />
-
       {current.userType === 'participant' ? (
         <>
           <ContributionDashboard user={current} completed={completed.data} />
@@ -4706,14 +4684,12 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
               <InlineError message="Your impact history couldn’t be loaded." />
               <Button label="Try again" variant="secondary" onPress={() => { void completed.refetch(); }} />
             </View>
-          ) : recentVerified.length ? recentVerified.map((item) => (
+          ) : completed.data?.length ? completed.data.slice(0, 3).map((item) => (
             <View key={item.id} style={[styles.historyRow, { borderBottomColor: colors.border }]}>
               <View style={[styles.historyDot, { backgroundColor: colors.primary }]} />
               <View style={styles.historyCopy}>
                 <Text style={[styles.historyTitle, { color: colors.foreground }]}>{item.experience.title}</Text>
-                <Text style={[styles.historySub, { color: colors.mutedForeground }]}>
-                  {item.verifiedAt ? dateLabel(item.verifiedAt) : 'Verification date not recorded'}
-                </Text>
+                <Text style={[styles.historySub, { color: colors.mutedForeground }]}>{dateLabel(item.experience.date)}</Text>
               </View>
               <View style={[styles.historyRewardPill, { backgroundColor: colors.primary + '15' }]}>
                 <Text style={[styles.historyRewardText, { color: colors.primary }]}>+{item.experience.xpReward} XP</Text>
