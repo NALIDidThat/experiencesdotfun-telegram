@@ -16,6 +16,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { setAuthTokenGetter, setBaseUrl } from '@workspace/api-client-react';
 import { AuthProvider } from '@/context/AuthContext';
+import { MotionProvider } from '@/context/MotionContext';
 import { getStoredAuthToken } from '@/lib/auth-storage';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -50,9 +51,11 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) return null;
 
   const appContent = (
-    <AuthProvider>
-      <RootLayoutNav />
-    </AuthProvider>
+    <MotionProvider>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
+    </MotionProvider>
   );
 
   return (
