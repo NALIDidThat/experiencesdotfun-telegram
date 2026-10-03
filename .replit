@@ -2,7 +2,8 @@ modules = ["nodejs-24", "python-base-3.13", "postgresql-16"]
 
 [deployment]
 router = "application"
-deploymentTarget = "autoscale"
+deploymentTarget = "gce"
+ignorePorts = false
 
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]
