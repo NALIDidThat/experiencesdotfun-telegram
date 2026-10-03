@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { AccessibilityInfo, type ReactNode } from 'react-native';
+import React, { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { AccessibilityInfo } from 'react-native';
 
 type MotionPreferences = {
   reduceMotion: boolean;

@@ -3,21 +3,21 @@ import {
   Animated,
   Platform,
   Pressable as NativePressable,
-  StyleSheet,
+  type StyleProp,
   type PressableProps,
-  type PressableStateCallbackType,
+  type ViewStyle,
 } from 'react-native';
 import { useMotionPreferences } from '@/context/MotionContext';
 
 type MotionPressableProps = PressableProps & {
+  containerStyle?: StyleProp<ViewStyle>;
   motion?: boolean;
   pressScale?: number;
 };
 
-const AnimatedPressable = Animated.createAnimatedComponent(NativePressable);
-
 export function MotionPressable({
   children,
+  containerStyle,
   disabled = false,
   motion = true,
   onPressIn,
@@ -46,34 +46,28 @@ export function MotionPressable({
     }).start();
   }, [disabled, motion, reduceMotion, scale]);
 
-  const resolvedStyle = useCallback((state: PressableStateCallbackType) => {
-    const baseStyle = typeof style === 'function' ? style(state) : style;
-    if (!motion || reduceMotion) return baseStyle;
-
-    const flattenedStyle = StyleSheet.flatten(baseStyle);
-    return [
-      baseStyle,
-      {
-        transform: [...(flattenedStyle?.transform ?? []), { scale }],
-      },
-    ];
-  }, [motion, reduceMotion, scale, style]);
-
   return (
-    <AnimatedPressable
-      {...props}
-      disabled={disabled}
-      onPressIn={(event) => {
-        animateScale(pressScale);
-        onPressIn?.(event);
-      }}
-      onPressOut={(event) => {
-        animateScale(1);
-        onPressOut?.(event);
-      }}
-      style={resolvedStyle}
+    <Animated.View
+      style={[
+        containerStyle,
+        motion && !reduceMotion ? { transform: [{ scale }] } : null,
+      ]}
     >
-      {children}
-    </AnimatedPressable>
+      <NativePressable
+        {...props}
+        disabled={disabled}
+        onPressIn={(event) => {
+          animateScale(pressScale);
+          onPressIn?.(event);
+        }}
+        onPressOut={(event) => {
+          animateScale(1);
+          onPressOut?.(event);
+        }}
+        style={style}
+      >
+        {children}
+      </NativePressable>
+    </Animated.View>
   );
 }

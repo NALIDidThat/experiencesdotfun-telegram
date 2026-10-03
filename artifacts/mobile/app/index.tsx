@@ -95,6 +95,7 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
+import { useMotionPreferences } from '@/context/MotionContext';
 import { useColors } from '@/hooks/useColors';
 import { AccountabilitySection } from '@/components/AccountabilitySection';
 import { OrganisationPartnershipsSection } from '@/components/OrganisationPartnershipsSection';
@@ -104,6 +105,7 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { UserAvatar } from '@/components/UserAvatar';
+import { MotionPressable } from '@/components/MotionPressable';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { DirectMessagesScreen } from '@/components/DirectMessagesScreen';
 import { ExploreGlobe, type GlobeCity, type GlobeFriend } from '@/components/ExploreGlobe';
@@ -263,7 +265,6 @@ function Button({
   label: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'alternative'; disabled?: boolean; icon?: IconName; style?: any; color?: string; textColor?: string; testID?: string;
 }) {
   const colors = useColors();
-  const scale = useRef(new Animated.Value(1)).current;
 
   let bg = colors.primary;
   let fg = colors.primaryForeground;
@@ -282,39 +283,28 @@ function Button({
   if (color) bg = color;
   if (textColor) fg = textColor;
 
-  const handlePressIn = () => {
-    if (disabled) return;
-    triggerHaptic();
-    Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, speed: 20, bounciness: 10 }).start();
-  };
-  const handlePressOut = () => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 10 }).start();
-  };
-
   return (
-    <Animated.View style={[{ transform: [{ scale }] }, style]}>
-      <Pressable
-        accessibilityRole="button"
-        testID={testID}
-        disabled={disabled}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onPress={onPress}
-        style={({ pressed }) => [
-          styles.button,
-          {
-            backgroundColor: bg,
-            borderColor: border,
-            borderWidth,
-            borderRadius: colors.radius,
-            opacity: disabled ? 0.4 : pressed ? 0.9 : 1,
-          },
-        ]}
-      >
-        {icon ? <Feather name={icon} size={20} color={fg} style={{ marginRight: 8 }} /> : null}
-        <Text style={[styles.buttonText, { color: fg }]}>{label}</Text>
-      </Pressable>
-    </Animated.View>
+    <MotionPressable
+      containerStyle={style}
+      accessibilityRole="button"
+      testID={testID}
+      disabled={disabled}
+      onPressIn={() => triggerHaptic()}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.button,
+        {
+          backgroundColor: bg,
+          borderColor: border,
+          borderWidth,
+          borderRadius: colors.radius,
+          opacity: disabled ? 0.4 : pressed ? 0.9 : 1,
+        },
+      ]}
+    >
+      {icon ? <Feather name={icon} size={20} color={fg} style={{ marginRight: 8 }} /> : null}
+      <Text style={[styles.buttonText, { color: fg }]}>{label}</Text>
+    </MotionPressable>
   );
 }
 
@@ -470,21 +460,48 @@ function TelegramConnectCard() {
 
 function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => void }) {
   const colors = useColors();
+  const { reduceMotion } = useMotionPreferences();
   const icon = categoryIcon[item.category];
   const gradient = categoryGradients[item.category] ?? categoryGradients.community;
-  const scale = useRef(new Animated.Value(1)).current;
+  const entrance = useRef(new Animated.Value(0)).current;
   const availabilityColor = item.availablePlaces < 4 ? colors.primary : colors.mutedForeground;
   const availabilityLabel = item.availablePlaces === 0 ? 'Waitlist open' : `${item.availablePlaces} spots left`;
 
+  useEffect(() => {
+    if (reduceMotion) {
+      entrance.setValue(1);
+      return;
+    }
+
+    const animation = Animated.timing(entrance, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: Platform.OS !== 'web',
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [entrance, reduceMotion]);
+
   return (
-    <Animated.View style={[styles.experienceCardWrap, { transform: [{ scale }] }]}>
-      <Pressable
+    <Animated.View
+      style={[
+        styles.experienceCardWrap,
+        {
+          opacity: entrance,
+          transform: [{
+            translateY: entrance.interpolate({
+              inputRange: [0, 1],
+              outputRange: [5, 0],
+            }),
+          }],
+        },
+      ]}
+    >
+      <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={`View ${item.title}. ${categoryLabel[item.category]}. ${dateLabel(item.date)} in ${item.city}. ${availabilityLabel}. Earn ${item.xpReward} XP.`}
         accessibilityHint="Opens experience details"
         testID={`explore-experience-card-${item.id}`}
-        onPressIn={() => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true }).start()}
-        onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
         onPress={() => { triggerHaptic(); onPress(); }}
         style={[styles.experienceCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
       >
@@ -550,7 +567,7 @@ function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => vo
             </View>
           </View>
         </View>
-      </Pressable>
+      </MotionPressable>
     </Animated.View>
   );
 }
@@ -6414,6 +6431,7 @@ function BottomNav({
 }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { reduceMotion } = useMotionPreferences();
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const liquidGlassAvailable =
     Platform.OS === 'ios' &&
@@ -6433,6 +6451,7 @@ function BottomNav({
         { key: 'profile', label: 'Profile', icon: 'user' },
       ];
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const selectionProgressRef = useRef<Partial<Record<Screen, Animated.Value>>>({});
   const navBarRef = useRef<View>(null);
   const navWidthRef = useRef(0);
   const navLeftRef = useRef(0);
@@ -6452,6 +6471,28 @@ function BottomNav({
   goRef.current = go;
 
   const activeIndex = Math.max(0, items.findIndex((item) => item.key === active));
+  items.forEach((item) => {
+    if (!selectionProgressRef.current[item.key]) {
+      selectionProgressRef.current[item.key] = new Animated.Value(item.key === active ? 1 : 0);
+    }
+  });
+  const selectionKey = items[dragIndex ?? activeIndex]?.key ?? active;
+  useEffect(() => {
+    Object.entries(selectionProgressRef.current).forEach(([key, progress]) => {
+      if (!progress) return;
+      progress.stopAnimation();
+      if (reduceMotion) {
+        progress.setValue(key === selectionKey ? 1 : 0);
+        return;
+      }
+      Animated.timing(progress, {
+        toValue: key === selectionKey ? 1 : 0,
+        duration: 140,
+        useNativeDriver: Platform.OS !== 'web',
+      }).start();
+    });
+  }, [reduceMotion, selectionKey, userType]);
+
   const getItemIndexAtX = (x: number) => {
     const currentItems = itemsRef.current;
     const fallbackWidth = navWidthRef.current / Math.max(currentItems.length, 1);
@@ -6637,6 +6678,7 @@ function BottomNav({
       >
         {items.map((item, index) => {
           const selected = (dragIndex ?? activeIndex) === index;
+          const selectionProgress = selectionProgressRef.current[item.key]!;
           return (
             <Pressable
               accessibilityRole="button"
@@ -6679,31 +6721,46 @@ function BottomNav({
               ]}
             >
               <View style={styles.navIconWrapper}>
-                {selected
-                  ? liquidGlassAvailable
-                    ? (
-                      <GlassView
-                        pointerEvents="none"
-                        glassEffectStyle="regular"
-                        tintColor={colors.primary}
-                        style={[StyleSheet.absoluteFill, styles.navGlassSurface]}
-                      />
-                    )
-                    : (
-                      <View
-                        pointerEvents="none"
-                        style={[
-                          StyleSheet.absoluteFill,
-                          styles.navGlassSurface,
-                          styles.navGlassFallback,
-                          {
-                            backgroundColor: `${colors.primaryForeground}24`,
-                            borderColor: `${colors.primaryForeground}88`,
-                          },
-                        ]}
-                      />
-                    )
-                  : null}
+                {selected ? (
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      StyleSheet.absoluteFill,
+                      styles.navGlassSurface,
+                      {
+                        opacity: selectionProgress,
+                        transform: [{
+                          scale: selectionProgress.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.94, 1],
+                          }),
+                        }],
+                      },
+                    ]}
+                  >
+                    {liquidGlassAvailable
+                      ? (
+                        <GlassView
+                          pointerEvents="none"
+                          glassEffectStyle="regular"
+                          tintColor={colors.primary}
+                          style={StyleSheet.absoluteFill}
+                        />
+                      )
+                      : (
+                        <View
+                          style={[
+                            StyleSheet.absoluteFill,
+                            styles.navGlassFallback,
+                            {
+                              backgroundColor: `${colors.primaryForeground}24`,
+                              borderColor: `${colors.primaryForeground}88`,
+                            },
+                          ]}
+                        />
+                      )}
+                  </Animated.View>
+                ) : null}
                 <Feather
                   name={item.icon}
                   size={19}
@@ -6724,7 +6781,7 @@ function BottomNav({
           );
         })}
       </View>
-      <Pressable
+      <MotionPressable
         accessibilityRole="button"
         accessibilityLabel="Quick actions"
         accessibilityHint="Post to the feed, create an experience, or view progress."
@@ -6745,7 +6802,7 @@ function BottomNav({
         ]}
       >
         <Feather name="plus" size={25} color={colors.primary} />
-      </Pressable>
+      </MotionPressable>
       <Modal
         visible={quickActionsOpen}
         transparent
@@ -6866,13 +6923,56 @@ function AppShell({
   children,
   bottomNav,
   showFeedbackBanner = true,
+  screenTransitionKey,
 }: {
   children: React.ReactNode;
   bottomNav?: React.ReactNode;
   showFeedbackBanner?: boolean;
+  screenTransitionKey?: string;
 }) {
   const colors = useColors();
+  const { reduceMotion } = useMotionPreferences();
   const [webViewportHeight, setWebViewportHeight] = useState<number | undefined>();
+  const screenOpacity = useRef(new Animated.Value(1)).current;
+  const screenOffset = useRef(new Animated.Value(0)).current;
+  const previousTransitionKey = useRef(screenTransitionKey);
+
+  useEffect(() => {
+    if (!screenTransitionKey) return;
+    if (previousTransitionKey.current === screenTransitionKey) {
+      if (reduceMotion) {
+        screenOpacity.setValue(1);
+        screenOffset.setValue(0);
+      }
+      return;
+    }
+
+    previousTransitionKey.current = screenTransitionKey;
+    screenOpacity.stopAnimation();
+    screenOffset.stopAnimation();
+    if (reduceMotion) {
+      screenOpacity.setValue(1);
+      screenOffset.setValue(0);
+      return;
+    }
+
+    screenOpacity.setValue(0);
+    screenOffset.setValue(5);
+    const animation = Animated.parallel([
+      Animated.timing(screenOpacity, {
+        toValue: 1,
+        duration: 160,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+      Animated.timing(screenOffset, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+    ]);
+    animation.start();
+    return () => animation.stop();
+  }, [reduceMotion, screenOpacity, screenOffset, screenTransitionKey]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
@@ -6923,7 +7023,19 @@ function AppShell({
       ]}
     >
       {showFeedbackBanner ? <FeedbackBanner /> : null}
-      <View style={styles.appContent}>{children}</View>
+      <Animated.View
+        style={[
+          styles.appContent,
+          screenTransitionKey
+            ? {
+                opacity: screenOpacity,
+                transform: [{ translateY: screenOffset }],
+              }
+            : null,
+        ]}
+      >
+        {children}
+      </Animated.View>
       {bottomNav}
     </View>
   );
@@ -7312,8 +7424,14 @@ export default function App() {
       : screen === 'messages' || screen === 'direct-message'
         ? 'home'
       : screen;
+  const transitionEntityId = ['experience', 'host-detail', 'direct-message'].includes(screen)
+    ? params.id
+    : screen === 'friend-profile'
+      ? params.friendId
+      : undefined;
   return (
     <AppShell
+      screenTransitionKey={`${screen}:${transitionEntityId ?? ''}`}
       bottomNav={!noNav
         ? (
           <BottomNav
