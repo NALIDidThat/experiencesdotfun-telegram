@@ -1789,13 +1789,6 @@ function Home({
   const items = query.data ?? [];
   const firstName = user.name.split(' ')[0];
   const upcomingCount = participations.data?.length ?? 0;
-  const quickActions: Array<{ label: string; icon: IconName; screen: Screen }> = [
-    { label: 'Explore', icon: 'compass', screen: 'explore' },
-    ...(user.userType === 'participant'
-      ? [{ label: 'Journey', icon: 'calendar' as IconName, screen: 'experiences' as Screen }]
-      : [{ label: 'Host tools', icon: 'briefcase' as IconName, screen: 'host' as Screen }]),
-    { label: user.userType === 'organisation' ? 'Organisation' : 'Passport', icon: user.userType === 'organisation' ? 'briefcase' : 'award', screen: 'profile' },
-  ];
 
   return (
       <ScrollView
@@ -1971,26 +1964,6 @@ function Home({
           </View>
         </View>
       </Pressable>
-
-      <View style={styles.dashboardSectionHeader}>
-        <Text style={[styles.dashboardSectionTitle, { color: colors.foreground }]}>Quick actions</Text>
-      </View>
-      <View style={styles.dashboardActionGrid}>
-        {quickActions.map((action) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={action.label}
-            key={action.label}
-            onPress={() => { triggerHaptic(); go(action.screen); }}
-            style={({ pressed }) => [styles.dashboardAction, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.75 : 1 }]}
-          >
-            <View style={[styles.dashboardActionIcon, { backgroundColor: colors.primary + '12' }]}>
-              <Feather name={action.icon} size={19} color={colors.primary} />
-            </View>
-            <Text numberOfLines={2} style={[styles.dashboardActionLabel, { color: colors.foreground }]}>{action.label}</Text>
-          </Pressable>
-        ))}
-      </View>
 
       <SocialFeed
         currentUserId={user.id}
@@ -7631,10 +7604,6 @@ const styles = StyleSheet.create({
   dashboardSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 13, marginTop: 4 },
   dashboardSectionTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
   dashboardSeeAll: { fontSize: 13, fontFamily: 'Inter_700Bold' },
-  dashboardActionGrid: { flexDirection: 'row', gap: 8, marginBottom: 28 },
-  dashboardAction: { alignItems: 'center', borderWidth: 1, flex: 1, justifyContent: 'center', minHeight: 86, paddingHorizontal: 5, paddingVertical: 10, gap: 8 },
-  dashboardActionIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  dashboardActionLabel: { alignSelf: 'stretch', fontSize: 12, lineHeight: 15, textAlign: 'center', fontFamily: 'Inter_600SemiBold' },
   dashboardEventCard: { borderWidth: 1, overflow: 'hidden', marginBottom: 14 },
   dashboardEventPhoto: { height: 168, position: 'relative', overflow: 'hidden' },
   dashboardEventPhotoTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: 12 },
