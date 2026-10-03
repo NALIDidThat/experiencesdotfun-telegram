@@ -8,6 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "test": "node --test src/lib/*.test.mjs",
+    "test:auth-routing": "node --test scripts/auth-routing.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

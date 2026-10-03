@@ -10,7 +10,6 @@ import {
 import { currentUser, requireTelegramUser } from "../lib/auth";
 
 const router: IRouter = Router();
-router.use(requireTelegramUser);
 
 function friendSummary(user: {
   id: number;
@@ -54,11 +53,11 @@ async function readTopFriends(userId: number) {
   return rows.map(({ friend }) => friendSummary(friend));
 }
 
-router.get("/friends/top", async (req, res): Promise<void> => {
+router.get("/friends/top", requireTelegramUser, async (req, res): Promise<void> => {
   res.json(await readTopFriends(currentUser(req).id));
 });
 
-router.put("/friends/top", async (req, res): Promise<void> => {
+router.put("/friends/top", requireTelegramUser, async (req, res): Promise<void> => {
   const parsed = SaveTopFriendsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: "Choose up to three different friends." });
