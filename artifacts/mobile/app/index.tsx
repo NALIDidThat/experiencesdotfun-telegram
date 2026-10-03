@@ -108,18 +108,20 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { MotionPressable } from '@/components/MotionPressable';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { DirectMessagesScreen } from '@/components/DirectMessagesScreen';
+import { AiAssistantScreen } from '@/components/AiAssistantScreen';
+import { ExperienceChallengesScreen } from '@/components/ExperienceChallengesScreen';
 import { ExploreGlobe, type GlobeCity, type GlobeFriend } from '@/components/ExploreGlobe';
 import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
+type Screen = 'home' | 'explore' | 'experiences' | 'ai' | 'challenges' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
 type BottomNavQuickAction = 'post' | 'create' | 'progress';
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
-const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'ai', 'challenges', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -6447,7 +6449,8 @@ function BottomNav({
     : [
         { key: 'home', label: 'Home', icon: 'home' },
         { key: 'explore', label: 'Explore', icon: 'compass' },
-        { key: 'experiences', label: 'Activity', icon: 'calendar' },
+        { key: 'ai', label: 'Assistant', icon: 'message-square' },
+        { key: 'challenges', label: 'Challenges', icon: 'users' },
         { key: 'profile', label: 'Profile', icon: 'user' },
       ];
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -7400,6 +7403,20 @@ export default function App() {
       );
     }
     if (screen === 'explore') return <Explore go={go} />;
+    if (screen === 'ai') {
+      return (
+        <AiAssistantScreen
+          onOpenExperience={(id) => go('experience', { id: String(id) })}
+        />
+      );
+    }
+    if (screen === 'challenges') {
+      return (
+        <ExperienceChallengesScreen
+          onOpenExperience={(id) => go('experience', { id: String(id) })}
+        />
+      );
+    }
     if (screen === 'experiences') return user.userType === 'organisation' ? <Host go={go} /> : <Experiences go={go} />;
     if (screen === 'profile') return <Profile user={user} go={go} />;
     if (screen === 'host') return <Host go={go} />;
@@ -7419,6 +7436,8 @@ export default function App() {
   const noNav = ['experience', 'host-detail', 'create', 'direct-message'].includes(screen);
   const navActive = user.userType === 'organisation' && screen === 'experiences'
     ? 'host'
+    : screen === 'experiences'
+      ? 'home'
     : screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts'
       ? 'profile'
       : screen === 'messages' || screen === 'direct-message'

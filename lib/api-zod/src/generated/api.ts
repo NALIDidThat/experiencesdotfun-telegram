@@ -9,6 +9,251 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary List challenges involving the signed-in participant
+ */
+export const listExperienceChallengesResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ListExperienceChallengesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "experienceId": zod.number().int(),
+  "experienceTitle": zod.string(),
+  "experienceDate": zod.string().regex(listExperienceChallengesResponseExperienceDateRegExp),
+  "experienceCity": zod.string(),
+  "challenger": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "challenged": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "status": zod.enum(['pending', 'accepted', 'declined', 'completed']),
+  "direction": zod.enum(['incoming', 'outgoing']),
+  "createdAt": zod.coerce.date(),
+  "acceptedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable()
+})
+export const ListExperienceChallengesResponse = zod.array(ListExperienceChallengesResponseItem)
+
+
+/**
+ * @summary Challenge an accepted friend to a published experience
+ */
+
+
+
+
+export const CreateExperienceChallengeBody = zod.object({
+  "experienceId": zod.number().int().min(1),
+  "friendId": zod.number().int().min(1)
+})
+
+export const createExperienceChallengeResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CreateExperienceChallengeResponse = zod.object({
+  "id": zod.number().int(),
+  "experienceId": zod.number().int(),
+  "experienceTitle": zod.string(),
+  "experienceDate": zod.string().regex(createExperienceChallengeResponseExperienceDateRegExp),
+  "experienceCity": zod.string(),
+  "challenger": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "challenged": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "status": zod.enum(['pending', 'accepted', 'declined', 'completed']),
+  "direction": zod.enum(['incoming', 'outgoing']),
+  "createdAt": zod.coerce.date(),
+  "acceptedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Accept a challenge sent to the signed-in participant
+ */
+
+
+
+export const AcceptExperienceChallengeParams = zod.object({
+  "challengeId": zod.coerce.number().int().min(1)
+})
+
+export const acceptExperienceChallengeResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const AcceptExperienceChallengeResponse = zod.object({
+  "id": zod.number().int(),
+  "experienceId": zod.number().int(),
+  "experienceTitle": zod.string(),
+  "experienceDate": zod.string().regex(acceptExperienceChallengeResponseExperienceDateRegExp),
+  "experienceCity": zod.string(),
+  "challenger": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "challenged": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "status": zod.enum(['pending', 'accepted', 'declined', 'completed']),
+  "direction": zod.enum(['incoming', 'outgoing']),
+  "createdAt": zod.coerce.date(),
+  "acceptedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Decline a challenge sent to the signed-in participant
+ */
+
+
+
+export const DeclineExperienceChallengeParams = zod.object({
+  "challengeId": zod.coerce.number().int().min(1)
+})
+
+export const declineExperienceChallengeResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const DeclineExperienceChallengeResponse = zod.object({
+  "id": zod.number().int(),
+  "experienceId": zod.number().int(),
+  "experienceTitle": zod.string(),
+  "experienceDate": zod.string().regex(declineExperienceChallengeResponseExperienceDateRegExp),
+  "experienceCity": zod.string(),
+  "challenger": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "challenged": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "status": zod.enum(['pending', 'accepted', 'declined', 'completed']),
+  "direction": zod.enum(['incoming', 'outgoing']),
+  "createdAt": zod.coerce.date(),
+  "acceptedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary List conversations owned by the signed-in participant
+ */
+export const ListAiAssistantConversationsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListAiAssistantConversationsResponse = zod.array(ListAiAssistantConversationsResponseItem)
+
+
+/**
+ * @summary Create a persistent AI assistant conversation
+ */
+export const CreateAiAssistantConversationResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get a conversation owned by the signed-in participant
+ */
+
+
+
+export const GetAiAssistantConversationParams = zod.object({
+  "conversationId": zod.coerce.number().int().min(1)
+})
+
+export const GetAiAssistantConversationResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.number().int(),
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string(),
+  "actions": zod.array(zod.object({
+  "id": zod.string(),
+  "type": zod.enum(['view_experience', 'join_experience', 'challenge_friend']),
+  "experienceId": zod.number().int(),
+  "experienceTitle": zod.string(),
+  "experienceDate": zod.string(),
+  "experienceCity": zod.string(),
+  "label": zod.string(),
+  "friendId": zod.number().int().nullable(),
+  "friendName": zod.string().nullable()
+})),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Delete a conversation owned by the signed-in participant
+ */
+
+
+
+export const DeleteAiAssistantConversationParams = zod.object({
+  "conversationId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteAiAssistantConversationResponse = zod.void()
+
+
+/**
+ * @summary Send a message and receive the assistant response as a stream
+ */
+
+
+
+export const SendAiAssistantMessageParams = zod.object({
+  "conversationId": zod.coerce.number().int().min(1)
+})
+
+export const sendAiAssistantMessageBodyContentMax = 1200;
+
+
+
+export const SendAiAssistantMessageBody = zod.object({
+  "content": zod.string().min(1).max(sendAiAssistantMessageBodyContentMax)
+})
+
+export const SendAiAssistantMessageResponse = zod.unknown()
+
+
+/**
  * Returns server health status
  * @summary Health check
  */
@@ -257,7 +502,7 @@ export const LoginWithEmailResponse = zod.object({
  * @summary Record a privacy-minimized app screen view
  */
 export const TrackAnalyticsEventBody = zod.object({
-  "screen": zod.enum(['home', 'explore', 'experiences', 'profile', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email']),
+  "screen": zod.enum(['home', 'explore', 'experiences', 'ai', 'challenges', 'profile', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email']),
   "platform": zod.enum(['ios', 'android', 'web'])
 })
 

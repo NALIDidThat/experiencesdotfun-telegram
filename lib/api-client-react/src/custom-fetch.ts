@@ -369,3 +369,37 @@ export async function customFetch<T = unknown>(
 
   return (await parseSuccessBody(response, responseType, requestInfo)) as T;
 }
+
+export async function customFetchResponse(
+  input: RequestInfo | URL,
+  options: CustomFetchOptions = {},
+): Promise<Response> {
+  input = applyBaseUrl(input);
+  const { responseType: _responseType, headers: headersInit, ...init } = options;
+  const method = resolveMethod(input, init.method);
+
+  if (init.body != null && (method === "GET" || method === "HEAD")) {
+    throw new TypeError(`customFetchResponse: ${method} requests cannot have a body.`);
+  }
+
+  const headers = mergeHeaders(isRequest(input) ? input.headers : undefined, headersInit);
+  if (
+    typeof init.body === "string" &&
+    !headers.has("content-type") &&
+    looksLikeJson(init.body)
+  ) {
+    headers.set("content-type", "application/json");
+  }
+  if (_authTokenGetter && !headers.has("authorization")) {
+    const token = await _authTokenGetter();
+    if (token) headers.set("authorization", `Bearer ${token}`);
+  }
+
+  const requestInfo = { method, url: resolveUrl(input) };
+  const response = await fetch(input, { ...init, method, headers });
+  if (!response.ok) {
+    const errorData = await parseErrorBody(response, method);
+    throw new ApiError(response, errorData, requestInfo);
+  }
+  return response;
+}

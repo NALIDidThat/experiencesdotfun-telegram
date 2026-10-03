@@ -13,6 +13,8 @@ export const AnalyticsEventInputScreen = {
   home: 'home',
   explore: 'explore',
   experiences: 'experiences',
+  ai: 'ai',
+  challenges: 'challenges',
   profile: 'profile',
   notifications: 'notifications',
   messages: 'messages',

@@ -34,6 +34,7 @@ import {
   feedActivityEventsTable,
   feedPreferencesTable,
   experiencesTable,
+  experienceChallengesTable,
   friendNotificationsTable,
   friendshipsTable,
   organisationsTable,
@@ -1839,6 +1840,16 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
       )
       .returning();
     if (!verified) return undefined;
+    await transaction
+      .update(experienceChallengesTable)
+      .set({ status: "completed", completedAt: verifiedAt })
+      .where(
+        and(
+          eq(experienceChallengesTable.experienceId, participation.experienceId),
+          eq(experienceChallengesTable.challengedUserId, participation.userId),
+          eq(experienceChallengesTable.status, "accepted"),
+        ),
+      );
     if (experience && experience.xpReward > 0) {
       await transaction.insert(xpAwardsTable).values({
         userId: participation.userId,
@@ -2063,6 +2074,16 @@ router.post(
           .update(participationsTable)
           .set({ status: "verified", verifiedAt, rewardStatus: "issued" })
           .where(eq(participationsTable.id, participation.id));
+        await transaction
+          .update(experienceChallengesTable)
+          .set({ status: "completed", completedAt: verifiedAt })
+          .where(
+            and(
+              eq(experienceChallengesTable.experienceId, participation.experienceId),
+              eq(experienceChallengesTable.challengedUserId, participation.userId),
+              eq(experienceChallengesTable.status, "accepted"),
+            ),
+          );
 
         const visibility = await automaticActivityVisibility(
           transaction,

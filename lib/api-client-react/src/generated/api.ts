@@ -30,6 +30,9 @@ import type {
   AccountabilityInvitationInput,
   AccountabilityMutationResult,
   AddCommunityInput,
+  AiAssistantConversation,
+  AiAssistantConversationSummary,
+  AiAssistantMessageInput,
   AnalyticsEventAccepted,
   AnalyticsEventInput,
   AuthResponse,
@@ -51,6 +54,8 @@ import type {
   EmailSignupInput,
   Error,
   Experience,
+  ExperienceChallenge,
+  ExperienceChallengeCreateInput,
   ExperienceCreateInput,
   ExperienceDetail,
   ExperienceMilestoneProgress,
@@ -124,6 +129,710 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListExperienceChallengesUrl = () => {
+
+
+
+
+  return `/api/challenges`
+}
+
+/**
+ * @summary List challenges involving the signed-in participant
+ */
+export const listExperienceChallenges = async ( options?: Parameters<typeof customFetch>[1]): Promise<ExperienceChallenge[]> => {
+
+  return customFetch<ExperienceChallenge[]>(getListExperienceChallengesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListExperienceChallengesQueryKey = () => {
+    return [
+    `/api/challenges`
+    ] as const;
+    }
+
+
+export const getListExperienceChallengesQueryOptions = <TData = Awaited<ReturnType<typeof listExperienceChallenges>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExperienceChallenges>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListExperienceChallengesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listExperienceChallenges>>> = ({ signal }) => listExperienceChallenges({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listExperienceChallenges>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListExperienceChallengesQueryResult = NonNullable<Awaited<ReturnType<typeof listExperienceChallenges>>>
+export type ListExperienceChallengesQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary List challenges involving the signed-in participant
+ */
+
+export function useListExperienceChallenges<TData = Awaited<ReturnType<typeof listExperienceChallenges>>, TError = ErrorType<UnauthorizedResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExperienceChallenges>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListExperienceChallengesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateExperienceChallengeUrl = () => {
+
+
+
+
+  return `/api/challenges`
+}
+
+/**
+ * @summary Challenge an accepted friend to a published experience
+ */
+export const createExperienceChallenge = async (experienceChallengeCreateInput: ExperienceChallengeCreateInput, options?: Parameters<typeof customFetch>[1]): Promise<ExperienceChallenge> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ExperienceChallenge>(getCreateExperienceChallengeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(experienceChallengeCreateInput)
+  }
+);}
+
+
+
+
+
+export const getCreateExperienceChallengeMutationKey = () => ['createExperienceChallenge'] as const;
+
+export const getCreateExperienceChallengeMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExperienceChallenge>>, TError,CreateExperienceChallengeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createExperienceChallenge>>, TError,CreateExperienceChallengeMutationVariables, TContext> => {
+
+const mutationKey = getCreateExperienceChallengeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createExperienceChallenge>>, CreateExperienceChallengeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createExperienceChallenge(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateExperienceChallengeMutationResult = NonNullable<Awaited<ReturnType<typeof createExperienceChallenge>>>
+    export type CreateExperienceChallengeMutationBody = BodyType<ExperienceChallengeCreateInput>
+    export type CreateExperienceChallengeMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | NotFoundResponse | ConflictResponse>
+    export type CreateExperienceChallengeMutationVariables = {data: BodyType<ExperienceChallengeCreateInput>}
+
+    /**
+ * @summary Challenge an accepted friend to a published experience
+ */
+export const useCreateExperienceChallenge = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExperienceChallenge>>, TError,CreateExperienceChallengeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createExperienceChallenge>>,
+        TError,
+        CreateExperienceChallengeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateExperienceChallengeMutationOptions(options));
+    }
+
+export const getAcceptExperienceChallengeUrl = (challengeId: number,) => {
+
+
+
+
+  return `/api/challenges/${challengeId}/accept`
+}
+
+/**
+ * @summary Accept a challenge sent to the signed-in participant
+ */
+export const acceptExperienceChallenge = async (challengeId: number, options?: Parameters<typeof customFetch>[1]): Promise<ExperienceChallenge> => {
+
+  return customFetch<ExperienceChallenge>(getAcceptExperienceChallengeUrl(challengeId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAcceptExperienceChallengeMutationKey = () => ['acceptExperienceChallenge'] as const;
+
+export const getAcceptExperienceChallengeMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptExperienceChallenge>>, TError,AcceptExperienceChallengeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptExperienceChallenge>>, TError,AcceptExperienceChallengeMutationVariables, TContext> => {
+
+const mutationKey = getAcceptExperienceChallengeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptExperienceChallenge>>, AcceptExperienceChallengeMutationVariables> = (props) => {
+          const {challengeId} = props ?? {};
+
+          return  acceptExperienceChallenge(challengeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptExperienceChallengeMutationResult = NonNullable<Awaited<ReturnType<typeof acceptExperienceChallenge>>>
+
+    export type AcceptExperienceChallengeMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type AcceptExperienceChallengeMutationVariables = {challengeId: number}
+
+    /**
+ * @summary Accept a challenge sent to the signed-in participant
+ */
+export const useAcceptExperienceChallenge = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptExperienceChallenge>>, TError,AcceptExperienceChallengeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acceptExperienceChallenge>>,
+        TError,
+        AcceptExperienceChallengeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAcceptExperienceChallengeMutationOptions(options));
+    }
+
+export const getDeclineExperienceChallengeUrl = (challengeId: number,) => {
+
+
+
+
+  return `/api/challenges/${challengeId}/decline`
+}
+
+/**
+ * @summary Decline a challenge sent to the signed-in participant
+ */
+export const declineExperienceChallenge = async (challengeId: number, options?: Parameters<typeof customFetch>[1]): Promise<ExperienceChallenge> => {
+
+  return customFetch<ExperienceChallenge>(getDeclineExperienceChallengeUrl(challengeId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeclineExperienceChallengeMutationKey = () => ['declineExperienceChallenge'] as const;
+
+export const getDeclineExperienceChallengeMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineExperienceChallenge>>, TError,DeclineExperienceChallengeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof declineExperienceChallenge>>, TError,DeclineExperienceChallengeMutationVariables, TContext> => {
+
+const mutationKey = getDeclineExperienceChallengeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof declineExperienceChallenge>>, DeclineExperienceChallengeMutationVariables> = (props) => {
+          const {challengeId} = props ?? {};
+
+          return  declineExperienceChallenge(challengeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeclineExperienceChallengeMutationResult = NonNullable<Awaited<ReturnType<typeof declineExperienceChallenge>>>
+
+    export type DeclineExperienceChallengeMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type DeclineExperienceChallengeMutationVariables = {challengeId: number}
+
+    /**
+ * @summary Decline a challenge sent to the signed-in participant
+ */
+export const useDeclineExperienceChallenge = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineExperienceChallenge>>, TError,DeclineExperienceChallengeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof declineExperienceChallenge>>,
+        TError,
+        DeclineExperienceChallengeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeclineExperienceChallengeMutationOptions(options));
+    }
+
+export const getListAiAssistantConversationsUrl = () => {
+
+
+
+
+  return `/api/ai/conversations`
+}
+
+/**
+ * @summary List conversations owned by the signed-in participant
+ */
+export const listAiAssistantConversations = async ( options?: Parameters<typeof customFetch>[1]): Promise<AiAssistantConversationSummary[]> => {
+
+  return customFetch<AiAssistantConversationSummary[]>(getListAiAssistantConversationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAiAssistantConversationsQueryKey = () => {
+    return [
+    `/api/ai/conversations`
+    ] as const;
+    }
+
+
+export const getListAiAssistantConversationsQueryOptions = <TData = Awaited<ReturnType<typeof listAiAssistantConversations>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAiAssistantConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAiAssistantConversationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAiAssistantConversations>>> = ({ signal }) => listAiAssistantConversations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAiAssistantConversations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAiAssistantConversationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAiAssistantConversations>>>
+export type ListAiAssistantConversationsQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary List conversations owned by the signed-in participant
+ */
+
+export function useListAiAssistantConversations<TData = Awaited<ReturnType<typeof listAiAssistantConversations>>, TError = ErrorType<UnauthorizedResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAiAssistantConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAiAssistantConversationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAiAssistantConversationUrl = () => {
+
+
+
+
+  return `/api/ai/conversations`
+}
+
+/**
+ * @summary Create a persistent AI assistant conversation
+ */
+export const createAiAssistantConversation = async ( options?: Parameters<typeof customFetch>[1]): Promise<AiAssistantConversationSummary> => {
+
+  return customFetch<AiAssistantConversationSummary>(getCreateAiAssistantConversationUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateAiAssistantConversationMutationKey = () => ['createAiAssistantConversation'] as const;
+
+export const getCreateAiAssistantConversationMutationOptions = <TError = ErrorType<UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAiAssistantConversation>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAiAssistantConversation>>, TError,void, TContext> => {
+
+const mutationKey = getCreateAiAssistantConversationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAiAssistantConversation>>, void> = () => {
+
+
+          return  createAiAssistantConversation(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAiAssistantConversationMutationResult = NonNullable<Awaited<ReturnType<typeof createAiAssistantConversation>>>
+
+    export type CreateAiAssistantConversationMutationError = ErrorType<UnauthorizedResponse>
+
+
+    /**
+ * @summary Create a persistent AI assistant conversation
+ */
+export const useCreateAiAssistantConversation = <TError = ErrorType<UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAiAssistantConversation>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAiAssistantConversation>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCreateAiAssistantConversationMutationOptions(options));
+    }
+
+export const getGetAiAssistantConversationUrl = (conversationId: number,) => {
+
+
+
+
+  return `/api/ai/conversations/${conversationId}`
+}
+
+/**
+ * @summary Get a conversation owned by the signed-in participant
+ */
+export const getAiAssistantConversation = async (conversationId: number, options?: Parameters<typeof customFetch>[1]): Promise<AiAssistantConversation> => {
+
+  return customFetch<AiAssistantConversation>(getGetAiAssistantConversationUrl(conversationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAiAssistantConversationQueryKey = (conversationId: number,) => {
+    return [
+    `/api/ai/conversations/${conversationId}`
+    ] as const;
+    }
+
+
+export const getGetAiAssistantConversationQueryOptions = <TData = Awaited<ReturnType<typeof getAiAssistantConversation>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(conversationId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiAssistantConversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAiAssistantConversationQueryKey(conversationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiAssistantConversation>>> = ({ signal }) => getAiAssistantConversation(conversationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: conversationId !== null && conversationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiAssistantConversation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAiAssistantConversationQueryResult = NonNullable<Awaited<ReturnType<typeof getAiAssistantConversation>>>
+export type GetAiAssistantConversationQueryError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+
+
+/**
+ * @summary Get a conversation owned by the signed-in participant
+ */
+
+export function useGetAiAssistantConversation<TData = Awaited<ReturnType<typeof getAiAssistantConversation>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(
+ conversationId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiAssistantConversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAiAssistantConversationQueryOptions(conversationId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteAiAssistantConversationUrl = (conversationId: number,) => {
+
+
+
+
+  return `/api/ai/conversations/${conversationId}`
+}
+
+/**
+ * @summary Delete a conversation owned by the signed-in participant
+ */
+export const deleteAiAssistantConversation = async (conversationId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteAiAssistantConversationUrl(conversationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAiAssistantConversationMutationKey = () => ['deleteAiAssistantConversation'] as const;
+
+export const getDeleteAiAssistantConversationMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAiAssistantConversation>>, TError,DeleteAiAssistantConversationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAiAssistantConversation>>, TError,DeleteAiAssistantConversationMutationVariables, TContext> => {
+
+const mutationKey = getDeleteAiAssistantConversationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAiAssistantConversation>>, DeleteAiAssistantConversationMutationVariables> = (props) => {
+          const {conversationId} = props ?? {};
+
+          return  deleteAiAssistantConversation(conversationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAiAssistantConversationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAiAssistantConversation>>>
+
+    export type DeleteAiAssistantConversationMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+    export type DeleteAiAssistantConversationMutationVariables = {conversationId: number}
+
+    /**
+ * @summary Delete a conversation owned by the signed-in participant
+ */
+export const useDeleteAiAssistantConversation = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAiAssistantConversation>>, TError,DeleteAiAssistantConversationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAiAssistantConversation>>,
+        TError,
+        DeleteAiAssistantConversationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteAiAssistantConversationMutationOptions(options));
+    }
+
+export const getSendAiAssistantMessageUrl = (conversationId: number,) => {
+
+
+
+
+  return `/api/ai/conversations/${conversationId}/messages`
+}
+
+/**
+ * @summary Send a message and receive the assistant response as a stream
+ */
+export const sendAiAssistantMessage = async (conversationId: number,
+    aiAssistantMessageInput: AiAssistantMessageInput, options?: Parameters<typeof customFetch>[1]): Promise<string> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<string>(getSendAiAssistantMessageUrl(conversationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(aiAssistantMessageInput)
+  }
+);}
+
+
+
+
+
+export const getSendAiAssistantMessageMutationKey = () => ['sendAiAssistantMessage'] as const;
+
+export const getSendAiAssistantMessageMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAiAssistantMessage>>, TError,SendAiAssistantMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendAiAssistantMessage>>, TError,SendAiAssistantMessageMutationVariables, TContext> => {
+
+const mutationKey = getSendAiAssistantMessageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendAiAssistantMessage>>, SendAiAssistantMessageMutationVariables> = (props) => {
+          const {conversationId,data} = props ?? {};
+
+          return  sendAiAssistantMessage(conversationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendAiAssistantMessageMutationResult = NonNullable<Awaited<ReturnType<typeof sendAiAssistantMessage>>>
+    export type SendAiAssistantMessageMutationBody = BodyType<AiAssistantMessageInput>
+    export type SendAiAssistantMessageMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | Error>
+    export type SendAiAssistantMessageMutationVariables = {conversationId: number;data: BodyType<AiAssistantMessageInput>}
+
+    /**
+ * @summary Send a message and receive the assistant response as a stream
+ */
+export const useSendAiAssistantMessage = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAiAssistantMessage>>, TError,SendAiAssistantMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendAiAssistantMessage>>,
+        TError,
+        SendAiAssistantMessageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendAiAssistantMessageMutationOptions(options));
+    }
 
 export const getHealthCheckUrl = () => {
 

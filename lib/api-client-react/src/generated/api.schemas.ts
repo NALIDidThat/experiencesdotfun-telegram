@@ -224,6 +224,8 @@ export const AnalyticsEventInputScreen = {
   home: 'home',
   explore: 'explore',
   experiences: 'experiences',
+  ai: 'ai',
+  challenges: 'challenges',
   profile: 'profile',
   notifications: 'notifications',
   messages: 'messages',
@@ -631,6 +633,107 @@ export interface HostOverview {
 export type HostExperience = Experience & {
   waitlistCount: number;
 };
+
+export interface ExperienceChallengeCreateInput {
+  /** @minimum 1 */
+  experienceId: number;
+  /** @minimum 1 */
+  friendId: number;
+}
+
+export type ExperienceChallengeStatus = typeof ExperienceChallengeStatus[keyof typeof ExperienceChallengeStatus];
+
+
+export const ExperienceChallengeStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+  declined: 'declined',
+  completed: 'completed',
+} as const;
+
+export type ExperienceChallengeDirection = typeof ExperienceChallengeDirection[keyof typeof ExperienceChallengeDirection];
+
+
+export const ExperienceChallengeDirection = {
+  incoming: 'incoming',
+  outgoing: 'outgoing',
+} as const;
+
+export interface ExperienceChallenge {
+  id: number;
+  experienceId: number;
+  experienceTitle: string;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  experienceDate: string;
+  experienceCity: string;
+  challenger: ParticipantSummary;
+  challenged: ParticipantSummary;
+  status: ExperienceChallengeStatus;
+  direction: ExperienceChallengeDirection;
+  createdAt: string;
+  /** @nullable */
+  acceptedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+}
+
+export interface AiAssistantConversationSummary {
+  id: number;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AiAssistantActionType = typeof AiAssistantActionType[keyof typeof AiAssistantActionType];
+
+
+export const AiAssistantActionType = {
+  view_experience: 'view_experience',
+  join_experience: 'join_experience',
+  challenge_friend: 'challenge_friend',
+} as const;
+
+export interface AiAssistantAction {
+  id: string;
+  type: AiAssistantActionType;
+  experienceId: number;
+  experienceTitle: string;
+  experienceDate: string;
+  experienceCity: string;
+  label: string;
+  /** @nullable */
+  friendId: number | null;
+  /** @nullable */
+  friendName: string | null;
+}
+
+export type AiAssistantMessageRole = typeof AiAssistantMessageRole[keyof typeof AiAssistantMessageRole];
+
+
+export const AiAssistantMessageRole = {
+  user: 'user',
+  assistant: 'assistant',
+} as const;
+
+export interface AiAssistantMessage {
+  id: number;
+  role: AiAssistantMessageRole;
+  content: string;
+  actions: AiAssistantAction[];
+  createdAt: string;
+}
+
+export type AiAssistantConversation = AiAssistantConversationSummary & {
+  messages: AiAssistantMessage[];
+};
+
+export interface AiAssistantMessageInput {
+  /**
+     * @minLength 1
+     * @maxLength 1200
+     */
+  content: string;
+}
 
 export type Friend = ParticipantSummary & ({
   /** @nullable */

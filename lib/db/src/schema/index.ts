@@ -26,3 +26,5 @@ export * from "./social-invites";
 export * from "./social-feed";
 export * from "./connections";
 export * from "./direct-messages";
+export * from "./experience-challenges";
+export * from "./ai-assistant";
