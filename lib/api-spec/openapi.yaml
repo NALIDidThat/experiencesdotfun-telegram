@@ -26,6 +26,8 @@ tags:
     description: Group-scoped Community XP and reputation
   - name: socialFeed
     description: Privacy-aware activity feed, updates, reactions, and comments
+  - name: messaging
+    description: Profile-bound one-to-one direct messages
 paths:
   /healthz:
     get:
@@ -999,6 +1001,188 @@ paths:
                   $ref: "#/components/schemas/Friend"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /direct-messages/profiles:
+    get:
+      operationId: searchDirectMessageProfiles
+      tags: [messaging]
+      summary: Search public profiles to start a direct conversation
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: search
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 64
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Matching profiles, including users who are not friends
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DirectMessageProfile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /direct-messages/conversations:
+    get:
+      operationId: listDirectConversations
+      tags: [messaging]
+      summary: List the signed-in profile's direct conversations
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Conversations ordered by recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DirectConversation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createDirectConversation
+      tags: [messaging]
+      summary: Create or retrieve a direct conversation with any other profile
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DirectConversationInput"
+      responses:
+        "200":
+          description: Existing or newly created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectConversation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /direct-messages/conversations/{conversationId}:
+    get:
+      operationId: getDirectConversation
+      tags: [messaging]
+      summary: Get a conversation visible to the signed-in profile
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/DirectConversationId"
+      responses:
+        "200":
+          description: Conversation and the other participant's public profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectConversation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /direct-messages/conversations/{conversationId}/messages:
+    get:
+      operationId: listDirectMessages
+      tags: [messaging]
+      summary: List recent messages in a conversation, newest first
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/DirectConversationId"
+        - name: beforeId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 50
+      responses:
+        "200":
+          description: A page of persistent messages, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectMessagesPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: sendDirectMessage
+      tags: [messaging]
+      summary: Send a message as the authenticated profile
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/DirectConversationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DirectMessageInput"
+      responses:
+        "201":
+          description: The persisted message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          description: Message send rate limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /direct-messages/conversations/{conversationId}/read:
+    post:
+      operationId: markDirectConversationRead
+      tags: [messaging]
+      summary: Mark incoming messages in a conversation as read
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/DirectConversationId"
+      responses:
+        "200":
+          description: Number of messages marked read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectMessageReadResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /friends/top:
     get:
       operationId: listTopFriends
@@ -1557,6 +1741,13 @@ components:
       scheme: bearer
       bearerFormat: TelegramWebAppInitData
   parameters:
+    DirectConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
     ExperienceId:
       name: experienceId
       in: path
@@ -1675,6 +1866,87 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
   schemas:
+    DirectMessageProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        username:
+          type: [string, "null"]
+        avatarUrl:
+          type: [string, "null"]
+        userType:
+          $ref: "#/components/schemas/UserType"
+      required: [id, name, username, avatarUrl, userType]
+    DirectMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        senderId:
+          type: integer
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type: [string, "null"]
+          format: date-time
+      required: [id, senderId, body, createdAt, readAt]
+    DirectConversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        otherUser:
+          $ref: "#/components/schemas/DirectMessageProfile"
+        lastMessage:
+          oneOf:
+            - $ref: "#/components/schemas/DirectMessage"
+            - type: "null"
+        lastMessageAt:
+          type: [string, "null"]
+          format: date-time
+        unreadCount:
+          type: integer
+      required: [id, otherUser, lastMessage, lastMessageAt, unreadCount]
+    DirectMessagesPage:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/DirectMessage"
+        hasMore:
+          type: boolean
+      required: [messages, hasMore]
+    DirectConversationInput:
+      type: object
+      properties:
+        recipientId:
+          type: integer
+          minimum: 1
+      required: [recipientId]
+      additionalProperties: false
+    DirectMessageInput:
+      type: object
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: "\\S"
+      required: [body]
+      additionalProperties: false
+    DirectMessageReadResponse:
+      type: object
+      properties:
+        updatedCount:
+          type: integer
+      required: [updatedCount]
     HealthStatus:
       type: object
       properties:
