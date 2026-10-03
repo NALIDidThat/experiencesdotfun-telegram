@@ -154,12 +154,12 @@ async function waitForValue(client, expression, predicate, description, timeoutM
   throw new Error(`Timed out waiting for ${description}. Last value: ${JSON.stringify(lastValue)}`);
 }
 
-async function tapTestId(client, testId) {
+async function tapTestId(client, testId, { scrollIntoView = true } = {}) {
   const selector = JSON.stringify(`[data-testid="${testId}"]`);
   const point = await client.evaluate(`(() => {
     const element = document.querySelector(${selector});
     if (!element) return null;
-    element.scrollIntoView({ block: "center", inline: "nearest" });
+    if (${scrollIntoView}) element.scrollIntoView({ block: "center", inline: "nearest" });
     const rect = element.getBoundingClientRect();
     return {
       x: Math.round(rect.left + rect.width / 2),
@@ -171,7 +171,10 @@ async function tapTestId(client, testId) {
     };
   })()`);
   assert.ok(point, `Expected control "${testId}" to be present.`);
-  assert.ok(point.visible, `Expected control "${testId}" to be visible.`);
+  assert.ok(
+    point.visible,
+    `Expected control "${testId}" to be visible. Geometry: ${JSON.stringify(point)}`,
+  );
   assert.ok(!point.disabled, `Expected control "${testId}" to be enabled.`);
   await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
   await client.send("Input.dispatchMouseEvent", {
@@ -320,6 +323,17 @@ test("the signed-in Home prompt fits, stays accessible, and opens My journey", a
           response = url.searchParams.get("status") === "upcoming"
             ? upcomingParticipations
             : [];
+        } else if (url.pathname === "/api/feed" && method === "GET") {
+          response = {
+            items: [],
+            nextCursor: null,
+            mode: url.searchParams.get("mode") ?? "for-you",
+            city: user.city,
+          };
+        } else if (url.pathname === "/api/feed/preferences" && method === "GET") {
+          response = { shareActivityWithFriends: false };
+        } else if (url.pathname === "/api/friends" && method === "GET") {
+          response = [];
         } else if (url.pathname === "/api/experiences" && method === "GET") {
           response = [];
         } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
@@ -470,6 +484,109 @@ test("the signed-in Home prompt fits, stays accessible, and opens My journey", a
         await client.evaluate(`document.body.innerText.includes('Nothing booked yet')`),
         true,
         "The empty prompt should open the empty upcoming journey state.",
+      );
+      await tapTestId(client, "bottom-nav-quick-button");
+      await waitForValue(
+        client,
+        `(() => {
+          const element = document.querySelector('[data-testid="bottom-nav-action-post"]');
+          if (!element) return null;
+          const rect = element.getBoundingClientRect();
+          const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+          return { visible: rect.top >= 0 && rect.bottom <= viewportHeight, top: rect.top, bottom: rect.bottom };
+        })()`,
+        (position) => position?.visible === true,
+        "the quick-action menu to settle from My journey",
+      );
+      await tapTestId(client, "bottom-nav-action-post", { scrollIntoView: false });
+      await waitForValue(
+        client,
+        `Boolean(document.querySelector('[data-testid="dashboard-first-experience"]'))`,
+        Boolean,
+        "Home to return after choosing the feed-post action",
+      );
+      await waitForValue(
+        client,
+        `(() => {
+          const element = document.querySelector('[aria-label="Update text"]');
+          if (!element) {
+            return {
+              present: false,
+              shareTextVisible: document.body.innerText.includes('Share an update'),
+              location: location.search,
+            };
+          }
+          const rect = element.getBoundingClientRect();
+          const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+          return {
+            present: true,
+            visible: rect.top >= 0 && rect.bottom <= viewportHeight,
+            top: rect.top,
+            bottom: rect.bottom,
+            shareTextVisible: document.body.innerText.includes('Share an update'),
+            location: location.search,
+          };
+        })()`,
+        (position) => position?.visible === true,
+        "the existing feed composer to open from the bottom quick action",
+      );
+      assert.equal(
+        await client.evaluate(`document.body.innerText.includes('Share an update')`),
+        true,
+        "The feed-post action should open the existing update composer.",
+      );
+      await client.evaluate(`document.querySelector('[data-testid="feed-composer-close-button"]')?.click()`);
+      await waitForValue(
+        client,
+        `(() => {
+          const modal = document.querySelector('[data-testid="feed-composer-modal"]');
+          const input = document.querySelector('[aria-label="Update text"]');
+          const rect = modal?.getBoundingClientRect();
+          const style = modal ? getComputedStyle(modal) : null;
+          return {
+            inputPresent: Boolean(input),
+            display: style?.display ?? null,
+            visibility: style?.visibility ?? null,
+            opacity: style?.opacity ?? null,
+            modalRect: rect ? { width: rect.width, height: rect.height } : null,
+          };
+        })()`,
+        (state) => !state.inputPresent
+          || state.display === "none"
+          || state.visibility === "hidden"
+          || state.opacity === "0"
+          || state.modalRect?.width === 0
+          || state.modalRect?.height === 0,
+        "the feed composer to dismiss",
+      );
+      await tapTestId(client, "bottom-nav-tab-explore");
+      await waitForValue(
+        client,
+        `Boolean(document.querySelector('[data-testid="dashboard-first-experience"]'))`,
+        (visible) => visible === false,
+        "Home to unmount after navigating away",
+      );
+      await tapTestId(client, "bottom-nav-tab-home");
+      await waitForValue(
+        client,
+        `Boolean(document.querySelector('[data-testid="dashboard-first-experience"]'))`,
+        Boolean,
+        "Home to return without reopening the dismissed composer",
+      );
+      assert.equal(
+        await client.evaluate(`(() => {
+          const modal = document.querySelector('[data-testid="feed-composer-modal"]');
+          const input = document.querySelector('[aria-label="Update text"]');
+          if (!input) return false;
+          const style = modal ? getComputedStyle(modal) : null;
+          const rect = modal?.getBoundingClientRect();
+          return Boolean(rect?.width > 0 && rect.height > 0)
+            && style?.display !== "none"
+            && style?.visibility !== "hidden"
+            && style?.opacity !== "0";
+        })()`),
+        false,
+        "A dismissed feed composer should not reopen when returning to Home.",
       );
     } else {
       assert.equal(

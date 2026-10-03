@@ -226,7 +226,10 @@ async function tapTestId(client, testId) {
   })()`);
   assert.ok(position, `Expected test control "${testId}" to be present.`);
   assert.ok(!position.disabled, `Expected test control "${testId}" to be enabled.`);
-  assert.ok(position.visible, `Expected test control "${testId}" to be visible in the current viewport.`);
+  assert.ok(
+    position.visible,
+    `Expected test control "${testId}" to be visible in the current viewport. Geometry: ${JSON.stringify(position)}`,
+  );
   const { disabled: _disabled, visible: _visible, ...point } = position;
   await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", ...point });
   await client.send("Input.dispatchMouseEvent", {
@@ -763,4 +766,95 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
   })()`);
 
   await waitForValue(client, activeTab, (value) => value === "profile", "the dragged destination tab to open");
+
+  assert.equal(
+    await client.evaluate(`document.querySelectorAll('[data-testid^="bottom-nav-tab-"]').length`),
+    4,
+    "The quick-actions button should not become a fifth navigation tab.",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="bottom-nav-quick-button"]')?.closest('[data-testid="bottom-nav-tabs"]') ?? null`),
+    null,
+    "The plus button should sit outside the tab bar.",
+  );
+  await tapTestId(client, "bottom-nav-quick-button");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="bottom-nav-action-post"]'))`,
+    Boolean,
+    "participant quick actions to open",
+  );
+  await waitForValue(
+    client,
+    `(() => {
+      const element = document.querySelector('[data-testid="bottom-nav-action-post"]');
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      return { visible: rect.top >= 0 && rect.bottom <= viewportHeight, top: rect.top, bottom: rect.bottom };
+    })()`,
+    (position) => position?.visible === true,
+    "the participant quick-action sheet to settle inside the viewport",
+  );
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="bottom-nav-action-create"]'))`),
+    false,
+    "Participants should not see the organisation-only create action.",
+  );
+  await tapTestId(client, "bottom-nav-action-post");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="nav-test-quick-action"]')?.textContent?.trim() ?? ''`,
+    (value) => value === "post",
+    "the participant feed-post action",
+  );
+  await tapTestId(client, "bottom-nav-quick-button");
+  await waitForValue(
+    client,
+    `(() => {
+      const element = document.querySelector('[data-testid="bottom-nav-action-progress"]');
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      return { visible: rect.top >= 0 && rect.bottom <= viewportHeight, top: rect.top, bottom: rect.bottom };
+    })()`,
+    (position) => position?.visible === true,
+    "the reopened participant quick-action sheet to settle inside the viewport",
+  );
+  await tapTestId(client, "bottom-nav-action-progress");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="nav-test-quick-action"]')?.textContent?.trim() ?? ''`,
+    (value) => value === "progress",
+    "the participant progress action",
+  );
+
+  await client.send("Page.navigate", { url: `https://${domain}/?navTest=organisation` });
+  await waitForValue(client, activeTab, (value) => value === "home", "the organisation navigation test screen");
+  await tapTestId(client, "bottom-nav-quick-button");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="bottom-nav-action-create"]'))`,
+    Boolean,
+    "the organisation experience-creation action",
+  );
+  await waitForValue(
+    client,
+    `(() => {
+      const element = document.querySelector('[data-testid="bottom-nav-action-create"]');
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      return { visible: rect.top >= 0 && rect.bottom <= viewportHeight, top: rect.top, bottom: rect.bottom };
+    })()`,
+    (position) => position?.visible === true,
+    "the organisation quick-action sheet to settle inside the viewport",
+  );
+  await tapTestId(client, "bottom-nav-action-create");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="nav-test-quick-action"]')?.textContent?.trim() ?? ''`,
+    (value) => value === "create",
+    "the organisation experience-creation action",
+  );
 });

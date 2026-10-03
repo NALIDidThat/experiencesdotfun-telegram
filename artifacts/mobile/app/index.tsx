@@ -107,6 +107,7 @@ import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
 type Screen = 'home' | 'explore' | 'experiences' | 'profile' | 'accounts' | 'notifications' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
+type BottomNavQuickAction = 'post' | 'create' | 'progress';
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
 const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'profile', 'accounts', 'notifications', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
@@ -1761,7 +1762,17 @@ function Onboarding({
   );
 }
 
-function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
+function Home({
+  user,
+  go,
+  composerRequest,
+  onComposerRequestHandled,
+}: {
+  user: User;
+  go: (screen: Screen, params?: Record<string, string>) => void;
+  composerRequest: number | null;
+  onComposerRequestHandled: (signal: number) => void;
+}) {
   const colors = useColors();
   const { user: authenticatedUser } = useAuth();
   const [feedRefreshSignal, setFeedRefreshSignal] = useState(0);
@@ -1980,6 +1991,8 @@ function Home({ user, go }: { user: User; go: (screen: Screen, params?: Record<s
       <SocialFeed
         currentUserId={user.id}
         refreshSignal={feedRefreshSignal}
+        openComposerSignal={composerRequest}
+        onComposerRequestHandled={onComposerRequestHandled}
         onRefreshingChange={setFeedRefreshing}
         onOpenExperience={(id) => go('experience', { id: String(id) })}
         onOpenFriend={(friendId) => go('friend-profile', { friendId: String(friendId) })}
@@ -6184,15 +6197,25 @@ function CreateExperienceForm({
   );
 }
 
-function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => void }) {
+function BottomNav({
+  active,
+  go,
+  userType,
+  onQuickAction,
+}: {
+  active: Screen;
+  go: (screen: Screen) => void;
+  userType: UserType;
+  onQuickAction: (action: BottomNavQuickAction) => void;
+}) {
   const colors = useColors();
-  const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const liquidGlassAvailable =
     Platform.OS === 'ios' &&
     isLiquidGlassAvailable() &&
     isGlassEffectAPIAvailable();
-  const items: Array<{ key: Screen; label: string; icon: IconName }> = user?.userType === 'organisation'
+  const items: Array<{ key: Screen; label: string; icon: IconName }> = userType === 'organisation'
     ? [
         { key: 'home', label: 'Home', icon: 'home' },
         { key: 'explore', label: 'Explore', icon: 'compass' },
@@ -6338,6 +6361,34 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
     },
   })).current;
 
+  const quickActions: Array<{
+    id: BottomNavQuickAction;
+    label: string;
+    description: string;
+    icon: IconName;
+  }> = [
+    {
+      id: 'post',
+      label: 'Post to feed',
+      description: 'Share an update with your community.',
+      icon: 'edit-3',
+    },
+    ...(userType === 'organisation'
+      ? [{
+          id: 'create' as const,
+          label: 'Create an experience',
+          description: 'Set up a new community experience.',
+          icon: 'calendar' as const,
+        }]
+      : []),
+    {
+      id: 'progress',
+      label: 'View progress',
+      description: 'See your activity and contribution history.',
+      icon: 'trending-up',
+    },
+  ];
+
   return (
     <View
       style={[
@@ -6346,6 +6397,7 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
       ]}
     >
       <View
+        testID="bottom-nav-tabs"
         style={[
           styles.bottomNav,
           {
@@ -6468,6 +6520,110 @@ function BottomNav({ active, go }: { active: Screen; go: (screen: Screen) => voi
           );
         })}
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Quick actions"
+        accessibilityHint="Post to the feed, create an experience, or view progress."
+        accessibilityState={{ expanded: quickActionsOpen }}
+        testID="bottom-nav-quick-button"
+        onPress={() => {
+          triggerHaptic();
+          setQuickActionsOpen(true);
+        }}
+        style={({ pressed }) => [
+          styles.bottomNavQuickButton,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            shadowColor: colors.primary,
+          },
+          pressed && styles.bottomNavQuickButtonPressed,
+        ]}
+      >
+        <Feather name="plus" size={25} color={colors.primary} />
+      </Pressable>
+      <Modal
+        visible={quickActionsOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setQuickActionsOpen(false)}
+      >
+        <View style={styles.quickActionsModal}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close quick actions"
+            testID="bottom-nav-quick-actions-dismiss"
+            onPress={() => setQuickActionsOpen(false)}
+            style={[StyleSheet.absoluteFill, { backgroundColor: colors.foreground + '78' }]}
+          />
+          <View
+            style={[
+              styles.quickActionsSheet,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderTopLeftRadius: colors.radius + 8,
+                borderTopRightRadius: colors.radius + 8,
+                paddingBottom: 16 + insets.bottom,
+              },
+            ]}
+          >
+            <View style={[styles.quickActionsHandle, { backgroundColor: colors.border }]} />
+            <View style={styles.quickActionsHeader}>
+              <View>
+                <Text style={[styles.quickActionsTitle, { color: colors.foreground }]}>Quick actions</Text>
+                <Text style={[styles.quickActionsSubtitle, { color: colors.mutedForeground }]}>
+                  Choose what you want to do next.
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close quick actions"
+                onPress={() => setQuickActionsOpen(false)}
+                hitSlop={8}
+                style={styles.quickActionsClose}
+              >
+                <Feather name="x" size={21} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+            <View style={styles.quickActionsList}>
+              {quickActions.map((action) => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={action.label}
+                  accessibilityHint={action.description}
+                  key={action.id}
+                  testID={`bottom-nav-action-${action.id}`}
+                  onPress={() => {
+                    setQuickActionsOpen(false);
+                    triggerHaptic();
+                    onQuickAction(action.id);
+                  }}
+                  style={({ pressed }) => [
+                    styles.quickActionRow,
+                    {
+                      backgroundColor: pressed ? colors.muted : 'transparent',
+                      borderColor: colors.border,
+                      borderRadius: colors.radius,
+                    },
+                  ]}
+                >
+                  <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '14' }]}>
+                    <Feather name={action.icon} size={19} color={colors.primary} />
+                  </View>
+                  <View style={styles.quickActionCopy}>
+                    <Text style={[styles.quickActionLabel, { color: colors.foreground }]}>{action.label}</Text>
+                    <Text style={[styles.quickActionDescription, { color: colors.mutedForeground }]}>
+                      {action.description}
+                    </Text>
+                  </View>
+                  <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -6569,14 +6725,22 @@ function AppShell({
   );
 }
 
-function BottomNavInteractionHarness() {
+function BottomNavInteractionHarness({ userType = 'participant' }: { userType?: UserType }) {
   const [active, setActive] = useState<Screen>('home');
+  const [lastQuickAction, setLastQuickAction] = useState<BottomNavQuickAction | null>(null);
   const colors = useColors();
 
   return (
     <AppShell
       showFeedbackBanner={false}
-      bottomNav={<BottomNav active={active} go={setActive} />}
+      bottomNav={(
+        <BottomNav
+          active={active}
+          go={setActive}
+          userType={userType}
+          onQuickAction={setLastQuickAction}
+        />
+      )}
     >
       <View
         testID="nav-test-screen"
@@ -6587,6 +6751,12 @@ function BottomNavInteractionHarness() {
           style={{ color: colors.foreground, fontFamily: 'Inter_700Bold', fontSize: 18 }}
         >
           {active}
+        </Text>
+        <Text
+          testID="nav-test-quick-action"
+          style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 14, marginTop: 12 }}
+        >
+          {lastQuickAction ?? 'none'}
         </Text>
       </View>
     </AppShell>
@@ -6611,6 +6781,8 @@ export default function App() {
     : 'home';
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [experienceId, setExperienceId] = useState(params.id);
+  const [feedComposerRequest, setFeedComposerRequest] = useState<number | null>(null);
+  const feedComposerRequestSequence = useRef(0);
 
   useEffect(() => {
     if (!user) {
@@ -6658,6 +6830,22 @@ export default function App() {
       step: next === 'create' ? nextParams?.step : undefined,
     });
   };
+  const requestFeedComposer = () => {
+    feedComposerRequestSequence.current += 1;
+    setFeedComposerRequest(feedComposerRequestSequence.current);
+  };
+  const handleBottomNavQuickAction = (action: BottomNavQuickAction) => {
+    if (action === 'post') {
+      if (screen !== 'home') go('home');
+      requestFeedComposer();
+      return;
+    }
+    if (action === 'create') {
+      if (user?.userType === 'organisation') go('create');
+      return;
+    }
+    go('profile');
+  };
   const continueAccountLogin = async (accountType: UserType) => {
     const authenticated = await login(accountType);
     if (!authenticated) return;
@@ -6698,8 +6886,12 @@ export default function App() {
     );
   }
 
-  if (__DEV__ && params.navTest === '1') {
-    return <BottomNavInteractionHarness />;
+  if (__DEV__ && (params.navTest === '1' || params.navTest === 'organisation')) {
+    return (
+      <BottomNavInteractionHarness
+        userType={params.navTest === 'organisation' ? 'organisation' : 'participant'}
+      />
+    );
   }
 
   if (loading && screen !== 'email') {
@@ -6878,7 +7070,16 @@ export default function App() {
     if (screen === 'profile') return <Profile user={user} go={go} />;
     if (screen === 'host') return <Host go={go} />;
     if (screen === 'create') return <Create go={go} initialStep={Number(params.step) || 1} editExperienceId={experienceId ? Number(experienceId) : undefined} />;
-    return <Home user={user} go={go} />;
+    return (
+      <Home
+        user={user}
+        go={go}
+        composerRequest={feedComposerRequest}
+        onComposerRequestHandled={(signal) => {
+          setFeedComposerRequest((current) => current === signal ? null : current);
+        }}
+      />
+    );
   })();
 
   const noNav = ['experience', 'host-detail', 'create'].includes(screen);
@@ -6888,7 +7089,18 @@ export default function App() {
       ? 'profile'
       : screen;
   return (
-    <AppShell bottomNav={!noNav ? <BottomNav active={navActive} go={go} /> : null}>
+    <AppShell
+      bottomNav={!noNav
+        ? (
+          <BottomNav
+            active={navActive}
+            go={go}
+            userType={user.userType ?? 'participant'}
+            onQuickAction={handleBottomNavQuickAction}
+          />
+        )
+        : null}
+    >
       {content}
     </AppShell>
   );
@@ -7671,13 +7883,23 @@ const styles = StyleSheet.create({
   createFooterNote: { textAlign: 'center', fontSize: 11, lineHeight: 17, fontFamily: 'Inter_400Regular', marginTop: 16 },
   
   // Floating brand navigation with liquid glass on the active item.
-  bottomNavDock: { alignItems: 'center', paddingHorizontal: 16, paddingTop: 8 },
-  bottomNav: {
+  bottomNavDock: {
+    alignItems: 'center',
     alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    maxWidth: 560,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    width: '100%',
+  },
+  bottomNav: {
     borderRadius: 34,
     borderWidth: 1,
+    flex: 1,
     flexDirection: 'row',
     maxWidth: 520,
+    minWidth: 0,
     overflow: 'hidden',
     paddingHorizontal: 7,
     paddingVertical: 7,
@@ -7685,8 +7907,33 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.28,
     shadowRadius: 18,
     elevation: 14,
-    width: '100%',
   },
+  bottomNavQuickButton: {
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 28,
+    elevation: 10,
+    height: 56,
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.24,
+    shadowRadius: 12,
+    width: 56,
+  },
+  bottomNavQuickButtonPressed: { opacity: 0.8, transform: [{ scale: 0.94 }] },
+  quickActionsModal: { flex: 1, justifyContent: 'flex-end' },
+  quickActionsSheet: { borderTopWidth: 1, paddingHorizontal: 20, paddingTop: 12 },
+  quickActionsHandle: { alignSelf: 'center', borderRadius: 2, height: 4, marginBottom: 16, width: 36 },
+  quickActionsHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  quickActionsTitle: { fontFamily: 'Inter_700Bold', fontSize: 20 },
+  quickActionsSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 13, marginTop: 4 },
+  quickActionsClose: { alignItems: 'center', height: 40, justifyContent: 'center', width: 40 },
+  quickActionsList: { gap: 8 },
+  quickActionRow: { alignItems: 'center', borderWidth: 1, flexDirection: 'row', gap: 12, minHeight: 68, paddingHorizontal: 12, paddingVertical: 10 },
+  quickActionIcon: { alignItems: 'center', borderRadius: 14, height: 42, justifyContent: 'center', width: 42 },
+  quickActionCopy: { flex: 1, gap: 3, minWidth: 0 },
+  quickActionLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
+  quickActionDescription: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 16 },
   navItem: {
     alignItems: 'center',
     flex: 1,

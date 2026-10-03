@@ -43,6 +43,8 @@ type PostVisibility = "friends" | "public" | "private";
 type SocialFeedProps = {
   currentUserId: number;
   refreshSignal?: number;
+  openComposerSignal?: number | null;
+  onComposerRequestHandled?: (signal: number) => void;
   onRefreshingChange?: (refreshing: boolean) => void;
   onOpenExperience: (experienceId: number) => void;
   onOpenFriend: (friendId: number) => void;
@@ -101,6 +103,8 @@ function eventIcon(type: FeedItem["type"]): keyof typeof Feather.glyphMap {
 export function SocialFeed({
   currentUserId,
   refreshSignal = 0,
+  openComposerSignal = null,
+  onComposerRequestHandled,
   onRefreshingChange,
   onOpenExperience,
   onOpenFriend,
@@ -125,6 +129,7 @@ export function SocialFeed({
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
   const pageRequestGeneration = useRef(0);
+  const handledComposerSignal = useRef<number | null>(null);
 
   const feedParams = { mode, limit: pageSize };
   const feedQuery = useGetFeed(feedParams, {
@@ -164,6 +169,17 @@ export function SocialFeed({
       void feedQuery.refetch();
     }
   }, [refreshSignal, feedQuery.refetch, resetPagination]);
+
+  useEffect(() => {
+    if (
+      openComposerSignal === null
+      || openComposerSignal <= 0
+      || handledComposerSignal.current === openComposerSignal
+    ) return;
+    handledComposerSignal.current = openComposerSignal;
+    setComposerOpen(true);
+    onComposerRequestHandled?.(openComposerSignal);
+  }, [openComposerSignal, onComposerRequestHandled]);
 
   useEffect(() => {
     onRefreshingChange?.(feedQuery.isRefetching);
@@ -523,6 +539,7 @@ export function SocialFeed({
 
       <Modal
         visible={composerOpen}
+        testID="feed-composer-modal"
         transparent
         animationType="slide"
         onRequestClose={() => setComposerOpen(false)}
@@ -562,6 +579,7 @@ export function SocialFeed({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Close update form"
+                testID="feed-composer-close-button"
                 onPress={() => setComposerOpen(false)}
                 hitSlop={8}
               >
