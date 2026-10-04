@@ -268,7 +268,7 @@ function makeParticipation(id) {
   };
 }
 
-test("the signed-in Home prompt fits, stays accessible, and opens My journey", async (t) => {
+test("the signed-in Home prompt and personal Activity timeline work on mobile", async (t) => {
   const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
   assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the Home prompt preview test.");
 
@@ -277,6 +277,34 @@ test("the signed-in Home prompt fits, stays accessible, and opens My journey", a
   const unexpectedApiRequests = [];
   let interceptionError;
   let upcomingParticipations = [];
+  let fullParticipationHistory = [];
+  const activityChallenges = [{
+    id: 52,
+    experienceId: 6952,
+    experienceTitle: "Neighbourhood Cleanup",
+    experienceDate: "2026-10-10",
+    experienceCity: "London",
+    challenger: { id: 692, name: "Alex", username: "alex_qa", avatarUrl: null },
+    challenged: { id: user.id, name: user.name, username: user.username, avatarUrl: null },
+    status: "pending",
+    direction: "incoming",
+    createdAt: "2026-09-30T11:00:00.000Z",
+    acceptedAt: null,
+    completedAt: null,
+  }];
+  const xpAwards = {
+    balanceXp: 210,
+    pendingXp: 80,
+    awards: [{
+      id: "activity-award-1",
+      sourceType: "experience",
+      sourceId: "6952",
+      title: "Community cleanup reward",
+      amount: 80,
+      status: "pending",
+      awardedAt: "2026-10-02T09:00:00.000Z",
+    }],
+  };
 
   client.on("Fetch.requestPaused", ({ params }) => {
     void (async () => {
@@ -322,7 +350,13 @@ test("the signed-in Home prompt fits, stays accessible, and opens My journey", a
         } else if (url.pathname === "/api/participations" && method === "GET") {
           response = url.searchParams.get("status") === "upcoming"
             ? upcomingParticipations
-            : [];
+            : url.searchParams.get("status") === "completed"
+              ? []
+              : fullParticipationHistory;
+        } else if (url.pathname === "/api/challenges" && method === "GET") {
+          response = activityChallenges;
+        } else if (url.pathname === "/api/me/xp-awards" && method === "GET") {
+          response = xpAwards;
         } else if (url.pathname === "/api/feed" && method === "GET") {
           response = {
             items: [],
@@ -603,6 +637,55 @@ test("the signed-in Home prompt fits, stays accessible, and opens My journey", a
   await openHomeForCount(1, "singular");
   await openHomeForCount(2, "plural");
 
+  const verifiedParticipation = makeParticipation(71);
+  verifiedParticipation.experience.title = "Community Garden Contribution";
+  verifiedParticipation.status = "verified";
+  verifiedParticipation.verifiedAt = "2026-10-01T14:00:00.000Z";
+  const joinedParticipation = makeParticipation(72);
+  joinedParticipation.experience.title = "Saturday Food Bank";
+  joinedParticipation.joinedAt = "2026-09-29T11:00:00.000Z";
+  fullParticipationHistory = [verifiedParticipation, joinedParticipation];
+
+  await client.send("Page.navigate", { url: `https://${domain}/?screen=activity` });
+  await waitForValue(
+    client,
+    `document.querySelectorAll('[data-testid^="activity-entry-"]').length`,
+    (count) => count === 4,
+    "the signed-in Activity timeline to combine experiences, challenges, and XP awards",
+  );
+  const activityText = await client.evaluate(`document.body.innerText`);
+  assert.match(activityText, /Community Garden Contribution/);
+  assert.match(activityText, /Saturday Food Bank/);
+  assert.match(activityText, /Neighbourhood Cleanup/);
+  assert.match(activityText, /Community cleanup reward/);
+  assert.match(activityText, /210/);
+
+  await tapTestId(client, "activity-filter-xp");
+  assert.equal(
+    await client.evaluate(`document.querySelectorAll('[data-testid^="activity-entry-"]').length`),
+    1,
+    "The XP filter should show only XP award records.",
+  );
+  assert.equal(
+    await client.evaluate(`document.body.innerText.includes('Community cleanup reward')`),
+    true,
+    "The XP filter should show the award title.",
+  );
+
+  await tapTestId(client, "activity-filter-challenges");
+  assert.equal(
+    await client.evaluate(`document.querySelectorAll('[data-testid^="activity-entry-"]').length`),
+    1,
+    "The Challenges filter should show only challenge records.",
+  );
+  await tapTestId(client, "activity-entry-challenge-52");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('Your invitations')`,
+    Boolean,
+    "the challenge-management screen after opening a challenge from Activity",
+  );
+
   assert.ifError(interceptionError);
   assert.ok(
     apiTraffic.some((request) => request === "GET /api/me"),
@@ -611,6 +694,18 @@ test("the signed-in Home prompt fits, stays accessible, and opens My journey", a
   assert.ok(
     apiTraffic.some((request) => request.startsWith("GET /api/participations?status=upcoming")),
     "The Home prompt should use the signed-in user's upcoming participation data.",
+  );
+  assert.ok(
+    apiTraffic.some((request) => request === "GET /api/participations"),
+    "Activity should use the full signed-in participation history.",
+  );
+  assert.ok(
+    apiTraffic.some((request) => request === "GET /api/challenges"),
+    "Activity should load the signed-in user's challenges.",
+  );
+  assert.ok(
+    apiTraffic.some((request) => request === "GET /api/me/xp-awards"),
+    "Activity should load the signed-in user's XP awards.",
   );
   assert.deepEqual(unexpectedApiRequests, [], "The Home flow should only request the fixture-backed APIs.");
 });

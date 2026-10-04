@@ -100,6 +100,7 @@ import { useColors } from '@/hooks/useColors';
 import { AccountabilitySection } from '@/components/AccountabilitySection';
 import { OrganisationPartnershipsSection } from '@/components/OrganisationPartnershipsSection';
 import { SocialFeed } from '@/components/SocialFeed';
+import { PersonalActivityScreen } from '@/components/PersonalActivityScreen';
 import { AccountsCenterScreen } from '@/components/AccountsCenterScreen';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
@@ -7432,14 +7433,10 @@ export default function App() {
     if (screen === 'explore') return <Explore go={go} />;
     if (screen === 'activity') {
       return (
-        <SocialFeed
-          currentUserId={user.id}
+        <PersonalActivityScreen
           onOpenExperience={(id) => go('experience', { id: String(id) })}
-          onOpenFriend={(friendId) => go('friend-profile', { friendId: String(friendId) })}
-          onOpenSelf={() => go('profile')}
-          onOpenFriends={() => go('friends')}
-          onOpenProfile={() => go('profile')}
-          onOpenExplore={() => go('explore')}
+          onOpenChallenges={() => go('challenges')}
+          onExplore={() => go('explore')}
         />
       );
     }
