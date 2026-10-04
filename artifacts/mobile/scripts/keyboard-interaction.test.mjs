@@ -708,6 +708,8 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
 
   await tapTestId(client, "bottom-nav-tab-explore");
   await waitForValue(client, activeTab, (value) => value === "explore", "a standard navigation tap");
+  await tapTestId(client, "bottom-nav-tab-activity");
+  await waitForValue(client, activeTab, (value) => value === "activity", "the Activity tab");
 
   const start = await client.evaluate(`(() => {
     const element = document.querySelector('[data-testid="bottom-nav-tab-home"]');
@@ -827,6 +829,62 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
     `document.querySelector('[data-testid="nav-test-quick-action"]')?.textContent?.trim() ?? ''`,
     (value) => value === "progress",
     "the participant progress action",
+  );
+  await delay(400);
+  await tapTestId(client, "bottom-nav-quick-button");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="bottom-nav-action-assistant"]'))`,
+    Boolean,
+    "the Assistant action in the plus menu",
+  );
+  await waitForValue(
+    client,
+    `(() => {
+      const element = document.querySelector('[data-testid="bottom-nav-action-assistant"]');
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      return { visible: rect.top >= 0 && rect.bottom <= viewportHeight };
+    })()`,
+    (position) => position?.visible === true,
+    "the Assistant quick action to settle inside the viewport",
+  );
+  await delay(450);
+  await tapTestId(client, "bottom-nav-action-assistant");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="nav-test-quick-action"]')?.textContent?.trim() ?? ''`,
+    (value) => value === "assistant",
+    "the Assistant quick action",
+  );
+  await delay(400);
+  await tapTestId(client, "bottom-nav-quick-button");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="bottom-nav-action-challenges"]'))`,
+    Boolean,
+    "the Challenges action in the plus menu",
+  );
+  await waitForValue(
+    client,
+    `(() => {
+      const element = document.querySelector('[data-testid="bottom-nav-action-challenges"]');
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      return { visible: rect.top >= 0 && rect.bottom <= viewportHeight };
+    })()`,
+    (position) => position?.visible === true,
+    "the Challenges quick action to settle inside the viewport",
+  );
+  await delay(450);
+  await tapTestId(client, "bottom-nav-action-challenges");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="nav-test-quick-action"]')?.textContent?.trim() ?? ''`,
+    (value) => value === "challenges",
+    "the Challenges quick action",
   );
 
   await client.send("Page.navigate", { url: `https://${domain}/?navTest=organisation` });

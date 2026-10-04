@@ -116,12 +116,12 @@ import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'experiences' | 'ai' | 'challenges' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
-type BottomNavQuickAction = 'post' | 'create' | 'progress';
+type BottomNavQuickAction = 'post' | 'create' | 'progress' | 'assistant' | 'challenges';
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
-const screenNames: readonly Screen[] = ['home', 'explore', 'experiences', 'ai', 'challenges', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -6449,8 +6449,7 @@ function BottomNav({
     : [
         { key: 'home', label: 'Home', icon: 'home' },
         { key: 'explore', label: 'Explore', icon: 'compass' },
-        { key: 'ai', label: 'Assistant', icon: 'message-square' },
-        { key: 'challenges', label: 'Challenges', icon: 'users' },
+        { key: 'activity', label: 'Activity', icon: 'activity' },
         { key: 'profile', label: 'Profile', icon: 'user' },
       ];
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -6615,6 +6614,22 @@ function BottomNav({
     description: string;
     icon: IconName;
   }> = [
+    ...(userType === 'participant'
+      ? [
+          {
+            id: 'assistant' as const,
+            label: 'Assistant',
+            description: 'Find local experiences and plan what to do next.',
+            icon: 'message-square' as const,
+          },
+          {
+            id: 'challenges' as const,
+            label: 'Challenges',
+            description: 'Invite an accepted friend to an experience.',
+            icon: 'users' as const,
+          },
+        ]
+      : []),
     {
       id: 'post',
       label: 'Post to feed',
@@ -6787,7 +6802,9 @@ function BottomNav({
       <MotionPressable
         accessibilityRole="button"
         accessibilityLabel="Quick actions"
-        accessibilityHint="Post to the feed, create an experience, or view progress."
+        accessibilityHint={userType === 'participant'
+          ? 'Open Assistant, Challenges, feed posting, and progress actions.'
+          : 'Post to the feed, create an experience, or view progress.'}
         accessibilityState={{ expanded: quickActionsOpen }}
         testID="bottom-nav-quick-button"
         onPress={() => {
@@ -7130,6 +7147,8 @@ export default function App() {
       ? 'profile'
       : screen === 'host-detail'
         ? 'host'
+      : screen === 'activity'
+        ? 'home'
         : screen;
     analyticsMutationRef.current.mutate({
       data: { screen: analyticsScreen, platform },
@@ -7158,6 +7177,14 @@ export default function App() {
     if (action === 'post') {
       if (screen !== 'home') go('home');
       requestFeedComposer();
+      return;
+    }
+    if (action === 'assistant') {
+      go('ai');
+      return;
+    }
+    if (action === 'challenges') {
+      go('challenges');
       return;
     }
     if (action === 'create') {
@@ -7403,6 +7430,19 @@ export default function App() {
       );
     }
     if (screen === 'explore') return <Explore go={go} />;
+    if (screen === 'activity') {
+      return (
+        <SocialFeed
+          currentUserId={user.id}
+          onOpenExperience={(id) => go('experience', { id: String(id) })}
+          onOpenFriend={(friendId) => go('friend-profile', { friendId: String(friendId) })}
+          onOpenSelf={() => go('profile')}
+          onOpenFriends={() => go('friends')}
+          onOpenProfile={() => go('profile')}
+          onOpenExplore={() => go('explore')}
+        />
+      );
+    }
     if (screen === 'ai') {
       return (
         <AiAssistantScreen
