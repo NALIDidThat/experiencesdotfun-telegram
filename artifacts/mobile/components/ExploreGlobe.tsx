@@ -9,11 +9,16 @@ export type GlobeCity = {
   city: string;
   latitude: number;
   longitude: number;
+  country?: string | null;
   experiences: number;
+  openExperiences: number;
   participants: number;
   places: number;
   xpOffered: number;
+  categoryCounts: Partial<Record<'environmental' | 'education' | 'community', number>>;
 };
+
+export type GlobeMode = 'explore' | 'social' | 'activity' | 'impact';
 
 export type GlobeFriend = {
   id: number;
@@ -27,7 +32,9 @@ export type GlobeFriend = {
 type Props = {
   cities: GlobeCity[];
   friends?: GlobeFriend[];
+  mode: GlobeMode;
   selectedCity: string | null;
+  selectedCityCoordinates?: { latitude: number; longitude: number };
   status: 'loading' | 'ready' | 'error';
   fullScreen?: boolean;
   showFriends?: boolean;
@@ -36,6 +43,13 @@ type Props = {
   onExploreCity: (city: string) => void;
   onResetCity: () => void;
 };
+
+export type ExploreGlobeHandle = {
+  focusOnCity: (latitude: number, longitude: number) => void;
+  resetView: () => void;
+};
+
+export type GlobeEngine = React.ForwardRefExoticComponent<Props & React.RefAttributes<ExploreGlobeHandle>>;
 
 const WIDTH = 340;
 const HEIGHT = 300;
@@ -78,10 +92,12 @@ function polygonPath(points: Array<[number, number]>, rotation: number, tilt: nu
   return path;
 }
 
-export function ExploreGlobe({
+const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgGlobeEngine({
   cities,
   friends = [],
+  mode,
   selectedCity,
+  selectedCityCoordinates,
   status,
   fullScreen = false,
   showFriends = false,
@@ -89,7 +105,7 @@ export function ExploreGlobe({
   onSelectFriend,
   onExploreCity,
   onResetCity,
-}: Props) {
+}: Props, ref) {
   const colors = useColors();
   const space = colors.welcome;
   const [rotation, setRotation] = useState(0);
@@ -97,20 +113,65 @@ export function ExploreGlobe({
   const [zoom, setZoom] = useState(1);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const dragOrigin = useRef({ rotation: 0, tilt: 0 });
-  const touchOrigin = useRef({ x: 0, y: 0, active: false });
+  const touchOrigin = useRef({ x: 0, y: 0, active: false, distance: 0, zoom: 1 });
   const currentRotation = useRef(rotation);
   const currentTilt = useRef(tilt);
+  const currentZoom = useRef(zoom);
+  const pinchOrigin = useRef({ distance: 0, zoom: 1 });
   currentRotation.current = rotation;
   currentTilt.current = tilt;
+  currentZoom.current = zoom;
   const panResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_event, gesture) => Math.abs(gesture.dx) > 5 || Math.abs(gesture.dy) > 8,
-    onPanResponderGrant: () => { dragOrigin.current = { rotation: currentRotation.current, tilt: currentTilt.current }; },
-    onPanResponderMove: (_event, gesture) => {
+    onMoveShouldSetPanResponder: (event, gesture) => (
+      (event.nativeEvent.touches?.length ?? 0) > 1
+      || Math.abs(gesture.dx) > 5
+      || Math.abs(gesture.dy) > 8
+    ),
+    onPanResponderGrant: (event) => {
+      dragOrigin.current = { rotation: currentRotation.current, tilt: currentTilt.current };
+      const touches = event.nativeEvent.touches;
+      if (touches?.length > 1) {
+        const [first, second] = touches;
+        pinchOrigin.current = {
+          distance: Math.hypot(second.pageX - first.pageX, second.pageY - first.pageY),
+          zoom: currentZoom.current,
+        };
+      }
+    },
+    onPanResponderMove: (event, gesture) => {
+      const touches = event.nativeEvent.touches;
+      if (touches?.length > 1 && pinchOrigin.current.distance > 0) {
+        const [first, second] = touches;
+        const distance = Math.hypot(second.pageX - first.pageX, second.pageY - first.pageY);
+        setZoom(Math.max(0.82, Math.min(1.2, pinchOrigin.current.zoom * distance / pinchOrigin.current.distance)));
+        return;
+      }
       setRotation(dragOrigin.current.rotation + gesture.dx * 0.72);
       setTilt(Math.max(-0.55, Math.min(0.55, dragOrigin.current.tilt + gesture.dy / 360)));
     },
   }), []);
   const selected = cities.find((item) => item.city === selectedCity) ?? null;
+  const focusOnCity = (latitude: number, longitude: number) => {
+    const latitudeRadians = (latitude * Math.PI) / 180;
+    setRotation(-longitude);
+    setTilt(Math.max(-0.55, Math.min(0.55, -latitudeRadians)));
+    setZoom((value) => Math.max(value, 1.08));
+  };
+  const resetView = () => {
+    setRotation(0);
+    setTilt(0);
+    setZoom(1);
+  };
+  React.useImperativeHandle(ref, () => ({ focusOnCity, resetView }), []);
+
+  const friendCountsByCity = useMemo(() => {
+    const counts = new Map<string, number>();
+    friends.forEach((friend) => {
+      const key = friend.city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    return counts;
+  }, [friends]);
   const radius = (fullScreen ? FULLSCREEN_RADIUS : BASE_RADIUS) * zoom;
   const projectedCities = useMemo(
     () => cities
@@ -142,6 +203,12 @@ export function ExploreGlobe({
       })
       .filter(({ point }) => point.z > 0.02);
   }, [friends, rotation, tilt, radius]);
+  const selectedSearchPoint = selectedCity && selectedCityCoordinates && !selected
+    ? project(selectedCityCoordinates.latitude, selectedCityCoordinates.longitude, rotation, tilt, radius)
+    : null;
+  const visibleSelectedSearchPoint = selectedSearchPoint && selectedSearchPoint.z > 0.02
+    ? selectedSearchPoint
+    : null;
   const globeScale = stageSize.width > 0 && stageSize.height > 0
     ? Math.min(stageSize.width / WIDTH, stageSize.height / HEIGHT)
     : 0;
@@ -179,24 +246,41 @@ export function ExploreGlobe({
           setStageSize((current) => current.width === width && current.height === height ? current : { width, height });
         }}
         {...(Platform.OS === 'web' ? {} : panResponder.panHandlers)}
-        onTouchStart={Platform.OS === 'web' ? (event) => {
+        onTouchStart={(event) => {
           const touch = event.nativeEvent.touches[0];
           if (!touch) return;
-          touchOrigin.current = { x: touch.pageX, y: touch.pageY, active: true };
+          const secondTouch = event.nativeEvent.touches[1];
+          touchOrigin.current = {
+            x: touch.pageX,
+            y: touch.pageY,
+            active: true,
+            distance: secondTouch
+              ? Math.hypot(secondTouch.pageX - touch.pageX, secondTouch.pageY - touch.pageY)
+              : 0,
+            zoom: currentZoom.current,
+          };
           dragOrigin.current = { rotation: currentRotation.current, tilt: currentTilt.current };
-        } : undefined}
-        onTouchMove={Platform.OS === 'web' ? (event) => {
+        }}
+        onTouchMove={(event) => {
+          if (Platform.OS !== 'web') return;
           const touch = event.nativeEvent.touches[0];
           if (!touch || !touchOrigin.current.active) return;
+          const secondTouch = event.nativeEvent.touches[1];
+          if (secondTouch && touchOrigin.current.distance > 0) {
+            const distance = Math.hypot(secondTouch.pageX - touch.pageX, secondTouch.pageY - touch.pageY);
+            event.preventDefault();
+            setZoom(Math.max(0.82, Math.min(1.2, touchOrigin.current.zoom * distance / touchOrigin.current.distance)));
+            return;
+          }
           const dx = touch.pageX - touchOrigin.current.x;
           const dy = touch.pageY - touchOrigin.current.y;
           if (Math.abs(dx) <= 5 && Math.abs(dy) <= 8) return;
           event.preventDefault();
           setRotation(dragOrigin.current.rotation + dx * 0.72);
           setTilt(Math.max(-0.55, Math.min(0.55, dragOrigin.current.tilt + dy / 360)));
-        } : undefined}
-        onTouchEnd={Platform.OS === 'web' ? () => { touchOrigin.current.active = false; } : undefined}
-        onTouchCancel={Platform.OS === 'web' ? () => { touchOrigin.current.active = false; } : undefined}
+        }}
+        onTouchEnd={() => { touchOrigin.current.active = false; touchOrigin.current.distance = 0; }}
+        onTouchCancel={() => { touchOrigin.current.active = false; touchOrigin.current.distance = 0; }}
       >
         <Svg width="100%" height="100%" viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
           <Defs>
@@ -220,18 +304,51 @@ export function ExploreGlobe({
             ))}
             {projectedCities.map(({ city, point }) => {
               const active = selectedCity === city.city;
-              const dotRadius = Math.min(8, 4.2 + Math.log2(city.experiences) * 1.2);
+              const cityKey = city.city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
+              const friendsNearby = friendCountsByCity.get(cityKey) ?? 0;
+              const metric = mode === 'activity'
+                ? city.participants
+                : mode === 'impact'
+                  ? city.xpOffered
+                  : mode === 'social'
+                    ? friendsNearby
+                    : city.experiences;
+              const dotRadius = Math.min(8, 3.8 + Math.log2(Math.max(metric, 1)) * 1.15);
+              const markerColor = mode === 'activity'
+                ? colors.teal
+                : mode === 'impact'
+                  ? colors.violet
+                  : mode === 'social'
+                    ? colors.teal
+                    : colors.primary;
+              const valueLabel = mode === 'activity'
+                ? `${city.participants} joined`
+                : mode === 'impact'
+                  ? `${city.xpOffered.toLocaleString()} XP offered`
+                  : mode === 'social'
+                    ? `${friendsNearby} friends`
+                    : `${city.experiences} experiences`;
               const showLabel = active || cities.length === 1 || (zoom > 1.05 && cities.length <= 3);
               return (
                 <G key={city.city}>
-                  <Circle cx={point.x} cy={point.y} r={dotRadius + 12} fill={colors.primary} fillOpacity="0.02" />
-                  <Circle cx={point.x} cy={point.y} r={dotRadius + 10} fill={colors.primary} fillOpacity={active ? 0.2 : 0.08} />
-                  <Circle cx={point.x} cy={point.y} r={dotRadius} fill={colors.primary} stroke={space.foreground} strokeOpacity="0.88" strokeWidth="1.3" />
+                  <Circle cx={point.x} cy={point.y} r={dotRadius + 12} fill={markerColor} fillOpacity="0.02" />
+                  <Circle cx={point.x} cy={point.y} r={dotRadius + 10} fill={markerColor} fillOpacity={active ? 0.2 : 0.08} />
+                  {mode === 'activity' || mode === 'impact' ? (
+                    <Circle cx={point.x} cy={point.y} r={dotRadius + (mode === 'activity' ? 7 : 5)} fill="none" stroke={markerColor} strokeOpacity={active ? 0.62 : 0.34} strokeWidth="1" />
+                  ) : null}
+                  <Circle cx={point.x} cy={point.y} r={dotRadius} fill={markerColor} stroke={space.foreground} strokeOpacity="0.88" strokeWidth="1.3" />
                   <Circle cx={point.x} cy={point.y} r={1.7} fill={space.foreground} />
-                  {showLabel ? <SvgText x={point.x + 13} y={point.y - 9} fill={space.foreground} fontSize="10" fontWeight="600">{city.city} · {city.experiences}</SvgText> : null}
+                  {showLabel ? <SvgText x={point.x + 13} y={point.y - 9} fill={space.foreground} fontSize="10" fontWeight="600">{city.city} · {valueLabel}</SvgText> : null}
                 </G>
               );
             })}
+            {visibleSelectedSearchPoint ? (
+              <G>
+                <Circle cx={visibleSelectedSearchPoint.x} cy={visibleSelectedSearchPoint.y} r="9" fill="none" stroke={colors.teal} strokeOpacity="0.8" strokeWidth="1.4" strokeDasharray="2 2" />
+                <Circle cx={visibleSelectedSearchPoint.x} cy={visibleSelectedSearchPoint.y} r="3" fill={colors.teal} />
+                <SvgText x={visibleSelectedSearchPoint.x + 13} y={visibleSelectedSearchPoint.y - 9} fill={space.foreground} fontSize="10" fontWeight="600">{selectedCity}</SvgText>
+              </G>
+            ) : null}
           </G>
           <Circle cx={CENTER_X} cy={CENTER_Y} r={radius} fill="none" stroke={space.subdued} strokeOpacity="0.32" strokeWidth="0.8" />
           {!fullScreen ? (
@@ -240,28 +357,42 @@ export function ExploreGlobe({
               <SvgText x="65" y="269" fill={space.subdued} fontSize="8" letterSpacing="1.1">APPROX. CITY</SvgText>
             </>
           ) : null}
-          <SvgText x="322" y="269" fill={space.subdued} fontSize="8" textAnchor="end">{Math.round(rotation % 360)}°</SvgText>
+          <SvgText testID="explore-globe-rotation" x="322" y="269" fill={space.subdued} fontSize="8" textAnchor="end">{Math.round(rotation % 360)}°</SvgText>
         </Svg>
         <View style={[styles.markerLayer, { pointerEvents: 'box-none' }]}>
-          {globeScale > 0 ? projectedCities.map(({ city, point }) => (
-            <Pressable
-              key={city.city}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={`${city.city}: ${city.experiences} experiences`}
-              accessibilityHint="Shows experience activity for this city"
-              testID={`explore-globe-marker-${city.city.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-              onPress={() => onSelectCity(city.city)}
-              style={[
-                styles.markerHitTarget,
-                {
-                  left: globeOffsetX + point.x * globeScale - 22,
-                  top: globeOffsetY + point.y * globeScale - 22,
-                },
-              ]}
-            />
-          )) : null}
-          {fullScreen && showFriends && globeScale > 0 ? projectedFriends.map(({ friend, point, offsetX, offsetY, zIndex }) => (
+          {globeScale > 0 ? projectedCities.map(({ city, point }) => {
+            const cityKey = city.city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
+            const friendsNearby = friendCountsByCity.get(cityKey) ?? 0;
+            const markerSummary = mode === 'activity'
+              ? `${city.participants} participants signed up`
+              : mode === 'impact'
+                ? `${city.xpOffered.toLocaleString()} XP offered`
+                : mode === 'social'
+                  ? `${friendsNearby} friends`
+                  : `${city.experiences} experiences`;
+            return (
+              <Pressable
+                key={city.city}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={`${city.city}: ${markerSummary}`}
+                accessibilityHint="Focuses the globe on this approximate city and shows its experience activity."
+                testID={`explore-globe-marker-${city.city.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                onPress={() => {
+                  focusOnCity(city.latitude, city.longitude);
+                  onSelectCity(city.city);
+                }}
+                style={[
+                  styles.markerHitTarget,
+                  {
+                    left: globeOffsetX + point.x * globeScale - 22,
+                    top: globeOffsetY + point.y * globeScale - 22,
+                  },
+                ]}
+              />
+            );
+          }) : null}
+          {fullScreen && (showFriends || mode === 'social') && globeScale > 0 ? projectedFriends.map(({ friend, point, offsetX, offsetY, zIndex }) => (
             <Pressable
               key={friend.id}
               accessible
@@ -306,7 +437,7 @@ export function ExploreGlobe({
             <Feather name="minus" size={16} color={space.foreground} />
           </Pressable>
           <View style={[styles.zoomDivider, fullScreen && styles.fullScreenZoomDivider, { backgroundColor: space.border }]} />
-          <Pressable accessibilityRole="button" accessibilityLabel="Reset globe view" testID="explore-globe-reset" onPress={() => { setRotation(0); setTilt(0); setZoom(1); onResetCity(); }} style={[styles.zoomButton, fullScreen && styles.fullScreenZoomButton]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Reset globe view" testID="explore-globe-reset" onPress={() => { resetView(); onResetCity(); }} style={[styles.zoomButton, fullScreen && styles.fullScreenZoomButton]}>
             <Feather name="rotate-ccw" size={14} color={space.muted} />
           </Pressable>
         </View>
@@ -348,11 +479,19 @@ export function ExploreGlobe({
       ) : null}
     </View>
   );
-}
+});
+
+// Keep a stable renderer contract while the lightweight SVG engine remains the supported fallback.
+const SVG_GLOBE_ENGINE: GlobeEngine = SvgGlobeEngine;
+
+export const ExploreGlobe = React.forwardRef<ExploreGlobeHandle, Props>(function ExploreGlobe(props, ref) {
+  const Engine = SVG_GLOBE_ENGINE;
+  return <Engine {...props} ref={ref} />;
+});
 
 const styles = StyleSheet.create({
   fullScreenRoot: { flex: 1, position: 'relative' },
-  fullScreenStage: { flex: 1, position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  fullScreenStage: { flex: 1, position: 'relative', alignItems: 'center', justifyContent: 'center', transform: [{ translateY: 48 }] },
   shell: { borderWidth: 1, borderRadius: 24, paddingHorizontal: 17, paddingTop: 18, paddingBottom: 14, marginBottom: 25, overflow: 'hidden' },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   eyebrow: { fontSize: 9, fontFamily: 'Inter_700Bold', letterSpacing: 1.7, marginBottom: 5 },
@@ -370,7 +509,7 @@ const styles = StyleSheet.create({
   friendPinAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   atmosphere: { position: 'absolute', width: 206, height: 34, borderRadius: 100, opacity: 0.08, bottom: 20, transform: [{ scaleX: 1.15 }] },
   zoomControls: { position: 'absolute', right: 0, top: 18, borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
-  fullScreenZoomControls: { right: 20, top: 60, flexDirection: 'row', alignItems: 'center' },
+  fullScreenZoomControls: { right: 20, top: 246, flexDirection: 'row', alignItems: 'center' },
   zoomButton: { width: 36, height: 35, alignItems: 'center', justifyContent: 'center' },
   zoomDivider: { height: 1, marginHorizontal: 7 },
   fullScreenZoomButton: { width: 32, height: 34 },

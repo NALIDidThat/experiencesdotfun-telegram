@@ -112,7 +112,7 @@ import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { DirectMessagesScreen } from '@/components/DirectMessagesScreen';
 import { AiAssistantScreen } from '@/components/AiAssistantScreen';
 import { ExperienceChallengesScreen } from '@/components/ExperienceChallengesScreen';
-import { ExploreGlobe, type GlobeCity, type GlobeFriend } from '@/components/ExploreGlobe';
+import { ExploreGlobe, type ExploreGlobeHandle, type GlobeCity, type GlobeFriend, type GlobeMode } from '@/components/ExploreGlobe';
 import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
@@ -123,6 +123,12 @@ type IconName = keyof typeof Feather.glyphMap;
 type BottomNavQuickAction = 'post' | 'create' | 'progress' | 'assistant' | 'challenges';
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
+const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
+  { key: 'explore', label: 'Explore', icon: 'compass' },
+  { key: 'social', label: 'Social', icon: 'users' },
+  { key: 'activity', label: 'Activity', icon: 'activity' },
+  { key: 'impact', label: 'Impact', icon: 'award' },
+];
 const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
@@ -2126,9 +2132,11 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   }, [initialCategory]);
   const [search, setSearch] = useState('');
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
-  const [showFriends, setShowFriends] = useState(false);
+  const [mode, setMode] = useState<GlobeMode>('explore');
+  const showFriends = mode === 'social';
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [screenHeight, setScreenHeight] = useState(0);
+  const globeRef = useRef<ExploreGlobeHandle>(null);
   const sheetHeight = useRef(new Animated.Value(190)).current;
   const sheetTouchOrigin = useRef({ y: 0, active: false });
   const collapsedSheetHeight = screenHeight > 0
@@ -2172,36 +2180,67 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
     }),
     [friendsQuery.data],
   );
-  const globeCities: GlobeCity[] = [];
-  const cityAggregates = new Map<string, GlobeCity>();
-  (query.data ?? []).forEach((experience) => {
-    const cityKey = normalizeExploreCityName(experience.city);
-    const coordinates = exploreCityCoordinates[cityKey];
-    if (!coordinates) return;
-    const aggregate = cityAggregates.get(cityKey) ?? {
-      city: experience.city,
-      ...coordinates,
-      experiences: 0,
-      participants: 0,
-      places: 0,
-      xpOffered: 0,
-    };
-    aggregate.experiences += 1;
-    aggregate.participants += experience.participantCount;
-    aggregate.places += experience.availablePlaces;
-    aggregate.xpOffered += experience.xpReward;
-    cityAggregates.set(cityKey, aggregate);
-  });
-  globeCities.push(...cityAggregates.values());
+  const globeCities = useMemo<GlobeCity[]>(() => {
+    const cityAggregates = new Map<string, GlobeCity>();
+    (query.data ?? []).forEach((experience) => {
+      const cityKey = normalizeExploreCityName(experience.city);
+      const coordinates = exploreCityCoordinates[cityKey];
+      if (!coordinates) return;
+      const aggregate = cityAggregates.get(cityKey) ?? {
+        city: experience.city,
+        country: experience.organisation.country,
+        ...coordinates,
+        experiences: 0,
+        openExperiences: 0,
+        participants: 0,
+        places: 0,
+        xpOffered: 0,
+        categoryCounts: {},
+      };
+      aggregate.experiences += 1;
+      aggregate.openExperiences += experience.availablePlaces > 0 ? 1 : 0;
+      aggregate.participants += experience.participantCount;
+      aggregate.places += experience.availablePlaces;
+      aggregate.xpOffered += experience.xpReward;
+      aggregate.categoryCounts[experience.category] = (aggregate.categoryCounts[experience.category] ?? 0) + 1;
+      cityAggregates.set(cityKey, aggregate);
+    });
+    return [...cityAggregates.values()];
+  }, [query.data]);
   const visibleExperiences = selectedCity
     ? (query.data ?? []).filter((experience) => normalizeExploreCityName(experience.city) === normalizeExploreCityName(selectedCity))
     : (query.data ?? []);
+  const selectedCityData = globeCities.find((city) => normalizeExploreCityName(city.city) === normalizeExploreCityName(selectedCity ?? '')) ?? null;
+  const selectedCityFriendCount = selectedCity
+    ? friendLocations.filter((friend) => normalizeExploreCityName(friend.city) === normalizeExploreCityName(selectedCity)).length
+    : 0;
+  const selectedTopCategories = selectedCityData
+    ? Object.entries(selectedCityData.categoryCounts)
+      .filter(([, count]) => Boolean(count))
+      .sort((left, right) => (right[1] ?? 0) - (left[1] ?? 0))
+      .slice(0, 2)
+      .map(([key]) => categoryLabel[key as ExperienceCategory])
+    : [];
   const toggleSheet = () => setSheetExpanded((current) => !current);
   const selectCity = (city: string) => {
     setSelectedCity(city);
     setSheetExpanded(true);
   };
-  const friendMapHint = showFriends
+  const clearSelectedCity = () => {
+    globeRef.current?.resetView();
+    setSelectedCity(null);
+  };
+  const focusSearchedCity = () => {
+    const cityKey = normalizeExploreCityName(search);
+    const coordinates = exploreCityCoordinates[cityKey];
+    if (!cityKey || !coordinates) return;
+    const matchingExperience = (query.data ?? []).find(
+      (experience) => normalizeExploreCityName(experience.city) === cityKey,
+    );
+    globeRef.current?.focusOnCity(coordinates.latitude, coordinates.longitude);
+    selectCity(matchingExperience?.city ?? search.trim());
+  };
+  const friendMapHint = mode === 'social'
     ? friendsQuery.isLoading
       ? 'Loading friend cities…'
       : friendsQuery.isError
@@ -2209,9 +2248,13 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         : friendLocations.length
           ? 'Approximate profile cities · not live locations'
           : 'No friends with a mapped profile city yet'
-    : sheetExpanded
-      ? 'Swipe down · city locations are approximate'
-      : 'Swipe up · city locations are approximate';
+    : mode === 'activity'
+      ? 'Approximate city markers · sign-ups, not live check-ins'
+      : mode === 'impact'
+        ? 'Approximate city markers · XP offered, not earned'
+        : sheetExpanded
+          ? 'Swipe down · city locations are approximate'
+          : 'Swipe up · city locations are approximate';
   const categoryFilters = (
     <ScrollView
       horizontal
@@ -2256,43 +2299,25 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
     >
       <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
         <ExploreGlobe
+          ref={globeRef}
           fullScreen
           cities={globeCities}
           friends={friendLocations}
+          mode={mode}
           selectedCity={selectedCity}
+          selectedCityCoordinates={selectedCity ? exploreCityCoordinates[normalizeExploreCityName(selectedCity)] : undefined}
           status={query.isLoading ? 'loading' : query.isError ? 'error' : 'ready'}
           showFriends={showFriends}
           onSelectCity={selectCity}
           onSelectFriend={(friendId) => go('friend-profile', { id: String(friendId) })}
           onExploreCity={selectCity}
-          onResetCity={() => setSelectedCity(null)}
+          onResetCity={clearSelectedCity}
         />
       </View>
 
       <View pointerEvents="box-none" style={styles.exploreTopOverlay}>
         <View style={[styles.exploreTopBar, styles.exploreFullscreenTopBar]}>
           <View style={styles.exploreTopActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={showFriends ? 'Hide friend locations' : 'Show friend locations'}
-              accessibilityState={{ selected: showFriends }}
-              testID="explore-friends-toggle"
-              onPress={() => { triggerHaptic(); setShowFriends((current) => !current); }}
-              style={({ pressed }) => [
-                styles.exploreFriendsToggle,
-                {
-                  backgroundColor: showFriends ? colors.primary : colors.welcome.surface,
-                  borderColor: showFriends ? colors.primary : colors.welcome.border,
-                },
-                pressed && styles.exploreTopActionPressed,
-              ]}
-            >
-              <Feather name="users" size={15} color={showFriends ? colors.primaryForeground : colors.welcome.foreground} />
-              <Text style={[styles.exploreFriendsToggleText, { color: showFriends ? colors.primaryForeground : colors.welcome.foreground }]}>Friends</Text>
-              {friendLocations.length > 0 ? (
-                <Text style={[styles.exploreFriendsToggleCount, { color: showFriends ? colors.primaryForeground : colors.welcome.muted }]}>{friendLocations.length}</Text>
-              ) : null}
-            </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Open notifications"
@@ -2326,11 +2351,12 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         ]}>
           <Feather name="search" size={19} color={colors.mutedForeground} />
           <TextInput
-            accessibilityLabel="Search experiences"
+            accessibilityLabel="Search experiences or city"
             testID="explore-search-input"
             value={search}
             onChangeText={setSearch}
-            placeholder="Search experiences"
+            onSubmitEditing={focusSearchedCity}
+            placeholder="Search experiences or city"
             placeholderTextColor={colors.mutedForeground}
             returnKeyType="search"
             style={[styles.searchInput, { color: colors.foreground }]}
@@ -2348,7 +2374,36 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           ) : null}
         </View>
 
-        {!showFriends ? categoryFilters : null}
+        <View style={styles.exploreModeRow} accessibilityLabel="Globe layers">
+          {exploreModes.map((option) => {
+            const selected = mode === option.key;
+            return (
+              <Pressable
+                key={option.key}
+                accessibilityRole="button"
+                accessibilityLabel={`Show ${option.label} globe layer`}
+                accessibilityState={{ selected }}
+                testID={`explore-mode-${option.key}`}
+                onPress={() => { triggerHaptic(); setMode(option.key); }}
+                style={({ pressed }) => [
+                  styles.exploreModeTab,
+                  {
+                    backgroundColor: selected ? colors.primary : colors.welcome.surface,
+                    borderColor: selected ? colors.primary : colors.welcome.border,
+                    opacity: pressed ? 0.78 : 1,
+                  },
+                ]}
+              >
+                <Feather name={option.icon} size={13} color={selected ? colors.primaryForeground : colors.welcome.muted} />
+                <Text style={[styles.exploreModeTabText, { color: selected ? colors.primaryForeground : colors.welcome.foreground }]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {mode === 'explore' ? categoryFilters : null}
       </View>
 
       <Animated.View
@@ -2385,7 +2440,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           <View style={styles.exploreSheetHeadingRow}>
             <View style={styles.exploreSheetHeadingCopy}>
               <Text style={[styles.exploreSheetTitle, { color: colors.foreground }]}>
-                {selectedCity ? `${selectedCity} experiences` : 'Experiences'}
+                {selectedCity ? `${selectedCity}${selectedCityData?.country ? `, ${selectedCityData.country}` : ''}` : 'Experiences'}
               </Text>
               <Text style={[styles.exploreSheetHint, { color: colors.mutedForeground }]}>
                 {friendMapHint}
@@ -2410,15 +2465,37 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
               accessibilityRole="button"
               accessibilityLabel={`Clear ${selectedCity} city filter`}
               testID="explore-clear-city"
-              onPress={() => setSelectedCity(null)}
+              onPress={clearSelectedCity}
               style={[styles.exploreCityFilter, { backgroundColor: colors.muted }]}
             >
               <Feather name="x" size={12} color={colors.mutedForeground} />
               <Text style={[styles.exploreCityFilterText, { color: colors.mutedForeground }]}>{selectedCity}</Text>
             </Pressable>
           ) : null}
+          {selectedCityData ? (
+            <View testID="explore-city-context" style={styles.exploreCityContext}>
+              <View style={styles.exploreCityStats}>
+                {[
+                  { value: selectedCityData.experiences.toLocaleString(), label: 'experiences' },
+                  { value: selectedCityData.participants.toLocaleString(), label: 'signed up' },
+                  { value: selectedCityData.openExperiences.toLocaleString(), label: 'with space' },
+                  { value: selectedCityData.xpOffered.toLocaleString(), label: 'XP offered' },
+                ].map((stat) => (
+                  <View key={stat.label} style={[styles.exploreCityStat, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                    <Text numberOfLines={1} style={[styles.exploreCityStatValue, { color: colors.foreground }]}>{stat.value}</Text>
+                    <Text numberOfLines={1} style={[styles.exploreCityStatLabel, { color: colors.mutedForeground }]}>{stat.label}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={[styles.exploreCityContextHint, { color: colors.mutedForeground }]}>
+                {selectedCityFriendCount
+                  ? `${selectedCityFriendCount} friend${selectedCityFriendCount === 1 ? '' : 's'} list this profile city`
+                  : 'No friends list this as their profile city'}
+                {selectedTopCategories.length ? ` · ${selectedTopCategories.join(' · ')}` : ''}
+              </Text>
+            </View>
+          ) : null}
         </View>
-        {showFriends ? <View style={styles.exploreFriendsFilterSlot}>{categoryFilters}</View> : null}
         <ScrollView
           testID="explore-sheet-list"
           style={styles.exploreSheetScroll}
@@ -2430,7 +2507,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         >
           {query.isLoading ? <LoadingState /> : query.isError ? (
             <EmptyState title="Experiences didn’t load" body="Check your connection and try again." actionLabel="Try again" onAction={() => { void query.refetch(); }} />
-          ) : visibleExperiences.length ? visibleExperiences.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title={selectedCity ? `No experiences in ${selectedCity}` : 'No experiences match'} body="Try another category or come back when local hosts publish something new." actionLabel={selectedCity ? 'Clear city filter' : undefined} onAction={selectedCity ? () => setSelectedCity(null) : undefined} />}
+          ) : visibleExperiences.length ? visibleExperiences.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title={selectedCity ? `No experiences in ${selectedCity}` : 'No experiences match'} body="Try another category or come back when local hosts publish something new." actionLabel={selectedCity ? 'Clear city filter' : undefined} onAction={selectedCity ? clearSelectedCity : undefined} />}
           <View style={{ height: 24 }} />
         </ScrollView>
       </Animated.View>
@@ -7871,8 +7948,11 @@ const styles = StyleSheet.create({
   exploreScreen: { flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' },
   exploreTopOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, paddingHorizontal: 20, paddingTop: 8 },
   exploreFullscreenTopBar: { marginBottom: 12, justifyContent: 'flex-end' },
-  exploreFullscreenSearchBox: { width: '60%', alignSelf: 'flex-start', marginBottom: 10 },
+  exploreFullscreenSearchBox: { width: '100%', alignSelf: 'stretch', marginBottom: 8 },
   exploreFullscreenFilterRow: { paddingBottom: 0 },
+  exploreModeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  exploreModeTab: { height: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 9, borderWidth: 1, borderRadius: 12 },
+  exploreModeTabText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
   exploreSheet: {
     position: 'absolute',
     left: 0,
@@ -7896,15 +7976,17 @@ const styles = StyleSheet.create({
   exploreSheetToggle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   exploreCityFilter: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10, marginTop: 7 },
   exploreCityFilterText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  exploreCityContext: { marginTop: 9 },
+  exploreCityStats: { flexDirection: 'row', gap: 6 },
+  exploreCityStat: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 3, paddingVertical: 6 },
+  exploreCityStatValue: { maxWidth: '100%', fontSize: 11, fontFamily: 'Inter_700Bold' },
+  exploreCityStatLabel: { maxWidth: '100%', fontSize: 8, lineHeight: 11, fontFamily: 'Inter_500Medium', textAlign: 'center' },
+  exploreCityContextHint: { marginTop: 6, fontSize: 9, lineHeight: 13, fontFamily: 'Inter_400Regular' },
   exploreSheetScroll: { flex: 1, minHeight: 0 },
   exploreSheetScrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 14 },
   exploreContent: { paddingTop: 8, paddingBottom: 12 },
   exploreTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 },
   exploreTopActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  exploreFriendsToggle: { height: 40, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, borderWidth: 1, borderRadius: 14 },
-  exploreFriendsToggleText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  exploreFriendsToggleCount: { minWidth: 12, textAlign: 'center', fontSize: 10, fontFamily: 'Inter_700Bold' },
-  exploreFriendsFilterSlot: { paddingHorizontal: 18, marginBottom: 8 },
   exploreTopAction: { width: 40, height: 42, alignItems: 'center', justifyContent: 'center' },
   exploreAvatarButton: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden' },
   exploreAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },

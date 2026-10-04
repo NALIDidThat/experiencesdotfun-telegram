@@ -494,15 +494,15 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
   assert.ok(initialCards.includes("explore-experience-card-765"), "The unmapped city's experience stays in the list.");
   await waitForValue(
     client,
-    `Boolean(document.querySelector('[data-testid="explore-friends-toggle"]'))`,
+    `Boolean(document.querySelector('[data-testid="explore-mode-social"]'))`,
     Boolean,
-    "the friend-location toggle",
+    "the Social globe layer control",
   );
   assert.ok(
-    await client.evaluate(`document.querySelector('[data-testid="explore-friends-toggle"]')?.getAttribute('aria-label')?.includes('friend locations') ?? false`),
-    "The friend-location control should expose an accessible label.",
+    await client.evaluate(`document.querySelector('[data-testid="explore-mode-social"]')?.getAttribute('aria-label')?.includes('Social') ?? false`),
+    "The Social layer control should expose an accessible label.",
   );
-  await tapTestId(client, "explore-friends-toggle");
+  await tapTestId(client, "explore-mode-social");
   await waitForValue(
     client,
     `document.querySelectorAll('[data-testid^="explore-friend-pin-"]').length`,
@@ -522,7 +522,7 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     false,
     "Friends in unmapped cities should not be assigned invented coordinates.",
   );
-  await tapTestId(client, "explore-friends-toggle");
+  await tapTestId(client, "explore-mode-explore");
   await waitForValue(
     client,
     `document.querySelectorAll('[data-testid^="explore-friend-pin-"]').length`,
@@ -533,6 +533,17 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     await client.evaluate(`Boolean(document.querySelector('[aria-label="London: 2 experiences"]'))`),
     "The mapped London marker should show its aggregate count.",
   );
+  await tapTestId(client, "explore-mode-activity");
+  assert.ok(
+    await client.evaluate(`Boolean(document.querySelector('[aria-label="London: 4 participants signed up"]'))`),
+    "Activity should show participant sign-ups rather than live check-ins.",
+  );
+  await tapTestId(client, "explore-mode-impact");
+  assert.ok(
+    await client.evaluate(`Boolean(document.querySelector('[aria-label="London: 200 XP offered"]'))`),
+    "Impact should show XP offered rather than earned contribution.",
+  );
+  await tapTestId(client, "explore-mode-explore");
   const fullScreenMetrics = await client.evaluate(`(() => {
     const screen = document.querySelector('[data-testid="explore-screen-layout"]')?.getBoundingClientRect();
     const globe = document.querySelector('[data-testid="explore-globe-map"]')?.getBoundingClientRect();
@@ -575,6 +586,16 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
   assert.ok(
     await client.evaluate(`document.querySelector('[data-testid="explore-sheet-handle"]')?.innerText?.toLowerCase().includes('approximate') ?? false`),
     "The sheet should disclose that city markers show approximate locations.",
+  );
+  const londonContext = await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-city-context"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+    (text) => text.includes("2 experiences") && text.includes("4 signed up") && text.includes("200 XP offered"),
+    "the London city context summary",
+  );
+  assert.ok(
+    londonContext.includes("1 friend list this profile city"),
+    "The city context should count friends by approximate profile city.",
   );
   await waitForValue(
     client,
@@ -650,6 +671,19 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     `Math.round(document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect().height ?? 0)`,
     (height) => height > 320,
     "the sheet reopening to its expanded position",
+  );
+  await tapTestId(client, "explore-sheet-toggle");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-sheet-toggle"]')?.getAttribute('aria-label') ?? ''`,
+    (label) => label === "Expand experience list",
+    "the sheet collapsing before globe controls are used",
+  );
+  await waitForValue(
+    client,
+    `Math.round(document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect().height ?? 0)`,
+    (height) => height < 250,
+    "the sheet making room for the globe controls",
   );
 
   const globeRadius = () => client.evaluate(
@@ -738,6 +772,33 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
   assert.ok(
     await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-experience-card-764"]'))`),
     "Search should keep the matching experience card available.",
+  );
+  await client.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter" });
+  await client.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter" });
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-globe-rotation"]')?.textContent?.trim() ?? ''`,
+    (rotation) => rotation === "79°",
+    "the globe to focus the searched Toronto city",
+  );
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="explore-city-context"]'))`,
+    Boolean,
+    "the city details for a searched mapped city",
+  );
+  await tapTestId(client, "explore-globe-reset");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-globe-rotation"]')?.textContent?.trim() ?? ''`,
+    (rotation) => rotation === "0°",
+    "the reset camera position after searching a city",
+  );
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="explore-clear-city"]'))`,
+    (visible) => !visible,
+    "the searched city filter to clear when resetting the globe",
   );
   await tapTestId(client, "explore-clear-search");
   await waitForValue(

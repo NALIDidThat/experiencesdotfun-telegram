@@ -21,3 +21,4 @@
 - [Expo in-app navigation tests](expo-router-in-app-navigation.md) — assert the rendered destination after router state changes; browser query strings may not track in-app screen state.
 - [Host milestone history](host-milestone-history.md) — lock milestone definitions after submissions exist, while keeping unrelated experience details editable.
 - [Express router auth scope](express-router-auth-scope.md) — mount protected subrouters at their resource prefix so auth guards cannot intercept unrelated public routes.
+- [Explore globe hit testing](explore-globe-hit-testing.md) — keep map markers and zoom controls clear of overlay controls, and assert selected-city state, not just result counts.
