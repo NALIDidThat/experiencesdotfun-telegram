@@ -6570,21 +6570,24 @@ function BottomNav({
     quickActionsProgress.setValue(0);
     if (reduceMotion) quickActionsProgress.setValue(1);
   };
-  const closeQuickActions = () => {
+  const closeQuickActions = (onClosed?: () => void) => {
     setQuickActionsOpen(false);
     quickActionsProgress.stopAnimation();
     if (reduceMotion) {
       quickActionsProgress.setValue(0);
       setQuickActionsVisible(false);
+      onClosed?.();
       return;
     }
     Animated.timing(quickActionsProgress, {
       toValue: 0,
       duration: 190,
       easing: Easing.in(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start(({ finished }) => {
-      if (finished) setQuickActionsVisible(false);
+      if (!finished) return;
+      setQuickActionsVisible(false);
+      onClosed?.();
     });
   };
   const animateQuickActionsIn = () => {
@@ -6593,7 +6596,7 @@ function BottomNav({
       toValue: 1,
       duration: 270,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start();
   };
   const liquidGlassAvailable =
@@ -7006,18 +7009,20 @@ function BottomNav({
         presentationStyle="overFullScreen"
         statusBarTranslucent
         onShow={animateQuickActionsIn}
-        onRequestClose={closeQuickActions}
+        onRequestClose={() => closeQuickActions()}
       >
         <View style={styles.quickActionsModal}>
           <Animated.View
-            pointerEvents="box-none"
-            style={[StyleSheet.absoluteFill, { opacity: quickActionsProgress }]}
+            style={[
+              StyleSheet.absoluteFill,
+              { opacity: quickActionsProgress, pointerEvents: 'box-none' },
+            ]}
           >
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Close quick actions"
               testID="bottom-nav-quick-actions-dismiss"
-              onPress={closeQuickActions}
+              onPress={() => closeQuickActions()}
               style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.48)' }]}
             />
           </Animated.View>
@@ -7052,7 +7057,7 @@ function BottomNav({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Close quick actions"
-                onPress={closeQuickActions}
+                onPress={() => closeQuickActions()}
                 hitSlop={8}
                 style={styles.quickActionsClose}
               >
@@ -7074,9 +7079,8 @@ function BottomNav({
                   key={action.id}
                   testID={`bottom-nav-action-${action.id}`}
                   onPress={() => {
-                    closeQuickActions();
                     triggerHaptic();
-                    onQuickAction(action.id);
+                    closeQuickActions(() => onQuickAction(action.id));
                   }}
                   style={({ pressed }) => [
                     styles.quickActionRow,
