@@ -61,6 +61,7 @@ import type {
   ExperienceMilestoneProgress,
   ExperienceMilestoneReviewInput,
   ExperienceMilestoneSubmission,
+  ExploreActivityResponse,
   FeedComment,
   FeedCommentInput,
   FeedCommentsResponse,
@@ -3020,6 +3021,83 @@ export function useGetCommunityDetails<TData = Awaited<ReturnType<typeof getComm
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetCommunityDetailsQueryOptions(chatId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListExploreActivityUrl = () => {
+
+
+
+
+  return `/api/explore/activity`
+}
+
+/**
+ * @summary Get recent host-verified activity aggregated by city
+ */
+export const listExploreActivity = async ( options?: Parameters<typeof customFetch>[1]): Promise<ExploreActivityResponse> => {
+
+  return customFetch<ExploreActivityResponse>(getListExploreActivityUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListExploreActivityQueryKey = () => {
+    return [
+    `/api/explore/activity`
+    ] as const;
+    }
+
+
+export const getListExploreActivityQueryOptions = <TData = Awaited<ReturnType<typeof listExploreActivity>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExploreActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListExploreActivityQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listExploreActivity>>> = ({ signal }) => listExploreActivity({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listExploreActivity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListExploreActivityQueryResult = NonNullable<Awaited<ReturnType<typeof listExploreActivity>>>
+export type ListExploreActivityQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary Get recent host-verified activity aggregated by city
+ */
+
+export function useListExploreActivity<TData = Awaited<ReturnType<typeof listExploreActivity>>, TError = ErrorType<UnauthorizedResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExploreActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListExploreActivityQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

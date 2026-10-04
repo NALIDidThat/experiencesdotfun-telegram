@@ -825,6 +825,21 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /explore/activity:
+    get:
+      operationId: listExploreActivity
+      tags: [experiences]
+      summary: Get recent host-verified activity aggregated by city
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Host-verified completion counts from the last 30 days, grouped by experience city. No participant identities or live check-ins are returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExploreActivityResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /experiences:
     get:
       operationId: listExperiences
@@ -2749,6 +2764,11 @@ components:
           type: string
         city:
           type: string
+        verifiedLocation:
+          description: Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.
+          anyOf:
+            - $ref: "#/components/schemas/VerifiedExperienceLocation"
+            - type: "null"
         capacity:
           type: integer
         participantCount:
@@ -2772,12 +2792,61 @@ components:
         - endTime
         - location
         - city
+        - verifiedLocation
         - capacity
         - participantCount
         - availablePlaces
         - xpReward
         - monetaryRewardPence
         - status
+    VerifiedExperienceLocation:
+      type: object
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+          description: Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+          description: Longitude rounded to the disclosed precision.
+        precision:
+          type: string
+          enum: [city, neighborhood, venue_area]
+        sourceType:
+          type: string
+          enum: [organisation_site, venue_site, public_partner_event]
+        sourceUrl:
+          type: string
+          format: uri
+          description: Public listing reviewed as evidence for this location.
+        verifiedAt:
+          type: string
+          format: date-time
+      required: [latitude, longitude, precision, sourceType, sourceUrl, verifiedAt]
+    ExploreActivityCity:
+      type: object
+      properties:
+        city:
+          type: string
+        verifiedCompletions:
+          type: integer
+          minimum: 1
+          description: Host-verified completions recorded during the rolling 30-day window.
+      required: [city, verifiedCompletions]
+    ExploreActivityResponse:
+      type: object
+      properties:
+        windowDays:
+          type: integer
+          enum: [30]
+        cities:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExploreActivityCity"
+      required: [windowDays, cities]
     ExperienceDetail:
       allOf:
         - $ref: "#/components/schemas/Experience"

@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import {
   emailAccountsTable,
   experiencesTable,
+  experienceLocationEvidenceTable,
   friendshipsTable,
   organisationsTable,
   participationsTable,
@@ -12,6 +13,7 @@ import {
   type Participation,
   type User,
 } from "@workspace/db/schema";
+import { toPublicVerifiedLocation } from "./experience-location-rules.mjs";
 
 export const levelForXp = (xp: number): string => {
   if (xp >= 5000) return "Legend";
@@ -158,24 +160,30 @@ export function organisationResponse(organisation: Organisation) {
 }
 
 export async function experienceResponse(experience: Experience) {
-  const organisation = await db.query.organisationsTable.findFirst({
-    where: eq(organisationsTable.id, experience.organisationId),
-  });
+  const [organisation, participantCount, locationEvidence] = await Promise.all([
+    db.query.organisationsTable.findFirst({
+      where: eq(organisationsTable.id, experience.organisationId),
+    }),
+    db
+      .select({ value: count() })
+      .from(participationsTable)
+      .where(
+        and(
+          eq(participationsTable.experienceId, experience.id),
+          inArray(participationsTable.status, [
+            "joined",
+            "attended",
+            "submitted",
+            "verified",
+          ]),
+        ),
+      )
+      .then((rows) => rows[0]),
+    db.query.experienceLocationEvidenceTable.findFirst({
+      where: eq(experienceLocationEvidenceTable.experienceId, experience.id),
+    }),
+  ]);
   if (!organisation) throw new Error("Experience organisation is missing.");
-  const [participantCount] = await db
-    .select({ value: count() })
-    .from(participationsTable)
-    .where(
-      and(
-        eq(participationsTable.experienceId, experience.id),
-        inArray(participationsTable.status, [
-          "joined",
-          "attended",
-          "submitted",
-          "verified",
-        ]),
-      ),
-    );
   const participants = Number(participantCount?.value ?? 0);
   return {
     id: experience.id,
@@ -188,6 +196,7 @@ export async function experienceResponse(experience: Experience) {
     endTime: experience.endTime,
     location: experience.location,
     city: experience.city,
+    verifiedLocation: toPublicVerifiedLocation(locationEvidence),
     capacity: experience.capacity,
     participantCount: participants,
     availablePlaces: Math.max(experience.capacity - participants, 0),

@@ -154,7 +154,7 @@ async function waitForValue(client, expression, predicate, description, timeoutM
   throw new Error(`Timed out waiting for ${description}. Last value: ${JSON.stringify(lastValue)}`);
 }
 
-async function tapElement(client, selector, description) {
+async function tapElement(client, selector, description, offsetX = 0, offsetY = 0) {
   const point = await client.evaluate(`(() => {
     const element = document.querySelector(${JSON.stringify(selector)});
     if (!element) return null;
@@ -182,6 +182,8 @@ async function tapElement(client, selector, description) {
       x = rect.left + rect.width / 2;
       y = rect.top + rect.height / 2;
     }
+    x += ${offsetX};
+    y += ${offsetY};
     const hit = document.elementFromPoint(x, y);
     return {
       x: Math.round(x),
@@ -342,6 +344,7 @@ function makeExperience(id, title, category, city) {
     endTime: "12:00",
     location: `${city} community space`,
     city,
+    verifiedLocation: null,
     capacity: 12,
     participantCount: 2,
     availablePlaces: 10,
@@ -352,7 +355,17 @@ function makeExperience(id, title, category, city) {
 }
 
 const experiences = [
-  makeExperience(761, "London River Cleanup", "environmental", "London"),
+  {
+    ...makeExperience(761, "London River Cleanup", "environmental", "London"),
+    verifiedLocation: {
+      latitude: 51.5,
+      longitude: -0.1,
+      precision: "venue_area",
+      sourceType: "venue_site",
+      sourceUrl: "https://venue.example.test/events/river-cleanup",
+      verifiedAt: "2026-09-20T10:00:00.000Z",
+    },
+  },
   makeExperience(762, "London Neighbourhood Meetup", "community", "London"),
   makeExperience(763, "New York Learning Circle", "education", "New York"),
   makeExperience(764, "Toronto Park Planting", "environmental", "Toronto"),
@@ -416,6 +429,20 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
           }
         } else if (url.pathname === "/api/friends" && method === "GET") {
           response = friends;
+        } else if (url.pathname === "/api/explore/activity" && method === "GET") {
+          response = {
+            windowDays: 30,
+            cities: [{ city: "London", verifiedCompletions: 3 }],
+          };
+        } else if (url.pathname === "/api/experiences/761" && method === "GET") {
+          response = {
+            ...experiences[0],
+            whatToBring: null,
+            whatYouWillDo: null,
+            joined: false,
+            participation: null,
+            milestones: [],
+          };
         } else if (url.pathname === "/api/experiences" && method === "GET") {
           const category = url.searchParams.get("category");
           const search = url.searchParams.get("search")?.trim().toLowerCase() ?? "";
@@ -494,6 +521,16 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
   assert.ok(initialCards.includes("explore-experience-card-765"), "The unmapped city's experience stays in the list.");
   await waitForValue(
     client,
+    `document.querySelectorAll('[data-testid^="explore-verified-location-"]').length`,
+    (count) => count === 1,
+    "the single reviewed and consented location pin",
+  );
+  assert.ok(
+    await client.evaluate(`document.querySelector('[data-testid="explore-verified-location-761"]')?.getAttribute('aria-label')?.includes('Verified venue area location in London') ?? false`),
+    "The map should identify the reviewed pin's disclosed precision and city.",
+  );
+  await waitForValue(
+    client,
     `Boolean(document.querySelector('[data-testid="explore-mode-social"]'))`,
     Boolean,
     "the Social globe layer control",
@@ -535,8 +572,8 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
   );
   await tapTestId(client, "explore-mode-activity");
   assert.ok(
-    await client.evaluate(`Boolean(document.querySelector('[aria-label="London: 4 participants signed up"]'))`),
-    "Activity should show participant sign-ups rather than live check-ins.",
+    await client.evaluate(`Boolean(document.querySelector('[aria-label="London: 4 participants signed up; 3 host-verified completions in the last 30 days"]'))`),
+    "Activity should show sign-ups and host-verified completions rather than live check-ins.",
   );
   await tapTestId(client, "explore-mode-impact");
   assert.ok(
@@ -544,6 +581,10 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     "Impact should show XP offered rather than earned contribution.",
   );
   await tapTestId(client, "explore-mode-explore");
+  assert.ok(
+    await client.evaluate(`document.querySelector('[data-testid="explore-sheet-handle"]')?.innerText?.includes('consented, source-verified') ?? false`),
+    "The Explore layer should disclose that check pins represent rounded, consented source-verified locations.",
+  );
   const fullScreenMetrics = await client.evaluate(`(() => {
     const screen = document.querySelector('[data-testid="explore-screen-layout"]')?.getBoundingClientRect();
     const globe = document.querySelector('[data-testid="explore-globe-map"]')?.getBoundingClientRect();
@@ -568,7 +609,7 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     "An unmapped city should not get a globe marker.",
   );
 
-  await tapElement(client, '[aria-label="London: 2 experiences"]', "the London globe marker");
+  await tapElement(client, '[aria-label="London: 2 experiences"]', "the London globe marker", 16);
   await waitForValue(
     client,
     `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
@@ -590,7 +631,7 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
   const londonContext = await waitForValue(
     client,
     `document.querySelector('[data-testid="explore-city-context"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
-    (text) => text.includes("2 experiences") && text.includes("4 signed up") && text.includes("200 XP offered"),
+    (text) => text.includes("2 experiences") && text.includes("4 signed up") && text.includes("200 XP offered") && text.includes("3 host-verified completions in the last 30 days"),
     "the London city context summary",
   );
   assert.ok(
@@ -807,11 +848,20 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     (text) => text === "5 experiences",
     "the cleared search results",
   );
+  await tapTestId(client, "explore-verified-location-761");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('Experience details') && document.body.innerText.includes('London River Cleanup')`,
+    Boolean,
+    "the detail page opened by the verified location pin",
+  );
 
   await waitForValue(client, "document.readyState", (state) => state === "complete", "the Explore page load");
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/me")), "The mock-auth session should load.");
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/friends")), "Accepted friends should be fetched for city-level map pins.");
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/experiences")), "Experiences should be fetched.");
+  assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/explore/activity")), "Host-verified city activity should be fetched.");
+  assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/experiences/761")), "A verified location pin should open its backed experience detail.");
   assert.equal(interceptionError, undefined, "API request interception should complete without errors.");
   assert.deepEqual(unexpectedApiRequests, [], "The Explore screen should make no unexpected API requests.");
 });

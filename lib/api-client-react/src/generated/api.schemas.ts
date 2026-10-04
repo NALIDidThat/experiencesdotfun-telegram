@@ -533,6 +533,44 @@ export interface ExperienceMilestoneReviewInput {
   action: ExperienceMilestoneReviewInputAction;
 }
 
+export type VerifiedExperienceLocationPrecision = typeof VerifiedExperienceLocationPrecision[keyof typeof VerifiedExperienceLocationPrecision];
+
+
+export const VerifiedExperienceLocationPrecision = {
+  city: 'city',
+  neighborhood: 'neighborhood',
+  venue_area: 'venue_area',
+} as const;
+
+export type VerifiedExperienceLocationSourceType = typeof VerifiedExperienceLocationSourceType[keyof typeof VerifiedExperienceLocationSourceType];
+
+
+export const VerifiedExperienceLocationSourceType = {
+  organisation_site: 'organisation_site',
+  venue_site: 'venue_site',
+  public_partner_event: 'public_partner_event',
+} as const;
+
+export interface VerifiedExperienceLocation {
+  /**
+     * Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.
+     * @minimum -90
+     * @maximum 90
+     */
+  latitude: number;
+  /**
+     * Longitude rounded to the disclosed precision.
+     * @minimum -180
+     * @maximum 180
+     */
+  longitude: number;
+  precision: VerifiedExperienceLocationPrecision;
+  sourceType: VerifiedExperienceLocationSourceType;
+  /** Public listing reviewed as evidence for this location. */
+  sourceUrl: string;
+  verifiedAt: string;
+}
+
 export interface Experience {
   id: number;
   organisation: Organisation;
@@ -547,6 +585,8 @@ export interface Experience {
   endTime: string;
   location: string;
   city: string;
+  /** Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null. */
+  verifiedLocation: VerifiedExperienceLocation | null;
   capacity: number;
   participantCount: number;
   availablePlaces: number;
@@ -554,6 +594,27 @@ export interface Experience {
   /** @nullable */
   monetaryRewardPence: number | null;
   status: ExperienceStatus;
+}
+
+export interface ExploreActivityCity {
+  city: string;
+  /**
+     * Host-verified completions recorded during the rolling 30-day window.
+     * @minimum 1
+     */
+  verifiedCompletions: number;
+}
+
+export type ExploreActivityResponseWindowDays = typeof ExploreActivityResponseWindowDays[keyof typeof ExploreActivityResponseWindowDays];
+
+
+export const ExploreActivityResponseWindowDays = {
+  NUMBER_30: 30,
+} as const;
+
+export interface ExploreActivityResponse {
+  windowDays: ExploreActivityResponseWindowDays;
+  cities: ExploreActivityCity[];
 }
 
 export interface Participation {

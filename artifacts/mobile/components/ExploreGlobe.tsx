@@ -15,6 +15,7 @@ export type GlobeCity = {
   participants: number;
   places: number;
   xpOffered: number;
+  recentVerifiedCompletions: number;
   categoryCounts: Partial<Record<'environmental' | 'education' | 'community', number>>;
 };
 
@@ -29,17 +30,29 @@ export type GlobeFriend = {
   longitude: number;
 };
 
+export type GlobeExperienceLocation = {
+  experienceId: number;
+  title: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  precision: 'city' | 'neighborhood' | 'venue_area';
+};
+
 type Props = {
   cities: GlobeCity[];
   friends?: GlobeFriend[];
+  experienceLocations?: GlobeExperienceLocation[];
   mode: GlobeMode;
   selectedCity: string | null;
   selectedCityCoordinates?: { latitude: number; longitude: number };
   status: 'loading' | 'ready' | 'error';
+  verifiedActivityStatus?: 'loading' | 'ready' | 'error';
   fullScreen?: boolean;
   showFriends?: boolean;
   onSelectCity: (city: string) => void;
   onSelectFriend?: (friendId: number) => void;
+  onSelectExperience?: (experienceId: number) => void;
   onExploreCity: (city: string) => void;
   onResetCity: () => void;
 };
@@ -95,14 +108,17 @@ function polygonPath(points: Array<[number, number]>, rotation: number, tilt: nu
 const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgGlobeEngine({
   cities,
   friends = [],
+  experienceLocations = [],
   mode,
   selectedCity,
   selectedCityCoordinates,
   status,
+  verifiedActivityStatus = 'loading',
   fullScreen = false,
   showFriends = false,
   onSelectCity,
   onSelectFriend,
+  onSelectExperience,
   onExploreCity,
   onResetCity,
 }: Props, ref) {
@@ -203,6 +219,15 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
       })
       .filter(({ point }) => point.z > 0.02);
   }, [friends, rotation, tilt, radius]);
+  const projectedExperienceLocations = useMemo(
+    () => experienceLocations
+      .map((location) => ({
+        location,
+        point: project(location.latitude, location.longitude, rotation, tilt, radius),
+      }))
+      .filter(({ point }) => point.z > 0.02),
+    [experienceLocations, rotation, tilt, radius],
+  );
   const selectedSearchPoint = selectedCity && selectedCityCoordinates && !selected
     ? project(selectedCityCoordinates.latitude, selectedCityCoordinates.longitude, rotation, tilt, radius)
     : null;
@@ -322,7 +347,9 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
                     ? colors.teal
                     : colors.primary;
               const valueLabel = mode === 'activity'
-                ? `${city.participants} joined`
+                ? verifiedActivityStatus === 'ready'
+                  ? `${city.participants} joined · ${city.recentVerifiedCompletions} verified (30d)`
+                  : `${city.participants} joined`
                 : mode === 'impact'
                   ? `${city.xpOffered.toLocaleString()} XP offered`
                   : mode === 'social'
@@ -364,7 +391,9 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
             const cityKey = city.city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
             const friendsNearby = friendCountsByCity.get(cityKey) ?? 0;
             const markerSummary = mode === 'activity'
-              ? `${city.participants} participants signed up`
+              ? verifiedActivityStatus === 'ready'
+                ? `${city.participants} participants signed up; ${city.recentVerifiedCompletions} host-verified completions in the last 30 days`
+                : `${city.participants} participants signed up`
               : mode === 'impact'
                 ? `${city.xpOffered.toLocaleString()} XP offered`
                 : mode === 'social'
@@ -392,6 +421,28 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
               />
             );
           }) : null}
+          {fullScreen && mode === 'explore' && globeScale > 0 ? projectedExperienceLocations.map(({ location, point }) => (
+            <Pressable
+              key={location.experienceId}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${location.title}. Verified ${location.precision.replace('_', ' ')} location in ${location.city}.`}
+              accessibilityHint="Opens experience details. The map position is rounded to the disclosed location precision."
+              testID={`explore-verified-location-${location.experienceId}`}
+              onPress={() => onSelectExperience?.(location.experienceId)}
+              style={[
+                styles.experienceLocationHitTarget,
+                {
+                  left: globeOffsetX + point.x * globeScale - 13,
+                  top: globeOffsetY + point.y * globeScale - 13,
+                },
+              ]}
+            >
+              <View style={[styles.experienceLocationMarker, { backgroundColor: colors.primary, borderColor: space.background }]}>
+                <Feather name="check" size={9} color={colors.primaryForeground} />
+              </View>
+            </Pressable>
+          )) : null}
           {fullScreen && (showFriends || mode === 'social') && globeScale > 0 ? projectedFriends.map(({ friend, point, offsetX, offsetY, zIndex }) => (
             <Pressable
               key={friend.id}
@@ -454,6 +505,13 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
             <Text style={[styles.previewEyebrow, { color: colors.teal }]}>CITY OVERVIEW</Text>
             <Text style={[styles.previewTitle, { color: space.foreground }]}>{selected.city}</Text>
             <Text style={[styles.previewMeta, { color: space.muted }]}>{selected.experiences} {selected.experiences === 1 ? 'experience' : 'experiences'} · {selected.participants} sign-ups · {selected.places} places open</Text>
+            <Text style={[styles.previewMeta, { color: space.muted, marginTop: 3 }]}>
+              {verifiedActivityStatus === 'ready'
+                ? `${selected.recentVerifiedCompletions} host-verified completions in the last 30 days`
+                : verifiedActivityStatus === 'error'
+                  ? 'Recent verified activity could not load'
+                  : 'Loading recent verified activity…'}
+            </Text>
             <Text style={[styles.previewXp, { color: space.subdued }]}>{selected.xpOffered.toLocaleString()} XP offered across these experiences</Text>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel={`Explore experiences in ${selected.city}`} testID="explore-globe-city-action" onPress={() => onExploreCity(selected.city)} style={[styles.exploreButton, { backgroundColor: colors.primary }]}>
@@ -503,6 +561,8 @@ const styles = StyleSheet.create({
   globeStage: { height: 244, marginTop: 1, position: 'relative', alignItems: 'center', justifyContent: 'center' },
   markerLayer: { ...StyleSheet.absoluteFill },
   markerHitTarget: { position: 'absolute', width: 44, height: 44, borderRadius: 22, backgroundColor: 'transparent' },
+  experienceLocationHitTarget: { position: 'absolute', width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  experienceLocationMarker: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   friendPin: { position: 'absolute', width: 48, height: 54, alignItems: 'center' },
   friendPinTail: { position: 'absolute', width: 14, height: 14, top: 35, transform: [{ rotate: '45deg' }] },
   friendPinHead: { width: 46, height: 46, borderRadius: 23, borderWidth: 3, padding: 2, alignItems: 'center', justifyContent: 'center' },

@@ -51,6 +51,7 @@ import {
   useGetMe,
   useGetMyXpAwards,
   useJoinExperience,
+  useListExploreActivity,
   useListExperienceParticipants,
   useListExperiences,
   useListFriendRequests,
@@ -112,7 +113,7 @@ import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { DirectMessagesScreen } from '@/components/DirectMessagesScreen';
 import { AiAssistantScreen } from '@/components/AiAssistantScreen';
 import { ExperienceChallengesScreen } from '@/components/ExperienceChallengesScreen';
-import { ExploreGlobe, type ExploreGlobeHandle, type GlobeCity, type GlobeFriend, type GlobeMode } from '@/components/ExploreGlobe';
+import { ExploreGlobe, type ExploreGlobeHandle, type GlobeCity, type GlobeExperienceLocation, type GlobeFriend, type GlobeMode } from '@/components/ExploreGlobe';
 import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
@@ -2164,6 +2165,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
     return () => animation.stop();
   }, [collapsedSheetHeight, expandedSheetHeight, screenHeight, sheetExpanded, sheetHeight]);
   const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: false });
+  const verifiedActivityQuery = useListExploreActivity();
   const friendsQuery = useListFriends({ query: { queryKey: getListFriendsQueryKey(), enabled: Boolean(user) } });
   const friendLocations = useMemo<GlobeFriend[]>(
     () => (friendsQuery.data ?? []).flatMap((friend) => {
@@ -2195,6 +2197,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         participants: 0,
         places: 0,
         xpOffered: 0,
+        recentVerifiedCompletions: 0,
         categoryCounts: {},
       };
       aggregate.experiences += 1;
@@ -2205,8 +2208,29 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
       aggregate.categoryCounts[experience.category] = (aggregate.categoryCounts[experience.category] ?? 0) + 1;
       cityAggregates.set(cityKey, aggregate);
     });
+    (verifiedActivityQuery.data?.cities ?? []).forEach((activity) => {
+      const cityKey = normalizeExploreCityName(activity.city);
+      const aggregate = cityAggregates.get(cityKey);
+      if (aggregate) aggregate.recentVerifiedCompletions = activity.verifiedCompletions;
+    });
     return [...cityAggregates.values()];
-  }, [query.data]);
+  }, [query.data, verifiedActivityQuery.data]);
+  const verifiedExperienceLocations = useMemo<GlobeExperienceLocation[]>(
+    () => (query.data ?? []).flatMap((experience) => {
+      const location = experience.verifiedLocation;
+      return location
+        ? [{
+            experienceId: experience.id,
+            title: experience.title,
+            city: experience.city,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            precision: location.precision,
+          }]
+        : [];
+    }),
+    [query.data],
+  );
   const visibleExperiences = selectedCity
     ? (query.data ?? []).filter((experience) => normalizeExploreCityName(experience.city) === normalizeExploreCityName(selectedCity))
     : (query.data ?? []);
@@ -2249,12 +2273,18 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           ? 'Approximate profile cities · not live locations'
           : 'No friends with a mapped profile city yet'
     : mode === 'activity'
-      ? 'Approximate city markers · sign-ups, not live check-ins'
+        ? verifiedActivityQuery.isLoading
+          ? 'Loading host-verified completion counts…'
+          : verifiedActivityQuery.isError
+            ? 'Recent verified activity could not load · showing sign-ups only'
+            : 'Approximate city markers · sign-ups and host-verified completions (30d), not live check-ins'
       : mode === 'impact'
         ? 'Approximate city markers · XP offered, not earned'
-        : sheetExpanded
-          ? 'Swipe down · city locations are approximate'
-          : 'Swipe up · city locations are approximate';
+        : verifiedExperienceLocations.length
+          ? 'Approximate city markers · check pins show consented, source-verified locations at rounded precision'
+          : sheetExpanded
+            ? 'Swipe down · city locations are approximate'
+            : 'Swipe up · city locations are approximate';
   const categoryFilters = (
     <ScrollView
       horizontal
@@ -2303,13 +2333,16 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           fullScreen
           cities={globeCities}
           friends={friendLocations}
+          experienceLocations={verifiedExperienceLocations}
           mode={mode}
           selectedCity={selectedCity}
           selectedCityCoordinates={selectedCity ? exploreCityCoordinates[normalizeExploreCityName(selectedCity)] : undefined}
           status={query.isLoading ? 'loading' : query.isError ? 'error' : 'ready'}
+          verifiedActivityStatus={verifiedActivityQuery.isLoading ? 'loading' : verifiedActivityQuery.isError ? 'error' : 'ready'}
           showFriends={showFriends}
           onSelectCity={selectCity}
           onSelectFriend={(friendId) => go('friend-profile', { id: String(friendId) })}
+          onSelectExperience={(experienceId) => go('experience', { id: String(experienceId) })}
           onExploreCity={selectCity}
           onResetCity={clearSelectedCity}
         />
@@ -2488,9 +2521,14 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
                 ))}
               </View>
               <Text style={[styles.exploreCityContextHint, { color: colors.mutedForeground }]}>
+                {verifiedActivityQuery.isLoading
+                  ? 'Loading host-verified completions from the last 30 days'
+                  : verifiedActivityQuery.isError
+                    ? 'Recent verified activity could not load'
+                    : `${selectedCityData.recentVerifiedCompletions} host-verified completions in the last 30 days`}
                 {selectedCityFriendCount
-                  ? `${selectedCityFriendCount} friend${selectedCityFriendCount === 1 ? '' : 's'} list this profile city`
-                  : 'No friends list this as their profile city'}
+                  ? ` · ${selectedCityFriendCount} friend${selectedCityFriendCount === 1 ? '' : 's'} list this profile city`
+                  : ' · No friends list this as their profile city'}
                 {selectedTopCategories.length ? ` · ${selectedTopCategories.join(' · ')}` : ''}
               </Text>
             </View>

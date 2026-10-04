@@ -8,6 +8,7 @@
 import type { ExperienceCategory } from './experienceCategory';
 import type { ExperienceStatus } from './experienceStatus';
 import type { Organisation } from './organisation';
+import type { VerifiedExperienceLocation } from './verifiedExperienceLocation';
 
 export interface Experience {
   id: number;
@@ -23,6 +24,8 @@ export interface Experience {
   endTime: string;
   location: string;
   city: string;
+  /** Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null. */
+  verifiedLocation: VerifiedExperienceLocation | null;
   capacity: number;
   participantCount: number;
   availablePlaces: number;

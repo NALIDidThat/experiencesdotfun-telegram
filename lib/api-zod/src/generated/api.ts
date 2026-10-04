@@ -1415,6 +1415,21 @@ export const GetCommunityDetailsResponse = zod.object({
 
 
 /**
+ * @summary Get recent host-verified activity aggregated by city
+ */
+
+
+
+export const ListExploreActivityResponse = zod.object({
+  "windowDays": zod.literal(30),
+  "cities": zod.array(zod.object({
+  "city": zod.string(),
+  "verifiedCompletions": zod.number().int().min(1).describe('Host-verified completions recorded during the rolling 30-day window.')
+}))
+})
+
+
+/**
  * @summary Discover published volunteering experiences
  */
 export const ListExperiencesQueryParams = zod.object({
@@ -1426,6 +1441,12 @@ export const ListExperiencesQueryParams = zod.object({
 export const listExperiencesResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const listExperiencesResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const listExperiencesResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listExperiencesResponseVerifiedLocationOneLatitudeMin = -90;
+export const listExperiencesResponseVerifiedLocationOneLatitudeMax = 90;
+
+export const listExperiencesResponseVerifiedLocationOneLongitudeMin = -180;
+export const listExperiencesResponseVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const ListExperiencesResponseItem = zod.object({
@@ -1447,6 +1468,14 @@ export const ListExperiencesResponseItem = zod.object({
   "endTime": zod.string().regex(listExperiencesResponseEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(listExperiencesResponseVerifiedLocationOneLatitudeMin).max(listExperiencesResponseVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(listExperiencesResponseVerifiedLocationOneLongitudeMin).max(listExperiencesResponseVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -1507,6 +1536,12 @@ export const CreateExperienceBody = zod.object({
 export const createExperienceResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const createExperienceResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const createExperienceResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createExperienceResponseVerifiedLocationOneLatitudeMin = -90;
+export const createExperienceResponseVerifiedLocationOneLatitudeMax = 90;
+
+export const createExperienceResponseVerifiedLocationOneLongitudeMin = -180;
+export const createExperienceResponseVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const CreateExperienceResponse = zod.object({
@@ -1528,6 +1563,14 @@ export const CreateExperienceResponse = zod.object({
   "endTime": zod.string().regex(createExperienceResponseEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(createExperienceResponseVerifiedLocationOneLatitudeMin).max(createExperienceResponseVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(createExperienceResponseVerifiedLocationOneLongitudeMin).max(createExperienceResponseVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -1547,9 +1590,21 @@ export const GetExperienceParams = zod.object({
 export const getExperienceResponseOneDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const getExperienceResponseOneStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const getExperienceResponseOneEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getExperienceResponseOneVerifiedLocationOneLatitudeMin = -90;
+export const getExperienceResponseOneVerifiedLocationOneLatitudeMax = 90;
+
+export const getExperienceResponseOneVerifiedLocationOneLongitudeMin = -180;
+export const getExperienceResponseOneVerifiedLocationOneLongitudeMax = 180;
+
 export const getExperienceResponseTwoParticipationOneExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const getExperienceResponseTwoParticipationOneExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const getExperienceResponseTwoParticipationOneExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLatitudeMin = -90;
+export const getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLatitudeMax = 90;
+
+export const getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLongitudeMin = -180;
+export const getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const GetExperienceResponse = zod.object({
@@ -1571,6 +1626,14 @@ export const GetExperienceResponse = zod.object({
   "endTime": zod.string().regex(getExperienceResponseOneEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(getExperienceResponseOneVerifiedLocationOneLatitudeMin).max(getExperienceResponseOneVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(getExperienceResponseOneVerifiedLocationOneLongitudeMin).max(getExperienceResponseOneVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -1602,6 +1665,14 @@ export const GetExperienceResponse = zod.object({
   "endTime": zod.string().regex(getExperienceResponseTwoParticipationOneExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLatitudeMin).max(getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLongitudeMin).max(getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -1646,6 +1717,12 @@ export const JoinExperienceParams = zod.object({
 export const joinExperienceResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const joinExperienceResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const joinExperienceResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const joinExperienceResponseExperienceVerifiedLocationOneLatitudeMin = -90;
+export const joinExperienceResponseExperienceVerifiedLocationOneLatitudeMax = 90;
+
+export const joinExperienceResponseExperienceVerifiedLocationOneLongitudeMin = -180;
+export const joinExperienceResponseExperienceVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const JoinExperienceResponse = zod.object({
@@ -1669,6 +1746,14 @@ export const JoinExperienceResponse = zod.object({
   "endTime": zod.string().regex(joinExperienceResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(joinExperienceResponseExperienceVerifiedLocationOneLatitudeMin).max(joinExperienceResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(joinExperienceResponseExperienceVerifiedLocationOneLongitudeMin).max(joinExperienceResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -1701,6 +1786,12 @@ export const ListMyParticipationsQueryParams = zod.object({
 export const listMyParticipationsResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const listMyParticipationsResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const listMyParticipationsResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listMyParticipationsResponseExperienceVerifiedLocationOneLatitudeMin = -90;
+export const listMyParticipationsResponseExperienceVerifiedLocationOneLatitudeMax = 90;
+
+export const listMyParticipationsResponseExperienceVerifiedLocationOneLongitudeMin = -180;
+export const listMyParticipationsResponseExperienceVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const ListMyParticipationsResponseItem = zod.object({
@@ -1724,6 +1815,14 @@ export const ListMyParticipationsResponseItem = zod.object({
   "endTime": zod.string().regex(listMyParticipationsResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(listMyParticipationsResponseExperienceVerifiedLocationOneLatitudeMin).max(listMyParticipationsResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(listMyParticipationsResponseExperienceVerifiedLocationOneLongitudeMin).max(listMyParticipationsResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -1757,6 +1856,12 @@ export const SubmitCompletionParams = zod.object({
 export const submitCompletionResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const submitCompletionResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const submitCompletionResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const submitCompletionResponseExperienceVerifiedLocationOneLatitudeMin = -90;
+export const submitCompletionResponseExperienceVerifiedLocationOneLatitudeMax = 90;
+
+export const submitCompletionResponseExperienceVerifiedLocationOneLongitudeMin = -180;
+export const submitCompletionResponseExperienceVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const SubmitCompletionResponse = zod.object({
@@ -1780,6 +1885,14 @@ export const SubmitCompletionResponse = zod.object({
   "endTime": zod.string().regex(submitCompletionResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(submitCompletionResponseExperienceVerifiedLocationOneLatitudeMin).max(submitCompletionResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(submitCompletionResponseExperienceVerifiedLocationOneLongitudeMin).max(submitCompletionResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -1855,6 +1968,12 @@ export const GetHostOverviewResponse = zod.object({
 export const listHostExperiencesResponseOneDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const listHostExperiencesResponseOneStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const listHostExperiencesResponseOneEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listHostExperiencesResponseOneVerifiedLocationOneLatitudeMin = -90;
+export const listHostExperiencesResponseOneVerifiedLocationOneLatitudeMax = 90;
+
+export const listHostExperiencesResponseOneVerifiedLocationOneLongitudeMin = -180;
+export const listHostExperiencesResponseOneVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const ListHostExperiencesResponseItem = zod.object({
@@ -1876,6 +1995,14 @@ export const ListHostExperiencesResponseItem = zod.object({
   "endTime": zod.string().regex(listHostExperiencesResponseOneEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(listHostExperiencesResponseOneVerifiedLocationOneLatitudeMin).max(listHostExperiencesResponseOneVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(listHostExperiencesResponseOneVerifiedLocationOneLongitudeMin).max(listHostExperiencesResponseOneVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -1942,6 +2069,12 @@ export const UpdateHostExperienceBody = zod.object({
 export const updateHostExperienceResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const updateHostExperienceResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const updateHostExperienceResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateHostExperienceResponseVerifiedLocationOneLatitudeMin = -90;
+export const updateHostExperienceResponseVerifiedLocationOneLatitudeMax = 90;
+
+export const updateHostExperienceResponseVerifiedLocationOneLongitudeMin = -180;
+export const updateHostExperienceResponseVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const UpdateHostExperienceResponse = zod.object({
@@ -1963,6 +2096,14 @@ export const UpdateHostExperienceResponse = zod.object({
   "endTime": zod.string().regex(updateHostExperienceResponseEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(updateHostExperienceResponseVerifiedLocationOneLatitudeMin).max(updateHostExperienceResponseVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(updateHostExperienceResponseVerifiedLocationOneLongitudeMin).max(updateHostExperienceResponseVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -1982,6 +2123,12 @@ export const CancelHostExperienceParams = zod.object({
 export const cancelHostExperienceResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const cancelHostExperienceResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const cancelHostExperienceResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const cancelHostExperienceResponseVerifiedLocationOneLatitudeMin = -90;
+export const cancelHostExperienceResponseVerifiedLocationOneLatitudeMax = 90;
+
+export const cancelHostExperienceResponseVerifiedLocationOneLongitudeMin = -180;
+export const cancelHostExperienceResponseVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const CancelHostExperienceResponse = zod.object({
@@ -2003,6 +2150,14 @@ export const CancelHostExperienceResponse = zod.object({
   "endTime": zod.string().regex(cancelHostExperienceResponseEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(cancelHostExperienceResponseVerifiedLocationOneLatitudeMin).max(cancelHostExperienceResponseVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(cancelHostExperienceResponseVerifiedLocationOneLongitudeMin).max(cancelHostExperienceResponseVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -2091,6 +2246,12 @@ export const ListExperienceParticipantsParams = zod.object({
 export const listExperienceParticipantsResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const listExperienceParticipantsResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const listExperienceParticipantsResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listExperienceParticipantsResponseExperienceVerifiedLocationOneLatitudeMin = -90;
+export const listExperienceParticipantsResponseExperienceVerifiedLocationOneLatitudeMax = 90;
+
+export const listExperienceParticipantsResponseExperienceVerifiedLocationOneLongitudeMin = -180;
+export const listExperienceParticipantsResponseExperienceVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const ListExperienceParticipantsResponseItem = zod.object({
@@ -2114,6 +2275,14 @@ export const ListExperienceParticipantsResponseItem = zod.object({
   "endTime": zod.string().regex(listExperienceParticipantsResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(listExperienceParticipantsResponseExperienceVerifiedLocationOneLatitudeMin).max(listExperienceParticipantsResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(listExperienceParticipantsResponseExperienceVerifiedLocationOneLongitudeMin).max(listExperienceParticipantsResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -2147,6 +2316,12 @@ export const PromoteNextWaitlistedParticipantParams = zod.object({
 export const promoteNextWaitlistedParticipantResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const promoteNextWaitlistedParticipantResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const promoteNextWaitlistedParticipantResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLatitudeMin = -90;
+export const promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLatitudeMax = 90;
+
+export const promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLongitudeMin = -180;
+export const promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const PromoteNextWaitlistedParticipantResponse = zod.object({
@@ -2170,6 +2345,14 @@ export const PromoteNextWaitlistedParticipantResponse = zod.object({
   "endTime": zod.string().regex(promoteNextWaitlistedParticipantResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLatitudeMin).max(promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLongitudeMin).max(promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -2202,6 +2385,12 @@ export const MarkAttendanceParams = zod.object({
 export const markAttendanceResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const markAttendanceResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const markAttendanceResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const markAttendanceResponseExperienceVerifiedLocationOneLatitudeMin = -90;
+export const markAttendanceResponseExperienceVerifiedLocationOneLatitudeMax = 90;
+
+export const markAttendanceResponseExperienceVerifiedLocationOneLongitudeMin = -180;
+export const markAttendanceResponseExperienceVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const MarkAttendanceResponse = zod.object({
@@ -2225,6 +2414,14 @@ export const MarkAttendanceResponse = zod.object({
   "endTime": zod.string().regex(markAttendanceResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(markAttendanceResponseExperienceVerifiedLocationOneLatitudeMin).max(markAttendanceResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(markAttendanceResponseExperienceVerifiedLocationOneLongitudeMin).max(markAttendanceResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -2257,6 +2454,12 @@ export const VerifyParticipationParams = zod.object({
 export const verifyParticipationResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const verifyParticipationResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const verifyParticipationResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const verifyParticipationResponseExperienceVerifiedLocationOneLatitudeMin = -90;
+export const verifyParticipationResponseExperienceVerifiedLocationOneLatitudeMax = 90;
+
+export const verifyParticipationResponseExperienceVerifiedLocationOneLongitudeMin = -180;
+export const verifyParticipationResponseExperienceVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const VerifyParticipationResponse = zod.object({
@@ -2280,6 +2483,14 @@ export const VerifyParticipationResponse = zod.object({
   "endTime": zod.string().regex(verifyParticipationResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(verifyParticipationResponseExperienceVerifiedLocationOneLatitudeMin).max(verifyParticipationResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(verifyParticipationResponseExperienceVerifiedLocationOneLongitudeMin).max(verifyParticipationResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),
@@ -2312,6 +2523,12 @@ export const RejectParticipationParams = zod.object({
 export const rejectParticipationResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const rejectParticipationResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const rejectParticipationResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const rejectParticipationResponseExperienceVerifiedLocationOneLatitudeMin = -90;
+export const rejectParticipationResponseExperienceVerifiedLocationOneLatitudeMax = 90;
+
+export const rejectParticipationResponseExperienceVerifiedLocationOneLongitudeMin = -180;
+export const rejectParticipationResponseExperienceVerifiedLocationOneLongitudeMax = 180;
+
 
 
 export const RejectParticipationResponse = zod.object({
@@ -2335,6 +2552,14 @@ export const RejectParticipationResponse = zod.object({
   "endTime": zod.string().regex(rejectParticipationResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(rejectParticipationResponseExperienceVerifiedLocationOneLatitudeMin).max(rejectParticipationResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(rejectParticipationResponseExperienceVerifiedLocationOneLongitudeMin).max(rejectParticipationResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
   "capacity": zod.number().int(),
   "participantCount": zod.number().int(),
   "availablePlaces": zod.number().int(),

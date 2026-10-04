@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, notExists, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, ne, notExists, or, sql } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   AcceptFriendRequestParams,
@@ -10,6 +10,7 @@ import {
   GetHostExperienceMilestonesParams,
   ListExperiencesQueryParams,
   ListExperienceParticipantsParams,
+  ListExploreActivityResponse,
   ListMyParticipationsQueryParams,
   MarkAttendanceParams,
   RejectParticipationParams,
@@ -102,6 +103,41 @@ import { createOrReopenFriendRequest, updateFriendRequestStatus } from "../lib/f
 import { createSocialInvite } from "../lib/social-invites";
 
 const router: IRouter = Router();
+const EXPLORE_ACTIVITY_WINDOW_DAYS = 30;
+
+router.get("/explore/activity", async (_req, res): Promise<void> => {
+  const windowStart = new Date(
+    Date.now() - EXPLORE_ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const cities = await db
+    .select({
+      city: experiencesTable.city,
+      verifiedCompletions: count(),
+    })
+    .from(participationsTable)
+    .innerJoin(
+      experiencesTable,
+      eq(participationsTable.experienceId, experiencesTable.id),
+    )
+    .where(
+      and(
+        eq(participationsTable.status, "verified"),
+        gte(participationsTable.verifiedAt, windowStart),
+      ),
+    )
+    .groupBy(experiencesTable.city)
+    .orderBy(asc(experiencesTable.city));
+
+  res.json(
+    ListExploreActivityResponse.parse({
+      windowDays: EXPLORE_ACTIVITY_WINDOW_DAYS,
+      cities: cities.map((row) => ({
+        city: row.city,
+        verifiedCompletions: Number(row.verifiedCompletions),
+      })),
+    }),
+  );
+});
 
 const socialLinkDomains: Record<keyof PersistedSocialLinks, readonly string[]> = {
   website: [],
