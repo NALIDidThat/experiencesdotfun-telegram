@@ -9,6 +9,12 @@ Use Supabase's Session Pooler connection string for PostgreSQL access from this 
 
 **How to apply:** Configure `SUPABASE_DATABASE_URL` with the Session Pooler connection string and keep the direct endpoint out of workspace database operations.
 
+For Experiences.fun, new durable app data must be stored in the configured Supabase database and remain queryable on demand. Database changes must preserve existing rows.
+
+**Why:** The user explicitly required durable Supabase storage, on-demand queryability, and no data loss.
+
+**How to apply:** Use the existing Supabase-backed database client, keep schema migrations additive, and verify affected row counts and query access before and after database writes.
+
 Before external Supabase schema writes, verify the runtime and secret scope without reading secret values. Shared `DATABASE_BACKEND` and `SUPABASE_DATABASE_URL` settings can be available to both development and production; a Replit shell may report `REPLIT_ENVIRONMENT=production` even when the task began as a development change.
 
 **Why:** A migration command must not infer its target from a workflow name or override the runtime to force a development target. A fail-closed runtime guard prevented an unintended write until the user explicitly approved the configured Supabase database, including possible production impact.
