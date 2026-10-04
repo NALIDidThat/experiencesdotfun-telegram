@@ -637,6 +637,34 @@ test("the signed-in Home prompt and personal Activity timeline work on mobile", 
   await openHomeForCount(1, "singular");
   await openHomeForCount(2, "plural");
 
+  const activeGlass = await waitForValue(
+    client,
+    `(() => {
+      const tab = document.querySelector('[data-testid="bottom-nav-tab-home"]');
+      const glass = document.querySelector('[data-testid="bottom-nav-active-glass-home"]');
+      const fill = glass?.firstElementChild;
+      if (!tab || !glass || !fill) return null;
+      const tabRect = tab.getBoundingClientRect();
+      const glassRect = glass.getBoundingClientRect();
+      return {
+        opacity: Number(getComputedStyle(glass).opacity),
+        coversTab: Math.abs(tabRect.left - glassRect.left) < 1
+          && Math.abs(tabRect.top - glassRect.top) < 1
+          && Math.abs(tabRect.width - glassRect.width) < 1
+          && Math.abs(tabRect.height - glassRect.height) < 1,
+        fillColor: getComputedStyle(fill).backgroundColor,
+      };
+    })()`,
+    (state) => state?.opacity >= 0.99,
+    "the active tab glass to finish animating",
+  );
+  assert.equal(activeGlass.coversTab, true, "The glass surface should cover the full active tab.");
+  assert.equal(
+    activeGlass.fillColor,
+    "rgb(242, 7, 137)",
+    "The active tab glass should retain the brand pink background.",
+  );
+
   const verifiedParticipation = makeParticipation(71);
   verifiedParticipation.experience.title = "Community Garden Contribution";
   verifiedParticipation.status = "verified";

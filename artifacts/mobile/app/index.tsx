@@ -6748,6 +6748,7 @@ function BottomNav({
                     StyleSheet.absoluteFill,
                     styles.navGlassSurface,
                     {
+                      borderColor: `${colors.primaryForeground}88`,
                       opacity: selectionProgress,
                       transform: [{
                         scale: selectionProgress.interpolate({
@@ -8353,12 +8354,11 @@ const styles = StyleSheet.create({
   },
   navItemGlassClip: { borderRadius: 22, overflow: 'hidden' },
   navGlassSurface: {
-    borderColor: '#ffffff88',
     borderRadius: 22,
     borderWidth: 1,
     overflow: 'hidden',
   },
-  navGlassFallback: { borderWidth: 1 },
+  navGlassFallback: {},
   navItemPressed: { opacity: 0.78, transform: [{ scale: 0.97 }] },
   navIconWrapper: {
     alignItems: 'center',
