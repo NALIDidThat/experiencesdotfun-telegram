@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, ne, notExists, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, ne, notExists, or, sql } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   AcceptFriendRequestParams,
@@ -106,8 +106,9 @@ const router: IRouter = Router();
 const EXPLORE_ACTIVITY_WINDOW_DAYS = 30;
 
 router.get("/explore/activity", async (_req, res): Promise<void> => {
+  const windowEnd = new Date();
   const windowStart = new Date(
-    Date.now() - EXPLORE_ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    windowEnd.getTime() - EXPLORE_ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000,
   );
   const cities = await db
     .select({
@@ -123,6 +124,7 @@ router.get("/explore/activity", async (_req, res): Promise<void> => {
       and(
         eq(participationsTable.status, "verified"),
         gte(participationsTable.verifiedAt, windowStart),
+        lte(participationsTable.verifiedAt, windowEnd),
       ),
     )
     .groupBy(experiencesTable.city)
