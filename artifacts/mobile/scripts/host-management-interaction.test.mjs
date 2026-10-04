@@ -393,6 +393,10 @@ test("organisation hosts can manage experience participants from a phone-sized d
 
         if (url.pathname === "/api/me" && method === "GET") {
           response = user;
+        } else if (url.pathname === "/api/friends" && method === "GET") {
+          response = [];
+        } else if (url.pathname === "/api/friends/notifications" && method === "GET") {
+          response = { notifications: [], unreadCount: 0 };
         } else if (url.pathname === "/api/host/overview" && method === "GET") {
           response = hostOverview();
         } else if (url.pathname === "/api/host/experiences" && method === "GET") {
@@ -521,6 +525,43 @@ test("organisation hosts can manage experience participants from a phone-sized d
     source: "localStorage.setItem('@experiences/auth-token', 'email_host-management-test');",
   });
   await setViewport(client);
+  await client.send("Page.navigate", { url: `https://${domain}/?screen=profile` });
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="organisation-activity-experience-${experience.id}"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+    (text) => text.includes(experience.title) && text.includes("4 registrations") && text.includes("1 waitlisted"),
+    "the organisation's hosted activity and participation records on its profile",
+  );
+  const organisationStats = await client.evaluate(`(() => ({
+    stats: [...document.querySelectorAll('[data-testid^="organisation-activity-stat-"]')]
+      .map((element) => element.innerText.replace(/[^\\x20-\\x7E]/g, ' ').replace(/\\s+/g, ' ').trim()),
+    participantXpVisible: Boolean(document.querySelector('[data-testid="profile-metric-xp"]')),
+  }))()`);
+  assert.deepEqual(
+    organisationStats.stats,
+    ["1 Experiences", "1 Upcoming", "4 Registrations", "1 Waitlist"],
+    "Organisation profile stats should come from the organisation's hosted activity.",
+  );
+  assert.equal(
+    organisationStats.participantXpVisible,
+    false,
+    "An organisation profile should not show participant XP metrics.",
+  );
+  if (process.env.ORGANISATION_PROFILE_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(
+      process.env.ORGANISATION_PROFILE_SCREENSHOT_PATH,
+      Buffer.from(screenshot.data, "base64"),
+    );
+  }
+  await tapTestId(client, `organisation-activity-experience-${experience.id}`);
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-detail-filter-all"]'))`,
+    Boolean,
+    "the host experience detail screen opened from organisation activity",
+  );
+
   await client.send("Page.navigate", { url: `https://${domain}/?screen=host` });
 
   try {

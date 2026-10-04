@@ -101,6 +101,7 @@ import { AccountabilitySection } from '@/components/AccountabilitySection';
 import { OrganisationPartnershipsSection } from '@/components/OrganisationPartnershipsSection';
 import { SocialFeed } from '@/components/SocialFeed';
 import { PersonalActivityScreen } from '@/components/PersonalActivityScreen';
+import { OrganisationActivityDashboard } from '@/components/OrganisationActivityDashboard';
 import { AccountsCenterScreen } from '@/components/AccountsCenterScreen';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
@@ -3084,7 +3085,7 @@ function normalizeSocialLink(key: SocialLinkKey, value: string): string | null {
 
 type SocialProfileUser = Pick<
   User,
-  'name' | 'username' | 'avatarUrl' | 'createdAt' | 'level' | 'completedCount' | 'hostedCount' | 'xp' | 'bio' | 'city' | 'interests' | 'socialLinks'
+  'name' | 'username' | 'avatarUrl' | 'createdAt' | 'level' | 'completedCount' | 'hostedCount' | 'xp' | 'bio' | 'city' | 'interests' | 'socialLinks' | 'userType' | 'organisation'
 >;
 
 function ProfileDashboardMetric({
@@ -3136,10 +3137,15 @@ function SocialProfileHeader({
   const colors = useColors();
   const interests = user.interests?.map((interest) => categoryLabel[interest]).join(' · ');
   const joinedIn2026 = Boolean(user.createdAt && new Date(user.createdAt).getUTCFullYear() === 2026);
-  const profileBadges: Array<{ key: string; label: string; icon: IconName }> = [
-    { key: 'level', label: user.level, icon: 'award' },
-    ...(joinedIn2026 ? [{ key: 'early', label: 'Early', icon: 'star' as IconName }] : []),
-  ];
+  const profileBadges: Array<{ key: string; label: string; icon: IconName }> = user.userType === 'organisation'
+    ? [
+        { key: 'organisation', label: 'Organisation', icon: 'briefcase' },
+        ...(user.organisation?.verified ? [{ key: 'verified', label: 'Verified', icon: 'check-circle' as IconName }] : []),
+      ]
+    : [
+        { key: 'level', label: user.level, icon: 'award' },
+        ...(joinedIn2026 ? [{ key: 'early', label: 'Early', icon: 'star' as IconName }] : []),
+      ];
   const visibleSocialLinks = socialLinkFields.flatMap((field) => {
     const url = normalizeSocialLink(field.key, user.socialLinks?.[field.key] ?? '');
     return url ? [{ ...field, url }] : [];
@@ -3218,6 +3224,8 @@ function SocialProfileHeader({
         </Pressable>
       ) : null}
 
+      {user.userType === 'participant' ? (
+      <>
       <View style={styles.profileBentoRow}>
         <ProfileDashboardMetric
           accessibilityLabel={`View ${user.completedCount} completed experiences`}
@@ -3299,6 +3307,8 @@ function SocialProfileHeader({
           {onMetricPress ? <Feather name="chevron-right" size={16} color={colors.mutedForeground} /> : null}
         </View>
       </ProfileDashboardMetric>
+      </>
+      ) : null}
 
       {user.bio ? (
         <View style={[styles.profileBioTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
@@ -3753,6 +3763,8 @@ function FriendProfileScreen({
             city: friend.city,
             interests: friend.interests,
             socialLinks: friend.socialLinks,
+            userType: friend.userType,
+            organisation: friend.organisation,
           }}
           friendsCount={friend.friendsCount}
         />
@@ -4749,50 +4761,38 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           )) : <Text style={[styles.mutedParagraph, { color: colors.mutedForeground }]}>Verified contributions will appear here.</Text>}
         </>
       ) : (
-        <View style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>About your organisation</Text>
-          <Text
-            style={[
-              styles.mutedParagraph,
-              { color: colors.mutedForeground, marginTop: 0, marginBottom: 0, lineHeight: 21 },
-            ]}
-          >
-            {current.organisation?.description ?? 'Complete your organisation details to introduce your work to participants.'}
-          </Text>
-          <View style={styles.organisationLocation}>
-            <Feather name="map-pin" size={14} color={colors.mutedForeground} />
-            <Text numberOfLines={1} style={[styles.organisationLocationText, { color: colors.mutedForeground }]}>
-              {current.organisation?.city ?? current.city ?? 'Location not set'}
+        <>
+          <OrganisationActivityDashboard
+            overview={hostOverview.data}
+            experiences={hosted.data}
+            overviewIsLoading={hostOverview.isLoading}
+            overviewHasError={hostOverview.isError}
+            experiencesIsLoading={hosted.isLoading}
+            experiencesHaveError={hosted.isError}
+            onRetryOverview={() => { void hostOverview.refetch(); }}
+            onRetryExperiences={() => { void hosted.refetch(); }}
+            onOpenExperience={(id) => go('host-detail', { id: String(id) })}
+            onCreateExperience={() => go('create')}
+          />
+          <View style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>About your organisation</Text>
+            <Text
+              style={[
+                styles.mutedParagraph,
+                { color: colors.mutedForeground, marginTop: 0, marginBottom: 0, lineHeight: 21 },
+              ]}
+            >
+              {current.organisation?.description ?? 'Complete your organisation details to introduce your work to participants.'}
             </Text>
+            <View style={styles.organisationLocation}>
+              <Feather name="map-pin" size={14} color={colors.mutedForeground} />
+              <Text numberOfLines={1} style={[styles.organisationLocationText, { color: colors.mutedForeground }]}>
+                {current.organisation?.city ?? current.city ?? 'Location not set'}
+              </Text>
+            </View>
+            <Button label="Open organisation tools" icon="briefcase" onPress={() => go('host')} />
           </View>
-          <View
-            testID="organisation-overview-stats"
-            style={[styles.organisationStats, { borderColor: colors.border }]}
-          >
-            {[
-              { label: 'Experiences', value: hostOverview.data?.totalExperiences },
-              { label: 'Upcoming', value: hostOverview.data?.upcomingExperiences },
-              { label: 'Participants', value: hostOverview.data?.participantCount },
-            ].map((stat, index) => (
-              <View
-                key={stat.label}
-                style={[
-                  styles.organisationStat,
-                  index < 2 && styles.organisationStatDivider,
-                  index < 2 && { borderRightColor: colors.border },
-                ]}
-              >
-                <Text style={[styles.organisationStatValue, { color: colors.foreground }]}>
-                  {stat.value ?? '—'}
-                </Text>
-                <Text style={[styles.organisationStatLabel, { color: colors.mutedForeground }]}>
-                  {stat.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-          <Button label="Open organisation tools" icon="briefcase" onPress={() => go('host')} />
-        </View>
+        </>
       )}
 
       <Pressable
@@ -7997,11 +7997,6 @@ const styles = StyleSheet.create({
   editPanel: { padding: 20, borderWidth: 1, marginBottom: 24, gap: 16 },
   organisationLocation: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   organisationLocationText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium' },
-  organisationStats: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 12 },
-  organisationStat: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  organisationStatDivider: { borderRightWidth: StyleSheet.hairlineWidth },
-  organisationStatValue: { fontSize: 19, fontFamily: 'Inter_700Bold' },
-  organisationStatLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', textAlign: 'center' },
   profileEditorTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   profileEditorTitle: { fontSize: 18, fontFamily: 'Inter_700Bold' },
   profileEditorClose: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
