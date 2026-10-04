@@ -6736,50 +6736,62 @@ function BottomNav({
               }}
               style={({ pressed }) => [
                 styles.navItem,
+                styles.navItemGlassClip,
                 pressed && styles.navItemPressed,
               ]}
             >
-              <View style={styles.navIconWrapper}>
-                {selected ? (
-                  <Animated.View
+              {selected ? (
+                <Animated.View
+                  pointerEvents="none"
+                  testID={`bottom-nav-active-glass-${item.key}`}
+                  style={[
+                    StyleSheet.absoluteFill,
+                    styles.navGlassSurface,
+                    {
+                      opacity: selectionProgress,
+                      transform: [{
+                        scale: selectionProgress.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.94, 1],
+                        }),
+                      }],
+                    },
+                  ]}
+                >
+                  {liquidGlassAvailable ? (
+                    <GlassView
+                      pointerEvents="none"
+                      glassEffectStyle="regular"
+                      tintColor={colors.primary}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        StyleSheet.absoluteFill,
+                        styles.navGlassFallback,
+                        {
+                          backgroundColor: colors.primary,
+                          borderColor: `${colors.primaryForeground}88`,
+                        },
+                      ]}
+                    />
+                  )}
+                  <LinearGradient
                     pointerEvents="none"
-                    style={[
-                      StyleSheet.absoluteFill,
-                      styles.navGlassSurface,
-                      {
-                        opacity: selectionProgress,
-                        transform: [{
-                          scale: selectionProgress.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0.94, 1],
-                          }),
-                        }],
-                      },
+                    colors={[
+                      `${colors.primaryForeground}48`,
+                      `${colors.primaryForeground}14`,
+                      `${colors.primaryForeground}00`,
                     ]}
-                  >
-                    {liquidGlassAvailable
-                      ? (
-                        <GlassView
-                          pointerEvents="none"
-                          glassEffectStyle="regular"
-                          tintColor={colors.primary}
-                          style={StyleSheet.absoluteFill}
-                        />
-                      )
-                      : (
-                        <View
-                          style={[
-                            StyleSheet.absoluteFill,
-                            styles.navGlassFallback,
-                            {
-                              backgroundColor: `${colors.primaryForeground}24`,
-                              borderColor: `${colors.primaryForeground}88`,
-                            },
-                          ]}
-                        />
-                      )}
-                  </Animated.View>
-                ) : null}
+                    locations={[0, 0.36, 1]}
+                    start={{ x: 0.18, y: 0 }}
+                    end={{ x: 0.9, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                </Animated.View>
+              ) : null}
+              <View style={styles.navIconWrapper}>
                 <Feather
                   name={item.icon}
                   size={19}
@@ -8339,7 +8351,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     paddingVertical: 3,
   },
-  navGlassSurface: { borderRadius: 17 },
+  navItemGlassClip: { borderRadius: 22, overflow: 'hidden' },
+  navGlassSurface: {
+    borderColor: '#ffffff88',
+    borderRadius: 22,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
   navGlassFallback: { borderWidth: 1 },
   navItemPressed: { opacity: 0.78, transform: [{ scale: 0.97 }] },
   navIconWrapper: {
