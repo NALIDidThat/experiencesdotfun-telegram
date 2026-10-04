@@ -686,7 +686,18 @@ test("the signed-in Home prompt and personal Activity timeline work on mobile", 
   assert.match(activityText, /Saturday Food Bank/);
   assert.match(activityText, /Neighbourhood Cleanup/);
   assert.match(activityText, /Community cleanup reward/);
+  assert.match(activityText, /EXPERIENCE/);
+  assert.match(activityText, /CHALLENGE/);
+  assert.match(activityText, /XP REWARD/);
+  assert.match(activityText, /\+80 XP/);
   assert.match(activityText, /210/);
+  if (process.env.PERSONAL_ACTIVITY_SCREENSHOT_PATH) {
+    const { data } = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(
+      process.env.PERSONAL_ACTIVITY_SCREENSHOT_PATH,
+      Buffer.from(data, "base64"),
+    );
+  }
 
   await tapTestId(client, "activity-filter-xp");
   assert.equal(

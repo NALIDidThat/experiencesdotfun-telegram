@@ -36,6 +36,7 @@ type ActivityItem = {
   icon: ActivityIcon;
   experienceId?: number;
   challengeId?: number;
+  xpAmount?: number;
 };
 
 type Props = {
@@ -149,7 +150,15 @@ function awardItem(award: XpAward): ActivityItem {
     status: award.status === 'pending' ? 'Pending redemption' : 'Added to your balance',
     tone: award.status === 'pending' ? 'primary' : 'success',
     icon: 'zap',
+    xpAmount: award.amount,
   };
+}
+
+function activityTimeLabel(value: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
 function queryCount(isLoading: boolean, isError: boolean, count: number | undefined) {
@@ -261,9 +270,12 @@ export function PersonalActivityScreen({ onOpenExperience, onOpenChallenges, onE
               A record of your participation and progress.
             </Text>
           </View>
-          <Text style={[styles.itemCount, { color: colors.mutedForeground }]}>
-            {filteredItems.length}
-          </Text>
+          <View style={[styles.itemCountBadge, { backgroundColor: colors.muted }]}>
+            <Feather name="layers" size={12} color={colors.mutedForeground} />
+            <Text style={[styles.itemCount, { color: colors.mutedForeground }]}>
+              {filteredItems.length} {filteredItems.length === 1 ? 'RECORD' : 'RECORDS'}
+            </Text>
+          </View>
         </View>
 
         <ScrollView
@@ -326,60 +338,115 @@ export function PersonalActivityScreen({ onOpenExperience, onOpenChallenges, onE
           </View>
         ) : filteredItems.length ? (
           <View style={styles.timeline}>
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, index) => {
               const iconColor = item.kind === 'xp' ? colors.primary : toneColor(item.tone);
               const isNavigable = item.kind !== 'xp';
+              const kindLabel = item.kind === 'experiences'
+                ? 'EXPERIENCE'
+                : item.kind === 'challenges'
+                  ? 'CHALLENGE'
+                  : 'XP REWARD';
+              const statusIcon = item.tone === 'success'
+                ? 'check-circle'
+                : item.tone === 'primary'
+                  ? 'clock'
+                  : item.tone === 'destructive'
+                    ? 'alert-circle'
+                    : 'circle';
+              const timeLabel = activityTimeLabel(item.occurredAt);
               return (
-                <View
-                  key={item.key}
-                  testID={`activity-entry-${item.key}`}
-                  style={[styles.entryCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
-                >
-                  <Pressable
-                    accessibilityRole={isNavigable ? 'button' : undefined}
-                    accessibilityLabel={`${item.title}. ${item.status}. ${activityDateLabel(item.occurredAt)}.`}
-                    accessibilityHint={item.kind === 'challenges' ? 'Opens your challenges' : item.kind === 'experiences' ? 'Opens experience details' : undefined}
-                    disabled={!isNavigable}
-                    onPress={() => openItem(item)}
-                    style={({ pressed }) => [styles.entryMain, { opacity: pressed && isNavigable ? 0.72 : 1 }]}
+                <View key={item.key} style={styles.timelineRow}>
+                  <View style={styles.timelineRail} pointerEvents="none">
+                    {index < filteredItems.length - 1 ? (
+                      <View style={[styles.timelineConnector, { backgroundColor: colors.border }]} />
+                    ) : null}
+                    <View
+                      style={[
+                        styles.timelineNode,
+                        { backgroundColor: iconColor, borderColor: colors.background },
+                      ]}
+                    />
+                  </View>
+                  <View
+                    testID={`activity-entry-${item.key}`}
+                    style={[
+                      styles.entryCard,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                        borderRadius: colors.radius + 4,
+                      },
+                    ]}
                   >
-                    <View style={[styles.entryIcon, { backgroundColor: iconColor + '15' }]}>
-                      <Feather name={item.icon} size={17} color={iconColor} />
-                    </View>
-                    <View style={styles.entryCopy}>
-                      <View style={styles.entryTopline}>
+                    <Pressable
+                      accessibilityRole={isNavigable ? 'button' : undefined}
+                      accessibilityLabel={`${item.title}. ${item.status}.${item.xpAmount !== undefined ? ` ${item.xpAmount} XP.` : ''} ${activityDateLabel(item.occurredAt)}.`}
+                      accessibilityHint={item.kind === 'challenges' ? 'Opens your challenges' : item.kind === 'experiences' ? 'Opens experience details' : undefined}
+                      disabled={!isNavigable}
+                      onPress={() => openItem(item)}
+                      style={({ pressed }) => [styles.entryMain, { opacity: pressed && isNavigable ? 0.72 : 1 }]}
+                    >
+                      <View style={[styles.entryIcon, { backgroundColor: iconColor + '15' }]}>
+                        <Feather name={item.icon} size={18} color={iconColor} />
+                      </View>
+                      <View style={styles.entryCopy}>
+                        <View style={styles.entryTopline}>
+                          <View style={[styles.activityTypePill, { backgroundColor: colors.muted }]}>
+                            <Text style={[styles.activityTypeText, { color: colors.mutedForeground }]}>
+                              {kindLabel}
+                            </Text>
+                          </View>
+                          {item.xpAmount !== undefined ? (
+                            <View style={[styles.xpAmountPill, { backgroundColor: colors.primary + '12' }]}>
+                              <Text style={[styles.xpAmountText, { color: colors.primary }]}>
+                                +{item.xpAmount} XP
+                              </Text>
+                            </View>
+                          ) : null}
+                          {isNavigable ? (
+                            <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+                          ) : null}
+                        </View>
                         <Text numberOfLines={2} style={[styles.entryTitle, { color: colors.foreground }]}>
                           {item.title}
                         </Text>
-                        {isNavigable ? <Feather name="chevron-right" size={17} color={colors.mutedForeground} /> : null}
-                      </View>
-                      <Text numberOfLines={1} style={[styles.entryDetail, { color: colors.mutedForeground }]}>
-                        {item.detail}
-                      </Text>
-                      <View style={styles.entryMeta}>
-                        <View style={[styles.statusPill, { backgroundColor: toneColor(item.tone) + '15' }]}>
-                          <Text numberOfLines={1} style={[styles.statusText, { color: toneColor(item.tone) }]}>
-                            {item.status}
-                          </Text>
-                        </View>
-                        <Text style={[styles.entryDate, { color: colors.mutedForeground }]}>
-                          {activityDateLabel(item.occurredAt)}
+                        <Text numberOfLines={2} style={[styles.entryDetail, { color: colors.mutedForeground }]}>
+                          {item.detail}
                         </Text>
+                        <View style={styles.entryMeta}>
+                          <View style={[styles.statusPill, { backgroundColor: toneColor(item.tone) + '12' }]}>
+                            <Feather name={statusIcon} size={12} color={toneColor(item.tone)} />
+                            <Text numberOfLines={1} style={[styles.statusText, { color: toneColor(item.tone) }]}>
+                              {item.status}
+                            </Text>
+                          </View>
+                          <View style={styles.dateMeta}>
+                            <Feather name="calendar" size={12} color={colors.mutedForeground} />
+                            <Text style={[styles.entryDate, { color: colors.mutedForeground }]}>
+                              {activityDateLabel(item.occurredAt)}
+                            </Text>
+                            {timeLabel ? (
+                              <Text style={[styles.entryTime, { color: colors.mutedForeground }]}>
+                                · {timeLabel}
+                              </Text>
+                            ) : null}
+                          </View>
+                        </View>
                       </View>
-                    </View>
-                  </Pressable>
-                  {item.kind === 'challenges' && item.experienceId ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`View experience ${item.title}`}
-                      testID={`activity-open-experience-${item.experienceId}`}
-                      onPress={() => onOpenExperience(item.experienceId!)}
-                      style={[styles.experienceLink, { borderTopColor: colors.border }]}
-                    >
-                      <Text style={[styles.experienceLinkText, { color: colors.primary }]}>View experience</Text>
-                      <Feather name="arrow-up-right" size={14} color={colors.primary} />
                     </Pressable>
-                  ) : null}
+                    {item.kind === 'challenges' && item.experienceId ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`View experience ${item.title}`}
+                        testID={`activity-open-experience-${item.experienceId}`}
+                        onPress={() => onOpenExperience(item.experienceId!)}
+                        style={[styles.experienceLink, { borderTopColor: colors.border }]}
+                      >
+                        <Text style={[styles.experienceLinkText, { color: colors.primary }]}>View experience</Text>
+                        <Feather name="arrow-up-right" size={14} color={colors.primary} />
+                      </Pressable>
+                    ) : null}
+                  </View>
                 </View>
               );
             })}
@@ -466,7 +533,8 @@ const styles = StyleSheet.create({
   sectionHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 11 },
   sectionTitle: { fontSize: 19, lineHeight: 25, fontFamily: 'Inter_700Bold' },
   sectionCaption: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular', marginTop: 2 },
-  itemCount: { minWidth: 28, textAlign: 'right', fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  itemCountBadge: { minHeight: 28, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 14, paddingHorizontal: 9 },
+  itemCount: { fontSize: 9, letterSpacing: 0.5, fontFamily: 'Inter_700Bold' },
   filterRow: { gap: 7, paddingBottom: 12 },
   filterChip: { minHeight: 36, paddingHorizontal: 13, borderWidth: 1, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   filterText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
@@ -475,18 +543,28 @@ const styles = StyleSheet.create({
   retryText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   loading: { minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: 10 },
   loadingText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
-  timeline: { gap: 9 },
-  entryCard: { borderWidth: 1, overflow: 'hidden' },
-  entryMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, padding: 13 },
-  entryIcon: { width: 35, height: 35, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  timeline: { gap: 0 },
+  timelineRow: { flexDirection: 'row', alignItems: 'stretch', gap: 9, paddingBottom: 12 },
+  timelineRail: { width: 16, alignItems: 'center', position: 'relative' },
+  timelineNode: { width: 14, height: 14, borderRadius: 7, borderWidth: 3, marginTop: 16, zIndex: 1 },
+  timelineConnector: { position: 'absolute', top: 29, bottom: -12, left: 7, width: 2, borderRadius: 1 },
+  entryCard: { flex: 1, minWidth: 0, borderWidth: 1, overflow: 'hidden' },
+  entryMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, padding: 14 },
+  entryIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   entryCopy: { flex: 1, minWidth: 0 },
-  entryTopline: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  entryTitle: { flex: 1, fontSize: 14, lineHeight: 19, fontFamily: 'Inter_700Bold' },
-  entryDetail: { fontSize: 10, lineHeight: 15, fontFamily: 'Inter_400Regular', marginTop: 2 },
-  entryMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginTop: 8 },
-  statusPill: { maxWidth: '70%', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 8 },
+  entryTopline: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 },
+  activityTypePill: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 8 },
+  activityTypeText: { fontSize: 8, letterSpacing: 0.65, fontFamily: 'Inter_700Bold' },
+  xpAmountPill: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 8 },
+  xpAmountText: { fontSize: 9, fontFamily: 'Inter_700Bold' },
+  entryTitle: { fontSize: 15, lineHeight: 20, letterSpacing: -0.2, fontFamily: 'Inter_700Bold' },
+  entryDetail: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  entryMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginTop: 10 },
+  statusPill: { maxWidth: '100%', minHeight: 24, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   statusText: { fontSize: 9, fontFamily: 'Inter_700Bold' },
-  entryDate: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  dateMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  entryDate: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  entryTime: { fontSize: 10, fontFamily: 'Inter_400Regular' },
   experienceLink: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 5, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 59 },
   experienceLinkText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   emptyCard: { minHeight: 210, borderWidth: 1, borderRadius: 20, alignItems: 'center', justifyContent: 'center', padding: 24 },
