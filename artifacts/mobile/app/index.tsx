@@ -98,7 +98,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useMotionPreferences } from '@/context/MotionContext';
 import { useColors } from '@/hooks/useColors';
-import { AccountabilitySection } from '@/components/AccountabilitySection';
+import { AccountabilityPartnerScreen } from '@/components/AccountabilitySection';
 import { OrganisationPartnershipsSection } from '@/components/OrganisationPartnershipsSection';
 import { SocialFeed } from '@/components/SocialFeed';
 import { PersonalActivityScreen } from '@/components/PersonalActivityScreen';
@@ -119,9 +119,9 @@ import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
-type BottomNavQuickAction = 'post' | 'create' | 'progress' | 'assistant' | 'challenges';
+type BottomNavQuickAction = 'post' | 'create' | 'progress' | 'assistant' | 'challenges' | 'accountability';
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
 const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
@@ -130,7 +130,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -4433,9 +4433,7 @@ function FriendsOverviewScreen({
             ) : null}
           </View>
 
-          {user.userType === 'participant' ? (
-            <AccountabilitySection friends={friends.data ?? []} />
-          ) : user.userType === 'organisation' ? (
+          {user.userType === 'organisation' ? (
             <OrganisationPartnershipsSection />
           ) : null}
 
@@ -4693,6 +4691,14 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
             icon: 'users',
             onPress: () => go('friends'),
           },
+          ...(current.userType === 'participant'
+            ? [{
+                key: 'accountability',
+                label: 'Accountability Partner',
+                icon: 'target' as IconName,
+                onPress: () => go('accountability'),
+              }]
+            : []),
           {
             key: 'accounts-center',
             label: 'Accounts Centre',
@@ -6744,6 +6750,12 @@ function BottomNav({
             description: 'Invite an accepted friend to an experience.',
             icon: 'users' as const,
           },
+          {
+            id: 'accountability' as const,
+            label: 'Accountability partner',
+            description: 'Check in on shared commitments and support each other.',
+            icon: 'target' as const,
+          },
         ]
       : []),
     {
@@ -7245,6 +7257,7 @@ export default function App() {
     ? params.screen as Screen
     : 'home';
   const [screen, setScreen] = useState<Screen>(initialScreen);
+  const [accountabilityReturnScreen, setAccountabilityReturnScreen] = useState<Screen>('profile');
   const [experienceId, setExperienceId] = useState(params.id);
   const [feedComposerRequest, setFeedComposerRequest] = useState<number | null>(null);
   const feedComposerRequestSequence = useRef(0);
@@ -7272,7 +7285,7 @@ export default function App() {
     const platform = Platform.OS === "ios" || Platform.OS === "android"
       ? Platform.OS
       : "web";
-    const analyticsScreen = screen === 'accounts'
+    const analyticsScreen = screen === 'accounts' || screen === 'accountability'
       ? 'profile'
       : screen === 'host-detail'
         ? 'host'
@@ -7286,6 +7299,9 @@ export default function App() {
 
   const go = (next: Screen, nextParams?: Record<string, string>) => {
     Keyboard.dismiss();
+    if (next === 'accountability') {
+      setAccountabilityReturnScreen(screen === 'accountability' ? 'profile' : screen);
+    }
     setScreen(next);
     const screenUsesExperienceId = next === 'experience' || next === 'host-detail' || (next === 'create' && Boolean(nextParams?.id));
     setExperienceId(screenUsesExperienceId ? nextParams?.id : undefined);
@@ -7314,6 +7330,10 @@ export default function App() {
     }
     if (action === 'challenges') {
       go('challenges');
+      return;
+    }
+    if (action === 'accountability') {
+      if (user?.userType === 'participant') go('accountability');
       return;
     }
     if (action === 'create') {
@@ -7550,6 +7570,21 @@ export default function App() {
     }
     if (screen === 'friend-profile') return <FriendProfileScreen friendId={Number(params.friendId)} onBack={() => go('friends')} />;
     if (screen === 'friends') return <FriendsOverviewScreen go={go} onBack={() => go('profile')} />;
+    if (screen === 'accountability') {
+      return user.userType === 'participant' ? (
+        <AccountabilityPartnerScreen
+          onBack={() => go(accountabilityReturnScreen)}
+          onOpenMessages={() => go('messages')}
+        />
+      ) : (
+        <EmptyState
+          title="Participant account required"
+          body="Accountability partnerships are available for participant accounts."
+          actionLabel="Back to profile"
+          onAction={() => go('profile')}
+        />
+      );
+    }
     if (screen === 'notifications') {
       return (
         <NotificationsScreen
@@ -7603,7 +7638,7 @@ export default function App() {
     ? 'host'
     : screen === 'experiences'
       ? 'home'
-    : screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts'
+    : screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts' || screen === 'accountability'
       ? 'profile'
       : screen === 'messages' || screen === 'direct-message'
         ? 'home'

@@ -13,6 +13,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  getListFriendsQueryKey,
   getGetAccountabilityDashboardQueryKey,
   useAcceptAccountabilityInvitation,
   useConfirmAccountabilityCheckIn,
@@ -25,11 +26,14 @@ import {
   useGetAccountabilityDashboard,
   useMarkAccountabilityNotificationRead,
   useSendAccountabilityEncouragement,
+  useListFriends,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { UserAvatar } from "@/components/UserAvatar";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { createSocialInviteShareContent } from "@/lib/social-invite-copy";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Friend = {
   id: number;
@@ -64,7 +68,73 @@ function timeLabel(value: string) {
     : date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
-export function AccountabilitySection({ friends }: { friends: Friend[] }) {
+export function AccountabilityPartnerScreen({
+  onBack,
+  onOpenMessages,
+}: {
+  onBack: () => void;
+  onOpenMessages: () => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const friendsQuery = useListFriends({
+    query: {
+      queryKey: [...getListFriendsQueryKey(), user?.id],
+      enabled: user?.userType === "participant",
+    },
+  });
+
+  return (
+    <KeyboardAwareScrollViewCompat
+      testID="accountability-screen"
+      style={{ backgroundColor: colors.background, flex: 1 }}
+      contentContainerStyle={{
+        gap: 14,
+        paddingBottom: Math.max(insets.bottom, 28),
+        paddingHorizontal: 16,
+        paddingTop: Math.max(insets.top, 12),
+      }}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="none"
+      bottomOffset={48}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={{ alignItems: "center", flexDirection: "row", gap: 10, paddingBottom: 3 }}>
+        <Pressable
+          testID="accountability-back"
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          onPress={onBack}
+          hitSlop={8}
+          style={{ alignItems: "center", height: 42, justifyContent: "center", width: 36 }}
+        >
+          <Feather name="arrow-left" size={21} color={colors.foreground} />
+        </Pressable>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "700" }}>
+            Accountability Partner
+          </Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+            Stay consistent. Achieve more together.
+          </Text>
+        </View>
+      </View>
+      <AccountabilitySection
+        friends={friendsQuery.data ?? []}
+        onOpenMessages={onOpenMessages}
+      />
+    </KeyboardAwareScrollViewCompat>
+  );
+}
+
+export function AccountabilitySection({
+  friends,
+  onOpenMessages,
+}: {
+  friends: Friend[];
+  onOpenMessages?: () => void;
+}) {
   const colors = useColors();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -104,6 +174,7 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
   const [checkInCommitmentId, setCheckInCommitmentId] = useState<number | null>(null);
   const [checkInNote, setCheckInNote] = useState("");
   const [customEncouragement, setCustomEncouragement] = useState("");
+  const [encouragementOpen, setEncouragementOpen] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
 
   const activePartner = dashboard.data?.activePartner ?? null;
@@ -114,6 +185,12 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
   const activeCommitments = commitments.filter((commitment) => commitment.status === "active");
   const completedCommitments = commitments.filter((commitment) => commitment.status === "completed").slice(0, 2);
   const visibleCommitments = [...activeCommitments, ...completedCommitments];
+  const completedCommitmentCount = commitments.filter((commitment) => commitment.status === "completed").length;
+  const completedCheckInCount = commitments
+    .filter((commitment) => commitment.status === "active" || commitment.status === "completed")
+    .reduce((total, commitment) => total + Math.min(commitment.currentValue, commitment.targetValue), 0);
+  const todayCommitment = activeCommitments.find((commitment) => commitment.assignedTo.id === user?.id) ?? null;
+  const progressCommitments = activeCommitments.slice(0, 4);
   const notifications = dashboard.data?.notifications ?? [];
   const searchTerm = friendSearch.trim().replace(/^@+/, "").toLowerCase();
   const matchingFriends = friends
@@ -313,25 +390,6 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
 
   return (
     <View testID="accountability-section" style={{ gap: 20, marginBottom: 22 }}>
-      <View style={{ gap: 6, marginTop: 6 }}>
-        <View style={{ alignItems: "center", flexDirection: "row", gap: 8 }}>
-          <Feather name="target" size={18} color={colors.primary} />
-          <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "700" }}>
-            Accountability
-          </Text>
-          {(dashboard.data?.unreadCount ?? 0) > 0 ? (
-            <View style={{ alignItems: "center", backgroundColor: colors.primary + "18", borderRadius: 20, minWidth: 24, paddingHorizontal: 7, paddingVertical: 3 }}>
-              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700" }}>
-                {dashboard.data?.unreadCount}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-        <Text style={{ color: colors.mutedForeground, fontSize: 14, lineHeight: 21 }}>
-          Make a plan together, check in honestly, and keep your progress private to the two of you.
-        </Text>
-      </View>
-
       {feedback ? (
         <View
           style={{
@@ -671,23 +729,38 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
                   <Text style={{ color: colors.success, fontSize: 11, fontWeight: "700" }}>Active</Text>
                 </View>
               </View>
-              <View style={{ alignItems: "center", flexDirection: "row", gap: 12 }}>
-                <UserAvatar
-                  avatarUrl={activePartner.partner.avatarUrl}
-                  name={activePartner.partner.name}
-                  containerStyle={{ alignItems: "center", backgroundColor: colors.primary + "16", borderRadius: 27, height: 54, justifyContent: "center", width: 54 }}
-                  initialStyle={{ color: colors.primary, fontSize: 18, fontWeight: "700" }}
-                />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text numberOfLines={2} style={{ color: colors.foreground, fontSize: 18, fontWeight: "700", lineHeight: 22 }}>
-                    {activePartner.partner.name}
+              <View style={{ alignItems: "center", flexDirection: "row", gap: 8, justifyContent: "space-between" }}>
+                <View style={{ alignItems: "center", flex: 1, gap: 6, minWidth: 0 }}>
+                  <UserAvatar
+                    avatarUrl={user?.avatarUrl}
+                    name={user?.name ?? "You"}
+                    containerStyle={{ alignItems: "center", backgroundColor: colors.primary + "16", borderRadius: 25, height: 50, justifyContent: "center", width: 50 }}
+                    initialStyle={{ color: colors.primary, fontSize: 17, fontWeight: "700" }}
+                  />
+                  <Text numberOfLines={1} style={{ color: colors.foreground, fontSize: 12, fontWeight: "700" }}>
+                    You
                   </Text>
-                  <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 3 }}>
-                    {activePartner.partner.username ? `@${activePartner.partner.username} · ` : ""}
-                    Since {timeLabel(activePartner.acceptedAt)}
+                </View>
+                <View style={{ alignItems: "center", gap: 4, paddingHorizontal: 4 }}>
+                  <Feather name="heart" size={17} color={colors.secondary} />
+                  <Text style={{ color: colors.mutedForeground, fontSize: 9, fontWeight: "600" }}>TOGETHER</Text>
+                </View>
+                <View style={{ alignItems: "center", flex: 1, gap: 6, minWidth: 0 }}>
+                  <UserAvatar
+                    avatarUrl={activePartner.partner.avatarUrl}
+                    name={activePartner.partner.name}
+                    containerStyle={{ alignItems: "center", backgroundColor: colors.secondary + "16", borderRadius: 25, height: 50, justifyContent: "center", width: 50 }}
+                    initialStyle={{ color: colors.secondary, fontSize: 17, fontWeight: "700" }}
+                  />
+                  <Text numberOfLines={1} style={{ color: colors.foreground, fontSize: 12, fontWeight: "700" }}>
+                    {activePartner.partner.name}
                   </Text>
                 </View>
               </View>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11, textAlign: "center" }}>
+                {activePartner.partner.username ? `@${activePartner.partner.username} · ` : ""}
+                Partners since {timeLabel(activePartner.acceptedAt)}
+              </Text>
             </View>
             <View style={{ alignItems: "flex-start", backgroundColor: colors.secondary + "08", borderColor: colors.secondary + "18", borderRadius: colors.radius - 3, borderWidth: 1, flexDirection: "row", gap: 10, padding: 12 }}>
               <View style={{ alignItems: "center", backgroundColor: colors.secondary + "12", borderRadius: 10, height: 30, justifyContent: "center", width: 30 }}>
@@ -702,7 +775,8 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
                 </Text>
               </View>
             </View>
-            <View style={{ gap: 12, paddingTop: 2 }}>
+            {encouragementOpen ? (
+              <View style={{ gap: 12, paddingTop: 2 }}>
               <View style={{ alignItems: "center", flexDirection: "row", gap: 10 }}>
                 <View style={{ alignItems: "center", backgroundColor: colors.primary + "16", borderRadius: 12, height: 36, justifyContent: "center", width: 36 }}>
                   <Feather name="heart" size={18} color={colors.primary} />
@@ -800,55 +874,177 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
                     Send personal note
                   </Text>
                 </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Hide encouragement options"
+                  onPress={() => setEncouragementOpen(false)}
+                  style={{ alignSelf: "flex-start", paddingVertical: 3 }}
+                >
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11, fontWeight: "600" }}>Hide options</Text>
+                </Pressable>
               </View>
-            </View>
-            {confirmEnd ? (
-              <View style={{ backgroundColor: colors.destructive + "10", borderRadius: colors.radius - 4, gap: 8, padding: 11 }}>
-                <Text style={{ color: colors.foreground, fontSize: 13 }}>
-                  End this partnership? Your active commitments will be cancelled and private to this partnership.
-                </Text>
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <Pressable
-                    accessibilityRole="button"
-                    testID="accountability-keep-partnership"
-                    onPress={() => setConfirmEnd(false)}
-                    style={({ pressed }) => [quietButton, { alignItems: "center", flex: 1, justifyContent: "center", minHeight: 44, opacity: pressed ? 0.75 : 1 }]}
-                  >
-                    <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600" }}>Keep partnership</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    testID="accountability-confirm-end-partnership"
-                    disabled={endPartnership.isPending}
-                    onPress={() => {
-                      void runAction(
-                        () => endPartnership.mutateAsync({ partnershipId: activePartner.partnershipId }),
-                        "Partnership ended.",
-                        "The partnership could not be ended. Please try again.",
-                      ).then((ended) => {
-                        if (ended) setConfirmEnd(false);
-                      });
-                    }}
-                    style={({ pressed }) => [{ backgroundColor: colors.destructive, borderRadius: colors.radius - 4 }, { alignItems: "center", flex: 1, justifyContent: "center", minHeight: 44, opacity: endPartnership.isPending ? 0.55 : pressed ? 0.8 : 1 }]}
-                  >
-                    {endPartnership.isPending ? <ActivityIndicator size="small" color={colors.destructiveForeground} /> : <Text style={{ color: colors.destructiveForeground, fontSize: 12, fontWeight: "700" }}>End partnership</Text>}
-                  </Pressable>
-                </View>
               </View>
             ) : (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="End accountability partnership"
-                accessibilityHint="Opens a confirmation before ending the partnership."
-                testID="accountability-end-partnership"
-                onPress={() => setConfirmEnd(true)}
+                accessibilityLabel="Send encouragement to your partner"
+                accessibilityHint="Opens the encouragement messages you can send."
+                testID="accountability-open-encouragement"
+                onPress={() => setEncouragementOpen(true)}
                 style={({ pressed }) => [
-                  { alignItems: "center", alignSelf: "stretch", borderColor: colors.border, borderTopWidth: 1, flexDirection: "row", gap: 8, marginTop: -4, minHeight: 44, opacity: pressed ? 0.75 : 1, paddingTop: 8 },
+                  quietButton,
+                  { alignItems: "center", flexDirection: "row", gap: 9, justifyContent: "center", minHeight: 42, opacity: pressed ? 0.75 : 1, paddingHorizontal: 12 },
                 ]}
               >
-                <Feather name="x-circle" size={15} color={colors.destructive} />
-                <Text style={{ color: colors.destructive, fontSize: 12, fontWeight: "600" }}>End partnership</Text>
+                <Feather name="heart" size={15} color={colors.primary} />
+                <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "700" }}>Send encouragement</Text>
+                <Feather name="chevron-down" size={15} color={colors.mutedForeground} />
               </Pressable>
+            )}
+          </View>
+
+          <View testID="accountability-progress" style={[cardStyle, { gap: 15, padding: 16 }]}>
+            <View style={{ alignItems: "flex-start", flexDirection: "row", gap: 10 }}>
+              <View style={{ alignItems: "center", backgroundColor: colors.teal + "16", borderRadius: 11, height: 34, justifyContent: "center", width: 34 }}>
+                <Feather name="bar-chart-2" size={17} color={colors.teal} />
+              </View>
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "700" }}>
+                  Our contributions
+                </Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 3 }}>
+                  Check-ins against each person’s shared commitments.
+                </Text>
+              </View>
+            </View>
+            {progressCommitments.length ? (
+              <View style={{ gap: 14 }}>
+                {progressCommitments.map((commitment) => {
+                  const progress = Math.min(100, Math.round((commitment.currentValue / commitment.targetValue) * 100));
+                  const assignedToUser = commitment.assignedTo.id === user?.id;
+                  const progressColor = assignedToUser ? colors.primary : colors.secondary;
+                  return (
+                    <View key={commitment.id} style={{ gap: 6 }}>
+                      <View style={{ alignItems: "center", flexDirection: "row", gap: 8 }}>
+                        <Text numberOfLines={1} style={{ color: colors.foreground, flex: 1, fontSize: 12, fontWeight: "600" }}>
+                          {commitment.title}
+                        </Text>
+                        <Text style={{ color: progressColor, fontSize: 11, fontWeight: "700", fontVariant: ["tabular-nums"] }}>
+                          {commitment.currentValue}/{commitment.targetValue}
+                        </Text>
+                      </View>
+                      <View style={{ backgroundColor: colors.border, borderRadius: 5, height: 7, overflow: "hidden" }}>
+                        <View style={{ backgroundColor: progressColor, borderRadius: 5, height: 7, width: `${progress}%` }} />
+                      </View>
+                      <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>
+                        For {assignedToUser ? "you" : commitment.assignedTo.name}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={{ alignItems: "center", backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 5, padding: 13 }}>
+                <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600" }}>
+                  No active commitments yet
+                </Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16, textAlign: "center" }}>
+                  Add a shared goal to see progress here.
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View testID="accountability-dashboard-metrics" style={{ flexDirection: "row", gap: 8 }}>
+            {([
+              { label: "Active goals", value: activeCommitments.length, icon: "target" as const, color: colors.teal },
+              { label: "Goals met", value: completedCommitmentCount, icon: "check-circle" as const, color: colors.success },
+              { label: "Check-ins", value: completedCheckInCount, icon: "activity" as const, color: colors.secondary },
+            ]).map((metric) => (
+              <View key={metric.label} style={{ backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 4, borderWidth: 1, flex: 1, gap: 8, minWidth: 0, paddingHorizontal: 10, paddingVertical: 11 }}>
+                <Feather name={metric.icon} size={15} color={metric.color} />
+                <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "700", fontVariant: ["tabular-nums"] }}>
+                  {metric.value}
+                </Text>
+                <Text numberOfLines={2} style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 13 }}>
+                  {metric.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <View testID="accountability-today-card" style={[cardStyle, { gap: 12, padding: 16 }]}>
+            <View style={{ alignItems: "center", flexDirection: "row", gap: 9 }}>
+              <View style={{ alignItems: "center", backgroundColor: colors.primary + "16", borderRadius: 10, height: 32, justifyContent: "center", width: 32 }}>
+                <Feather name="calendar" size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700" }}>Today’s check-in</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 2 }}>
+                  {todayCommitment ? "Your next step, shared with your partner." : "A small plan makes it easier to show up."}
+                </Text>
+              </View>
+            </View>
+            {todayCommitment ? (
+              <>
+                <View style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 4, padding: 12 }}>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "700" }}>{todayCommitment.title}</Text>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
+                    {todayCommitment.description || `${todayCommitment.currentValue} of ${todayCommitment.targetValue} check-ins completed`}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Pressable
+                    testID="accountability-today-check-in"
+                    accessibilityRole="button"
+                    accessibilityLabel={`Record a completed check-in for ${todayCommitment.title}`}
+                    disabled={createCheckIn.isPending}
+                    onPress={() => submitCheckIn(todayCommitment.id, "completed")}
+                    style={({ pressed }) => [
+                      primaryButton,
+                      { alignItems: "center", flex: 1, flexDirection: "row", gap: 7, justifyContent: "center", minHeight: 44, opacity: createCheckIn.isPending ? 0.55 : pressed ? 0.8 : 1, paddingHorizontal: 8 },
+                    ]}
+                  >
+                    {createCheckIn.isPending ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name="check" size={15} color={colors.primaryForeground} />}
+                    <Text style={{ color: colors.primaryForeground, fontSize: 12, fontWeight: "700" }}>I did it</Text>
+                  </Pressable>
+                  {onOpenMessages ? (
+                    <Pressable
+                      testID="accountability-need-support"
+                      accessibilityRole="button"
+                      onPress={onOpenMessages}
+                      style={({ pressed }) => [
+                        quietButton,
+                        { alignItems: "center", flex: 1, flexDirection: "row", gap: 7, justifyContent: "center", minHeight: 44, opacity: pressed ? 0.8 : 1, paddingHorizontal: 8 },
+                      ]}
+                    >
+                      <Feather name="message-circle" size={15} color={colors.secondary} />
+                      <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600" }}>Need support</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15 }}>
+                  Manual check-ins are self-reported and do not award XP.
+                </Text>
+              </>
+            ) : (
+              <View style={{ alignItems: "flex-start", backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 9, padding: 12 }}>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 17 }}>
+                  You don’t have an active commitment assigned to you yet.
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Create a shared commitment"
+                  onPress={() => setCommitmentFormOpen(true)}
+                  style={({ pressed }) => [
+                    quietButton,
+                    { alignItems: "center", flexDirection: "row", gap: 6, opacity: pressed ? 0.8 : 1, paddingHorizontal: 10, paddingVertical: 8 },
+                  ]}
+                >
+                  <Feather name="plus" size={13} color={colors.primary} />
+                  <Text style={{ color: colors.foreground, fontSize: 11, fontWeight: "700" }}>Create a shared goal</Text>
+                </Pressable>
+              </View>
             )}
           </View>
 
@@ -1207,6 +1403,81 @@ export function AccountabilitySection({ friends }: { friends: Friend[] }) {
               ) : null}
             </View>
           ))}
+        </View>
+      ) : null}
+
+      {activePartner ? (
+        <View testID="accountability-partner-actions" style={[cardStyle, { gap: 12, padding: 15 }]}>
+          {confirmEnd ? (
+            <>
+              <Text style={{ color: colors.foreground, fontSize: 13, lineHeight: 19 }}>
+                End this partnership? Active commitments will be cancelled and stay private to this partnership. You can invite someone new afterwards.
+              </Text>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <Pressable
+                  accessibilityRole="button"
+                  testID="accountability-keep-partnership"
+                  onPress={() => setConfirmEnd(false)}
+                  style={({ pressed }) => [quietButton, { alignItems: "center", flex: 1, justifyContent: "center", minHeight: 44, opacity: pressed ? 0.75 : 1 }]}
+                >
+                  <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600" }}>Keep partnership</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  testID="accountability-confirm-end-partnership"
+                  disabled={endPartnership.isPending}
+                  onPress={() => {
+                    void runAction(
+                      () => endPartnership.mutateAsync({ partnershipId: activePartner.partnershipId }),
+                      "Partnership ended.",
+                      "The partnership could not be ended. Please try again.",
+                    ).then((ended) => {
+                      if (ended) setConfirmEnd(false);
+                    });
+                  }}
+                  style={({ pressed }) => [
+                    { backgroundColor: colors.destructive, borderRadius: colors.radius - 4 },
+                    { alignItems: "center", flex: 1, justifyContent: "center", minHeight: 44, opacity: endPartnership.isPending ? 0.55 : pressed ? 0.8 : 1 },
+                  ]}
+                >
+                  {endPartnership.isPending
+                    ? <ActivityIndicator size="small" color={colors.destructiveForeground} />
+                    : <Text style={{ color: colors.destructiveForeground, fontSize: 12, fontWeight: "700" }}>End partnership</Text>}
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {onOpenMessages ? (
+                <Pressable
+                  testID="accountability-message-partner"
+                  accessibilityRole="button"
+                  onPress={onOpenMessages}
+                  style={({ pressed }) => [
+                    quietButton,
+                    { alignItems: "center", flex: 1, flexDirection: "row", gap: 7, justifyContent: "center", minHeight: 44, opacity: pressed ? 0.8 : 1, paddingHorizontal: 8 },
+                  ]}
+                >
+                  <Feather name="message-circle" size={15} color={colors.secondary} />
+                  <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600" }}>Message partner</Text>
+                </Pressable>
+              ) : null}
+              <Pressable
+                testID="accountability-end-partnership"
+                accessibilityRole="button"
+                accessibilityLabel="Change accountability partner"
+                accessibilityHint="Opens a confirmation before ending this partnership."
+                onPress={() => setConfirmEnd(true)}
+                style={({ pressed }) => [
+                  quietButton,
+                  { alignItems: "center", flex: 1, flexDirection: "row", gap: 7, justifyContent: "center", minHeight: 44, opacity: pressed ? 0.8 : 1, paddingHorizontal: 8 },
+                ]}
+              >
+                <Feather name="user-x" size={15} color={colors.destructive} />
+                <Text style={{ color: colors.destructive, fontSize: 12, fontWeight: "600" }}>Change partner</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       ) : null}
     </View>
