@@ -3,6 +3,7 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
+  Easing,
   Image,
   ImageBackground,
   Keyboard,
@@ -6557,6 +6558,44 @@ function BottomNav({
   const insets = useSafeAreaInsets();
   const { reduceMotion } = useMotionPreferences();
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
+  const quickActionsProgress = useRef(new Animated.Value(0)).current;
+  const { height: windowHeight } = useWindowDimensions();
+  const quickActionsListMaxHeight = Math.max(200, windowHeight - insets.top - insets.bottom - 210);
+  const openQuickActions = () => {
+    triggerHaptic();
+    setQuickActionsOpen(true);
+    setQuickActionsVisible(true);
+    quickActionsProgress.stopAnimation();
+    quickActionsProgress.setValue(0);
+    if (reduceMotion) quickActionsProgress.setValue(1);
+  };
+  const closeQuickActions = () => {
+    setQuickActionsOpen(false);
+    quickActionsProgress.stopAnimation();
+    if (reduceMotion) {
+      quickActionsProgress.setValue(0);
+      setQuickActionsVisible(false);
+      return;
+    }
+    Animated.timing(quickActionsProgress, {
+      toValue: 0,
+      duration: 190,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setQuickActionsVisible(false);
+    });
+  };
+  const animateQuickActionsIn = () => {
+    if (reduceMotion) return;
+    Animated.timing(quickActionsProgress, {
+      toValue: 1,
+      duration: 270,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  };
   const liquidGlassAvailable =
     Platform.OS === 'ios' &&
     isLiquidGlassAvailable() &&
@@ -6944,20 +6983,16 @@ function BottomNav({
         accessibilityRole="button"
         accessibilityLabel="Quick actions"
         accessibilityHint={userType === 'participant'
-          ? 'Open Assistant, Challenges, feed posting, and progress actions.'
+          ? 'Open Assistant, Challenges, accountability, feed posting, and progress actions.'
           : 'Post to the feed, create an experience, or view progress.'}
         accessibilityState={{ expanded: quickActionsOpen }}
         testID="bottom-nav-quick-button"
-        onPress={() => {
-          triggerHaptic();
-          setQuickActionsOpen(true);
-        }}
+        onPress={openQuickActions}
         style={({ pressed }) => [
           styles.bottomNavQuickButton,
           {
             backgroundColor: colors.card,
             borderColor: colors.border,
-            shadowColor: colors.primary,
           },
           pressed && styles.bottomNavQuickButtonPressed,
         ]}
@@ -6965,20 +7000,28 @@ function BottomNav({
         <Feather name="plus" size={25} color={colors.primary} />
       </MotionPressable>
       <Modal
-        visible={quickActionsOpen}
+        visible={quickActionsVisible}
         transparent
-        animationType="slide"
-        onRequestClose={() => setQuickActionsOpen(false)}
+        animationType="none"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+        onShow={animateQuickActionsIn}
+        onRequestClose={closeQuickActions}
       >
         <View style={styles.quickActionsModal}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close quick actions"
-            testID="bottom-nav-quick-actions-dismiss"
-            onPress={() => setQuickActionsOpen(false)}
-            style={[StyleSheet.absoluteFill, { backgroundColor: colors.foreground + '78' }]}
-          />
-          <View
+          <Animated.View
+            pointerEvents="box-none"
+            style={[StyleSheet.absoluteFill, { opacity: quickActionsProgress }]}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close quick actions"
+              testID="bottom-nav-quick-actions-dismiss"
+              onPress={closeQuickActions}
+              style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.48)' }]}
+            />
+          </Animated.View>
+          <Animated.View
             style={[
               styles.quickActionsSheet,
               {
@@ -6986,7 +7029,15 @@ function BottomNav({
                 borderColor: colors.border,
                 borderTopLeftRadius: colors.radius + 8,
                 borderTopRightRadius: colors.radius + 8,
-                paddingBottom: 16 + insets.bottom,
+                maxHeight: Math.min(windowHeight - insets.top - 8, 740),
+                opacity: quickActionsProgress,
+                paddingBottom: 20 + insets.bottom,
+                transform: [{
+                  translateY: quickActionsProgress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [34, 0],
+                  }),
+                }],
               },
             ]}
           >
@@ -7001,14 +7052,20 @@ function BottomNav({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Close quick actions"
-                onPress={() => setQuickActionsOpen(false)}
+                onPress={closeQuickActions}
                 hitSlop={8}
                 style={styles.quickActionsClose}
               >
                 <Feather name="x" size={21} color={colors.mutedForeground} />
               </Pressable>
             </View>
-            <View style={styles.quickActionsList}>
+            <ScrollView
+              style={[styles.quickActionsList, { maxHeight: quickActionsListMaxHeight }]}
+              contentContainerStyle={styles.quickActionsListContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
               {quickActions.map((action) => (
                 <Pressable
                   accessibilityRole="button"
@@ -7017,7 +7074,7 @@ function BottomNav({
                   key={action.id}
                   testID={`bottom-nav-action-${action.id}`}
                   onPress={() => {
-                    setQuickActionsOpen(false);
+                    closeQuickActions();
                     triggerHaptic();
                     onQuickAction(action.id);
                   }}
@@ -7042,8 +7099,8 @@ function BottomNav({
                   <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
                 </Pressable>
               ))}
-            </View>
-          </View>
+            </ScrollView>
+          </Animated.View>
         </View>
       </Modal>
     </View>
@@ -8463,32 +8520,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 7,
     shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
-    elevation: 14,
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 8,
   },
   bottomNavQuickButton: {
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: 28,
-    elevation: 10,
     height: 56,
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.24,
-    shadowRadius: 12,
     width: 56,
   },
   bottomNavQuickButtonPressed: { opacity: 0.8, transform: [{ scale: 0.94 }] },
   quickActionsModal: { flex: 1, justifyContent: 'flex-end' },
-  quickActionsSheet: { borderTopWidth: 1, paddingHorizontal: 20, paddingTop: 12 },
-  quickActionsHandle: { alignSelf: 'center', borderRadius: 2, height: 4, marginBottom: 16, width: 36 },
-  quickActionsHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  quickActionsSheet: { borderTopWidth: 1, overflow: 'hidden', paddingHorizontal: 20, paddingTop: 14 },
+  quickActionsHandle: { alignSelf: 'center', borderRadius: 2, height: 4, marginBottom: 14, width: 36 },
+  quickActionsHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
   quickActionsTitle: { fontFamily: 'Inter_700Bold', fontSize: 20 },
   quickActionsSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 13, marginTop: 4 },
   quickActionsClose: { alignItems: 'center', height: 40, justifyContent: 'center', width: 40 },
-  quickActionsList: { gap: 8 },
-  quickActionRow: { alignItems: 'center', borderWidth: 1, flexDirection: 'row', gap: 12, minHeight: 68, paddingHorizontal: 12, paddingVertical: 10 },
+  quickActionsList: { flexShrink: 1 },
+  quickActionsListContent: { gap: 10, paddingBottom: 2 },
+  quickActionRow: { alignItems: 'center', borderWidth: 1, flexDirection: 'row', gap: 12, minHeight: 70, paddingHorizontal: 12, paddingVertical: 11 },
   quickActionIcon: { alignItems: 'center', borderRadius: 14, height: 42, justifyContent: 'center', width: 42 },
   quickActionCopy: { flex: 1, gap: 3, minWidth: 0 },
   quickActionLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
