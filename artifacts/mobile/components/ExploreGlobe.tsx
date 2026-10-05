@@ -71,12 +71,32 @@ const CENTER_Y = 151;
 const BASE_RADIUS = 119;
 const FULLSCREEN_RADIUS = 140;
 const LAND_SHAPES: Array<Array<[number, number]>> = [
-  [[-165, 70], [-140, 62], [-125, 50], [-112, 30], [-97, 20], [-82, 8], [-78, -8], [-95, -15], [-105, -4], [-117, 12], [-130, 28], [-150, 45]],
-  [[-81, 12], [-68, 8], [-53, -5], [-48, -22], [-58, -39], [-69, -54], [-76, -34]],
-  [[-10, 72], [18, 70], [40, 58], [54, 42], [42, 34], [32, 20], [22, 8], [10, -3], [-2, 7], [-15, 24], [-9, 38], [-24, 53]],
-  [[35, 68], [68, 64], [98, 56], [125, 48], [150, 58], [170, 48], [150, 32], [132, 18], [118, 6], [106, -4], [95, 8], [78, 18], [61, 28], [48, 43]],
-  [[112, -10], [134, -12], [153, -23], [145, -39], [130, -44], [116, -30]],
-  [[-48, 82], [-20, 76], [5, 79], [25, 71], [15, 61], [-4, 58], [-28, 63]],
+  [[-168, 68], [-151, 60], [-141, 54], [-132, 49], [-126, 43], [-124, 35], [-117, 32], [-111, 25], [-105, 23], [-99, 18], [-92, 19], [-86, 12], [-81, 9], [-78, 1], [-82, -5], [-89, 8], [-97, 14], [-105, 16], [-112, 27], [-120, 34], [-127, 42], [-137, 51], [-151, 57], [-163, 62]],
+  [[-80, 12], [-74, 9], [-69, 10], [-64, 5], [-58, 4], [-51, -1], [-47, -9], [-49, -17], [-54, -23], [-58, -32], [-65, -42], [-69, -53], [-74, -48], [-77, -37], [-79, -24], [-80, -10]],
+  [[-11, 71], [-5, 67], [4, 61], [10, 58], [17, 55], [24, 56], [29, 52], [34, 47], [40, 44], [43, 37], [37, 33], [34, 28], [31, 23], [25, 20], [24, 13], [18, 8], [10, 4], [2, 6], [-5, 12], [-10, 20], [-17, 25], [-9, 35], [-13, 43], [-21, 52], [-16, 60], [-25, 65]],
+  [[-10, 36], [-3, 37], [3, 35], [7, 32], [10, 30], [13, 32], [17, 29], [20, 32], [24, 31], [28, 34], [33, 34], [36, 31], [40, 34], [45, 39], [49, 43], [47, 48], [42, 51], [35, 54], [28, 58], [20, 62], [11, 64], [4, 58], [-4, 56], [-8, 49], [-5, 44]],
+  [[35, 68], [43, 65], [51, 68], [61, 67], [69, 63], [79, 61], [88, 57], [98, 55], [108, 52], [118, 50], [127, 53], [137, 54], [148, 60], [158, 58], [169, 53], [177, 47], [169, 39], [159, 36], [151, 30], [143, 24], [135, 18], [127, 11], [120, 5], [113, 1], [107, -5], [101, 3], [94, 8], [85, 17], [78, 20], [69, 26], [61, 28], [56, 34], [50, 39], [45, 43], [42, 49], [38, 55]],
+  [[112, -10], [117, -8], [122, -11], [129, -12], [135, -17], [142, -19], [151, -25], [149, -33], [144, -39], [137, -42], [130, -45], [123, -42], [118, -35], [114, -26]],
+  [[-52, 82], [-42, 78], [-32, 76], [-22, 78], [-11, 76], [-2, 79], [8, 77], [18, 74], [25, 70], [20, 65], [12, 62], [4, 59], [-7, 59], [-18, 62], [-29, 61], [-39, 66], [-48, 72]],
+  [[-8, 58], [-5, 56], [-3, 54], [0, 53], [2, 55], [1, 58], [-2, 60]],
+];
+
+const CITY_LIGHTS: Array<[number, number, number]> = [
+  [-74, 41, 1.5], [-0.1, 51.5, 1.4], [2.35, 48.86, 1.5], [13.4, 52.5, 1.1],
+  [12.5, 41.9, 1.1], [28.9, 41, 1.2], [31.2, 30, 1.3], [3.4, 6.5, 1.1],
+  [36.8, -1.3, 1], [55.3, 25.2, 1.2], [72.9, 19.1, 1.5], [77.2, 28.6, 1.4],
+  [90.4, 23.8, 1.1], [103.8, 1.3, 1], [103.8, 36, 1.5], [116.4, 39.9, 1.5],
+  [121.5, 31.2, 1.5], [126.9, 37.5, 1.2], [139.7, 35.7, 1.5], [-99.1, 19.4, 1.2],
+  [-46.6, -23.5, 1.1], [-58.4, -34.6, 0.9], [151.2, -33.9, 1.1], [144.9, -37.8, 0.9],
+  [-3.7, 40.4, 1], [18.4, -33.9, 0.9], [44.4, 33.3, 1], [-122.4, 37.8, 1.1],
+  [-118.2, 34, 1.2], [-87.6, 41.9, 1], [-99.1, 32.8, 0.9], [106.8, -6.2, 1.2],
+];
+
+const STAR_FIELD: Array<[number, number, number]> = [
+  [18, 38, 1], [42, 112, 1.2], [64, 207, 0.8], [33, 263, 1], [296, 30, 1],
+  [314, 75, 0.8], [287, 130, 1.1], [309, 198, 0.8], [292, 250, 1.2], [22, 164, 0.7],
+  [73, 24, 0.7], [260, 18, 0.8], [80, 274, 0.8], [252, 277, 1], [12, 92, 0.7],
+  [328, 155, 0.7], [272, 96, 0.8], [57, 80, 0.9], [307, 282, 0.7], [41, 229, 0.8],
 ];
 
 function project(latitude: number, longitude: number, rotation: number, tilt: number, radius: number) {
@@ -309,24 +329,43 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
       >
         <Svg width="100%" height="100%" viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
           <Defs>
-            <RadialGradient id="planet" cx="34%" cy="28%" rx="72%" ry="72%">
+            <RadialGradient id="planet" cx="35%" cy="31%" rx="76%" ry="76%">
               <Stop offset="0" stopColor={space.surface} />
-              <Stop offset="0.72" stopColor={space.background} />
-              <Stop offset="1" stopColor={space.background} />
+              <Stop offset="0.68" stopColor={space.background} />
+              <Stop offset="0.9" stopColor={space.background} />
+              <Stop offset="1" stopColor={colors.violet} stopOpacity="0.18" />
+            </RadialGradient>
+            <RadialGradient id="land" cx="40%" cy="30%" rx="80%" ry="82%">
+              <Stop offset="0" stopColor={colors.accent} stopOpacity="0.42" />
+              <Stop offset="0.62" stopColor={space.surface} stopOpacity="0.9" />
+              <Stop offset="1" stopColor={space.background} stopOpacity="0.96" />
             </RadialGradient>
             <ClipPath id="globeClip"><Circle cx={CENTER_X} cy={CENTER_Y} r={radius} /></ClipPath>
           </Defs>
-          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 10} fill="none" stroke={colors.violet} strokeOpacity="0.13" strokeWidth="1" />
-          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 4} fill="none" stroke={colors.teal} strokeOpacity="0.10" strokeWidth="1" />
-          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius} fill="url(#planet)" stroke={space.subdued} strokeOpacity="0.65" strokeWidth="1" />
+          {STAR_FIELD.map(([x, y, size], index) => (
+            <Circle key={`star-${index}`} cx={x} cy={y} r={size} fill={index % 4 === 0 ? colors.primaryForeground : colors.accent} fillOpacity={index % 3 === 0 ? 0.8 : 0.44} />
+          ))}
+          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 17} fill="none" stroke={colors.violet} strokeOpacity="0.13" strokeWidth="0.8" />
+          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 10} fill="none" stroke={colors.primary} strokeOpacity="0.22" strokeWidth="1.2" />
+          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 5} fill="none" stroke={colors.teal} strokeOpacity="0.18" strokeWidth="0.8" />
+          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius} fill="url(#planet)" stroke={colors.primary} strokeOpacity="0.68" strokeWidth="1.2" />
           <G clipPath="url(#globeClip)">
-            <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius * 0.42} ry={radius} fill="none" stroke={space.muted} strokeOpacity="0.14" strokeWidth="0.7" />
-            <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius * 0.76} ry={radius} fill="none" stroke={space.muted} strokeOpacity="0.10" strokeWidth="0.7" />
-            <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius} ry={radius * 0.36} fill="none" stroke={space.muted} strokeOpacity="0.12" strokeWidth="0.7" />
-            <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius} ry={radius * 0.68} fill="none" stroke={space.muted} strokeOpacity="0.09" strokeWidth="0.7" />
+            <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius * 0.42} ry={radius} fill="none" stroke={colors.accent} strokeOpacity="0.2" strokeWidth="0.65" />
+            <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius * 0.76} ry={radius} fill="none" stroke={colors.accent} strokeOpacity="0.16" strokeWidth="0.65" />
+            <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius} ry={radius * 0.36} fill="none" stroke={colors.accent} strokeOpacity="0.18" strokeWidth="0.65" />
+            <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius} ry={radius * 0.68} fill="none" stroke={colors.accent} strokeOpacity="0.14" strokeWidth="0.65" />
             {LAND_SHAPES.map((points, index) => (
-              <Path key={index} d={polygonPath(points, rotation, tilt, radius)} fill="none" stroke={space.subdued} strokeOpacity="0.48" strokeWidth="1.2" strokeLinejoin="round" />
+              <Path key={index} d={polygonPath(points, rotation, tilt, radius)} fill="url(#land)" fillOpacity="0.86" stroke={colors.accent} strokeOpacity="0.52" strokeWidth="0.95" strokeLinejoin="round" />
             ))}
+            {CITY_LIGHTS.map(([longitude, latitude, size], index) => {
+              const point = project(latitude, longitude, rotation, tilt, radius);
+              return point.z > 0.02 ? (
+                <G key={`light-${index}`}>
+                  <Circle cx={point.x} cy={point.y} r={size * 2.7} fill={colors.primary} fillOpacity="0.12" />
+                  <Circle cx={point.x} cy={point.y} r={size} fill={space.foreground} fillOpacity="0.88" />
+                </G>
+              ) : null;
+            })}
             {projectedCities.map(({ city, point }) => {
               const active = selectedCity === city.city;
               const cityKey = city.city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
@@ -549,7 +588,7 @@ export const ExploreGlobe = React.forwardRef<ExploreGlobeHandle, Props>(function
 
 const styles = StyleSheet.create({
   fullScreenRoot: { flex: 1, position: 'relative' },
-  fullScreenStage: { flex: 1, position: 'relative', alignItems: 'center', justifyContent: 'center', transform: [{ translateY: 48 }] },
+  fullScreenStage: { flex: 1, position: 'relative', alignItems: 'center', justifyContent: 'center', transform: [{ translateY: 70 }] },
   shell: { borderWidth: 1, borderRadius: 24, paddingHorizontal: 17, paddingTop: 18, paddingBottom: 14, marginBottom: 25, overflow: 'hidden' },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   eyebrow: { fontSize: 9, fontFamily: 'Inter_700Bold', letterSpacing: 1.7, marginBottom: 5 },
@@ -567,9 +606,9 @@ const styles = StyleSheet.create({
   friendPinTail: { position: 'absolute', width: 14, height: 14, top: 35, transform: [{ rotate: '45deg' }] },
   friendPinHead: { width: 46, height: 46, borderRadius: 23, borderWidth: 3, padding: 2, alignItems: 'center', justifyContent: 'center' },
   friendPinAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  atmosphere: { position: 'absolute', width: 206, height: 34, borderRadius: 100, opacity: 0.08, bottom: 20, transform: [{ scaleX: 1.15 }] },
+  atmosphere: { position: 'absolute', width: 248, height: 62, borderRadius: 100, opacity: 0.09, bottom: 18, transform: [{ scaleX: 1.2 }] },
   zoomControls: { position: 'absolute', right: 0, top: 18, borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
-  fullScreenZoomControls: { right: 20, top: 246, flexDirection: 'row', alignItems: 'center' },
+  fullScreenZoomControls: { right: 18, top: 282, flexDirection: 'row', alignItems: 'center' },
   zoomButton: { width: 36, height: 35, alignItems: 'center', justifyContent: 'center' },
   zoomDivider: { height: 1, marginHorizontal: 7 },
   fullScreenZoomButton: { width: 32, height: 34 },

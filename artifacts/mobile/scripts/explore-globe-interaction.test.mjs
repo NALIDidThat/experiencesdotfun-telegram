@@ -154,7 +154,37 @@ async function waitForValue(client, expression, predicate, description, timeoutM
   throw new Error(`Timed out waiting for ${description}. Last value: ${JSON.stringify(lastValue)}`);
 }
 
-async function tapElement(client, selector, description, offsetX = 0, offsetY = 0) {
+async function waitForStableValue(client, expression, predicate, description, timeoutMs = 20_000, stableReads = 3) {
+  const deadline = Date.now() + timeoutMs;
+  let lastValue;
+  let consecutiveMatches = 0;
+  while (Date.now() < deadline) {
+    lastValue = await client.evaluate(expression);
+    consecutiveMatches = predicate(lastValue) ? consecutiveMatches + 1 : 0;
+    if (consecutiveMatches >= stableReads) return lastValue;
+    await delay(100);
+  }
+  throw new Error(`Timed out waiting for stable ${description}. Last value: ${JSON.stringify(lastValue)}`);
+}
+
+async function waitForSheetPosition(client, expanded, description) {
+  return waitForStableValue(
+    client,
+    `(() => {
+      const screenHeight = document.querySelector('[data-testid="explore-screen-layout"]')?.getBoundingClientRect().height ?? 0;
+      const sheetHeight = document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect().height ?? 0;
+      const collapsedHeight = Math.min(208, Math.max(176, screenHeight * 0.34));
+      const targetHeight = ${expanded}
+        ? Math.max(collapsedHeight, Math.min(screenHeight * 0.72, screenHeight - 212))
+        : collapsedHeight;
+      return { sheetHeight, targetHeight };
+    })()`,
+    ({ sheetHeight, targetHeight }) => Math.abs(sheetHeight - targetHeight) <= 1,
+    description,
+  );
+}
+
+async function tapElement(client, selector, description, offsetX = 0, offsetY = 0, scrollTargetIntoView = true) {
   const point = await client.evaluate(`(() => {
     const element = document.querySelector(${JSON.stringify(selector)});
     if (!element) return null;
@@ -177,7 +207,7 @@ async function tapElement(client, selector, description, offsetX = 0, offsetY = 
       const radius = Number(target.getAttribute("r")) * scale;
       rect = { left: x - radius, right: x + radius, top: y - radius, bottom: y + radius, width: radius * 2, height: radius * 2 };
     } else {
-      target.scrollIntoView({ block: "center", inline: "nearest" });
+      if (${scrollTargetIntoView}) target.scrollIntoView({ block: "center", inline: "nearest" });
       rect = target.getBoundingClientRect();
       x = rect.left + rect.width / 2;
       y = rect.top + rect.height / 2;
@@ -191,6 +221,7 @@ async function tapElement(client, selector, description, offsetX = 0, offsetY = 
       tag: target.tagName,
       hitTag: hit?.tagName ?? null,
       hitLabel: hit?.getAttribute("aria-label") ?? null,
+      hitTestId: hit?.closest("[data-testid]")?.getAttribute("data-testid") ?? null,
       hitHtml: hit?.outerHTML?.slice(0, 180) ?? null,
       visible: rect.width > 0 && rect.height > 0
         && rect.top >= 0
@@ -216,11 +247,23 @@ async function tapElement(client, selector, description, offsetX = 0, offsetY = 
     button: "left",
     clickCount: 1,
   });
+  await delay(50);
   return point;
 }
 
 async function tapTestId(client, testId) {
-  await tapElement(client, `[data-testid="${testId}"]`, `control "${testId}"`);
+  const overlayControl = testId.startsWith("explore-sheet-")
+    || testId.startsWith("explore-globe-")
+    || testId.startsWith("explore-category-")
+    || testId.startsWith("explore-mode-")
+    || ["explore-search-input", "explore-clear-city", "explore-clear-search"].includes(testId);
+  const point = await tapElement(client, `[data-testid="${testId}"]`, `control "${testId}"`, 0, 0, !overlayControl);
+  assert.equal(
+    point.hitTestId,
+    testId,
+    `Expected the tap on "${testId}" to hit that control. Geometry: ${JSON.stringify(point)}`,
+  );
+  return point;
 }
 
 async function dragGlobeWithSyntheticTouch(client, deltaX, deltaY) {
@@ -640,18 +683,7 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     londonContext.includes("1 friend list this profile city"),
     "The city context should count friends by approximate profile city.",
   );
-  await waitForValue(
-    client,
-    `(() => {
-      const screenHeight = document.querySelector('[data-testid="explore-screen-layout"]')?.getBoundingClientRect().height ?? 0;
-      const sheetHeight = document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect().height ?? 0;
-      const collapsedHeight = Math.min(208, Math.max(176, screenHeight * 0.34));
-      const expandedHeight = Math.max(collapsedHeight, Math.min(screenHeight * 0.72, screenHeight - 212));
-      return { sheetHeight, expandedHeight };
-    })()`,
-    (metrics) => metrics.sheetHeight >= metrics.expandedHeight - 2,
-    "the expanded sheet animation to settle",
-  );
+  await waitForSheetPosition(client, true, "the expanded sheet animation to settle");
   if (process.env.EXPLORE_GLOBE_SCREENSHOT_PATH) {
     const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
     await writeFile(process.env.EXPLORE_GLOBE_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
@@ -696,12 +728,7 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     (label) => label === "Expand experience list",
     "the sheet collapsing on a downward swipe",
   );
-  await waitForValue(
-    client,
-    `Math.round(document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect().height ?? 0)`,
-    (height) => height < 250,
-    "the collapsed sheet animation to settle",
-  );
+  await waitForSheetPosition(client, false, "the collapsed sheet animation to settle");
   await dragSheetWithSyntheticTouch(client, -84);
   await waitForValue(
     client,
@@ -709,12 +736,7 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     (label) => label === "Collapse experience list",
     "the sheet expanding on an upward swipe",
   );
-  await waitForValue(
-    client,
-    `Math.round(document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect().height ?? 0)`,
-    (height) => height > 320,
-    "the sheet reopening to its expanded position",
-  );
+  await waitForSheetPosition(client, true, "the sheet reopening to its expanded position");
   await tapTestId(client, "explore-sheet-toggle");
   await waitForValue(
     client,
@@ -722,12 +744,7 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     (label) => label === "Expand experience list",
     "the sheet collapsing before globe controls are used",
   );
-  await waitForValue(
-    client,
-    `Math.round(document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect().height ?? 0)`,
-    (height) => height < 250,
-    "the sheet making room for the globe controls",
-  );
+  await waitForSheetPosition(client, false, "the sheet making room for the globe controls");
 
   const globeRadius = () => client.evaluate(
     `document.querySelector('svg circle[clip-path]')?.getAttribute('r') ?? document.querySelector('svg defs circle')?.getAttribute('r') ?? ''`,
@@ -830,6 +847,15 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     Boolean,
     "the city details for a searched mapped city",
   );
+  await waitForSheetPosition(client, true, "the city sheet finishing its search-triggered expansion");
+  await tapTestId(client, "explore-sheet-toggle");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-sheet-toggle"]')?.getAttribute('aria-label') ?? ''`,
+    (label) => label === "Expand experience list",
+    "the city sheet collapsing before globe controls are used",
+  );
+  await waitForSheetPosition(client, false, "the sheet moving clear of the globe reset control");
   await tapTestId(client, "explore-globe-reset");
   await waitForValue(
     client,

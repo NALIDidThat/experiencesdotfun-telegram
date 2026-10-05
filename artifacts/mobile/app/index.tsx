@@ -477,7 +477,7 @@ function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => vo
   const icon = categoryIcon[item.category];
   const gradient = categoryGradients[item.category] ?? categoryGradients.community;
   const entrance = useRef(new Animated.Value(0)).current;
-  const availabilityColor = item.availablePlaces < 4 ? colors.primary : colors.mutedForeground;
+  const availabilityColor = item.availablePlaces < 4 ? colors.primary : colors.welcome.muted;
   const availabilityLabel = item.availablePlaces === 0 ? 'Waitlist open' : `${item.availablePlaces} spots left`;
 
   useEffect(() => {
@@ -512,11 +512,11 @@ function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => vo
     >
       <MotionPressable
         accessibilityRole="button"
-        accessibilityLabel={`View ${item.title}. ${categoryLabel[item.category]}. ${dateLabel(item.date)} in ${item.city}. ${availabilityLabel}. Earn ${item.xpReward} XP.`}
+        accessibilityLabel={`View ${item.title}. ${categoryLabel[item.category]}. ${dateLabel(item.date)} in ${item.city}. ${item.participantCount} people going. ${availabilityLabel}. Earn ${item.xpReward} XP.`}
         accessibilityHint="Opens experience details"
         testID={`explore-experience-card-${item.id}`}
         onPress={() => { triggerHaptic(); onPress(); }}
-        style={[styles.experienceCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
+        style={[styles.experienceCard, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border, borderRadius: colors.radius }]}
       >
         <View style={styles.experienceCardArtwork}>
           {item.category === 'community' ? (
@@ -530,54 +530,45 @@ function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => vo
           )}
           {item.category !== 'community' ? (
             <View style={[StyleSheet.absoluteFill, styles.experienceCardFallback]}>
-              <Feather name={icon} size={72} color={colors.primaryForeground} style={{ opacity: 0.2 }} />
+              <Feather name={icon} size={34} color={colors.primaryForeground} style={{ opacity: 0.62 }} />
             </View>
           ) : null}
-          <LinearGradient
-            colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.66)']}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-          />
+        </View>
 
+        <View style={styles.experienceCardContent}>
           <View style={styles.experienceCardArtworkTop}>
-            <View style={[styles.experienceCardCategory, { backgroundColor: colors.card }]}>
-              <Feather name={icon} size={14} color={colors.primary} />
-              <Text style={[styles.experienceCardCategoryText, { color: colors.foreground }]}>{categoryLabel[item.category]}</Text>
+            <View style={styles.experienceCardCategory}>
+              <Feather name={icon} size={12} color={colors.primary} />
+              <Text style={[styles.experienceCardCategoryText, { color: colors.welcome.muted }]} numberOfLines={1}>{categoryLabel[item.category]}</Text>
             </View>
-            <View style={[styles.experienceCardXp, { backgroundColor: colors.card }]}>
-              <Feather name="zap" size={13} color={colors.primary} />
+            <View style={[styles.experienceCardXp, { backgroundColor: colors.welcome.background }]}>
+              <Feather name="zap" size={11} color={colors.primary} />
               <Text style={[styles.experienceCardXpText, { color: colors.primary }]}>+{item.xpReward} XP</Text>
             </View>
           </View>
 
-          <View style={styles.experienceCardArtworkCopy}>
-            <Text style={[styles.experienceCardOrg, { color: colors.primaryForeground }]} numberOfLines={1}>{item.organisation.name}</Text>
-            <Text style={[styles.experienceCardTitle, { color: colors.primaryForeground }]} numberOfLines={2}>{item.title}</Text>
-          </View>
-        </View>
+          <Text style={[styles.experienceCardOrg, { color: colors.welcome.muted }]} numberOfLines={1}>{item.organisation.name}</Text>
+          <Text style={[styles.experienceCardTitle, { color: colors.welcome.foreground }]} numberOfLines={2}>{item.title}</Text>
 
-        <View style={styles.experienceCardContent}>
           <View style={styles.experienceCardMetaRow}>
-            <View style={[styles.experienceCardMetaChip, { backgroundColor: colors.muted }]}>
-              <Feather name="calendar" size={14} color={colors.primary} />
-              <Text style={[styles.experienceCardMetaText, { color: colors.foreground }]} numberOfLines={1}>{dateLabel(item.date)}</Text>
+            <View style={styles.experienceCardMetaChip}>
+              <Feather name="calendar" size={12} color={colors.primary} />
+              <Text style={[styles.experienceCardMetaText, { color: colors.welcome.foreground }]} numberOfLines={1}>{dateLabel(item.date)}</Text>
             </View>
-            <View style={[styles.experienceCardMetaChip, { backgroundColor: colors.muted }]}>
-              <Feather name="map-pin" size={14} color={colors.mutedForeground} />
-              <Text style={[styles.experienceCardMetaText, { color: colors.mutedForeground }]} numberOfLines={1}>{item.city}</Text>
+            <View style={styles.experienceCardMetaChip}>
+              <Feather name="map-pin" size={12} color={colors.welcome.muted} />
+              <Text style={[styles.experienceCardMetaText, { color: colors.welcome.muted }]} numberOfLines={1}>{item.city}</Text>
             </View>
           </View>
 
-          <View style={[styles.experienceCardBottomRow, { borderTopColor: colors.border }]}>
+          <View style={styles.experienceCardBottomRow}>
             <View style={styles.experienceAvailability}>
-              <Feather name="users" size={15} color={availabilityColor} />
-              <Text style={[styles.experienceAvailabilityText, { color: availabilityColor }]} numberOfLines={1}>{availabilityLabel}</Text>
+              <Feather name="users" size={12} color={availabilityColor} />
+              <Text style={[styles.experienceAvailabilityText, { color: availabilityColor }]} numberOfLines={1}>
+                {item.participantCount} going · {availabilityLabel}
+              </Text>
             </View>
-            <View style={[styles.experienceDetailsButton, { backgroundColor: colors.primary, borderRadius: colors.radius }]}>
-              <Text style={[styles.experienceDetailsButtonText, { color: colors.primaryForeground }]}>See details</Text>
-              <Feather name="arrow-right" size={15} color={colors.primaryForeground} />
-            </View>
+            <Feather name="arrow-right" size={14} color={colors.welcome.muted} />
           </View>
         </View>
       </MotionPressable>
@@ -2306,14 +2297,14 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
             style={({ pressed }) => [
               styles.filter,
               {
-                backgroundColor: selected ? colors.primary : colors.card,
-                borderColor: selected ? colors.primary : colors.border,
+                backgroundColor: selected ? colors.primary : colors.welcome.surface,
+                borderColor: selected ? colors.primary : colors.welcome.border,
                 opacity: pressed ? 0.78 : 1,
               },
             ]}
           >
-            <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
-            <Text style={[styles.filterText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
+            <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.welcome.muted} />
+            <Text style={[styles.filterText, { color: selected ? colors.primaryForeground : colors.welcome.muted }]}>{item.label}</Text>
           </Pressable>
         );
       })}
@@ -2323,7 +2314,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   return (
     <View
       testID="explore-screen-layout"
-      style={[styles.exploreScreen, { backgroundColor: colors.background }]}
+      style={[styles.exploreScreen, { backgroundColor: colors.welcome.background }]}
       onLayout={(event) => {
         const { height } = event.nativeEvent.layout;
         setScreenHeight((current) => current === height ? current : height);
@@ -2352,6 +2343,10 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
 
       <View pointerEvents="box-none" style={styles.exploreTopOverlay}>
         <View style={[styles.exploreTopBar, styles.exploreFullscreenTopBar]}>
+          <View style={styles.exploreHeading}>
+            <Text style={[styles.exploreFullscreenTitle, { color: colors.welcome.foreground }]}>Explore</Text>
+            <Text style={[styles.exploreFullscreenSubtitle, { color: colors.welcome.muted }]}>Real experiences. Real impact.</Text>
+          </View>
           <View style={styles.exploreTopActions}>
             <Pressable
               accessibilityRole="button"
@@ -2372,7 +2367,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
               <UserAvatar
                 avatarUrl={user?.avatarUrl}
                 name={user?.name ?? 'Your profile'}
-                containerStyle={[styles.exploreAvatar, { backgroundColor: colors.muted }]}
+                  containerStyle={[styles.exploreAvatar, { backgroundColor: colors.welcome.surface }]}
                 initialStyle={{ color: colors.primary, fontFamily: 'Inter_700Bold' }}
               />
             </Pressable>
@@ -2382,9 +2377,9 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         <View style={[
           styles.searchBox,
           styles.exploreFullscreenSearchBox,
-          { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius },
+          { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border, borderRadius: colors.radius },
         ]}>
-          <Feather name="search" size={19} color={colors.mutedForeground} />
+          <Feather name="search" size={19} color={colors.welcome.muted} />
           <TextInput
             accessibilityLabel="Search experiences or city"
             testID="explore-search-input"
@@ -2392,9 +2387,9 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
             onChangeText={setSearch}
             onSubmitEditing={focusSearchedCity}
             placeholder="Search experiences or city"
-            placeholderTextColor={colors.mutedForeground}
+            placeholderTextColor={colors.welcome.muted}
             returnKeyType="search"
-            style={[styles.searchInput, { color: colors.foreground }]}
+            style={[styles.searchInput, { color: colors.welcome.foreground }]}
           />
           {search.length > 0 ? (
             <Pressable
@@ -2404,7 +2399,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
               onPress={() => { triggerHaptic(); setSearch(''); }}
               style={styles.exploreClearButton}
             >
-              <Feather name="x" size={17} color={colors.mutedForeground} />
+              <Feather name="x" size={17} color={colors.welcome.muted} />
             </Pressable>
           ) : null}
         </View>
@@ -2445,7 +2440,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         testID="explore-experience-sheet"
         style={[
           styles.exploreSheet,
-          { height: sheetHeight, backgroundColor: colors.card, borderColor: colors.border },
+          { height: sheetHeight, backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border },
         ]}
       >
         <View
@@ -2471,17 +2466,17 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           } : undefined}
           onTouchCancel={Platform.OS === 'web' ? () => { sheetTouchOrigin.current.active = false; } : undefined}
         >
-          <View style={[styles.exploreSheetGrabber, { backgroundColor: colors.border }]} />
+          <View style={[styles.exploreSheetGrabber, { backgroundColor: colors.welcome.border }]} />
           <View style={styles.exploreSheetHeadingRow}>
             <View style={styles.exploreSheetHeadingCopy}>
-              <Text style={[styles.exploreSheetTitle, { color: colors.foreground }]}>
+              <Text style={[styles.exploreSheetTitle, { color: colors.welcome.foreground }]}>
                 {selectedCity ? `${selectedCity}${selectedCityData?.country ? `, ${selectedCityData.country}` : ''}` : 'Experiences'}
               </Text>
-              <Text style={[styles.exploreSheetHint, { color: colors.mutedForeground }]}>
+              <Text style={[styles.exploreSheetHint, { color: colors.welcome.muted }]}>
                 {friendMapHint}
               </Text>
             </View>
-            <Text testID="explore-results-count" style={[styles.exploreSheetCount, { color: colors.mutedForeground }]}>
+            <Text testID="explore-results-count" style={[styles.exploreSheetCount, { color: colors.welcome.muted }]}>
               {visibleExperiences.length} {visibleExperiences.length === 1 ? 'experience' : 'experiences'}
             </Text>
             <Pressable
@@ -2492,7 +2487,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
               onPress={toggleSheet}
               style={styles.exploreSheetToggle}
             >
-              <Feather name={sheetExpanded ? 'chevron-down' : 'chevron-up'} size={19} color={colors.foreground} />
+              <Feather name={sheetExpanded ? 'chevron-down' : 'chevron-up'} size={19} color={colors.welcome.foreground} />
             </Pressable>
           </View>
           {selectedCity ? (
@@ -2501,10 +2496,10 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
               accessibilityLabel={`Clear ${selectedCity} city filter`}
               testID="explore-clear-city"
               onPress={clearSelectedCity}
-              style={[styles.exploreCityFilter, { backgroundColor: colors.muted }]}
+              style={[styles.exploreCityFilter, { backgroundColor: colors.welcome.background }]}
             >
-              <Feather name="x" size={12} color={colors.mutedForeground} />
-              <Text style={[styles.exploreCityFilterText, { color: colors.mutedForeground }]}>{selectedCity}</Text>
+              <Feather name="x" size={12} color={colors.welcome.muted} />
+              <Text style={[styles.exploreCityFilterText, { color: colors.welcome.muted }]}>{selectedCity}</Text>
             </Pressable>
           ) : null}
           {selectedCityData ? (
@@ -2516,13 +2511,13 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
                   { value: selectedCityData.openExperiences.toLocaleString(), label: 'with space' },
                   { value: selectedCityData.xpOffered.toLocaleString(), label: 'XP offered' },
                 ].map((stat) => (
-                  <View key={stat.label} style={[styles.exploreCityStat, { borderColor: colors.border, backgroundColor: colors.background }]}>
-                    <Text numberOfLines={1} style={[styles.exploreCityStatValue, { color: colors.foreground }]}>{stat.value}</Text>
-                    <Text numberOfLines={1} style={[styles.exploreCityStatLabel, { color: colors.mutedForeground }]}>{stat.label}</Text>
+                  <View key={stat.label} style={[styles.exploreCityStat, { borderColor: colors.welcome.border, backgroundColor: colors.welcome.background }]}>
+                    <Text numberOfLines={1} style={[styles.exploreCityStatValue, { color: colors.welcome.foreground }]}>{stat.value}</Text>
+                    <Text numberOfLines={1} style={[styles.exploreCityStatLabel, { color: colors.welcome.muted }]}>{stat.label}</Text>
                   </View>
                 ))}
               </View>
-              <Text style={[styles.exploreCityContextHint, { color: colors.mutedForeground }]}>
+              <Text style={[styles.exploreCityContextHint, { color: colors.welcome.muted }]}>
                 {verifiedActivityQuery.isLoading
                   ? 'Loading host-verified completions from the last 30 days'
                   : verifiedActivityQuery.isError
@@ -8031,27 +8026,24 @@ const styles = StyleSheet.create({
   telegramButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   
   // Experience Card
-  experienceCardWrap: { marginBottom: 18 },
-  experienceCard: { borderWidth: 1, overflow: 'hidden' },
-  experienceCardArtwork: { height: 226, position: 'relative', overflow: 'hidden', justifyContent: 'space-between' },
+  experienceCardWrap: { marginBottom: 9 },
+  experienceCard: { borderWidth: 1, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 },
+  experienceCardArtwork: { width: 70, height: 88, position: 'relative', overflow: 'hidden', justifyContent: 'center', borderRadius: 12 },
   experienceCardFallback: { alignItems: 'center', justifyContent: 'center' },
-  experienceCardArtworkTop: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
-  experienceCardCategory: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, borderRadius: 999 },
-  experienceCardCategoryText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
-  experienceCardXp: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, borderRadius: 999 },
-  experienceCardXpText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
-  experienceCardArtworkCopy: { paddingHorizontal: 16, paddingBottom: 15 },
-  experienceCardOrg: { fontSize: 10, lineHeight: 15, fontFamily: 'Inter_700Bold', letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 4 },
-  experienceCardTitle: { fontSize: 22, lineHeight: 27, fontFamily: 'Inter_700Bold', letterSpacing: -0.45 },
-  experienceCardContent: { padding: 14, gap: 12 },
-  experienceCardMetaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  experienceCardMetaChip: { minHeight: 32, maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
-  experienceCardMetaText: { flexShrink: 1, fontSize: 12, lineHeight: 16, fontFamily: 'Inter_500Medium' },
-  experienceCardBottomRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12 },
+  experienceCardArtworkTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  experienceCardCategory: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  experienceCardCategoryText: { flexShrink: 1, fontSize: 9, fontFamily: 'Inter_600SemiBold' },
+  experienceCardXp: { minHeight: 22, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, borderRadius: 999 },
+  experienceCardXpText: { fontSize: 9, fontFamily: 'Inter_700Bold' },
+  experienceCardOrg: { fontSize: 9, lineHeight: 12, fontFamily: 'Inter_600SemiBold', letterSpacing: 0.35, textTransform: 'uppercase' },
+  experienceCardTitle: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_700Bold', letterSpacing: -0.2 },
+  experienceCardContent: { flex: 1, minWidth: 0, gap: 4 },
+  experienceCardMetaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 9, rowGap: 2 },
+  experienceCardMetaChip: { maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 4 },
+  experienceCardMetaText: { flexShrink: 1, fontSize: 9, lineHeight: 12, fontFamily: 'Inter_500Medium' },
+  experienceCardBottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 5 },
   experienceAvailability: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 },
-  experienceAvailabilityText: { flexShrink: 1, fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  experienceDetailsButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 12 },
-  experienceDetailsButtonText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  experienceAvailabilityText: { flexShrink: 1, fontSize: 9, fontFamily: 'Inter_600SemiBold' },
   
   // Talent / Onboarding
   talentScreen: { flex: 1 },
@@ -8341,12 +8333,15 @@ const styles = StyleSheet.create({
   
   // Explore
   exploreScreen: { flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' },
-  exploreTopOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, paddingHorizontal: 20, paddingTop: 8 },
-  exploreFullscreenTopBar: { marginBottom: 12, justifyContent: 'flex-end' },
-  exploreFullscreenSearchBox: { width: '100%', alignSelf: 'stretch', marginBottom: 8 },
-  exploreFullscreenFilterRow: { paddingBottom: 0 },
-  exploreModeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  exploreModeTab: { height: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 9, borderWidth: 1, borderRadius: 12 },
+  exploreTopOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, paddingHorizontal: 18, paddingTop: 9 },
+  exploreFullscreenTopBar: { marginBottom: 14, justifyContent: 'space-between', alignItems: 'center' },
+  exploreHeading: { flex: 1, minWidth: 0 },
+  exploreFullscreenTitle: { fontSize: 25, lineHeight: 29, letterSpacing: -0.65, fontFamily: 'Inter_700Bold' },
+  exploreFullscreenSubtitle: { fontSize: 11, lineHeight: 15, marginTop: 1, fontFamily: 'Inter_400Regular' },
+  exploreFullscreenSearchBox: { width: '100%', alignSelf: 'stretch', marginBottom: 9, height: 50 },
+  exploreFullscreenFilterRow: { paddingBottom: 0, gap: 7 },
+  exploreModeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 9 },
+  exploreModeTab: { flex: 1, minWidth: 0, height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 6, borderWidth: 1, borderRadius: 14 },
   exploreModeTabText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
   exploreSheet: {
     position: 'absolute',
@@ -8356,17 +8351,17 @@ const styles = StyleSheet.create({
     zIndex: 4,
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
     overflow: 'hidden',
-    elevation: 16,
+    elevation: 20,
   },
-  exploreSheetHeader: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 8 },
-  exploreSheetGrabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: 10 },
+  exploreSheetHeader: { paddingHorizontal: 19, paddingTop: 9, paddingBottom: 9 },
+  exploreSheetGrabber: { alignSelf: 'center', width: 38, height: 4, borderRadius: 2, marginBottom: 10 },
   exploreSheetHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   exploreSheetHeadingCopy: { flex: 1, minWidth: 0 },
-  exploreSheetTitle: { fontSize: 17, lineHeight: 21, fontFamily: 'Inter_700Bold' },
-  exploreSheetHint: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular', marginTop: 1 },
+  exploreSheetTitle: { fontSize: 18, lineHeight: 22, fontFamily: 'Inter_700Bold', letterSpacing: -0.25 },
+  exploreSheetHint: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular', marginTop: 2 },
   exploreSheetCount: { fontSize: 10, fontFamily: 'Inter_500Medium', textAlign: 'right' },
   exploreSheetToggle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   exploreCityFilter: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10, marginTop: 7 },
@@ -8378,10 +8373,10 @@ const styles = StyleSheet.create({
   exploreCityStatLabel: { maxWidth: '100%', fontSize: 8, lineHeight: 11, fontFamily: 'Inter_500Medium', textAlign: 'center' },
   exploreCityContextHint: { marginTop: 6, fontSize: 9, lineHeight: 13, fontFamily: 'Inter_400Regular' },
   exploreSheetScroll: { flex: 1, minHeight: 0 },
-  exploreSheetScrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 14 },
+  exploreSheetScrollContent: { paddingHorizontal: 16, paddingTop: 7, paddingBottom: 14 },
   exploreContent: { paddingTop: 8, paddingBottom: 12 },
   exploreTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 },
-  exploreTopActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  exploreTopActions: { flexDirection: 'row', alignItems: 'center', gap: 7, marginLeft: 12 },
   exploreTopAction: { width: 40, height: 42, alignItems: 'center', justifyContent: 'center' },
   exploreAvatarButton: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden' },
   exploreAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
