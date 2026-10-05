@@ -266,6 +266,7 @@ export const analyticsEventCategories = [
   "host",
   "create",
   "email",
+  "memory-game",
   "telegram",
   "start",
   "menu",

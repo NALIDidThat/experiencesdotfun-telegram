@@ -23,6 +23,7 @@ export * from "./experience-milestones";
 export * from "./community";
 export * from "./accountability";
 export * from "./xp-awards";
+export * from "./memory-game";
 export * from "./social-invites";
 export * from "./social-feed";
 export * from "./connections";

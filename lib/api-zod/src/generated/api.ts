@@ -502,7 +502,7 @@ export const LoginWithEmailResponse = zod.object({
  * @summary Record a privacy-minimized app screen view
  */
 export const TrackAnalyticsEventBody = zod.object({
-  "screen": zod.enum(['home', 'explore', 'experiences', 'ai', 'challenges', 'profile', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email']),
+  "screen": zod.enum(['home', 'explore', 'experiences', 'ai', 'challenges', 'profile', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email', 'memory-game']),
   "platform": zod.enum(['ios', 'android', 'web'])
 })
 
@@ -1261,7 +1261,7 @@ export const GetMyXpAwardsResponse = zod.object({
   "pendingXp": zod.number().int().describe('Experience XP that is available to redeem.'),
   "awards": zod.array(zod.object({
   "id": zod.string(),
-  "sourceType": zod.enum(['email_signup', 'experience', 'milestone', 'legacy_balance']),
+  "sourceType": zod.enum(['email_signup', 'experience', 'milestone', 'memory_game', 'legacy_balance']),
   "sourceId": zod.string(),
   "title": zod.string(),
   "amount": zod.number().int(),
@@ -2816,6 +2816,228 @@ export const SaveTopFriendsResponseItem = zod.object({
   "city": zod.string().nullable()
 }))
 export const SaveTopFriendsResponse = zod.array(SaveTopFriendsResponseItem)
+
+
+/**
+ * @summary Get the signed-in participant's Memory Game progress and active attempt
+ */
+export const GetMemoryGameStatsResponse = zod.object({
+  "needsTutorial": zod.boolean(),
+  "stats": zod.object({
+  "currentLevel": zod.number().int(),
+  "memoryXp": zod.number().int(),
+  "levelsCompleted": zod.number().int(),
+  "highestLevel": zod.number().int(),
+  "gamesPlayed": zod.number().int(),
+  "gamesCompleted": zod.number().int(),
+  "totalAttempts": zod.number().int(),
+  "successfulAttempts": zod.number().int(),
+  "failedAttempts": zod.number().int(),
+  "accuracy": zod.number().int(),
+  "bestRun": zod.number().int(),
+  "fastestRecallMs": zod.number().int().nullable(),
+  "lastPlayedAt": zod.coerce.date().nullable(),
+  "tutorialSeen": zod.boolean()
+}),
+  "activeAttempt": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "level": zod.number().int(),
+  "rows": zod.number().int(),
+  "columns": zod.number().int(),
+  "astronautCount": zod.number().int(),
+  "memorizationMs": zod.number().int(),
+  "memorizeUntilAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "phase": zod.enum(['memorize', 'recall', 'paused']),
+  "resumePhase": zod.union([zod.literal('memorize'),zod.literal('recall'),zod.literal(null)]).nullable(),
+  "remainingMs": zod.number().int(),
+  "astronautIndices": zod.array(zod.number().int()),
+  "selectedIndices": zod.array(zod.number().int()),
+  "pausedAt": zod.coerce.date().nullable()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Start or resume the current profile's authoritative Memory Game level
+ */
+export const startMemoryGameAttemptBodyRestartDefault = false;
+
+export const StartMemoryGameAttemptBody = zod.object({
+  "restart": zod.boolean().default(startMemoryGameAttemptBodyRestartDefault)
+})
+
+export const StartMemoryGameAttemptResponse = zod.object({
+  "id": zod.string().uuid(),
+  "level": zod.number().int(),
+  "rows": zod.number().int(),
+  "columns": zod.number().int(),
+  "astronautCount": zod.number().int(),
+  "memorizationMs": zod.number().int(),
+  "memorizeUntilAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "phase": zod.enum(['memorize', 'recall', 'paused']),
+  "resumePhase": zod.union([zod.literal('memorize'),zod.literal('recall'),zod.literal(null)]).nullable(),
+  "remainingMs": zod.number().int(),
+  "astronautIndices": zod.array(zod.number().int()),
+  "selectedIndices": zod.array(zod.number().int()),
+  "pausedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Submit recalled tile positions for a server-validated attempt
+ */
+export const SubmitMemoryGameAttemptParams = zod.object({
+  "attemptId": zod.coerce.string().uuid()
+})
+
+export const submitMemoryGameAttemptBodySelectedIndicesItemMin = 0;
+export const submitMemoryGameAttemptBodySelectedIndicesItemMax = 15;
+
+export const submitMemoryGameAttemptBodySelectedIndicesMin = 0;
+export const submitMemoryGameAttemptBodySelectedIndicesMax = 16;
+
+
+
+export const SubmitMemoryGameAttemptBody = zod.object({
+  "selectedIndices": zod.array(zod.number().int().min(submitMemoryGameAttemptBodySelectedIndicesItemMin).max(submitMemoryGameAttemptBodySelectedIndicesItemMax)).min(submitMemoryGameAttemptBodySelectedIndicesMin).max(submitMemoryGameAttemptBodySelectedIndicesMax)
+})
+
+export const SubmitMemoryGameAttemptResponse = zod.object({
+  "attemptId": zod.string().uuid(),
+  "successful": zod.boolean(),
+  "level": zod.number().int(),
+  "correctTileIndices": zod.array(zod.number().int()),
+  "selectedIndices": zod.array(zod.number().int()),
+  "correctSelections": zod.number().int(),
+  "xpAwarded": zod.number().int(),
+  "runCompleted": zod.boolean(),
+  "runXpAwarded": zod.number().int().nullable(),
+  "globalRankBefore": zod.number().int().nullable(),
+  "globalRankAfter": zod.number().int().nullable(),
+  "stats": zod.object({
+  "currentLevel": zod.number().int(),
+  "memoryXp": zod.number().int(),
+  "levelsCompleted": zod.number().int(),
+  "highestLevel": zod.number().int(),
+  "gamesPlayed": zod.number().int(),
+  "gamesCompleted": zod.number().int(),
+  "totalAttempts": zod.number().int(),
+  "successfulAttempts": zod.number().int(),
+  "failedAttempts": zod.number().int(),
+  "accuracy": zod.number().int(),
+  "bestRun": zod.number().int(),
+  "fastestRecallMs": zod.number().int().nullable(),
+  "lastPlayedAt": zod.coerce.date().nullable(),
+  "tutorialSeen": zod.boolean()
+})
+})
+
+
+/**
+ * @summary Pause the signed-in profile's active Memory Game attempt
+ */
+export const PauseMemoryGameAttemptParams = zod.object({
+  "attemptId": zod.coerce.string().uuid()
+})
+
+export const PauseMemoryGameAttemptResponse = zod.object({
+  "id": zod.string().uuid(),
+  "level": zod.number().int(),
+  "rows": zod.number().int(),
+  "columns": zod.number().int(),
+  "astronautCount": zod.number().int(),
+  "memorizationMs": zod.number().int(),
+  "memorizeUntilAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "phase": zod.enum(['memorize', 'recall', 'paused']),
+  "resumePhase": zod.union([zod.literal('memorize'),zod.literal('recall'),zod.literal(null)]).nullable(),
+  "remainingMs": zod.number().int(),
+  "astronautIndices": zod.array(zod.number().int()),
+  "selectedIndices": zod.array(zod.number().int()),
+  "pausedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Resume a paused Memory Game attempt owned by the signed-in profile
+ */
+export const ResumeMemoryGameAttemptParams = zod.object({
+  "attemptId": zod.coerce.string().uuid()
+})
+
+export const ResumeMemoryGameAttemptResponse = zod.object({
+  "id": zod.string().uuid(),
+  "level": zod.number().int(),
+  "rows": zod.number().int(),
+  "columns": zod.number().int(),
+  "astronautCount": zod.number().int(),
+  "memorizationMs": zod.number().int(),
+  "memorizeUntilAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "phase": zod.enum(['memorize', 'recall', 'paused']),
+  "resumePhase": zod.union([zod.literal('memorize'),zod.literal('recall'),zod.literal(null)]).nullable(),
+  "remainingMs": zod.number().int(),
+  "astronautIndices": zod.array(zod.number().int()),
+  "selectedIndices": zod.array(zod.number().int()),
+  "pausedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Get a paginated Friends or Global Memory Game leaderboard
+ */
+export const getMemoryGameLeaderboardQueryScopeDefault = `friends`;
+export const getMemoryGameLeaderboardQueryPageDefault = 1;
+export const getMemoryGameLeaderboardQueryPageMax = 5;
+
+export const getMemoryGameLeaderboardQueryPageSizeDefault = 20;
+export const getMemoryGameLeaderboardQueryPageSizeMax = 20;
+
+
+
+export const GetMemoryGameLeaderboardQueryParams = zod.object({
+  "scope": zod.enum(['friends', 'global']).default(getMemoryGameLeaderboardQueryScopeDefault),
+  "page": zod.coerce.number().int().min(1).max(getMemoryGameLeaderboardQueryPageMax).default(getMemoryGameLeaderboardQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(getMemoryGameLeaderboardQueryPageSizeMax).default(getMemoryGameLeaderboardQueryPageSizeDefault)
+})
+
+export const GetMemoryGameLeaderboardResponse = zod.object({
+  "scope": zod.enum(['friends', 'global']),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "totalPlayers": zod.number().int(),
+  "hasMore": zod.boolean(),
+  "hasFriends": zod.boolean(),
+  "entries": zod.array(zod.object({
+  "rank": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "memoryXp": zod.number().int(),
+  "levelsCompleted": zod.number().int(),
+  "highestLevel": zod.number().int(),
+  "gamesPlayed": zod.number().int(),
+  "bestRun": zod.number().int(),
+  "accuracy": zod.number().int(),
+  "isCurrentUser": zod.boolean()
+})),
+  "currentUserRank": zod.number().int().nullable(),
+  "currentUserEntry": zod.union([zod.object({
+  "rank": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "memoryXp": zod.number().int(),
+  "levelsCompleted": zod.number().int(),
+  "highestLevel": zod.number().int(),
+  "gamesPlayed": zod.number().int(),
+  "bestRun": zod.number().int(),
+  "accuracy": zod.number().int(),
+  "isCurrentUser": zod.boolean()
+}),zod.null()])
+})
 
 
 /**

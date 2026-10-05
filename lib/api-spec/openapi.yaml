@@ -16,6 +16,8 @@ tags:
     description: Volunteering discovery and participation
   - name: profile
     description: Participant profile and rewards
+  - name: memory-game
+    description: Profile-bound memory game attempts, XP, and rankings
   - name: accounts
     description: Profiles owned by the signed-in identity
   - name: host
@@ -1470,6 +1472,186 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "409":
           $ref: "#/components/responses/Conflict"
+  /memory-game/stats:
+    get:
+      operationId: getMemoryGameStats
+      tags: [memory-game]
+      summary: Get the signed-in participant's Memory Game progress and active attempt
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Memory Game stats and resumable attempt for the current profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryGameStatsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Only participant profiles can play the Memory Game
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /memory-game/attempts:
+    post:
+      operationId: startMemoryGameAttempt
+      tags: [memory-game]
+      summary: Start or resume the current profile's authoritative Memory Game level
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryGameStartInput"
+      responses:
+        "200":
+          description: Existing active attempt or a newly started attempt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryGameAttempt"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Only participant profiles can play the Memory Game
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /memory-game/attempts/{attemptId}/submit:
+    post:
+      operationId: submitMemoryGameAttempt
+      tags: [memory-game]
+      summary: Submit recalled tile positions for a server-validated attempt
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: attemptId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryGameSubmitInput"
+      responses:
+        "200":
+          description: Validated level result with idempotent XP award status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryGameAttemptResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /memory-game/attempts/{attemptId}/pause:
+    post:
+      operationId: pauseMemoryGameAttempt
+      tags: [memory-game]
+      summary: Pause the signed-in profile's active Memory Game attempt
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: attemptId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Paused attempt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryGameAttempt"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /memory-game/attempts/{attemptId}/resume:
+    post:
+      operationId: resumeMemoryGameAttempt
+      tags: [memory-game]
+      summary: Resume a paused Memory Game attempt owned by the signed-in profile
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: attemptId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Resumed attempt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryGameAttempt"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /memory-game/leaderboard:
+    get:
+      operationId: getMemoryGameLeaderboard
+      tags: [memory-game]
+      summary: Get a paginated Friends or Global Memory Game leaderboard
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: scope
+          in: query
+          schema:
+            type: string
+            enum: [friends, global]
+            default: friends
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 20
+      responses:
+        "200":
+          description: Ranked Memory Game performance, including the current profile's rank
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryGameLeaderboardResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Only participant profiles can view the Memory Game leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /organisation-partnerships:
     get:
       operationId: listOrganisationPartnerships
@@ -2110,6 +2292,259 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
   schemas:
+    MemoryGameStats:
+      type: object
+      properties:
+        currentLevel:
+          type: integer
+        memoryXp:
+          type: integer
+        levelsCompleted:
+          type: integer
+        highestLevel:
+          type: integer
+        gamesPlayed:
+          type: integer
+        gamesCompleted:
+          type: integer
+        totalAttempts:
+          type: integer
+        successfulAttempts:
+          type: integer
+        failedAttempts:
+          type: integer
+        accuracy:
+          type: integer
+        bestRun:
+          type: integer
+        fastestRecallMs:
+          type: [integer, "null"]
+        lastPlayedAt:
+          type: [string, "null"]
+          format: date-time
+        tutorialSeen:
+          type: boolean
+      required:
+        - currentLevel
+        - memoryXp
+        - levelsCompleted
+        - highestLevel
+        - gamesPlayed
+        - gamesCompleted
+        - totalAttempts
+        - successfulAttempts
+        - failedAttempts
+        - accuracy
+        - bestRun
+        - fastestRecallMs
+        - lastPlayedAt
+        - tutorialSeen
+    MemoryGameAttempt:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        level:
+          type: integer
+        rows:
+          type: integer
+        columns:
+          type: integer
+        astronautCount:
+          type: integer
+        memorizationMs:
+          type: integer
+        memorizeUntilAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        phase:
+          type: string
+          enum: [memorize, recall, paused]
+        resumePhase:
+          type: [string, "null"]
+          enum: [memorize, recall, null]
+        remainingMs:
+          type: integer
+        astronautIndices:
+          type: array
+          items:
+            type: integer
+        selectedIndices:
+          type: array
+          items:
+            type: integer
+        pausedAt:
+          type: [string, "null"]
+          format: date-time
+      required:
+        - id
+        - level
+        - rows
+        - columns
+        - astronautCount
+        - memorizationMs
+        - memorizeUntilAt
+        - expiresAt
+        - phase
+        - resumePhase
+        - remainingMs
+        - astronautIndices
+        - selectedIndices
+        - pausedAt
+    MemoryGameStatsResponse:
+      type: object
+      properties:
+        needsTutorial:
+          type: boolean
+        stats:
+          $ref: "#/components/schemas/MemoryGameStats"
+        activeAttempt:
+          oneOf:
+            - $ref: "#/components/schemas/MemoryGameAttempt"
+            - type: "null"
+      required: [needsTutorial, stats, activeAttempt]
+    MemoryGameStartInput:
+      type: object
+      properties:
+        restart:
+          type: boolean
+          default: false
+      required: [restart]
+    MemoryGameSubmitInput:
+      type: object
+      properties:
+        selectedIndices:
+          type: array
+          minItems: 0
+          maxItems: 16
+          uniqueItems: true
+          items:
+            type: integer
+            minimum: 0
+            maximum: 15
+      required: [selectedIndices]
+    MemoryGameAttemptResult:
+      type: object
+      properties:
+        attemptId:
+          type: string
+          format: uuid
+        successful:
+          type: boolean
+        level:
+          type: integer
+        correctTileIndices:
+          type: array
+          items:
+            type: integer
+        selectedIndices:
+          type: array
+          items:
+            type: integer
+        correctSelections:
+          type: integer
+        xpAwarded:
+          type: integer
+        runCompleted:
+          type: boolean
+        runXpAwarded:
+          type: [integer, "null"]
+        globalRankBefore:
+          type: [integer, "null"]
+        globalRankAfter:
+          type: [integer, "null"]
+        stats:
+          $ref: "#/components/schemas/MemoryGameStats"
+      required:
+        - attemptId
+        - successful
+        - level
+        - correctTileIndices
+        - selectedIndices
+        - correctSelections
+        - xpAwarded
+        - runCompleted
+        - runXpAwarded
+        - globalRankBefore
+        - globalRankAfter
+        - stats
+    MemoryGameLeaderboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+        name:
+          type: string
+        username:
+          type: [string, "null"]
+        avatarUrl:
+          type: [string, "null"]
+        memoryXp:
+          type: integer
+        levelsCompleted:
+          type: integer
+        highestLevel:
+          type: integer
+        gamesPlayed:
+          type: integer
+        bestRun:
+          type: integer
+        accuracy:
+          type: integer
+        isCurrentUser:
+          type: boolean
+      required:
+        - rank
+        - name
+        - username
+        - avatarUrl
+        - memoryXp
+        - levelsCompleted
+        - highestLevel
+        - gamesPlayed
+        - bestRun
+        - accuracy
+        - isCurrentUser
+    MemoryGameLeaderboardResponse:
+      type: object
+      properties:
+        scope:
+          type: string
+          enum: [friends, global]
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPlayers:
+          type: integer
+        hasMore:
+          type: boolean
+        hasFriends:
+          type: boolean
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemoryGameLeaderboardEntry"
+        currentUserRank:
+          type: [integer, "null"]
+        currentUserEntry:
+          oneOf:
+            - $ref: "#/components/schemas/MemoryGameLeaderboardEntry"
+            - type: "null"
+      required:
+        - scope
+        - page
+        - pageSize
+        - totalPlayers
+        - hasMore
+        - hasFriends
+        - entries
+        - currentUserRank
+        - currentUserEntry
     DirectMessageProfile:
       type: object
       properties:
@@ -2290,7 +2725,7 @@ components:
       properties:
         screen:
           type: string
-          enum: [home, explore, experiences, ai, challenges, profile, notifications, messages, direct-message, friends, friend-profile, experience, host, create, email]
+          enum: [home, explore, experiences, ai, challenges, profile, notifications, messages, direct-message, friends, friend-profile, experience, host, create, email, memory-game]
         platform:
           type: string
           enum: [ios, android, web]
@@ -2433,7 +2868,7 @@ components:
           type: string
         sourceType:
           type: string
-          enum: [email_signup, experience, milestone, legacy_balance]
+          enum: [email_signup, experience, milestone, memory_game, legacy_balance]
         sourceId:
           type: string
         title:

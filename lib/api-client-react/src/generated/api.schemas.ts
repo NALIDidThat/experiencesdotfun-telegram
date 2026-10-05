@@ -5,6 +5,139 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface MemoryGameStats {
+  currentLevel: number;
+  memoryXp: number;
+  levelsCompleted: number;
+  highestLevel: number;
+  gamesPlayed: number;
+  gamesCompleted: number;
+  totalAttempts: number;
+  successfulAttempts: number;
+  failedAttempts: number;
+  accuracy: number;
+  bestRun: number;
+  /** @nullable */
+  fastestRecallMs: number | null;
+  /** @nullable */
+  lastPlayedAt: string | null;
+  tutorialSeen: boolean;
+}
+
+export type MemoryGameAttemptPhase = typeof MemoryGameAttemptPhase[keyof typeof MemoryGameAttemptPhase];
+
+
+export const MemoryGameAttemptPhase = {
+  memorize: 'memorize',
+  recall: 'recall',
+  paused: 'paused',
+} as const;
+
+/**
+ * @nullable
+ */
+export type MemoryGameAttemptResumePhase = typeof MemoryGameAttemptResumePhase[keyof typeof MemoryGameAttemptResumePhase] | null;
+
+
+export const MemoryGameAttemptResumePhase = {
+  memorize: 'memorize',
+  recall: 'recall',
+} as const;
+
+export interface MemoryGameAttempt {
+  id: string;
+  level: number;
+  rows: number;
+  columns: number;
+  astronautCount: number;
+  memorizationMs: number;
+  memorizeUntilAt: string;
+  expiresAt: string;
+  phase: MemoryGameAttemptPhase;
+  /** @nullable */
+  resumePhase: MemoryGameAttemptResumePhase;
+  remainingMs: number;
+  astronautIndices: number[];
+  selectedIndices: number[];
+  /** @nullable */
+  pausedAt: string | null;
+}
+
+export interface MemoryGameStatsResponse {
+  needsTutorial: boolean;
+  stats: MemoryGameStats;
+  activeAttempt: MemoryGameAttempt | null;
+}
+
+export interface MemoryGameStartInput {
+  restart: boolean;
+}
+
+export interface MemoryGameSubmitInput {
+  /**
+     * @minItems 0
+     * @maxItems 16
+     * @items.minimum 0
+     * @items.maximum 15
+     */
+  selectedIndices: number[];
+}
+
+export interface MemoryGameAttemptResult {
+  attemptId: string;
+  successful: boolean;
+  level: number;
+  correctTileIndices: number[];
+  selectedIndices: number[];
+  correctSelections: number;
+  xpAwarded: number;
+  runCompleted: boolean;
+  /** @nullable */
+  runXpAwarded: number | null;
+  /** @nullable */
+  globalRankBefore: number | null;
+  /** @nullable */
+  globalRankAfter: number | null;
+  stats: MemoryGameStats;
+}
+
+export interface MemoryGameLeaderboardEntry {
+  rank: number;
+  name: string;
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  avatarUrl: string | null;
+  memoryXp: number;
+  levelsCompleted: number;
+  highestLevel: number;
+  gamesPlayed: number;
+  bestRun: number;
+  accuracy: number;
+  isCurrentUser: boolean;
+}
+
+export type MemoryGameLeaderboardResponseScope = typeof MemoryGameLeaderboardResponseScope[keyof typeof MemoryGameLeaderboardResponseScope];
+
+
+export const MemoryGameLeaderboardResponseScope = {
+  friends: 'friends',
+  global: 'global',
+} as const;
+
+export interface MemoryGameLeaderboardResponse {
+  scope: MemoryGameLeaderboardResponseScope;
+  page: number;
+  pageSize: number;
+  totalPlayers: number;
+  hasMore: boolean;
+  hasFriends: boolean;
+  entries: MemoryGameLeaderboardEntry[];
+  /** @nullable */
+  currentUserRank: number | null;
+  currentUserEntry: MemoryGameLeaderboardEntry | null;
+}
+
 export type UserType = typeof UserType[keyof typeof UserType];
 
 
@@ -236,6 +369,7 @@ export const AnalyticsEventInputScreen = {
   host: 'host',
   create: 'create',
   email: 'email',
+  'memory-game': 'memory-game',
 } as const;
 
 export type AnalyticsEventInputPlatform = typeof AnalyticsEventInputPlatform[keyof typeof AnalyticsEventInputPlatform];
@@ -303,6 +437,7 @@ export const XpAwardSourceType = {
   email_signup: 'email_signup',
   experience: 'experience',
   milestone: 'milestone',
+  memory_game: 'memory_game',
   legacy_balance: 'legacy_balance',
 } as const;
 
@@ -1408,4 +1543,26 @@ beforeId?: number;
  */
 limit?: number;
 };
+
+export type GetMemoryGameLeaderboardParams = {
+scope?: GetMemoryGameLeaderboardScope;
+/**
+ * @minimum 1
+ * @maximum 5
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 20
+ */
+pageSize?: number;
+};
+
+export type GetMemoryGameLeaderboardScope = typeof GetMemoryGameLeaderboardScope[keyof typeof GetMemoryGameLeaderboardScope];
+
+
+export const GetMemoryGameLeaderboardScope = {
+  friends: 'friends',
+  global: 'global',
+} as const;
 

@@ -78,6 +78,7 @@ import type {
   FriendRequest,
   FriendRequestCreateInput,
   GetFeedParams,
+  GetMemoryGameLeaderboardParams,
   HealthStatus,
   HostExperience,
   HostExperienceMilestonesResponse,
@@ -85,6 +86,12 @@ import type {
   ListDirectMessagesParams,
   ListExperiencesParams,
   ListMyParticipationsParams,
+  MemoryGameAttempt,
+  MemoryGameAttemptResult,
+  MemoryGameLeaderboardResponse,
+  MemoryGameStartInput,
+  MemoryGameStatsResponse,
+  MemoryGameSubmitInput,
   MyCommunitiesResponse,
   NotFoundResponse,
   OrganisationPartnership,
@@ -5337,6 +5344,492 @@ export const useSaveTopFriends = <TError = ErrorType<ConflictResponse | Unauthor
       > => {
       return useMutation(getSaveTopFriendsMutationOptions(options));
     }
+
+export const getGetMemoryGameStatsUrl = () => {
+
+
+
+
+  return `/api/memory-game/stats`
+}
+
+/**
+ * @summary Get the signed-in participant's Memory Game progress and active attempt
+ */
+export const getMemoryGameStats = async ( options?: Parameters<typeof customFetch>[1]): Promise<MemoryGameStatsResponse> => {
+
+  return customFetch<MemoryGameStatsResponse>(getGetMemoryGameStatsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMemoryGameStatsQueryKey = () => {
+    return [
+    `/api/memory-game/stats`
+    ] as const;
+    }
+
+
+export const getGetMemoryGameStatsQueryOptions = <TData = Awaited<ReturnType<typeof getMemoryGameStats>>, TError = ErrorType<UnauthorizedResponse | Error>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryGameStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMemoryGameStatsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMemoryGameStats>>> = ({ signal }) => getMemoryGameStats({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMemoryGameStats>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMemoryGameStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getMemoryGameStats>>>
+export type GetMemoryGameStatsQueryError = ErrorType<UnauthorizedResponse | Error>
+
+
+/**
+ * @summary Get the signed-in participant's Memory Game progress and active attempt
+ */
+
+export function useGetMemoryGameStats<TData = Awaited<ReturnType<typeof getMemoryGameStats>>, TError = ErrorType<UnauthorizedResponse | Error>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryGameStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMemoryGameStatsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartMemoryGameAttemptUrl = () => {
+
+
+
+
+  return `/api/memory-game/attempts`
+}
+
+/**
+ * @summary Start or resume the current profile's authoritative Memory Game level
+ */
+export const startMemoryGameAttempt = async (memoryGameStartInput: MemoryGameStartInput, options?: Parameters<typeof customFetch>[1]): Promise<MemoryGameAttempt> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MemoryGameAttempt>(getStartMemoryGameAttemptUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(memoryGameStartInput)
+  }
+);}
+
+
+
+
+
+export const getStartMemoryGameAttemptMutationKey = () => ['startMemoryGameAttempt'] as const;
+
+export const getStartMemoryGameAttemptMutationOptions = <TError = ErrorType<UnauthorizedResponse | Error | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startMemoryGameAttempt>>, TError,StartMemoryGameAttemptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startMemoryGameAttempt>>, TError,StartMemoryGameAttemptMutationVariables, TContext> => {
+
+const mutationKey = getStartMemoryGameAttemptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startMemoryGameAttempt>>, StartMemoryGameAttemptMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startMemoryGameAttempt(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartMemoryGameAttemptMutationResult = NonNullable<Awaited<ReturnType<typeof startMemoryGameAttempt>>>
+    export type StartMemoryGameAttemptMutationBody = BodyType<MemoryGameStartInput>
+    export type StartMemoryGameAttemptMutationError = ErrorType<UnauthorizedResponse | Error | ConflictResponse>
+    export type StartMemoryGameAttemptMutationVariables = {data: BodyType<MemoryGameStartInput>}
+
+    /**
+ * @summary Start or resume the current profile's authoritative Memory Game level
+ */
+export const useStartMemoryGameAttempt = <TError = ErrorType<UnauthorizedResponse | Error | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startMemoryGameAttempt>>, TError,StartMemoryGameAttemptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startMemoryGameAttempt>>,
+        TError,
+        StartMemoryGameAttemptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartMemoryGameAttemptMutationOptions(options));
+    }
+
+export const getSubmitMemoryGameAttemptUrl = (attemptId: string,) => {
+
+
+
+
+  return `/api/memory-game/attempts/${attemptId}/submit`
+}
+
+/**
+ * @summary Submit recalled tile positions for a server-validated attempt
+ */
+export const submitMemoryGameAttempt = async (attemptId: string,
+    memoryGameSubmitInput: MemoryGameSubmitInput, options?: Parameters<typeof customFetch>[1]): Promise<MemoryGameAttemptResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MemoryGameAttemptResult>(getSubmitMemoryGameAttemptUrl(attemptId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(memoryGameSubmitInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitMemoryGameAttemptMutationKey = () => ['submitMemoryGameAttempt'] as const;
+
+export const getSubmitMemoryGameAttemptMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitMemoryGameAttempt>>, TError,SubmitMemoryGameAttemptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitMemoryGameAttempt>>, TError,SubmitMemoryGameAttemptMutationVariables, TContext> => {
+
+const mutationKey = getSubmitMemoryGameAttemptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitMemoryGameAttempt>>, SubmitMemoryGameAttemptMutationVariables> = (props) => {
+          const {attemptId,data} = props ?? {};
+
+          return  submitMemoryGameAttempt(attemptId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitMemoryGameAttemptMutationResult = NonNullable<Awaited<ReturnType<typeof submitMemoryGameAttempt>>>
+    export type SubmitMemoryGameAttemptMutationBody = BodyType<MemoryGameSubmitInput>
+    export type SubmitMemoryGameAttemptMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type SubmitMemoryGameAttemptMutationVariables = {attemptId: string;data: BodyType<MemoryGameSubmitInput>}
+
+    /**
+ * @summary Submit recalled tile positions for a server-validated attempt
+ */
+export const useSubmitMemoryGameAttempt = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitMemoryGameAttempt>>, TError,SubmitMemoryGameAttemptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitMemoryGameAttempt>>,
+        TError,
+        SubmitMemoryGameAttemptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitMemoryGameAttemptMutationOptions(options));
+    }
+
+export const getPauseMemoryGameAttemptUrl = (attemptId: string,) => {
+
+
+
+
+  return `/api/memory-game/attempts/${attemptId}/pause`
+}
+
+/**
+ * @summary Pause the signed-in profile's active Memory Game attempt
+ */
+export const pauseMemoryGameAttempt = async (attemptId: string, options?: Parameters<typeof customFetch>[1]): Promise<MemoryGameAttempt> => {
+
+  return customFetch<MemoryGameAttempt>(getPauseMemoryGameAttemptUrl(attemptId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPauseMemoryGameAttemptMutationKey = () => ['pauseMemoryGameAttempt'] as const;
+
+export const getPauseMemoryGameAttemptMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pauseMemoryGameAttempt>>, TError,PauseMemoryGameAttemptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof pauseMemoryGameAttempt>>, TError,PauseMemoryGameAttemptMutationVariables, TContext> => {
+
+const mutationKey = getPauseMemoryGameAttemptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pauseMemoryGameAttempt>>, PauseMemoryGameAttemptMutationVariables> = (props) => {
+          const {attemptId} = props ?? {};
+
+          return  pauseMemoryGameAttempt(attemptId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PauseMemoryGameAttemptMutationResult = NonNullable<Awaited<ReturnType<typeof pauseMemoryGameAttempt>>>
+
+    export type PauseMemoryGameAttemptMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type PauseMemoryGameAttemptMutationVariables = {attemptId: string}
+
+    /**
+ * @summary Pause the signed-in profile's active Memory Game attempt
+ */
+export const usePauseMemoryGameAttempt = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pauseMemoryGameAttempt>>, TError,PauseMemoryGameAttemptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof pauseMemoryGameAttempt>>,
+        TError,
+        PauseMemoryGameAttemptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPauseMemoryGameAttemptMutationOptions(options));
+    }
+
+export const getResumeMemoryGameAttemptUrl = (attemptId: string,) => {
+
+
+
+
+  return `/api/memory-game/attempts/${attemptId}/resume`
+}
+
+/**
+ * @summary Resume a paused Memory Game attempt owned by the signed-in profile
+ */
+export const resumeMemoryGameAttempt = async (attemptId: string, options?: Parameters<typeof customFetch>[1]): Promise<MemoryGameAttempt> => {
+
+  return customFetch<MemoryGameAttempt>(getResumeMemoryGameAttemptUrl(attemptId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResumeMemoryGameAttemptMutationKey = () => ['resumeMemoryGameAttempt'] as const;
+
+export const getResumeMemoryGameAttemptMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeMemoryGameAttempt>>, TError,ResumeMemoryGameAttemptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resumeMemoryGameAttempt>>, TError,ResumeMemoryGameAttemptMutationVariables, TContext> => {
+
+const mutationKey = getResumeMemoryGameAttemptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resumeMemoryGameAttempt>>, ResumeMemoryGameAttemptMutationVariables> = (props) => {
+          const {attemptId} = props ?? {};
+
+          return  resumeMemoryGameAttempt(attemptId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResumeMemoryGameAttemptMutationResult = NonNullable<Awaited<ReturnType<typeof resumeMemoryGameAttempt>>>
+
+    export type ResumeMemoryGameAttemptMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type ResumeMemoryGameAttemptMutationVariables = {attemptId: string}
+
+    /**
+ * @summary Resume a paused Memory Game attempt owned by the signed-in profile
+ */
+export const useResumeMemoryGameAttempt = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeMemoryGameAttempt>>, TError,ResumeMemoryGameAttemptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resumeMemoryGameAttempt>>,
+        TError,
+        ResumeMemoryGameAttemptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResumeMemoryGameAttemptMutationOptions(options));
+    }
+
+export const getGetMemoryGameLeaderboardUrl = (params?: GetMemoryGameLeaderboardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/memory-game/leaderboard?${stringifiedParams}` : `/api/memory-game/leaderboard`
+}
+
+/**
+ * @summary Get a paginated Friends or Global Memory Game leaderboard
+ */
+export const getMemoryGameLeaderboard = async (params?: GetMemoryGameLeaderboardParams, options?: Parameters<typeof customFetch>[1]): Promise<MemoryGameLeaderboardResponse> => {
+
+  return customFetch<MemoryGameLeaderboardResponse>(getGetMemoryGameLeaderboardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMemoryGameLeaderboardQueryKey = (params?: GetMemoryGameLeaderboardParams,) => {
+    return [
+    `/api/memory-game/leaderboard`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetMemoryGameLeaderboardQueryOptions = <TData = Awaited<ReturnType<typeof getMemoryGameLeaderboard>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error>>(params?: GetMemoryGameLeaderboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryGameLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMemoryGameLeaderboardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMemoryGameLeaderboard>>> = ({ signal }) => getMemoryGameLeaderboard(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMemoryGameLeaderboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMemoryGameLeaderboardQueryResult = NonNullable<Awaited<ReturnType<typeof getMemoryGameLeaderboard>>>
+export type GetMemoryGameLeaderboardQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error>
+
+
+/**
+ * @summary Get a paginated Friends or Global Memory Game leaderboard
+ */
+
+export function useGetMemoryGameLeaderboard<TData = Awaited<ReturnType<typeof getMemoryGameLeaderboard>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error>>(
+ params?: GetMemoryGameLeaderboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryGameLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMemoryGameLeaderboardQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListOrganisationPartnershipsUrl = () => {
 

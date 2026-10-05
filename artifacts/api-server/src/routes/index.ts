@@ -12,6 +12,7 @@ import organisationPartnershipsRouter from "./organisation-partnerships";
 import directMessagesRouter from "./direct-messages";
 import challengesRouter from "./challenges";
 import aiAssistantRouter from "./ai-assistant";
+import memoryGameRouter from "./memory-game";
 
 const router: IRouter = Router();
 
@@ -25,6 +26,7 @@ router.use("/organisation-partnerships", organisationPartnershipsRouter);
 router.use("/direct-messages", directMessagesRouter);
 router.use("/challenges", challengesRouter);
 router.use("/ai", aiAssistantRouter);
+router.use("/memory-game", memoryGameRouter);
 // Telegram/email auth routes are public and must be checked before the
 // community router's authentication middleware.
 router.use(experiencesRouter);

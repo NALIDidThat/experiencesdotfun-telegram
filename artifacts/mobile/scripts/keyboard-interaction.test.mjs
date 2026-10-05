@@ -887,6 +887,34 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
     "the Challenges quick action",
   );
 
+  await tapTestId(client, "bottom-nav-quick-button");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="bottom-nav-action-memory-game"]'))`,
+    Boolean,
+    "the Memory Game action in the plus menu",
+  );
+  await waitForValue(
+    client,
+    `(() => {
+      const element = document.querySelector('[data-testid="bottom-nav-action-memory-game"]');
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      return { visible: rect.top >= 0 && rect.bottom <= viewportHeight };
+    })()`,
+    (position) => position?.visible === true,
+    "the Memory Game quick action to settle inside the viewport",
+  );
+  await delay(450);
+  await tapTestId(client, "bottom-nav-action-memory-game");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="nav-test-quick-action"]')?.textContent?.trim() ?? ''`,
+    (value) => value === "memory-game",
+    "the Memory Game quick action",
+  );
+
   await client.send("Page.navigate", { url: `https://${domain}/?navTest=organisation` });
   await waitForValue(client, activeTab, (value) => value === "home", "the organisation navigation test screen");
   await tapTestId(client, "bottom-nav-quick-button");

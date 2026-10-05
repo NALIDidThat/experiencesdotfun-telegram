@@ -13,5 +13,6 @@ export const XpAwardSourceType = {
   email_signup: 'email_signup',
   experience: 'experience',
   milestone: 'milestone',
+  memory_game: 'memory_game',
   legacy_balance: 'legacy_balance',
 } as const;

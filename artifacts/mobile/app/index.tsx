@@ -115,15 +115,16 @@ import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { DirectMessagesScreen } from '@/components/DirectMessagesScreen';
 import { AiAssistantScreen } from '@/components/AiAssistantScreen';
 import { ExperienceChallengesScreen } from '@/components/ExperienceChallengesScreen';
+import { MemoryGameScreen } from '@/components/MemoryGameScreen';
 import { ExploreGlobe, type ExploreGlobeHandle, type GlobeCity, type GlobeExperienceLocation, type GlobeFriend, type GlobeMode } from '@/components/ExploreGlobe';
 import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
-type BottomNavQuickAction = 'post' | 'create' | 'progress' | 'assistant' | 'challenges' | 'accountability';
+type BottomNavQuickAction = 'post' | 'create' | 'progress' | 'assistant' | 'challenges' | 'accountability' | 'memory-game';
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
 const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
@@ -132,7 +133,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -7043,6 +7044,12 @@ function BottomNav({
             icon: 'message-square' as const,
           },
           {
+            id: 'memory-game' as const,
+            label: 'Memory Game',
+            description: 'Remember the astronauts and earn Memory XP.',
+            icon: 'grid' as const,
+          },
+          {
             id: 'challenges' as const,
             label: 'Challenges',
             description: 'Invite an accepted friend to an experience.',
@@ -7242,7 +7249,7 @@ function BottomNav({
         accessibilityRole="button"
         accessibilityLabel="Quick actions"
         accessibilityHint={userType === 'participant'
-          ? 'Open Assistant, Challenges, accountability, feed posting, and progress actions.'
+          ? 'Open Assistant, Memory Game, Challenges, accountability, feed posting, and progress actions.'
           : 'Post to the feed, create an experience, or view progress.'}
         accessibilityState={{ expanded: quickActionsOpen }}
         testID="bottom-nav-quick-button"
@@ -7645,6 +7652,10 @@ export default function App() {
       go('ai');
       return;
     }
+    if (action === 'memory-game') {
+      if (user?.userType === 'participant') go('memory-game');
+      return;
+    }
     if (action === 'challenges') {
       go('challenges');
       return;
@@ -7851,6 +7862,18 @@ export default function App() {
       </AppShell>
     );
   }
+  if (screen === 'memory-game' && user.userType !== 'participant') {
+    return (
+      <AppShell>
+        <EmptyState
+          title="Participant account required"
+          body="The Memory Game and its leaderboard are available for participant accounts."
+          actionLabel="Go home"
+          onAction={() => go('home')}
+        />
+      </AppShell>
+    );
+  }
 
   const content = (() => {
     if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
@@ -7887,6 +7910,14 @@ export default function App() {
     }
     if (screen === 'friend-profile') return <FriendProfileScreen friendId={Number(params.friendId)} onBack={() => go('friends')} />;
     if (screen === 'friends') return <FriendsOverviewScreen go={go} />;
+    if (screen === 'memory-game') {
+      return (
+        <MemoryGameScreen
+          onBack={() => go('home')}
+          onFindPeople={() => go('friends')}
+        />
+      );
+    }
     if (screen === 'accountability') {
       return user.userType === 'participant' ? (
         <AccountabilityPartnerScreen
@@ -7950,7 +7981,7 @@ export default function App() {
     );
   })();
 
-  const noNav = ['experience', 'host-detail', 'create', 'direct-message'].includes(screen);
+  const noNav = ['experience', 'host-detail', 'create', 'direct-message', 'memory-game'].includes(screen);
   const navActive = user.userType === 'organisation' && screen === 'experiences'
     ? 'host'
     : screen === 'experiences'
