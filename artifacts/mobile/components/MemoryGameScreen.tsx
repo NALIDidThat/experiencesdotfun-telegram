@@ -28,7 +28,7 @@ import type {
   MemoryGameAttemptResult,
   MemoryGameStats,
 } from '@workspace/api-client-react';
-import { useColors } from '@/hooks/useColors';
+import { useMemoryGameColors } from '@/hooks/useMemoryGameColors';
 import { MemoryLeaderboardScreen } from '@/components/MemoryLeaderboardScreen';
 
 type Props = {
@@ -64,7 +64,7 @@ function PrimaryButton({
   disabled?: boolean;
   testID?: string;
 }) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   return (
     <Pressable
       accessibilityRole="button"
@@ -98,14 +98,14 @@ function QuietButton({
   onPress: () => void;
   testID?: string;
 }) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
         styles.quietButton,
-        { borderColor: colors.welcome.border, opacity: pressed ? 0.78 : 1 },
+        { borderColor: colors.welcome.border, backgroundColor: colors.card, opacity: pressed ? 0.78 : 1 },
       ]}
       testID={testID}
     >
@@ -126,14 +126,14 @@ function ScreenHeader({
   onBack: () => void;
   onLeaderboard: () => void;
 }) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   return (
     <View style={styles.header}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Back"
         onPress={onBack}
-        style={styles.headerButton}
+        style={[styles.headerButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
         testID="memory-game-back"
       >
         <Feather name="chevron-left" size={23} color={colors.welcome.foreground} />
@@ -146,7 +146,7 @@ function ScreenHeader({
         accessibilityRole="button"
         accessibilityLabel="Open Memory Game leaderboard"
         onPress={onLeaderboard}
-        style={styles.headerButton}
+        style={[styles.headerButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
         testID="memory-game-leaderboard"
       >
         <Feather name="award" size={19} color={colors.welcome.gold} />
@@ -156,15 +156,15 @@ function ScreenHeader({
 }
 
 function MessageCard({ children, tone = 'error' }: { children: string; tone?: 'error' | 'info' }) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   return (
     <View
       accessibilityLiveRegion="polite"
       style={[
         styles.messageCard,
         {
-          backgroundColor: tone === 'error' ? '#492334' : '#20293A',
-          borderColor: tone === 'error' ? '#804050' : colors.welcome.border,
+          backgroundColor: tone === 'error' ? `${colors.destructive}12` : `${colors.accent}12`,
+          borderColor: tone === 'error' ? `${colors.destructive}40` : `${colors.accent}40`,
         },
       ]}
     >
@@ -193,7 +193,7 @@ function GameGrid({
   disabled: boolean;
   now: number;
 }) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   const { width } = useWindowDimensions();
   const columns = Math.max(1, attempt.columns);
   const gridWidth = Math.min(width - 44, 360);
@@ -231,10 +231,10 @@ function GameGrid({
                     width: tileSize,
                     height: tileSize,
                     backgroundColor: showPattern
-                      ? isAstronaut ? '#3A2851' : colors.welcome.surface
-                      : isSelected ? '#432243' : colors.welcome.surface,
+                      ? isAstronaut ? `${colors.secondary}18` : colors.muted
+                      : isSelected ? colors.primary : colors.card,
                     borderColor: showPattern && isAstronaut
-                      ? colors.welcome.gold
+                      ? colors.secondary
                       : isSelected ? colors.primary : colors.welcome.border,
                     borderWidth: (showPattern && isAstronaut) || isSelected ? 2 : 1,
                     opacity: pressed ? 0.78 : 1,
@@ -276,7 +276,7 @@ function GameGrid({
 }
 
 function StatsStrip({ stats }: { stats: MemoryGameStats }) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   const values = [
     { label: 'Memory XP', value: stats.memoryXp, icon: 'star' as const },
     { label: 'Levels cleared', value: stats.levelsCompleted, icon: 'check-circle' as const },
@@ -313,7 +313,7 @@ function GameIntro({
   onStart: () => void;
   onHelp: () => void;
 }) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   const level = Math.min(Math.max(stats.currentLevel, 1), 7);
   return (
     <ScrollView
@@ -323,30 +323,30 @@ function GameIntro({
     >
       <View style={styles.hero}>
         <LinearGradient
-          colors={[colors.secondary, '#351570', colors.primary]}
+          colors={[colors.secondary, colors.accent, colors.primary]}
           end={{ x: 1, y: 1 }}
           start={{ x: 0, y: 0 }}
           style={StyleSheet.absoluteFill}
         />
-        <View style={styles.heroOrbOne} />
-        <View style={styles.heroOrbTwo} />
+        <View style={[styles.heroOrbOne, { backgroundColor: `${colors.primaryForeground}0D` }]} />
+        <View style={[styles.heroOrbTwo, { backgroundColor: `${colors.primaryForeground}0B` }]} />
         <View style={styles.heroTitleRow}>
-          <View style={styles.heroIcon}>
-            <FontAwesome5 name="user-astronaut" size={21} color={colors.welcome.gold} />
+          <View style={[styles.heroIcon, { backgroundColor: `${colors.primaryForeground}18` }]}>
+            <FontAwesome5 name="user-astronaut" size={21} color={colors.primaryForeground} />
           </View>
-          <View style={styles.heroPill}>
-            <Text style={[styles.heroPillText, { color: colors.welcome.foreground }]}>7 LEVELS</Text>
+          <View style={[styles.heroPill, { backgroundColor: `${colors.primaryForeground}1A` }]}>
+            <Text style={[styles.heroPillText, { color: colors.primaryForeground }]}>7 LEVELS</Text>
           </View>
         </View>
-        <Text style={[styles.heroTitle, { color: colors.welcome.foreground }]}>
+        <Text style={[styles.heroTitle, { color: colors.primaryForeground }]}>
           Ready for liftoff?
         </Text>
-        <Text style={[styles.heroBody, { color: '#F3EFFF' }]}>
+        <Text style={[styles.heroBody, { color: colors.primaryForeground }]}>
           Watch the astronauts, then tap every tile you remember.
         </Text>
         <View style={styles.heroReward}>
-          <Feather name="star" size={15} color={colors.welcome.gold} />
-          <Text style={[styles.heroRewardText, { color: colors.welcome.foreground }]}>
+          <Feather name="star" size={15} color={colors.primaryForeground} />
+          <Text style={[styles.heroRewardText, { color: colors.primaryForeground }]}>
             +5 Memory XP for every level cleared
           </Text>
         </View>
@@ -358,13 +358,13 @@ function GameIntro({
             <Text style={[styles.sectionEyebrow, { color: colors.teal }]}>
               {needsTutorial ? 'FIRST FLIGHT' : 'YOUR PROGRESS'}
             </Text>
-            <Text style={[styles.sectionTitle, { color: colors.welcome.foreground }]}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
               {needsTutorial ? 'How to play' : `Level ${level} of 7`}
             </Text>
           </View>
           {!needsTutorial ? (
             <View style={[styles.levelBadge, { borderColor: colors.welcome.border, backgroundColor: colors.welcome.surface }]}>
-              <Feather name="target" size={15} color={colors.welcome.gold} />
+              <Feather name="target" size={15} color={colors.accent} />
               <Text style={[styles.levelBadgeText, { color: colors.welcome.foreground }]}>{level}/7</Text>
             </View>
           ) : null}
@@ -408,10 +408,10 @@ function GameIntro({
 }
 
 function InstructionRow({ number, title, body }: { number: string; title: string; body: string }) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   return (
     <View style={styles.instructionRow}>
-      <View style={[styles.instructionNumber, { backgroundColor: '#F2078920' }]}>
+      <View style={[styles.instructionNumber, { backgroundColor: `${colors.primary}18` }]}>
         <Text style={[styles.instructionNumberText, { color: colors.primary }]}>{number}</Text>
       </View>
       <View style={styles.instructionCopy}>
@@ -445,7 +445,7 @@ function GamePlay({
   busy: boolean;
   error: string | null;
 }) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   const memorizeUntil = timestamp(attempt.memorizeUntilAt);
   const isMemorizing = attempt.phase === 'memorize' && now < memorizeUntil;
   const isExpired = now >= timestamp(attempt.expiresAt);
@@ -512,7 +512,7 @@ function GamePlay({
       </View>
 
       {isExpired ? (
-        <View style={styles.expiredCard}>
+        <View style={[styles.expiredCard, { backgroundColor: colors.muted, borderColor: colors.border }]}>
           <Feather name="clock" size={24} color={colors.welcome.error} />
           <Text style={[styles.expiredTitle, { color: colors.welcome.foreground }]}>This attempt expired</Text>
           <Text style={[styles.expiredBody, { color: colors.welcome.muted }]}>
@@ -564,7 +564,7 @@ function PausedPanel({
   onResume: () => void;
   onRetry: () => void;
 }) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   const pausedAt = attempt.pausedAt ? timestamp(attempt.pausedAt) : Date.now();
   const isExpired = Date.now() >= timestamp(attempt.expiresAt);
   const resumeLabel = attempt.resumePhase === 'memorize' ? 'Resume memorizing' : 'Resume recall';
@@ -614,7 +614,7 @@ function ResultPanel({
   onRetry: () => void;
   onLeaderboard: () => void;
 }) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   const rankBefore = result.globalRankBefore;
   const rankAfter = result.globalRankAfter;
   let rankCopy: string | null = null;
@@ -627,7 +627,7 @@ function ResultPanel({
   }
   return (
     <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false} testID="memory-game-result">
-      <View style={[styles.resultIcon, { backgroundColor: result.successful ? '#FFD16620' : '#F2078920' }]}>
+      <View style={[styles.resultIcon, { backgroundColor: result.successful ? `${colors.accent}18` : `${colors.primary}12` }]}>
         <Feather
           name={result.successful ? result.runCompleted ? 'award' : 'check' : 'rotate-ccw'}
           size={28}
@@ -645,7 +645,7 @@ function ResultPanel({
       </Text>
 
       <View style={[styles.rewardCard, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}>
-        <View style={[styles.rewardIcon, { backgroundColor: '#FFD16620' }]}>
+        <View style={[styles.rewardIcon, { backgroundColor: `${colors.accent}18` }]}>
           <Feather name="star" size={17} color={colors.welcome.gold} />
         </View>
         <View style={styles.rewardCopy}>
@@ -660,7 +660,7 @@ function ResultPanel({
       </View>
 
       {rankCopy ? (
-        <View style={[styles.rankChange, { backgroundColor: '#20293A', borderColor: colors.welcome.border }]}>
+        <View style={[styles.rankChange, { backgroundColor: `${colors.accent}10`, borderColor: colors.welcome.border }]}>
           <Feather name="trending-up" size={16} color={colors.teal} />
           <Text style={[styles.rankChangeText, { color: colors.welcome.foreground }]}>{rankCopy}</Text>
         </View>
@@ -690,10 +690,10 @@ function ResultPanel({
 }
 
 function HelpPanel({ onClose }: { onClose: () => void }) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   return (
     <ScrollView contentContainerStyle={styles.helpContent} showsVerticalScrollIndicator={false} testID="memory-game-help-panel">
-      <View style={[styles.helpIcon, { backgroundColor: '#6805F222' }]}>
+      <View style={[styles.helpIcon, { backgroundColor: `${colors.secondary}12` }]}>
         <Feather name="help-circle" size={25} color={colors.teal} />
       </View>
       <Text style={[styles.centerEyebrow, { color: colors.teal }]}>QUICK GUIDE</Text>
@@ -714,7 +714,7 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
 }
 
 export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const statsQuery = useGetMemoryGameStats();
@@ -828,7 +828,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
   if (panel === 'leaderboard') {
     return (
       <View style={[styles.screen, { backgroundColor: colors.welcome.background, paddingTop: topInset, paddingBottom: Math.max(insets.bottom, 10) }]}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle="dark-content" />
         <MemoryLeaderboardScreen
           memoryXp={stats?.memoryXp ?? 0}
           onClose={() => setPanel(null)}
@@ -853,7 +853,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
       ]}
       testID="memory-game-screen"
     >
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       {panel === 'help' ? (
         <>
           <ScreenHeader title="How to play" onBack={() => setPanel(null)} onLeaderboard={() => setPanel('leaderboard')} />
@@ -947,17 +947,17 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, minHeight: 0 },
   header: { minHeight: 66, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  headerButton: { width: 40, height: 40, borderRadius: 15, backgroundColor: '#1A1D2B', alignItems: 'center', justifyContent: 'center' },
+  headerButton: { width: 40, height: 40, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1 },
   headerEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.6 },
   headerTitle: { fontFamily: 'Inter_700Bold', fontSize: 18, marginTop: 2 },
   introContent: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: 28, gap: 18 },
   hero: { minHeight: 206, borderRadius: 24, overflow: 'hidden', padding: 20, justifyContent: 'center' },
-  heroOrbOne: { position: 'absolute', width: 190, height: 190, borderRadius: 95, backgroundColor: '#FFFFFF0D', right: -58, top: -71 },
-  heroOrbTwo: { position: 'absolute', width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFFFFF0B', right: 29, bottom: -34 },
+  heroOrbOne: { position: 'absolute', width: 190, height: 190, borderRadius: 95, right: -58, top: -71 },
+  heroOrbTwo: { position: 'absolute', width: 80, height: 80, borderRadius: 40, right: 29, bottom: -34 },
   heroTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
-  heroIcon: { width: 42, height: 42, borderRadius: 15, backgroundColor: '#FFFFFF18', alignItems: 'center', justifyContent: 'center' },
-  heroPill: { backgroundColor: '#FFFFFF1A', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6 },
+  heroIcon: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  heroPill: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6 },
   heroPillText: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1 },
   heroTitle: { fontFamily: 'Inter_700Bold', fontSize: 25, letterSpacing: -0.3 },
   heroBody: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, maxWidth: 280, marginTop: 7 },
@@ -1012,7 +1012,7 @@ const styles = StyleSheet.create({
   gridFooterText: { fontFamily: 'Inter_500Medium', fontSize: 10 },
   waitButton: { width: '100%', minHeight: 50, borderWidth: 1, borderRadius: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 9 },
   waitText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
-  expiredCard: { minHeight: 185, width: '100%', borderRadius: 21, backgroundColor: '#1A1D2B', alignItems: 'center', justifyContent: 'center', padding: 20, gap: 9 },
+  expiredCard: { minHeight: 185, width: '100%', borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center', padding: 20, gap: 9 },
   expiredTitle: { fontFamily: 'Inter_700Bold', fontSize: 17, marginTop: 3 },
   expiredBody: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, textAlign: 'center', maxWidth: 260 },
   messageCard: { minHeight: 43, width: '100%', borderWidth: 1, borderRadius: 13, paddingHorizontal: 11, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 8 },

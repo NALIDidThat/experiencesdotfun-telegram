@@ -13,7 +13,7 @@ import {
   useGetMemoryGameLeaderboard,
 } from '@workspace/api-client-react';
 import type { MemoryGameLeaderboardEntry } from '@workspace/api-client-react';
-import { useColors } from '@/hooks/useColors';
+import { useMemoryGameColors } from '@/hooks/useMemoryGameColors';
 
 type Scope = 'friends' | 'global';
 
@@ -30,7 +30,7 @@ function LeaderboardRow({
   entry: MemoryGameLeaderboardEntry;
   rank: number;
 }) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   const rankColor = rank === 1
     ? colors.accent
     : rank === 2
@@ -45,7 +45,7 @@ function LeaderboardRow({
       style={[
         styles.row,
         {
-          backgroundColor: entry.isCurrentUser ? '#2A2240' : colors.welcome.surface,
+          backgroundColor: entry.isCurrentUser ? `${colors.primary}0B` : colors.welcome.surface,
           borderColor: entry.isCurrentUser ? colors.primary : colors.welcome.border,
         },
       ]}
@@ -54,9 +54,9 @@ function LeaderboardRow({
         <Text style={[styles.rankText, { color: rankColor }]}>#{rank}</Text>
       </View>
       {entry.avatarUrl ? (
-        <Image source={{ uri: entry.avatarUrl }} style={styles.avatar} />
+        <Image source={{ uri: entry.avatarUrl }} style={[styles.avatar, { backgroundColor: colors.muted }]} />
       ) : (
-        <View style={[styles.avatar, styles.avatarPlaceholder]}>
+        <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.muted }]}>
           <Feather name="user" size={17} color={colors.welcome.muted} />
         </View>
       )}
@@ -77,7 +77,7 @@ function LeaderboardRow({
 }
 
 export function MemoryLeaderboardScreen({ memoryXp, onClose, onFindPeople }: Props) {
-  const colors = useColors();
+  const colors = useMemoryGameColors();
   const [scope, setScope] = useState<Scope>('friends');
   const [page, setPage] = useState(1);
   const query = useGetMemoryGameLeaderboard({ scope, page, pageSize: 20 });
@@ -93,7 +93,7 @@ export function MemoryLeaderboardScreen({ memoryXp, onClose, onFindPeople }: Pro
           accessibilityRole="button"
           accessibilityLabel="Back to Memory Game"
           onPress={onClose}
-          style={styles.iconButton}
+          style={[styles.iconButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
           testID="memory-leaderboard-back"
         >
           <Feather name="chevron-left" size={23} color={colors.welcome.foreground} />
@@ -102,13 +102,13 @@ export function MemoryLeaderboardScreen({ memoryXp, onClose, onFindPeople }: Pro
           <Text style={[styles.eyebrow, { color: colors.teal }]}>MEMORY GAME</Text>
           <Text style={[styles.title, { color: colors.welcome.foreground }]}>Leaderboard</Text>
         </View>
-        <View style={styles.headerIcon}>
+        <View style={[styles.headerIcon, { backgroundColor: colors.muted, borderColor: colors.border }]}>
           <Feather name="award" size={19} color={colors.welcome.gold} />
         </View>
       </View>
 
       <View style={[styles.xpSummary, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}>
-        <View style={styles.xpSummaryIcon}>
+        <View style={[styles.xpSummaryIcon, { backgroundColor: `${colors.accent}18` }]}>
           <Feather name="star" size={18} color={colors.welcome.gold} />
         </View>
         <View style={styles.xpSummaryCopy}>
@@ -172,7 +172,7 @@ export function MemoryLeaderboardScreen({ memoryXp, onClose, onFindPeople }: Pro
         </View>
       ) : entries.length === 0 ? (
         <View style={styles.state}>
-          <View style={[styles.emptyIcon, { backgroundColor: colors.welcome.surface }]}>
+          <View style={[styles.emptyIcon, { backgroundColor: colors.muted }]}>
             <Feather name={scope === 'friends' ? 'users' : 'award'} size={24} color={colors.teal} />
           </View>
           <Text style={[styles.stateTitle, { color: colors.welcome.foreground }]}>
@@ -216,7 +216,7 @@ export function MemoryLeaderboardScreen({ memoryXp, onClose, onFindPeople }: Pro
             <LeaderboardRow entry={entry} key={entry.rank} rank={entry.rank} />
           ))}
           {currentUserEntry && !currentUserOnPage ? (
-            <View style={styles.currentRankWrap}>
+            <View style={[styles.currentRankWrap, { borderTopColor: colors.border }]}>
               <Text style={[styles.currentRankLabel, { color: colors.welcome.subdued }]}>YOUR RANK</Text>
               <LeaderboardRow entry={currentUserEntry} rank={currentUserEntry.rank} />
             </View>
@@ -253,13 +253,13 @@ export function MemoryLeaderboardScreen({ memoryXp, onClose, onFindPeople }: Pro
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   header: { minHeight: 74, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, gap: 12 },
-  iconButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A1D2B' },
+  iconButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1 },
   eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1.6 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 22, marginTop: 2 },
-  headerIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#232238' },
+  headerIcon: { width: 38, height: 38, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   xpSummary: { marginHorizontal: 18, marginTop: 8, padding: 14, borderRadius: 18, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  xpSummaryIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: '#FFD16620', alignItems: 'center', justifyContent: 'center' },
+  xpSummaryIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   xpSummaryCopy: { flex: 1 },
   summaryLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.2 },
   summaryValue: { fontFamily: 'Inter_700Bold', fontSize: 21, marginTop: 1 },
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   row: { minHeight: 68, borderRadius: 16, borderWidth: 1, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   rankBadge: { minWidth: 38, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   rankText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#2D3040' },
+  avatar: { width: 36, height: 36, borderRadius: 18 },
   avatarPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   playerCopy: { flex: 1, minWidth: 0 },
   playerName: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   xpColumn: { alignItems: 'flex-end', minWidth: 60 },
   xpValue: { fontFamily: 'Inter_700Bold', fontSize: 17 },
   xpLabel: { fontFamily: 'Inter_500Medium', fontSize: 9, marginTop: 2 },
-  currentRankWrap: { marginTop: 10, gap: 7, borderTopWidth: 1, borderTopColor: '#343747', paddingTop: 12 },
+  currentRankWrap: { marginTop: 10, gap: 7, borderTopWidth: 1, paddingTop: 12 },
   currentRankLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.3 },
   pagination: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 48, marginTop: 6 },
   pageButton: { minHeight: 38, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 5 },

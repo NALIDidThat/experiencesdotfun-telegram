@@ -143,7 +143,14 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
   onResetCity,
 }: Props, ref) {
   const colors = useColors();
-  const space = colors.welcome;
+  const space = {
+    background: colors.background,
+    foreground: colors.foreground,
+    muted: colors.mutedForeground,
+    subdued: colors.mutedForeground,
+    surface: colors.card,
+    border: colors.border,
+  };
   const [rotation, setRotation] = useState(0);
   const [tilt, setTilt] = useState(0);
   const [zoom, setZoom] = useState(1);
@@ -330,20 +337,20 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
         <Svg width="100%" height="100%" viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
           <Defs>
             <RadialGradient id="planet" cx="35%" cy="31%" rx="76%" ry="76%">
-              <Stop offset="0" stopColor={space.surface} />
+              <Stop offset="0" stopColor={colors.muted} />
               <Stop offset="0.68" stopColor={space.background} />
               <Stop offset="0.9" stopColor={space.background} />
               <Stop offset="1" stopColor={colors.violet} stopOpacity="0.18" />
             </RadialGradient>
             <RadialGradient id="land" cx="40%" cy="30%" rx="80%" ry="82%">
-              <Stop offset="0" stopColor={colors.accent} stopOpacity="0.42" />
-              <Stop offset="0.62" stopColor={space.surface} stopOpacity="0.9" />
+              <Stop offset="0" stopColor={colors.accent} stopOpacity="0.24" />
+              <Stop offset="0.62" stopColor={colors.muted} stopOpacity="0.9" />
               <Stop offset="1" stopColor={space.background} stopOpacity="0.96" />
             </RadialGradient>
             <ClipPath id="globeClip"><Circle cx={CENTER_X} cy={CENTER_Y} r={radius} /></ClipPath>
           </Defs>
           {STAR_FIELD.map(([x, y, size], index) => (
-            <Circle key={`star-${index}`} cx={x} cy={y} r={size} fill={index % 4 === 0 ? colors.primaryForeground : colors.accent} fillOpacity={index % 3 === 0 ? 0.8 : 0.44} />
+            <Circle key={`star-${index}`} cx={x} cy={y} r={size} fill={index % 4 === 0 ? colors.primary : colors.accent} fillOpacity={index % 3 === 0 ? 0.45 : 0.25} />
           ))}
           <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 17} fill="none" stroke={colors.violet} strokeOpacity="0.13" strokeWidth="0.8" />
           <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 10} fill="none" stroke={colors.primary} strokeOpacity="0.22" strokeWidth="1.2" />

@@ -478,7 +478,7 @@ function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => vo
   const icon = categoryIcon[item.category];
   const gradient = categoryGradients[item.category] ?? categoryGradients.community;
   const entrance = useRef(new Animated.Value(0)).current;
-  const availabilityColor = item.availablePlaces < 4 ? colors.primary : colors.welcome.muted;
+  const availabilityColor = item.availablePlaces < 4 ? colors.primary : colors.mutedForeground;
   const availabilityLabel = item.availablePlaces === 0 ? 'Waitlist open' : `${item.availablePlaces} spots left`;
 
   useEffect(() => {
@@ -517,7 +517,7 @@ function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => vo
         accessibilityHint="Opens experience details"
         testID={`explore-experience-card-${item.id}`}
         onPress={() => { triggerHaptic(); onPress(); }}
-        style={[styles.experienceCard, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border, borderRadius: colors.radius }]}
+        style={[styles.experienceCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
       >
         <View style={styles.experienceCardArtwork}>
           {item.category === 'community' ? (
@@ -540,25 +540,25 @@ function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => vo
           <View style={styles.experienceCardArtworkTop}>
             <View style={styles.experienceCardCategory}>
               <Feather name={icon} size={12} color={colors.primary} />
-              <Text style={[styles.experienceCardCategoryText, { color: colors.welcome.muted }]} numberOfLines={1}>{categoryLabel[item.category]}</Text>
+              <Text style={[styles.experienceCardCategoryText, { color: colors.mutedForeground }]} numberOfLines={1}>{categoryLabel[item.category]}</Text>
             </View>
-            <View style={[styles.experienceCardXp, { backgroundColor: colors.welcome.background }]}>
+            <View style={[styles.experienceCardXp, { backgroundColor: colors.muted }]}>
               <Feather name="zap" size={11} color={colors.primary} />
               <Text style={[styles.experienceCardXpText, { color: colors.primary }]}>+{item.xpReward} XP</Text>
             </View>
           </View>
 
-          <Text style={[styles.experienceCardOrg, { color: colors.welcome.muted }]} numberOfLines={1}>{item.organisation.name}</Text>
-          <Text style={[styles.experienceCardTitle, { color: colors.welcome.foreground }]} numberOfLines={2}>{item.title}</Text>
+          <Text style={[styles.experienceCardOrg, { color: colors.mutedForeground }]} numberOfLines={1}>{item.organisation.name}</Text>
+          <Text style={[styles.experienceCardTitle, { color: colors.foreground }]} numberOfLines={2}>{item.title}</Text>
 
           <View style={styles.experienceCardMetaRow}>
             <View style={styles.experienceCardMetaChip}>
               <Feather name="calendar" size={12} color={colors.primary} />
-              <Text style={[styles.experienceCardMetaText, { color: colors.welcome.foreground }]} numberOfLines={1}>{dateLabel(item.date)}</Text>
+              <Text style={[styles.experienceCardMetaText, { color: colors.foreground }]} numberOfLines={1}>{dateLabel(item.date)}</Text>
             </View>
             <View style={styles.experienceCardMetaChip}>
-              <Feather name="map-pin" size={12} color={colors.welcome.muted} />
-              <Text style={[styles.experienceCardMetaText, { color: colors.welcome.muted }]} numberOfLines={1}>{item.city}</Text>
+              <Feather name="map-pin" size={12} color={colors.mutedForeground} />
+              <Text style={[styles.experienceCardMetaText, { color: colors.mutedForeground }]} numberOfLines={1}>{item.city}</Text>
             </View>
           </View>
 
@@ -569,7 +569,7 @@ function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => vo
                 {item.participantCount} going · {availabilityLabel}
               </Text>
             </View>
-            <Feather name="arrow-right" size={14} color={colors.welcome.muted} />
+            <Feather name="arrow-right" size={14} color={colors.mutedForeground} />
           </View>
         </View>
       </MotionPressable>
@@ -2298,14 +2298,14 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
             style={({ pressed }) => [
               styles.filter,
               {
-                backgroundColor: selected ? colors.primary : colors.welcome.surface,
-                borderColor: selected ? colors.primary : colors.welcome.border,
+                backgroundColor: selected ? colors.primary : colors.card,
+                borderColor: selected ? colors.primary : colors.border,
                 opacity: pressed ? 0.78 : 1,
               },
             ]}
           >
-            <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.welcome.muted} />
-            <Text style={[styles.filterText, { color: selected ? colors.primaryForeground : colors.welcome.muted }]}>{item.label}</Text>
+            <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+            <Text style={[styles.filterText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
           </Pressable>
         );
       })}
@@ -2315,7 +2315,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   return (
     <View
       testID="explore-screen-layout"
-      style={[styles.exploreScreen, { backgroundColor: colors.welcome.background }]}
+      style={[styles.exploreScreen, { backgroundColor: colors.background }]}
       onLayout={(event) => {
         const { height } = event.nativeEvent.layout;
         setScreenHeight((current) => current === height ? current : height);
@@ -2345,8 +2345,8 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
       <View pointerEvents="box-none" style={styles.exploreTopOverlay}>
         <View style={[styles.exploreTopBar, styles.exploreFullscreenTopBar]}>
           <View style={styles.exploreHeading}>
-            <Text style={[styles.exploreFullscreenTitle, { color: colors.welcome.foreground }]}>Explore</Text>
-            <Text style={[styles.exploreFullscreenSubtitle, { color: colors.welcome.muted }]}>Real experiences. Real impact.</Text>
+            <Text style={[styles.exploreFullscreenTitle, { color: colors.foreground }]}>Explore</Text>
+            <Text style={[styles.exploreFullscreenSubtitle, { color: colors.mutedForeground }]}>Real experiences. Real impact.</Text>
           </View>
           <View style={styles.exploreTopActions}>
             <Pressable
@@ -2356,7 +2356,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
               onPress={() => { triggerHaptic(); go('notifications'); }}
               style={({ pressed }) => [styles.exploreTopAction, pressed && styles.exploreTopActionPressed]}
             >
-              <Feather name="bell" size={19} color={colors.welcome.foreground} />
+              <Feather name="bell" size={19} color={colors.foreground} />
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -2368,7 +2368,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
               <UserAvatar
                 avatarUrl={user?.avatarUrl}
                 name={user?.name ?? 'Your profile'}
-                  containerStyle={[styles.exploreAvatar, { backgroundColor: colors.welcome.surface }]}
+                  containerStyle={[styles.exploreAvatar, { backgroundColor: colors.card }]}
                 initialStyle={{ color: colors.primary, fontFamily: 'Inter_700Bold' }}
               />
             </Pressable>
@@ -2378,9 +2378,9 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         <View style={[
           styles.searchBox,
           styles.exploreFullscreenSearchBox,
-          { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border, borderRadius: colors.radius },
+          { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
         ]}>
-          <Feather name="search" size={19} color={colors.welcome.muted} />
+          <Feather name="search" size={19} color={colors.mutedForeground} />
           <TextInput
             accessibilityLabel="Search experiences or city"
             testID="explore-search-input"
@@ -2388,9 +2388,9 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
             onChangeText={setSearch}
             onSubmitEditing={focusSearchedCity}
             placeholder="Search experiences or city"
-            placeholderTextColor={colors.welcome.muted}
+            placeholderTextColor={colors.mutedForeground}
             returnKeyType="search"
-            style={[styles.searchInput, { color: colors.welcome.foreground }]}
+            style={[styles.searchInput, { color: colors.foreground }]}
           />
           {search.length > 0 ? (
             <Pressable
@@ -2400,7 +2400,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
               onPress={() => { triggerHaptic(); setSearch(''); }}
               style={styles.exploreClearButton}
             >
-              <Feather name="x" size={17} color={colors.welcome.muted} />
+              <Feather name="x" size={17} color={colors.mutedForeground} />
             </Pressable>
           ) : null}
         </View>
@@ -2419,14 +2419,14 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
                 style={({ pressed }) => [
                   styles.exploreModeTab,
                   {
-                    backgroundColor: selected ? colors.primary : colors.welcome.surface,
-                    borderColor: selected ? colors.primary : colors.welcome.border,
+                    backgroundColor: selected ? colors.primary : colors.card,
+                    borderColor: selected ? colors.primary : colors.border,
                     opacity: pressed ? 0.78 : 1,
                   },
                 ]}
               >
-                <Feather name={option.icon} size={13} color={selected ? colors.primaryForeground : colors.welcome.muted} />
-                <Text style={[styles.exploreModeTabText, { color: selected ? colors.primaryForeground : colors.welcome.foreground }]}>
+                <Feather name={option.icon} size={13} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+                <Text style={[styles.exploreModeTabText, { color: selected ? colors.primaryForeground : colors.foreground }]}>
                   {option.label}
                 </Text>
               </Pressable>
@@ -2441,7 +2441,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         testID="explore-experience-sheet"
         style={[
           styles.exploreSheet,
-          { height: sheetHeight, backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border },
+          { height: sheetHeight, backgroundColor: colors.card, borderColor: colors.border },
         ]}
       >
         <View
@@ -2467,17 +2467,17 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           } : undefined}
           onTouchCancel={Platform.OS === 'web' ? () => { sheetTouchOrigin.current.active = false; } : undefined}
         >
-          <View style={[styles.exploreSheetGrabber, { backgroundColor: colors.welcome.border }]} />
+          <View style={[styles.exploreSheetGrabber, { backgroundColor: colors.border }]} />
           <View style={styles.exploreSheetHeadingRow}>
             <View style={styles.exploreSheetHeadingCopy}>
-              <Text style={[styles.exploreSheetTitle, { color: colors.welcome.foreground }]}>
+              <Text style={[styles.exploreSheetTitle, { color: colors.foreground }]}>
                 {selectedCity ? `${selectedCity}${selectedCityData?.country ? `, ${selectedCityData.country}` : ''}` : 'Experiences'}
               </Text>
-              <Text style={[styles.exploreSheetHint, { color: colors.welcome.muted }]}>
+              <Text style={[styles.exploreSheetHint, { color: colors.mutedForeground }]}>
                 {friendMapHint}
               </Text>
             </View>
-            <Text testID="explore-results-count" style={[styles.exploreSheetCount, { color: colors.welcome.muted }]}>
+            <Text testID="explore-results-count" style={[styles.exploreSheetCount, { color: colors.mutedForeground }]}>
               {visibleExperiences.length} {visibleExperiences.length === 1 ? 'experience' : 'experiences'}
             </Text>
             <Pressable
@@ -2488,7 +2488,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
               onPress={toggleSheet}
               style={styles.exploreSheetToggle}
             >
-              <Feather name={sheetExpanded ? 'chevron-down' : 'chevron-up'} size={19} color={colors.welcome.foreground} />
+              <Feather name={sheetExpanded ? 'chevron-down' : 'chevron-up'} size={19} color={colors.foreground} />
             </Pressable>
           </View>
           {selectedCity ? (
@@ -2497,10 +2497,10 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
               accessibilityLabel={`Clear ${selectedCity} city filter`}
               testID="explore-clear-city"
               onPress={clearSelectedCity}
-              style={[styles.exploreCityFilter, { backgroundColor: colors.welcome.background }]}
+              style={[styles.exploreCityFilter, { backgroundColor: colors.muted }]}
             >
-              <Feather name="x" size={12} color={colors.welcome.muted} />
-              <Text style={[styles.exploreCityFilterText, { color: colors.welcome.muted }]}>{selectedCity}</Text>
+              <Feather name="x" size={12} color={colors.mutedForeground} />
+              <Text style={[styles.exploreCityFilterText, { color: colors.mutedForeground }]}>{selectedCity}</Text>
             </Pressable>
           ) : null}
           {selectedCityData ? (
@@ -2512,13 +2512,13 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
                   { value: selectedCityData.openExperiences.toLocaleString(), label: 'with space' },
                   { value: selectedCityData.xpOffered.toLocaleString(), label: 'XP offered' },
                 ].map((stat) => (
-                  <View key={stat.label} style={[styles.exploreCityStat, { borderColor: colors.welcome.border, backgroundColor: colors.welcome.background }]}>
-                    <Text numberOfLines={1} style={[styles.exploreCityStatValue, { color: colors.welcome.foreground }]}>{stat.value}</Text>
-                    <Text numberOfLines={1} style={[styles.exploreCityStatLabel, { color: colors.welcome.muted }]}>{stat.label}</Text>
+                  <View key={stat.label} style={[styles.exploreCityStat, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+                    <Text numberOfLines={1} style={[styles.exploreCityStatValue, { color: colors.foreground }]}>{stat.value}</Text>
+                    <Text numberOfLines={1} style={[styles.exploreCityStatLabel, { color: colors.mutedForeground }]}>{stat.label}</Text>
                   </View>
                 ))}
               </View>
-              <Text style={[styles.exploreCityContextHint, { color: colors.welcome.muted }]}>
+              <Text style={[styles.exploreCityContextHint, { color: colors.mutedForeground }]}>
                 {verifiedActivityQuery.isLoading
                   ? 'Loading host-verified completions from the last 30 days'
                   : verifiedActivityQuery.isError
