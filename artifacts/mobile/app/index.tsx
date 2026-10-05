@@ -42,6 +42,7 @@ import {
   useUpdateHostExperience,
   useCancelHostExperience,
   useCreateFriendRequest,
+  useCreateDirectConversation,
   useCreateSocialInvite,
   useDeclineFriendRequest,
   useGetExperience,
@@ -3891,10 +3892,8 @@ function FriendProfileScreen({
 
 function FriendsOverviewScreen({
   go,
-  onBack,
 }: {
   go: (screen: Screen, params?: Record<string, string>) => void;
-  onBack: () => void;
 }) {
   const colors = useColors();
   const queryClient = useQueryClient();
@@ -3934,11 +3933,15 @@ function FriendsOverviewScreen({
   const [friendNotFound, setFriendNotFound] = useState(false);
   const [connectionsTab, setConnectionsTab] = useState<'circle' | 'requests' | 'people'>('circle');
   const [editingTopFriends, setEditingTopFriends] = useState(false);
+  const [showAllFriends, setShowAllFriends] = useState(false);
+  const [startingChatFriendId, setStartingChatFriendId] = useState<number | null>(null);
+  const createDirectConversation = useCreateDirectConversation();
   const normalizedFriendUsername = username.trim().replace(/^@+/, '').trim();
   const combinedFriendRequests = [
     ...(requests.data ?? []).map((request) => ({ ...request, direction: 'incoming' as const })),
     ...(sentRequests.data ?? []).map((request) => ({ ...request, direction: 'sent' as const })),
   ];
+  const visibleFriends = showAllFriends ? (friends.data ?? []) : (friends.data ?? []).slice(0, 3);
 
   const sendFriendRequest = () => {
     if (!normalizedFriendUsername || createFriend.isPending) return;
@@ -4010,6 +4013,28 @@ function FriendsOverviewScreen({
     } finally {
       setFriendInvitePending(false);
     }
+  };
+
+  const openFriendConversation = (friendId: number) => {
+    if (createDirectConversation.isPending) return;
+    setFriendFeedback(null);
+    setStartingChatFriendId(friendId);
+    createDirectConversation.mutate(
+      { data: { recipientId: friendId } },
+      {
+        onSuccess: (conversation) => {
+          void queryClient.invalidateQueries({ queryKey: getListDirectConversationsQueryKey() });
+          go('direct-message', { id: String(conversation.id) });
+        },
+        onError: (requestError: unknown) => {
+          setFriendFeedback({
+            message: requestErrorMessage(requestError, 'Could not open that conversation. Please try again.'),
+            tone: 'error',
+          });
+        },
+        onSettled: () => setStartingChatFriendId(null),
+      },
+    );
   };
 
   const respondToFriendRequest = async (requestId: number, action: 'accept' | 'decline') => {
@@ -4085,16 +4110,31 @@ function FriendsOverviewScreen({
       keyboardDismissMode="none"
       showsVerticalScrollIndicator={false}
     >
-      <Header
-        title="My Connections"
-        subtitle="Your circle, requests, and connections."
-        onBack={onBack}
-      />
       <View style={styles.connectionsIntro}>
-        <View style={{ flex: 1 }} />
-        <View style={[styles.friendCountPill, { backgroundColor: colors.primary + '12' }]}>
-          <Feather name="users" size={15} color={colors.primary} />
-          <Text style={[styles.friendCountText, { color: colors.primary }]}>{friends.data?.length ?? 0}</Text>
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.connectionsHeaderArt}
+        >
+          <View style={[styles.connectionsArtHalo, { backgroundColor: colors.primary + '12' }]} />
+          <View style={[styles.connectionsArtMainOrb, { backgroundColor: colors.violet }]}>
+            <Feather name="users" size={22} color={colors.primaryForeground} />
+          </View>
+          <View style={[styles.connectionsArtSmallOrb, { backgroundColor: colors.secondary }]}>
+            <Feather name="user" size={14} color={colors.secondaryForeground} />
+          </View>
+          <Feather name="star" size={12} color={colors.violet} style={styles.connectionsArtSparkle} />
+        </View>
+        <View style={styles.connectionsHeaderCopy}>
+          <View style={styles.connectionsTitleRow}>
+            <Text numberOfLines={1} style={[styles.connectionsTitle, { color: colors.foreground }]}>My Connections</Text>
+            <View style={[styles.friendCountPill, { backgroundColor: colors.primary + '12' }]}>
+              <Feather name="users" size={14} color={colors.primary} />
+              <Text style={[styles.friendCountText, { color: colors.primary }]}>{friends.data?.length ?? 0}</Text>
+            </View>
+          </View>
+          <Text style={[styles.connectionsSubtitle, { color: colors.mutedForeground }]}>Your circle, requests, and connections.</Text>
         </View>
       </View>
 
@@ -4351,9 +4391,9 @@ function FriendsOverviewScreen({
 
           {connectionsTab === 'circle' ? (
           <View style={styles.friendSection}>
-            <View style={styles.friendSectionHeader}>
+            <View style={[styles.friendSectionHeader, { justifyContent: 'flex-start', gap: 8 }]}>
               <Text style={[styles.friendSectionTitle, { color: colors.foreground }]}>Friend requests</Text>
-              <View style={[styles.friendSectionCount, { backgroundColor: colors.teal + '18' }]}>
+              <View style={[styles.friendSectionCount, { marginLeft: 'auto', backgroundColor: colors.teal + '18' }]}>
                 <Text style={[styles.friendSectionCountText, { color: colors.foreground }]}>{combinedFriendRequests.length}</Text>
               </View>
               <Pressable
@@ -4529,11 +4569,23 @@ function FriendsOverviewScreen({
           ) : null}
 
           {connectionsTab === 'circle' ? <View style={styles.friendSection}>
-            <View style={styles.friendSectionHeader}>
+            <View style={[styles.friendSectionHeader, { justifyContent: 'flex-start', gap: 8 }]}>
               <Text style={[styles.friendSectionTitle, { color: colors.foreground }]}>Your friends</Text>
-              <View style={[styles.friendSectionCount, { backgroundColor: colors.success + '12' }]}>
+              <View style={[styles.friendSectionCount, { marginLeft: 'auto', backgroundColor: colors.success + '12' }]}>
                 <Text style={[styles.friendSectionCountText, { color: colors.success }]}>{friends.data?.length ?? 0}</Text>
               </View>
+              {(friends.data?.length ?? 0) > 3 ? (
+                <Pressable
+                  testID="friends-see-all"
+                  accessibilityRole="button"
+                  accessibilityLabel={showAllFriends ? 'Show fewer friends' : 'See all friends'}
+                  onPress={() => setShowAllFriends((showAll) => !showAll)}
+                  style={({ pressed }) => [styles.seeAllButton, { opacity: pressed ? 0.7 : 1 }]}
+                >
+                  <Text style={[styles.seeAllText, { color: colors.foreground }]}>{showAllFriends ? 'Show less' : 'See all'}</Text>
+                  <Feather name={showAllFriends ? 'chevron-up' : 'chevron-right'} size={16} color={colors.mutedForeground} />
+                </Pressable>
+              ) : null}
             </View>
             {friends.isLoading ? (
               <View style={styles.friendInlineState}>
@@ -4551,7 +4603,7 @@ function FriendsOverviewScreen({
                 <Text style={[styles.friendInlineStateText, { color: colors.foreground }]}>Couldn’t load your friends. Tap to retry.</Text>
               </Pressable>
             ) : friends.data?.length ? (
-              friends.data.map((friend) => {
+              visibleFriends.map((friend) => {
                 const isPinned = (topFriends.data ?? []).some((pinned) => pinned.id === friend.id);
                 const canPin = isPinned || (topFriends.data?.length ?? 0) < 3;
                 return (
@@ -4587,12 +4639,45 @@ function FriendsOverviewScreen({
                         initialStyle={[styles.friendAvatarInitial, { color: colors.primary }]}
                       />
                       <View style={styles.friendPersonCopy}>
-                        <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>{friend.name}</Text>
+                        <View style={styles.friendNameRow}>
+                          <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground, flexShrink: 1 }]}>{friend.name}</Text>
+                          {isPinned ? (
+                            <View style={[styles.friendTopFriendBadge, { backgroundColor: colors.primary + '18' }]}>
+                              <Feather name="star" size={10} color={colors.primary} />
+                              <Text style={[styles.friendTopFriendBadgeText, { color: colors.primary }]}>Top Friend</Text>
+                            </View>
+                          ) : null}
+                        </View>
                         <Text numberOfLines={1} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>
                           {friend.username ? `@${friend.username}` : 'Experiences.fun friend'}
                         </Text>
                       </View>
-                      <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+                    </Pressable>
+                    <Pressable
+                      testID={`friends-chat-${friend.id}`}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Message ${friend.name}`}
+                      accessibilityHint="Opens your direct conversation."
+                      accessibilityState={{ disabled: createDirectConversation.isPending }}
+                      disabled={createDirectConversation.isPending}
+                      onPress={() => {
+                        triggerHaptic();
+                        openFriendConversation(friend.id);
+                      }}
+                      style={({ pressed }) => [
+                        styles.friendChatButton,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                          opacity: createDirectConversation.isPending ? 0.5 : pressed ? 0.68 : 1,
+                        },
+                      ]}
+                    >
+                      {startingChatFriendId === friend.id ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                      ) : (
+                        <Feather name="message-circle" size={16} color={colors.foreground} />
+                      )}
                     </Pressable>
                     <Pressable
                       testID={`friends-pin-${friend.id}`}
@@ -4612,6 +4697,7 @@ function FriendsOverviewScreen({
                     >
                       <Feather name="star" size={18} color={isPinned ? colors.primary : colors.mutedForeground} />
                     </Pressable>
+                    <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
                   </View>
                 );
               })
@@ -7720,7 +7806,7 @@ export default function App() {
       );
     }
     if (screen === 'friend-profile') return <FriendProfileScreen friendId={Number(params.friendId)} onBack={() => go('friends')} />;
-    if (screen === 'friends') return <FriendsOverviewScreen go={go} onBack={() => go('profile')} />;
+    if (screen === 'friends') return <FriendsOverviewScreen go={go} />;
     if (screen === 'accountability') {
       return user.userType === 'participant' ? (
         <AccountabilityPartnerScreen
@@ -8415,8 +8501,16 @@ const styles = StyleSheet.create({
   historyRewardText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   mutedParagraph: { fontSize: 15, fontFamily: 'Inter_400Regular', marginTop: 16, marginBottom: 24 },
   
-  connectionsIntro: { flexDirection: 'row', alignItems: 'center', minHeight: 8, marginTop: 1, marginBottom: 12 },
-  connectionsTitle: { fontSize: 27, lineHeight: 32, letterSpacing: -0.6, fontFamily: 'Inter_700Bold' },
+  connectionsIntro: { minHeight: 72, justifyContent: 'center', marginTop: 10, marginBottom: 12, position: 'relative' },
+  connectionsHeaderCopy: { zIndex: 1 },
+  connectionsTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  connectionsTitle: { flexShrink: 1, fontSize: 26, lineHeight: 32, letterSpacing: -0.6, fontFamily: 'Inter_700Bold' },
+  connectionsSubtitle: { fontSize: 14, lineHeight: 19, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  connectionsHeaderArt: { position: 'absolute', right: -3, top: 0, width: 78, height: 68 },
+  connectionsArtHalo: { position: 'absolute', top: 9, right: 0, width: 72, height: 50, borderRadius: 28 },
+  connectionsArtMainOrb: { position: 'absolute', top: 3, right: 6, width: 43, height: 43, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  connectionsArtSmallOrb: { position: 'absolute', left: 1, bottom: 4, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  connectionsArtSparkle: { position: 'absolute', left: 3, top: 5 },
   connectionsTabs: { height: 48, borderWidth: 1, borderRadius: 25, padding: 4, flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   connectionsTab: { flex: 1, height: 38, minWidth: 0, borderRadius: 20, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5, paddingHorizontal: 5 },
   connectionsTabText: { flexShrink: 1, fontSize: 11, fontFamily: 'Inter_600SemiBold' },
@@ -8476,6 +8570,10 @@ const styles = StyleSheet.create({
   friendAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   friendAvatarInitial: { fontSize: 15, fontFamily: 'Inter_700Bold' },
   friendPersonCopy: { flex: 1, minWidth: 0 },
+  friendNameRow: { flexDirection: 'row', alignItems: 'center', gap: 5, minWidth: 0 },
+  friendTopFriendBadge: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3 },
+  friendTopFriendBadgeText: { fontSize: 9, fontFamily: 'Inter_700Bold' },
+  friendChatButton: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   friendPersonName: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_600SemiBold' },
   friendPersonMeta: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_400Regular', marginTop: 3 },
   friendRequestActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 12 },
