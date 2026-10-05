@@ -1,0 +1,636 @@
+==================================================
+26. MEMORY GAME LEADERBOARD
+==================================================
+
+Add a leaderboard system for the Memory Game.
+
+The leaderboard should allow users to compare their performance with:
+
+1. Friends
+2. Global players
+
+The leaderboard should be accessible directly from the Memory Game and should use the existing Experiences.fun user identity/profile system.
+
+IMPORTANT:
+
+The leaderboard should rank players based on their Memory Game performance, NOT their total Experiences.fun XP.
+
+Do not mix the Memory Game leaderboard with the global Experiences.fun XP leaderboard.
+
+Create a dedicated:
+
+"Memory Leaderboard"
+
+
+==================================================
+27. LEADERBOARD ACCESS
+==================================================
+
+Add a leaderboard button to the Memory Game interface.
+
+Suggested placement:
+
+Top-right navigation:
+
+[ Pause ]     LEVEL 3 / 7     [ Leaderboard ]
+
+Alternatively, use a small trophy icon:
+
+🏆
+
+The button should be visible without distracting from gameplay.
+
+When tapped, open the Memory Leaderboard.
+
+
+==================================================
+28. LEADERBOARD SCREEN
+==================================================
+
+Title:
+
+"Leaderboard"
+
+Under the title, provide two tabs:
+
+FRIENDS     GLOBAL
+
+Default tab:
+
+FRIENDS
+
+The user should be able to switch between the two instantly.
+
+Example:
+
+Leaderboard
+
+[ Friends ] [ Global ]
+
+
+==================================================
+29. FRIENDS LEADERBOARD
+==================================================
+
+The Friends leaderboard shows the player's ranking among people they are connected with on Experiences.fun.
+
+Use the existing Experiences.fun connection/friend system.
+
+If the user has no connections:
+
+"Your friends will appear here once you connect with people."
+
+CTA:
+
+"Find people"
+
+Do not fabricate friends or rankings.
+
+
+==================================================
+30. GLOBAL LEADERBOARD
+==================================================
+
+The Global leaderboard ranks all eligible Experiences.fun users who have played the Memory Game.
+
+Display:
+
+Rank
+Avatar
+Username / Display Name
+Memory Game Score
+
+Example:
+
+GLOBAL
+
+🥇  NALI              1,240 XP
+🥈  Alex              1,185 XP
+🥉  Sarah             1,120 XP
+
+4    Omar              1,075 XP
+5    Maya              1,030 XP
+
+...
+
+The player's own ranking should ALWAYS be visible even if they are outside the top 10.
+
+Example:
+
+──────────────
+
+#247
+
+Your profile
+
+247    You      340 XP
+
+
+==================================================
+31. PLAYER RANKING
+==================================================
+
+The player should be able to see:
+
+- Current rank
+- Total Memory Game XP earned
+- Levels completed
+- Highest level reached
+- Number of games played
+- Best score / best run
+
+Example:
+
+YOUR RANK
+
+#247 Global
+
+340 XP
+
+Level 6
+
+12 levels completed
+
+
+==================================================
+32. LEADERBOARD SCORING
+==================================================
+
+Use a dedicated Memory Game score.
+
+Do NOT simply use the user's total Experiences.fun XP balance.
+
+Recommended score:
+
+Memory Score = total XP earned from successfully completed Memory Game levels
+
+Since each level awards 5 XP:
+
+1 completed level = 5 Memory Score
+
+7 completed levels = 35 Memory Score
+
+However, also store additional performance metrics so the leaderboard can later support more sophisticated scoring.
+
+Store:
+
+memoryXp
+levelsCompleted
+highestLevel
+gamesCompleted
+bestRun
+fastestRecall
+accuracy
+totalAttempts
+
+
+==================================================
+33. LEADERBOARD TIE BREAKING
+==================================================
+
+If two players have the same Memory Score, rank them using:
+
+1. Highest level completed
+2. Highest accuracy
+3. Fewest failed attempts
+4. Fastest completion time
+5. Earlier achievement timestamp
+
+This ensures that equal XP does not always result in an arbitrary ranking.
+
+
+==================================================
+34. LEADERBOARD TIME FILTERS
+==================================================
+
+Build the leaderboard architecture so time-based leaderboards can be added later.
+
+For the initial version, only show:
+
+ALL TIME
+
+But structure the backend so we can later support:
+
+TODAY
+THIS WEEK
+THIS MONTH
+ALL TIME
+
+Do NOT build the additional filters yet unless they are trivial to implement.
+
+
+==================================================
+35. PLAYER CARD
+==================================================
+
+Each leaderboard row should be visually minimal.
+
+Example:
+
+┌──────────────────────────────┐
+│  01   [Avatar]  Alex        │
+│       Level 7                │
+│                         35 XP│
+└──────────────────────────────┘
+
+The current user's row should have a subtle highlighted state.
+
+Example:
+
+┌──────────────────────────────┐
+│ 247   [Avatar]  You          │
+│       Level 5            25 XP│
+└──────────────────────────────┘
+
+
+==================================================
+36. TOP 3 DESIGN
+==================================================
+
+Give the top 3 players slightly more visual emphasis.
+
+Example:
+
+🥇 #1
+🥈 #2
+🥉 #3
+
+But keep the design minimal.
+
+Do NOT create a huge trophy podium that takes over the screen.
+
+The game should still feel like Experiences.fun rather than a generic mobile leaderboard.
+
+
+==================================================
+37. FRIEND CONNECTION LOGIC
+==================================================
+
+The Friends leaderboard should use existing Experiences.fun relationships.
+
+Preferred relationship hierarchy:
+
+1. Existing friends/connections
+2. Existing accountability partners
+3. Existing community connections
+
+Use the existing connection model where possible.
+
+Do NOT create a second independent "friend" database purely for this game.
+
+If Experiences.fun already has a "My Connections" system, integrate directly with it.
+
+
+==================================================
+38. LEADERBOARD PRIVACY
+==================================================
+
+Respect the user's existing profile/privacy settings.
+
+If a user has chosen a private profile:
+
+- Do not expose unnecessary personal information.
+- Use their configured display name.
+- Use their configured avatar.
+- Do not expose private profile data.
+
+The leaderboard should never expose:
+
+- Email addresses
+- Wallet addresses
+- Telegram IDs
+- Private account information
+
+
+==================================================
+39. LEADERBOARD DATA MODEL
+==================================================
+
+Create or extend a dedicated leaderboard/game statistics model.
+
+Suggested structure:
+
+MemoryGameStats
+
+{
+  userId,
+  memoryXp,
+  levelsCompleted,
+  highestLevel,
+  gamesPlayed,
+  gamesCompleted,
+  totalAttempts,
+  successfulAttempts,
+  accuracy,
+  bestRun,
+  fastestCompletion,
+  lastPlayedAt,
+  createdAt,
+  updatedAt
+}
+
+
+==================================================
+40. LEADERBOARD QUERY
+==================================================
+
+Global leaderboard:
+
+ORDER BY
+
+memoryXp DESC
+
+Then:
+
+highestLevel DESC
+
+Then:
+
+accuracy DESC
+
+Then:
+
+failedAttempts ASC
+
+Then:
+
+fastestCompletion ASC
+
+
+Return:
+
+- Top 100 players
+- Current user's rank
+- Current user's statistics
+
+Do NOT load every user into the client.
+
+Leaderboard ranking should be calculated server-side.
+
+
+==================================================
+41. PERFORMANCE
+==================================================
+
+The leaderboard must not negatively affect game performance.
+
+Do not query the entire user database every time the leaderboard opens.
+
+Use:
+
+- Indexed queries
+- Pagination
+- Cached rankings where appropriate
+- Server-side ranking
+
+Recommended:
+
+Top 100 leaderboard entries
+
++
+
+Current user's rank
+
++
+
+Nearby players around the current user's position.
+
+Example:
+
+#245
+#246
+#247 YOU
+#248
+#249
+
+
+==================================================
+42. LEADERBOARD UX FLOW
+==================================================
+
+GAME
+
+↓
+
+User taps 🏆
+
+↓
+
+LEADERBOARD
+
+┌─────────────────────────────┐
+│ Leaderboard                 │
+│                             │
+│ [ Friends ] [ Global ]      │
+│                             │
+│ 🥇 Alex              1,240  │
+│ 🥈 Sarah             1,185  │
+│ 🥉 Omar              1,120  │
+│                             │
+│ 4   Maya               980  │
+│ 5   Liam               920  │
+│                             │
+│ ─────────────────────────── │
+│                             │
+│ #247 YOU             340 XP │
+└─────────────────────────────┘
+
+↓
+
+USER TAPS BACK
+
+↓
+
+GAME
+
+
+==================================================
+43. POST-LEVEL LEADERBOARD MOMENT
+==================================================
+
+After successfully completing a level:
+
+Level complete!
+
++5 XP
+
+Your rank:
+
+#247 → #241
+
+If the user's ranking improves, show the movement subtly.
+
+Example:
+
+↑ 6 places
+
+Do NOT show this every time if the ranking did not change.
+
+This creates a useful feedback loop:
+
+PLAY
+→
+EARN XP
+→
+RANK CHANGES
+→
+SEE PROGRESS
+→
+PLAY AGAIN
+
+
+==================================================
+44. LEADERBOARD MOTIVATION
+==================================================
+
+The leaderboard should encourage healthy competition.
+
+Use language such as:
+
+"You're 15 XP away from #200"
+
+or:
+
+"3 more levels to pass Alex"
+
+Avoid manipulative language such as:
+
+"YOU'RE FALLING BEHIND!"
+
+The experience should encourage improvement rather than create anxiety.
+
+
+==================================================
+45. DATA INTEGRITY
+==================================================
+
+Leaderboard scores MUST be calculated from verified game completions.
+
+Never allow the client to submit:
+
+"Give me 5 XP"
+
+Instead:
+
+Client submits:
+
+level completion attempt
+
+Server validates:
+
+- User identity
+- Game state
+- Level
+- Attempt
+- Correct answers
+- Completion status
+- Whether XP was already awarded
+
+Server then:
+
+1. Records completion.
+2. Awards 5 XP.
+3. Updates MemoryGameStats.
+4. Recalculates leaderboard position.
+
+
+==================================================
+46. ANTI-CHEAT FOUNDATION
+==================================================
+
+The initial version does not need sophisticated anti-cheat.
+
+However, architect the system so obvious abuse can be detected.
+
+Track:
+
+- Impossible completion times
+- Excessive level completion frequency
+- Duplicate attempts
+- Duplicate XP events
+- Suspicious client requests
+
+Never trust:
+
+- Client-side score
+- Client-side XP
+- Client-side level completion
+- Client-side leaderboard position
+
+
+==================================================
+47. LEADERBOARD ACCEPTANCE CRITERIA
+==================================================
+
+[ ] User can open Memory Leaderboard.
+
+[ ] User can switch between Friends and Global.
+
+[ ] Friends leaderboard uses existing Experiences.fun connections.
+
+[ ] Global leaderboard shows ranked Memory Game players.
+
+[ ] User can always see their own ranking.
+
+[ ] User can see their Memory Game XP.
+
+[ ] User can see their highest completed level.
+
+[ ] Top 3 players receive visual emphasis.
+
+[ ] User's own row is highlighted.
+
+[ ] Leaderboard ranking is calculated server-side.
+
+[ ] XP cannot be artificially increased from the client.
+
+[ ] Duplicate XP rewards are prevented.
+
+[ ] Leaderboard supports pagination.
+
+[ ] Leaderboard does not load every user.
+
+[ ] Privacy settings are respected.
+
+[ ] Leaderboard works inside Telegram Mini App.
+
+[ ] Ranking updates after successful level completion.
+
+[ ] Ranking movement can be displayed after a level.
+
+[ ] Existing Experiences.fun XP remains separate from Memory Game ranking.
+
+[ ] No existing Experiences.fun functionality is broken.
+
+
+==================================================
+48. IMPORTANT PRODUCT PRINCIPLE
+==================================================
+
+The leaderboard is part of the game's progression loop.
+
+The complete loop is:
+
+MEMORIZE
+↓
+PLAY
+↓
+COMPLETE LEVEL
+↓
++5 XP
+↓
+RANK UP
+↓
+COMPARE WITH FRIENDS
+↓
+COMPARE GLOBALLY
+↓
+PLAY AGAIN
+
+The leaderboard should create a reason to improve without making the game feel competitive by default.
+
+The primary experience remains:
+
+Memory → Mastery → XP → Reputation
+
+The leaderboard is the social layer around that loop.

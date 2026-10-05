@@ -1,0 +1,904 @@
+BUILD FEATURE: EXPERIENCES.FUN MEMORY GAME
+
+Create a minimal, polished memory game inside Experiences.fun inspired by the visual simplicity and gameplay flow of the reference game "Impulse".
+
+IMPORTANT:
+- Use the uploaded reference screenshots as visual inspiration.
+- DO NOT copy the artwork, branding, typography, or exact UI.
+- Recreate the underlying interaction pattern using Experiences.fun's own visual identity.
+- Replace ghosts with cute, minimal ASTRONAUT characters.
+- The game should feel native to Experiences.fun, not like an embedded third-party game.
+
+==================================================
+1. CORE GAME CONCEPT
+==================================================
+
+The player is shown a grid of tiles.
+
+Some tiles contain astronauts.
+
+The player has a short amount of time to memorize which tiles contain astronauts.
+
+The tiles then flip/hide.
+
+The player must tap the tiles that previously contained astronauts.
+
+If all astronaut positions are selected correctly, the player completes the level and receives +5 XP.
+
+After completing a level, the next level becomes progressively harder by increasing the number of tiles and/or astronaut positions.
+
+The goal is to test and improve memory.
+
+Core loop:
+
+SEE → MEMORIZE → HIDE → RECALL → COMPLETE → +5 XP → NEXT LEVEL
+
+
+==================================================
+2. GAME FLOW
+==================================================
+
+SCREEN 1: HOW TO PLAY
+
+Create a simple onboarding screen shown the first time a user launches the game.
+
+Title:
+
+"How to play"
+
+Main visual:
+
+Show a small grid of tiles.
+
+Some tiles are revealed and contain astronauts.
+
+Example:
+
+[   ] [ 🚀 ] [   ]
+[ 🚀 ] [   ] [   ]
+[   ] [   ] [ 🚀 ]
+
+Instruction:
+
+"Remember where the astronauts are"
+
+Primary CTA:
+
+"Got it"
+
+Keep this screen extremely minimal.
+
+Do not overload the player with instructions.
+
+Optional secondary text:
+
+"Remember the astronauts. Tap their tiles after they disappear."
+
+Once the user taps "Got it", start Level 1.
+
+
+==================================================
+3. GAME SCREEN
+==================================================
+
+The game screen should be extremely clean.
+
+Top navigation:
+
+[ Pause ]     LEVEL 1 / 7     [ ? ]
+
+Use a compact progress indicator.
+
+Example:
+
+1 / 7
+
+or:
+
+LEVEL 1
+
+The right side can display the player's current score/XP progress if useful.
+
+Main instruction:
+
+"Remember the astronauts"
+
+During the memorization phase, show the astronaut tiles clearly.
+
+Example:
+
+┌─────┐ ┌─────┐ ┌─────┐
+│     │ │  🚀 │ │     │
+└─────┘ └─────┘ └─────┘
+
+┌─────┐ ┌─────┐ ┌─────┐
+│  🚀 │ │     │ │     │
+└─────┘ └─────┘ └─────┘
+
+┌─────┐ ┌─────┐ ┌─────┐
+│     │ │     │ │  🚀 │
+└─────┘ └─────┘ └─────┘
+
+
+==================================================
+4. MEMORIZATION PHASE
+==================================================
+
+The astronaut positions are revealed for a limited amount of time.
+
+The player has a maximum of 3–5 seconds to memorize the positions.
+
+Use the following timing system:
+
+LEVEL 1:
+5 seconds
+
+LEVEL 2:
+5 seconds
+
+LEVEL 3:
+4 seconds
+
+LEVEL 4:
+4 seconds
+
+LEVEL 5:
+3.5 seconds
+
+LEVEL 6:
+3 seconds
+
+LEVEL 7:
+3 seconds
+
+The timer should be visually obvious but not distracting.
+
+Example:
+
+"Remember..."
+
+[████████████████░░░]
+
+3.2s
+
+When the timer reaches zero, all tiles flip over.
+
+
+==================================================
+5. RECALL PHASE
+==================================================
+
+After the memorization timer ends:
+
+- Hide all astronauts.
+- Flip all tiles to their hidden state.
+- Change the instruction to:
+
+"Tap the astronaut tiles"
+
+The user can now tap tiles.
+
+Selected tiles should receive a clear visual state.
+
+Example:
+
+UNSELECTED:
+Dark tile
+
+SELECTED:
+Highlighted tile with a subtle confirmation indicator.
+
+Do NOT immediately reveal the astronaut after each tap.
+
+The player should have to rely entirely on memory.
+
+
+==================================================
+6. ANSWER VALIDATION
+==================================================
+
+The player must correctly select EVERY tile that previously contained an astronaut.
+
+Rules:
+
+- Selecting a correct tile = correct.
+- Selecting an incorrect tile = mistake.
+- Missing an astronaut tile = incomplete answer.
+- Selecting an incorrect tile should trigger a short visual error state.
+- The game should then reveal the correct answer briefly.
+
+If the player succeeds:
+
+Show:
+
+"Level complete!"
+
+Then:
+
+"+5 XP"
+
+Then automatically transition to the next level after a short delay.
+
+If the player fails:
+
+Show:
+
+"Not quite"
+
+Then briefly reveal the correct astronaut positions.
+
+Provide a CTA:
+
+"Try again"
+
+Retrying the level should NOT award XP.
+
+XP is awarded only once when the level is successfully completed.
+
+
+==================================================
+7. XP SYSTEM
+==================================================
+
+Every successfully completed level awards:
+
++5 XP
+
+Example:
+
+Level 1 complete
++5 XP
+
+Level 2 complete
++5 XP
+
+Level 3 complete
++5 XP
+
+etc.
+
+XP must be persisted using the existing Experiences.fun XP/reward system.
+
+IMPORTANT:
+
+Do not simply modify a frontend XP counter.
+
+The XP reward must use the application's existing backend/database XP mechanism so users cannot refresh/reload the game to repeatedly claim XP.
+
+Each successful level completion should generate a unique completion/reward event.
+
+Prevent duplicate XP claims for the same level attempt.
+
+
+==================================================
+8. LEVEL PROGRESSION
+==================================================
+
+The game should progressively increase difficulty.
+
+Recommended progression:
+
+LEVEL 1
+Grid: 3 × 3
+Astronauts: 3
+Memorization: 5 seconds
+
+LEVEL 2
+Grid: 3 × 3
+Astronauts: 4
+Memorization: 5 seconds
+
+LEVEL 3
+Grid: 3 × 3
+Astronauts: 5
+Memorization: 4 seconds
+
+LEVEL 4
+Grid: 4 × 3
+Astronauts: 5
+Memorization: 4 seconds
+
+LEVEL 5
+Grid: 4 × 3
+Astronauts: 6
+Memorization: 3.5 seconds
+
+LEVEL 6
+Grid: 4 × 4
+Astronauts: 7
+Memorization: 3 seconds
+
+LEVEL 7
+Grid: 4 × 4
+Astronauts: 8
+Memorization: 3 seconds
+
+The exact difficulty should be easy to modify in a configuration object rather than hardcoded throughout the game.
+
+
+==================================================
+9. VISUAL DESIGN
+==================================================
+
+The visual direction should be inspired by the uploaded Impulse screenshots.
+
+Principles:
+
+- Minimal
+- Playful
+- High contrast
+- Large touch targets
+- Very little text
+- Strong visual hierarchy
+- Smooth transitions
+- Mobile-first
+- Telegram Mini App friendly
+
+Do NOT make this look like a generic SaaS dashboard.
+
+It should feel like a small polished game living inside Experiences.fun.
+
+
+==================================================
+10. ASTRONAUT DESIGN
+==================================================
+
+Replace ghosts with astronauts.
+
+Create a simple, friendly astronaut illustration.
+
+The astronaut should:
+
+- Be immediately recognizable.
+- Have a simple silhouette.
+- Work at small sizes.
+- Have a playful expression.
+- Use Experiences.fun's visual language.
+- Avoid excessive detail.
+- Work on both light and dark tile backgrounds.
+
+Ideally create 3–5 subtle astronaut variations so the game does not feel repetitive.
+
+Examples:
+
+Astronaut waving
+
+Astronaut floating
+
+Astronaut giving thumbs up
+
+Astronaut looking surprised
+
+Astronaut holding a tiny planet
+
+
+IMPORTANT:
+
+The astronaut should NOT be a realistic astronaut.
+
+Use a simple illustrated/cartoon character.
+
+
+==================================================
+11. TILE DESIGN
+==================================================
+
+Tiles should be large enough for comfortable mobile tapping.
+
+Hidden tile:
+
+- Dark / muted background
+- No unnecessary icon
+- Slightly rounded corners
+
+Revealed tile:
+
+- Experiences.fun accent background
+- Astronaut centered
+- Strong contrast
+
+Selected tile:
+
+- Clear selected state
+- Subtle animation
+- Do not rely only on color to communicate state
+
+Correct:
+
+- Short positive animation
+- Optional small check indicator
+
+Incorrect:
+
+- Short shake animation
+- Brief error state
+
+
+==================================================
+12. ANIMATION
+==================================================
+
+Animations should feel fast and responsive.
+
+Tile reveal:
+
+~200–300ms
+
+Tile flip:
+
+~250–350ms
+
+Correct selection:
+
+~150–250ms
+
+Incorrect selection:
+
+Short shake, approximately 250ms
+
+Level completion:
+
+Small celebratory animation.
+
+Do NOT add excessive particles, confetti, sounds, or unnecessary effects.
+
+The game should feel sophisticated and calm.
+
+Think:
+
+Brilliant / Impulse / Duolingo-style interaction quality.
+
+Not:
+
+mobile casino game from 2014.
+
+
+==================================================
+13. GAME STATES
+==================================================
+
+Implement the game as explicit states.
+
+Suggested state machine:
+
+HOW_TO_PLAY
+↓
+COUNTDOWN
+↓
+MEMORIZE
+↓
+HIDDEN
+↓
+RECALL
+↓
+VALIDATING
+↓
+SUCCESS / FAILURE
+↓
+NEXT_LEVEL
+
+Example:
+
+HOW_TO_PLAY
+User taps "Got it"
+
+↓
+
+COUNTDOWN
+
+"3"
+
+"2"
+
+"1"
+
+↓
+
+MEMORIZE
+
+"Remember the astronauts"
+
+↓
+
+HIDDEN
+
+Tiles flip
+
+↓
+
+RECALL
+
+"Tap the astronaut tiles"
+
+↓
+
+SUCCESS
+
+"Level complete!"
+
+"+5 XP"
+
+↓
+
+NEXT LEVEL
+
+
+==================================================
+14. PAUSE FUNCTION
+==================================================
+
+Include a pause button.
+
+When paused:
+
+Title:
+
+"Game paused"
+
+Buttons:
+
+"Resume"
+
+"Restart"
+
+Restarting should reset the current level.
+
+Do not award XP during paused/restarted states.
+
+
+==================================================
+15. HELP BUTTON
+==================================================
+
+Include a small "?" button in the top navigation.
+
+When tapped, show a minimal explanation:
+
+"Memorize where the astronauts are.
+
+When the tiles disappear, tap the tiles where you remember seeing them.
+
+Complete a level to earn 5 XP."
+
+CTA:
+
+"Got it"
+
+
+==================================================
+16. LEVEL COMPLETION
+==================================================
+
+When a player completes a level:
+
+Show a small completion state.
+
+Example:
+
+✓
+
+"Level complete"
+
+"+5 XP"
+
+"Next level →"
+
+Keep this screen short.
+
+Do not interrupt the flow with a large modal unless necessary.
+
+
+==================================================
+17. FINAL LEVEL
+==================================================
+
+After completing the final level:
+
+Show:
+
+"You remembered them all!"
+
+"+35 XP"
+
+"7 levels completed"
+
+Then:
+
+"Play again"
+
+and optionally:
+
+"Back to Experiences"
+
+XP calculation:
+
+7 levels × 5 XP = 35 XP
+
+
+==================================================
+18. XP / USER DATA
+
+Persist:
+
+- Current level
+- Highest level completed
+- Total XP earned from this game
+- Completed levels
+- Game attempts
+- Last played timestamp
+
+Do NOT trust client-side XP values.
+
+All XP awards must be validated server-side.
+
+Recommended backend event:
+
+memory_game_level_completed
+
+Payload:
+
+{
+  userId,
+  gameId,
+  level,
+  xpAwarded: 5,
+  timestamp,
+  attemptId
+}
+
+Use an idempotency mechanism so the same completion event cannot award XP twice.
+
+
+==================================================
+19. RESPONSIVE DESIGN
+==================================================
+
+This is primarily designed for mobile / Telegram Mini Apps.
+
+Optimize for:
+
+- iPhone
+- Android
+- Telegram Web App viewport
+
+The grid should dynamically resize based on viewport width.
+
+Important:
+
+Never make the tiles so small that users can accidentally tap adjacent tiles.
+
+Maintain comfortable touch targets.
+
+The game should also work reasonably on desktop browsers.
+
+
+==================================================
+20. EXPERIENCES.FUN BRANDING
+==================================================
+
+The game should feel like an Experiences.fun feature.
+
+Do NOT place the Experiences.fun logo everywhere.
+
+Brand subtly through:
+
+- Typography
+- Accent colors
+- UI components
+- XP treatment
+- Astronaut artwork
+- Motion language
+
+The game should feel like:
+
+"Experiences.fun has games"
+
+rather than:
+
+"Experiences.fun embedded another website."
+
+
+==================================================
+21. UX COPY
+==================================================
+
+Use concise copy.
+
+HOW TO PLAY:
+
+"How to play"
+
+"Remember where the astronauts are"
+
+"Got it"
+
+MEMORIZATION:
+
+"Remember the astronauts"
+
+RECALL:
+
+"Tap the astronaut tiles"
+
+SUCCESS:
+
+"Level complete!"
+
+"+5 XP"
+
+FAILURE:
+
+"Not quite"
+
+"Try again"
+
+FINAL:
+
+"You remembered them all!"
+
+"35 XP earned"
+
+
+==================================================
+22. TECHNICAL REQUIREMENTS
+==================================================
+
+Before implementing:
+
+1. Inspect the existing Experiences.fun repository.
+2. Identify the current:
+   - XP system
+   - User identity/authentication
+   - Database schema
+   - UI component system
+   - Theme system
+   - Telegram Mini App integration
+3. Reuse existing components wherever possible.
+4. Do NOT introduce a new framework or state management library unless absolutely necessary.
+5. Keep the game modular.
+
+Suggested structure:
+
+components/
+  MemoryGame/
+    MemoryGame.tsx
+    MemoryGrid.tsx
+    MemoryTile.tsx
+    GameHeader.tsx
+    GameInstructions.tsx
+    GameResult.tsx
+    GameHelp.tsx
+    GamePause.tsx
+
+lib/
+  memoryGame/
+    levels.ts
+    gameState.ts
+    scoring.ts
+    xp.ts
+
+Keep level configuration separate:
+
+const MEMORY_LEVELS = [
+  {
+    level: 1,
+    rows: 3,
+    columns: 3,
+    astronauts: 3,
+    memorizeTime: 5000
+  },
+  ...
+];
+
+
+==================================================
+23. IMPORTANT IMPLEMENTATION RULES
+==================================================
+
+DO:
+
+- Reuse the existing Experiences.fun design system.
+- Make the game extremely responsive.
+- Make the interaction feel immediate.
+- Keep the UI minimal.
+- Make the game accessible.
+- Make XP rewards server validated.
+- Make level configuration easy to modify.
+- Add subtle animations.
+- Ensure the game works inside Telegram Mini App.
+
+DO NOT:
+
+- Build a completely separate design system.
+- Add unnecessary menus.
+- Add ads.
+- Add unnecessary currencies.
+- Add NFTs.
+- Add leaderboards yet.
+- Add complicated achievements yet.
+- Add multiplayer yet.
+- Award XP from frontend state alone.
+- Make the UI visually cluttered.
+- Copy Impulse's artwork directly.
+
+
+==================================================
+24. ACCEPTANCE CRITERIA
+==================================================
+
+The feature is complete when:
+
+[ ] User can open Memory Game.
+
+[ ] First-time users see "How to play".
+
+[ ] User can tap "Got it".
+
+[ ] Level 1 generates correctly.
+
+[ ] Astronaut positions are randomly generated.
+
+[ ] Player receives approximately 5 seconds to memorize them.
+
+[ ] Tiles flip/hide after the timer.
+
+[ ] User can select tiles.
+
+[ ] Correct selections are validated.
+
+[ ] Incorrect selections trigger a failure state.
+
+[ ] Successful completion awards exactly 5 XP.
+
+[ ] XP persists after refresh.
+
+[ ] XP cannot be duplicated through refresh/replay exploits.
+
+[ ] Next level increases difficulty.
+
+[ ] Level 7 can be completed.
+
+[ ] Final completion shows total XP earned.
+
+[ ] Pause works.
+
+[ ] Help works.
+
+[ ] Game works on mobile.
+
+[ ] Game works inside Telegram Mini App.
+
+[ ] Animations are smooth.
+
+[ ] No major layout shifts occur.
+
+[ ] No console errors.
+
+[ ] Existing Experiences.fun functionality remains unaffected.
+
+
+==================================================
+25. PRODUCT PRINCIPLE
+==================================================
+
+The game is not intended to be a standalone arcade game.
+
+It exists to make learning, cognitive development and contribution inside Experiences.fun more engaging.
+
+The experience should follow this principle:
+
+LOW FRICTION
++
+SHORT SESSION
++
+CLEAR CHALLENGE
++
+IMMEDIATE FEEDBACK
++
+MEANINGFUL REWARD
+
+The user should be able to open the game, play a level, earn 5 XP and leave within approximately 30–60 seconds.
+
+The game should make users want to replay because they want to improve their memory and progress their Experiences.fun profile, not because the UI is aggressively trying to manipulate them.
+
+Build the first version cleanly and modularly so additional cognitive games can later use the same underlying game/reward infrastructure.
