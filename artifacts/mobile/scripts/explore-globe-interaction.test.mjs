@@ -437,12 +437,14 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
         } else if (url.pathname === "/api/experiences/761" && method === "GET") {
           response = {
             ...experiences[0],
-            whatToBring: null,
-            whatYouWillDo: null,
+            whatToBring: "Wear gloves for the cleanup.",
+            whatYouWillDo: "Join the riverbank cleanup with local volunteers.",
             joined: false,
             participation: null,
             milestones: [],
           };
+        } else if (url.pathname === "/api/host/experiences/761/milestones" && method === "GET") {
+          response = { milestones: [], submissions: [], milestonesEditable: true };
         } else if (url.pathname === "/api/experiences" && method === "GET") {
           const category = url.searchParams.get("category");
           const search = url.searchParams.get("search")?.trim().toLowerCase() ?? "";
@@ -855,13 +857,76 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     Boolean,
     "the detail page opened by the verified location pin",
   );
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="experience-edit-details"]'))`),
+    false,
+    "Participants should not see the organisation edit control.",
+  );
+  await tapTestId(client, "experience-section-toggle-timeline");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('Complete this experience')`,
+    Boolean,
+    "the expanded completion timeline",
+  );
+  await tapTestId(client, "experience-section-toggle-timeline");
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="experience-section-toggle-timeline"]')?.getAttribute('aria-expanded') ?? ''`),
+    "false",
+    "The completion timeline should collapse again.",
+  );
+  await tapTestId(client, "experience-section-toggle-activity");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('Join the riverbank cleanup with local volunteers.') && document.body.innerText.includes('Wear gloves for the cleanup.')`,
+    Boolean,
+    "the expanded activity and what-to-bring details",
+  );
+  await tapTestId(client, "experience-section-toggle-host");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('A local test organisation.')`,
+    Boolean,
+    "the expanded host description",
+  );
 
   await waitForValue(client, "document.readyState", (state) => state === "complete", "the Explore page load");
+  user.userType = "organisation";
+  user.organisation = { ...experiences[0].organisation, id: experiences[0].organisation.id + 1 };
+  await client.send("Page.navigate", { url: `https://${domain}/?screen=experience&id=761` });
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('Experience details') && document.body.innerText.includes('London River Cleanup')`,
+    Boolean,
+    "the experience page for an organisation that does not own it",
+  );
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="experience-edit-details"]'))`),
+    false,
+    "An organisation that does not own the experience should not see its edit control.",
+  );
+  user.organisation = experiences[0].organisation;
+  await client.send("Page.reload");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="experience-edit-details"]'))`,
+    Boolean,
+    "the edit control for the owning organisation",
+  );
+  await tapTestId(client, "experience-edit-details");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="create-review-heading"]')) && document.body.innerText.includes('London River Cleanup')`,
+    Boolean,
+    "the existing edit form opened from experience details",
+  );
+
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/me")), "The mock-auth session should load.");
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/friends")), "Accepted friends should be fetched for city-level map pins.");
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/experiences")), "Experiences should be fetched.");
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/explore/activity")), "Host-verified city activity should be fetched.");
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/experiences/761")), "A verified location pin should open its backed experience detail.");
+  assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/host/experiences/761/milestones")), "The existing host edit form should load this experience's editable milestones.");
   assert.equal(interceptionError, undefined, "API request interception should complete without errors.");
   assert.deepEqual(unexpectedApiRequests, [], "The Explore screen should make no unexpected API requests.");
 });

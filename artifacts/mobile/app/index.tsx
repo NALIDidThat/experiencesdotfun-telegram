@@ -2560,6 +2560,11 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [expandedSections, setExpandedSections] = useState({
+    timeline: false,
+    activity: false,
+    host: false,
+  });
   const query = useGetExperience(id, { query: { queryKey: getGetExperienceQueryKey(id), enabled: Number.isSafeInteger(id) && id > 0 } });
   const join = useJoinExperience({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const submit = useSubmitCompletion({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
@@ -2627,13 +2632,25 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
       }];
   const acceptsParticipants = item.status === 'published' || item.status === 'full';
   const gradient = categoryGradients[item.category] || categoryGradients.community;
+  const canEditExperience = user?.userType === 'organisation'
+    && user.organisation?.id === item.organisation.id
+    && ['published', 'full'].includes(item.status);
+  const toggleDetailSection = (section: keyof typeof expandedSections) => {
+    triggerHaptic();
+    setExpandedSections((current) => ({ ...current, [section]: !current[section] }));
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.muted }}>
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.muted }}
-        contentContainerStyle={styles.detailScrollContent}
+        contentContainerStyle={[
+          styles.detailScrollContent,
+          { paddingBottom: 20 + (Platform.OS === 'web' ? 34 : Math.max(insets.bottom, 12)) + 96 },
+        ]}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.detailToolbar}>
           <Pressable
@@ -2646,7 +2663,22 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
             <Feather name="arrow-left" size={20} color={colors.foreground} />
           </Pressable>
           <Text style={[styles.detailToolbarTitle, { color: colors.foreground }]}>Experience details</Text>
-          <View style={styles.detailToolbarSpacer} />
+          {canEditExperience ? (
+            <Pressable
+              testID="experience-edit-details"
+              accessibilityRole="button"
+              accessibilityLabel="Edit experience details"
+              onPress={() => {
+                triggerHaptic();
+                go('create', { id: String(id), step: String(createExperienceQuestions.length + 1) });
+              }}
+              style={[styles.detailToolbarButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <Feather name="edit-2" size={17} color={colors.foreground} />
+            </Pressable>
+          ) : (
+            <View style={styles.detailToolbarSpacer} />
+          )}
         </View>
 
         {item.status === 'cancelled' ? (
@@ -2724,7 +2756,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
         </View>
 
         <View style={styles.detailMetaGrid}>
-          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
+          <View style={[styles.metaBox, styles.detailWhenBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
             <View style={styles.metaIconLabel}>
               <Feather name="calendar" size={15} color={colors.primary} />
               <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHEN</Text>
@@ -2732,9 +2764,9 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
             <Text style={[styles.metaValue, { color: colors.foreground }]}>{dateLabel(item.date)}</Text>
             <Text style={[styles.metaSub, { color: colors.mutedForeground }]}>{item.startTime} – {item.endTime}</Text>
           </View>
-          <View style={[styles.metaBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
+          <View style={[styles.metaBox, styles.detailWhereBox, { backgroundColor: colors.teal + '0C', borderColor: colors.teal + '30', borderRadius: colors.radius + 6 }]}>
             <View style={styles.metaIconLabel}>
-              <Feather name="map-pin" size={15} color={colors.primary} />
+              <Feather name="map-pin" size={15} color={colors.teal} />
               <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHERE</Text>
             </View>
             <Text style={[styles.metaValue, { color: colors.foreground }]}>{item.city}</Text>
@@ -2742,15 +2774,31 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           </View>
         </View>
 
-        <View style={[styles.detailHostCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
-          <View style={[styles.detailHostAvatar, { backgroundColor: colors.primary + '18' }]}>
-            <Text style={[styles.detailHostInitial, { color: colors.primary }]}>{item.organisation.name.slice(0, 1).toUpperCase()}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.detailHostLabel, { color: colors.mutedForeground }]}>HOSTED BY</Text>
-            <Text style={[styles.detailHostName, { color: colors.foreground }]}>{item.organisation.name}</Text>
-          </View>
-          {item.organisation.verified ? <Feather name="check-circle" size={19} color={colors.success} /> : null}
+        <View style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
+          <Pressable
+            testID="experience-section-toggle-host"
+            accessibilityRole="button"
+            accessibilityLabel={expandedSections.host ? 'Collapse host details' : 'Expand host details'}
+            accessibilityState={{ expanded: expandedSections.host }}
+            aria-expanded={expandedSections.host}
+            onPress={() => toggleDetailSection('host')}
+            style={styles.detailAccordionHeader}
+          >
+            <View style={[styles.detailHostAvatar, { backgroundColor: colors.primary + '18' }]}>
+              <Text style={[styles.detailHostInitial, { color: colors.primary }]}>{item.organisation.name.slice(0, 1).toUpperCase()}</Text>
+            </View>
+            <View style={styles.detailAccordionCopy}>
+              <Text style={[styles.detailHostLabel, { color: colors.mutedForeground }]}>HOSTED BY</Text>
+              <Text style={[styles.detailHostName, { color: colors.foreground }]} numberOfLines={1}>{item.organisation.name}</Text>
+            </View>
+            {item.organisation.verified ? <Feather name="check-circle" size={18} color={colors.success} /> : null}
+            <Feather name={expandedSections.host ? 'chevron-up' : 'chevron-down'} size={18} color={colors.mutedForeground} />
+          </Pressable>
+          {expandedSections.host ? (
+            <Text style={[styles.detailBody, { color: colors.inkSoft, marginTop: 12 }]}>
+              {item.organisation.description || 'No further host details are available.'}
+            </Text>
+          ) : null}
         </View>
 
         <View
@@ -2784,20 +2832,36 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
         </View>
 
         <View style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
-          <View style={styles.infoBlockHeading}>
+          <Pressable
+            testID="experience-section-toggle-timeline"
+            accessibilityRole="button"
+            accessibilityLabel={expandedSections.timeline ? 'Collapse completion timeline' : 'Expand completion timeline'}
+            accessibilityState={{ expanded: expandedSections.timeline }}
+            aria-expanded={expandedSections.timeline}
+            onPress={() => toggleDetailSection('timeline')}
+            style={styles.detailAccordionHeader}
+          >
             <View style={[styles.infoBlockIcon, { backgroundColor: colors.primary + '12' }]}>
               <Feather name="list" size={16} color={colors.primary} />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Completion timeline</Text>
-              <Text style={[styles.detailBody, { color: colors.mutedForeground, fontSize: 12, marginTop: 3 }]}>
+            <View style={styles.detailAccordionCopy}>
+              <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Timeline</Text>
+              <Text style={[styles.detailAccordionSubtitle, { color: colors.mutedForeground }]}>
+                {hasConfiguredMilestones
+                  ? `${timelineMilestones.length} steps · submit for verified XP`
+                  : 'One completion submission · XP after verification'}
+              </Text>
+            </View>
+            <Feather name={expandedSections.timeline ? 'chevron-up' : 'chevron-down'} size={18} color={colors.mutedForeground} />
+          </Pressable>
+          {expandedSections.timeline ? (
+            <>
+              <Text style={[styles.detailBody, { color: colors.mutedForeground, fontSize: 12, marginTop: 12 }]}>
                 {hasConfiguredMilestones
                   ? 'Each reward is released after its milestone is submitted and verified by the host.'
                   : 'XP is released after the host verifies your completion.'}
               </Text>
-            </View>
-          </View>
-          <View style={{ marginTop: 14 }}>
+              <View style={{ marginTop: 14 }}>
             {timelineMilestones.map((milestone, index) => {
               const verified = milestone.status === 'verified';
               const awaitingReview = milestone.status === 'submitted';
@@ -2884,29 +2948,50 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
               Join this experience to track and submit milestone progress.
             </Text>
           ) : null}
+            </>
+          ) : null}
         </View>
 
-        {item.whatYouWillDo ? (
+        {item.whatYouWillDo || item.whatToBring ? (
           <View style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
-            <View style={styles.infoBlockHeading}>
+            <Pressable
+              testID="experience-section-toggle-activity"
+              accessibilityRole="button"
+              accessibilityLabel={expandedSections.activity ? 'Collapse activity details' : 'Expand activity details'}
+              accessibilityState={{ expanded: expandedSections.activity }}
+              aria-expanded={expandedSections.activity}
+              onPress={() => toggleDetailSection('activity')}
+              style={styles.detailAccordionHeader}
+            >
               <View style={[styles.infoBlockIcon, { backgroundColor: colors.primary + '12' }]}>
                 <Feather name="check-circle" size={16} color={colors.primary} />
               </View>
-              <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What you&apos;ll do</Text>
-            </View>
-            <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatYouWillDo}</Text>
-          </View>
-        ) : null}
-
-        {item.whatToBring ? (
-          <View style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
-            <View style={styles.infoBlockHeading}>
-              <View style={[styles.infoBlockIcon, { backgroundColor: colors.teal + '14' }]}>
-                <Feather name="briefcase" size={16} color={colors.teal} />
+              <View style={styles.detailAccordionCopy}>
+                <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What you&apos;ll do</Text>
+                <Text style={[styles.detailAccordionSubtitle, { color: colors.mutedForeground }]}>
+                  {item.whatToBring ? 'Activity and what to bring' : 'Activity details'}
+                </Text>
               </View>
-              <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>What to bring</Text>
-            </View>
-            <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatToBring}</Text>
+              <Feather name={expandedSections.activity ? 'chevron-up' : 'chevron-down'} size={18} color={colors.mutedForeground} />
+            </Pressable>
+            {expandedSections.activity ? (
+              <View style={{ gap: 12, marginTop: 12 }}>
+                {item.whatYouWillDo ? (
+                  <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatYouWillDo}</Text>
+                ) : null}
+                {item.whatToBring ? (
+                  <View style={[styles.detailBringBlock, { backgroundColor: colors.muted, borderRadius: colors.radius }]}>
+                    <View style={styles.infoBlockHeading}>
+                      <View style={[styles.infoBlockIcon, { backgroundColor: colors.teal + '14' }]}>
+                        <Feather name="briefcase" size={16} color={colors.teal} />
+                      </View>
+                      <Text style={[styles.detailBringTitle, { color: colors.foreground }]}>What to bring</Text>
+                    </View>
+                    <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.whatToBring}</Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
           </View>
         ) : null}
       </ScrollView>
@@ -8315,12 +8400,12 @@ const styles = StyleSheet.create({
   resultCount: { fontSize: 12, fontFamily: 'Inter_500Medium' },
   
   // Detail
-  detailScrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 28 },
-  detailToolbar: { height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  detailScrollContent: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28 },
+  detailToolbar: { height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   detailToolbarButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   detailToolbarTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   detailToolbarSpacer: { width: 42 },
-  detailHero: { height: 186, marginBottom: 12, overflow: 'hidden' },
+  detailHero: { height: 182, marginBottom: 12, overflow: 'hidden' },
   detailCoverFill: { flex: 1, justifyContent: 'flex-end' },
   detailCoverBottom: { padding: 16 },
   detailCoverPill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.94)' },
@@ -8329,25 +8414,27 @@ const styles = StyleSheet.create({
   detailHeroIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.2)' },
   detailCategoryText: { color: '#ffffff', fontSize: 12, fontFamily: 'Inter_700Bold', letterSpacing: 1, textTransform: 'uppercase' },
   detailIntro: { padding: 16, borderWidth: 1, marginBottom: 12 },
-  detailOrganisationLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  detailOrganisationLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 9 },
   detailOrgText: { flexShrink: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   detailVerifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999 },
   detailVerifiedText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
-  detailTitleText: { fontSize: 28, fontFamily: 'Inter_700Bold', lineHeight: 34, letterSpacing: -0.6, marginBottom: 13 },
+  detailTitleText: { fontSize: 28, fontFamily: 'Inter_700Bold', lineHeight: 32, letterSpacing: -0.7, marginBottom: 13 },
   detailAboutBlock: { flexDirection: 'row', gap: 10, padding: 12 },
   detailAboutAccent: { width: 3, borderRadius: 2, alignSelf: 'stretch' },
   detailAboutCopy: { flex: 1, minWidth: 0 },
   detailAboutTitle: { fontSize: 12, fontFamily: 'Inter_700Bold', marginBottom: 4 },
   detailMetaGrid: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   metaBox: { flex: 1, minHeight: 112, borderWidth: 1, padding: 13 },
-  metaIconLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 },
+  detailWhenBox: { flex: 1.15 },
+  detailWhereBox: { flex: 1 },
+  metaIconLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 9 },
   metaLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.8 },
   metaValue: { fontSize: 14, fontFamily: 'Inter_600SemiBold', lineHeight: 19, marginBottom: 3 },
   metaSub: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 16 },
   detailSectionTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', marginBottom: 6 },
   detailBody: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 21 },
   detailHostCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderWidth: 1, marginBottom: 12 },
-  detailHostAvatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  detailHostAvatar: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   detailHostInitial: { fontSize: 16, fontFamily: 'Inter_700Bold' },
   detailHostLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.8, marginBottom: 3 },
   detailHostName: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
@@ -8358,6 +8445,11 @@ const styles = StyleSheet.create({
   infoBlock: { borderWidth: 1, padding: 14, marginBottom: 10 },
   infoBlockHeading: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   infoBlockIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  detailAccordionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
+  detailAccordionCopy: { flex: 1, minWidth: 0, gap: 3 },
+  detailAccordionSubtitle: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
+  detailBringBlock: { padding: 12, gap: 7 },
+  detailBringTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   ctaWrap: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 18, paddingTop: 12 },
   detailActionRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   detailActionSummary: { minWidth: 86 },

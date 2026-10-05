@@ -13,6 +13,7 @@
 - [Web keyboard focus and scrolling](web-keyboard-provider.md) — provider gating and keyboard-overlap scrolling are separate; web layouts also need viewport-aware, shrinkable scroll regions.
 - [Live UI source context](live-ui-source-context.md) — recheck current component and style anchors when workspace code diverges from earlier excerpts.
 - [Expo web gesture verification](expo-web-gesture-verification.md) — use explicit touch handlers for web drags; wait for animated sheets to settle before coordinate-based taps.
+- [React Native Web disclosure state](react-native-web-disclosure-state.md) — set explicit `aria-expanded` alongside native accessibility state on expandable controls.
 - [Transitive package overrides](transitive-package-overrides.md) — security overrides can cross CJS/ESM boundaries; verify them through the consuming package's workspace resolution.
 - [OpenAPI date-only fields](openapi-date-only-fields.md) — keep date-only wire values as strings when generating Zod schemas with Orval.
 - [Supabase database connectivity](supabase-pooler.md) — use the Session Pooler and confirm runtime/secret scope before external schema writes.
