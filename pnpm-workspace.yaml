@@ -160,6 +160,8 @@ overrides:
   esbuild: "0.28.2"
   # orval pins js-yaml to an exact version older than the CVE fix (>=4.3.2)
   js-yaml: '4.3.2'
+  # Express 5 accepts the patched 2.0.8 release for GHSA-jqcg-44mw-7w3h.
+  proxy-addr: "2.0.8"
   # xcode has no newer release; uuid 11 preserves its CommonJS API and fixes GHSA-w5hq-g745-h8pq.
   "xcode>uuid": "11.1.1"
   # query-string v7 expects a CommonJS callable; unwrap the ESM decoder's default export via the package patch.
