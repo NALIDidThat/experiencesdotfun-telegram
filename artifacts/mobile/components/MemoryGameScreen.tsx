@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   ActivityIndicator,
   Pressable,
@@ -30,6 +31,7 @@ import type {
 } from '@workspace/api-client-react';
 import { useMemoryGameColors } from '@/hooks/useMemoryGameColors';
 import { MemoryLeaderboardScreen } from '@/components/MemoryLeaderboardScreen';
+import { getMemoryGameTileOutcome } from '@/lib/memory-game-review';
 
 type Props = {
   onBack: () => void;
@@ -422,6 +424,109 @@ function InstructionRow({ number, title, body }: { number: string; title: string
   );
 }
 
+function AnswerReview({
+  rows,
+  columns,
+  correctTileIndices,
+  selectedIndices,
+}: {
+  rows: number;
+  columns: number;
+  correctTileIndices: number[];
+  selectedIndices: number[];
+}) {
+  const colors = useMemoryGameColors();
+  const { width } = useWindowDimensions();
+  const gridWidth = Math.min(width - 72, 260);
+  const gap = columns >= 5 ? 6 : 8;
+  const tileSize = Math.floor((gridWidth - gap * (columns - 1)) / columns);
+
+  return (
+    <View
+      style={[styles.answerReview, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}
+      testID="memory-game-answer-review"
+    >
+      <View style={styles.reviewHeading}>
+        <View>
+          <Text style={[styles.reviewTitle, { color: colors.welcome.foreground }]}>Answer review</Text>
+          <Text style={[styles.reviewSummary, { color: colors.welcome.muted }]}>
+            {correctTileIndices.length} astronaut{correctTileIndices.length === 1 ? '' : 's'} in the pattern
+          </Text>
+        </View>
+        <Feather name="eye" size={16} color={colors.teal} />
+      </View>
+
+      <View style={[styles.reviewGrid, { width: gridWidth, gap }]}>
+        {Array.from({ length: rows }, (_, row) => (
+          <View key={`review-row-${row}`} style={[styles.gridRow, { gap }]}>
+            {Array.from({ length: columns }, (_, column) => {
+              const index = row * columns + column;
+              const outcome = getMemoryGameTileOutcome(index, correctTileIndices, selectedIndices);
+              const tileColor = outcome === 'correct'
+                ? colors.teal
+                : outcome === 'missed'
+                  ? colors.welcome.gold
+                  : outcome === 'extra'
+                    ? colors.destructive
+                    : colors.welcome.border;
+              const label = outcome === 'correct'
+                ? 'astronaut selected correctly'
+                : outcome === 'missed'
+                  ? 'astronaut missed'
+                  : outcome === 'extra'
+                    ? 'empty tile selected'
+                    : 'empty tile left unselected';
+
+              return (
+                <View
+                  key={`review-tile-${index}`}
+                  accessible
+                  accessibilityLabel={`Tile ${index + 1}, ${label}`}
+                  style={[
+                    styles.reviewTile,
+                    {
+                      width: tileSize,
+                      height: tileSize,
+                      backgroundColor: `${tileColor}18`,
+                      borderColor: `${tileColor}70`,
+                    },
+                  ]}
+                  testID={`memory-game-review-tile-${index}`}
+                >
+                  {outcome === 'missed' ? (
+                    <FontAwesome5 name="user-astronaut" size={Math.max(15, tileSize * 0.35)} color={tileColor} />
+                  ) : outcome === 'correct' ? (
+                    <Feather name="check" size={Math.max(16, tileSize * 0.34)} color={tileColor} />
+                  ) : outcome === 'extra' ? (
+                    <Feather name="x" size={Math.max(16, tileSize * 0.34)} color={tileColor} />
+                  ) : (
+                    <View style={[styles.tileDot, { backgroundColor: tileColor }]} />
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.reviewLegend}>
+        <View style={styles.reviewLegendItem}>
+          <Feather name="check" size={12} color={colors.teal} />
+          <Text style={[styles.reviewLegendText, { color: colors.welcome.muted }]}>Correct</Text>
+        </View>
+        <View style={styles.reviewLegendItem}>
+          <FontAwesome5 name="user-astronaut" size={11} color={colors.welcome.gold} />
+          <Text style={[styles.reviewLegendText, { color: colors.welcome.muted }]}>Missed</Text>
+        </View>
+        <View style={styles.reviewLegendItem}>
+          <Feather name="x" size={12} color={colors.destructive} />
+          <Text style={[styles.reviewLegendText, { color: colors.welcome.muted }]}>Extra pick</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 function GamePlay({
   attempt,
   now,
@@ -601,6 +706,7 @@ function PausedPanel({
 
 function ResultPanel({
   result,
+  reviewLayout,
   busy,
   error,
   onNext,
@@ -608,6 +714,7 @@ function ResultPanel({
   onLeaderboard,
 }: {
   result: MemoryGameAttemptResult;
+  reviewLayout: { rows: number; columns: number } | null;
   busy: boolean;
   error: string | null;
   onNext: () => void;
@@ -641,8 +748,17 @@ function ResultPanel({
       <Text style={[styles.centerBody, { color: colors.welcome.muted }]}>
         {result.successful
           ? `${result.correctSelections} astronaut tiles remembered correctly.`
-          : `${result.correctSelections} of the astronaut tiles were selected. Your progress is saved.`}
+          : `You found ${result.correctSelections} of ${result.correctTileIndices.length} astronauts. Review the pattern below.`}
       </Text>
+
+      {reviewLayout ? (
+        <AnswerReview
+          rows={reviewLayout.rows}
+          columns={reviewLayout.columns}
+          correctTileIndices={result.correctTileIndices}
+          selectedIndices={result.selectedIndices}
+        />
+      ) : null}
 
       <View style={[styles.rewardCard, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}>
         <View style={[styles.rewardIcon, { backgroundColor: `${colors.accent}18` }]}>
@@ -725,6 +841,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
   const [localAttempt, setLocalAttempt] = useState<MemoryGameAttempt | null | undefined>(undefined);
   const [statsOverride, setStatsOverride] = useState<MemoryGameStats | null>(null);
   const [result, setResult] = useState<MemoryGameAttemptResult | null>(null);
+  const [reviewLayout, setReviewLayout] = useState<{ rows: number; columns: number } | null>(null);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [panel, setPanel] = useState<Panel>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -756,6 +873,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
       const attempt = await startAttempt.mutateAsync({ data: { restart } });
       setLocalAttempt(attempt);
       setResult(null);
+      setReviewLayout(null);
       void invalidateGameQueries();
     } catch (error) {
       setActionError(errorMessage(error, 'We could not start the game. Try again.'));
@@ -808,10 +926,16 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
         attemptId: activeAttempt.id,
         data: { selectedIndices: [...selectedIndices].sort((left, right) => left - right) },
       });
+      setReviewLayout({ rows: attemptBeforeSubmit.rows, columns: attemptBeforeSubmit.columns });
       setResult(submitted);
       setStatsOverride(submitted.stats);
       setLocalAttempt(null);
       setSelectedIndices([]);
+      void Haptics.notificationAsync(
+        submitted.successful
+          ? Haptics.NotificationFeedbackType.Success
+          : Haptics.NotificationFeedbackType.Error,
+      ).catch(() => undefined);
       void invalidateGameQueries();
     } catch (error) {
       setActionError(errorMessage(error, 'We could not check your answer. Try again.'));
@@ -820,6 +944,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
   };
 
   const handleToggleTile = (index: number) => {
+    void Haptics.selectionAsync().catch(() => undefined);
     setSelectedIndices((current) => current.includes(index)
       ? current.filter((selected) => selected !== index)
       : [...current, index]);
@@ -864,6 +989,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
           <ScreenHeader title="Level result" onBack={handleExit} onLeaderboard={() => setPanel('leaderboard')} />
           <ResultPanel
             result={result}
+            reviewLayout={reviewLayout}
             busy={busy}
             error={actionError}
             onNext={() => void beginAttempt(false)}
@@ -1032,6 +1158,15 @@ const styles = StyleSheet.create({
   rewardTotal: { fontFamily: 'Inter_700Bold', fontSize: 16 },
   rankChange: { width: '100%', minHeight: 42, borderWidth: 1, borderRadius: 13, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8 },
   rankChangeText: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  answerReview: { width: '100%', borderWidth: 1, borderRadius: 17, padding: 13, gap: 12 },
+  reviewHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  reviewTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  reviewSummary: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 3 },
+  reviewGrid: { alignItems: 'center', alignSelf: 'center' },
+  reviewTile: { borderWidth: 1, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  reviewLegend: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12 },
+  reviewLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  reviewLegendText: { fontFamily: 'Inter_500Medium', fontSize: 9 },
   helpContent: { flexGrow: 1, paddingHorizontal: 22, paddingTop: 25, paddingBottom: 25, alignItems: 'center', justifyContent: 'center', gap: 13 },
   helpIcon: { width: 58, height: 58, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   helpCard: { width: '100%', borderWidth: 1, borderRadius: 18, paddingHorizontal: 13, marginVertical: 7 },
