@@ -116,7 +116,9 @@ import { DirectMessagesScreen } from '@/components/DirectMessagesScreen';
 import { AiAssistantScreen } from '@/components/AiAssistantScreen';
 import { ExperienceChallengesScreen } from '@/components/ExperienceChallengesScreen';
 import { MemoryGameScreen } from '@/components/MemoryGameScreen';
-import { ExploreGlobe, type ExploreGlobeHandle, type GlobeCity, type GlobeExperienceLocation, type GlobeFriend, type GlobeMode } from '@/components/ExploreGlobe';
+import { ExploreGlobe, type GlobeCity, type GlobeExperienceLocation, type GlobeFriend, type GlobeMode } from '@/components/ExploreGlobe';
+import ExploreMap from '@/components/ExploreMap';
+import type { ExploreMapHandle } from '@/components/ExploreMap.types';
 import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
@@ -2131,7 +2133,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   const showFriends = mode === 'social';
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [screenHeight, setScreenHeight] = useState(0);
-  const globeRef = useRef<ExploreGlobeHandle>(null);
+  const exploreMapRef = useRef<ExploreMapHandle>(null);
   const sheetHeight = useRef(new Animated.Value(190)).current;
   const sheetTouchOrigin = useRef({ y: 0, active: false });
   const collapsedSheetHeight = screenHeight > 0
@@ -2161,6 +2163,9 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: false });
   const verifiedActivityQuery = useListExploreActivity();
   const friendsQuery = useListFriends({ query: { queryKey: getListFriendsQueryKey(), enabled: Boolean(user) } });
+  const profileCityCenter = user?.city
+    ? exploreCityCoordinates[normalizeExploreCityName(user.city)] ?? null
+    : null;
   const friendLocations = useMemo<GlobeFriend[]>(
     () => (friendsQuery.data ?? []).flatMap((friend) => {
       const city = friend.city?.trim();
@@ -2245,7 +2250,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
     setSheetExpanded(true);
   };
   const clearSelectedCity = () => {
-    globeRef.current?.resetView();
+    exploreMapRef.current?.resetView();
     setSelectedCity(null);
   };
   const focusSearchedCity = () => {
@@ -2255,7 +2260,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
     const matchingExperience = (query.data ?? []).find(
       (experience) => normalizeExploreCityName(experience.city) === cityKey,
     );
-    globeRef.current?.focusOnCity(coordinates.latitude, coordinates.longitude);
+    exploreMapRef.current?.focusOnCity(coordinates.latitude, coordinates.longitude);
     selectCity(matchingExperience?.city ?? search.trim());
   };
   const friendMapHint = mode === 'social'
@@ -2322,8 +2327,9 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
       }}
     >
       <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-        <ExploreGlobe
-          ref={globeRef}
+        <ExploreMap
+          ref={exploreMapRef}
+          apiKey={process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}
           fullScreen
           cities={globeCities}
           friends={friendLocations}
@@ -2331,6 +2337,8 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           mode={mode}
           selectedCity={selectedCity}
           selectedCityCoordinates={selectedCity ? exploreCityCoordinates[normalizeExploreCityName(selectedCity)] : undefined}
+          profileCityCenter={profileCityCenter}
+          sheetOverlayHeight={sheetExpanded ? expandedSheetHeight : collapsedSheetHeight}
           status={query.isLoading ? 'loading' : query.isError ? 'error' : 'ready'}
           verifiedActivityStatus={verifiedActivityQuery.isLoading ? 'loading' : verifiedActivityQuery.isError ? 'error' : 'ready'}
           showFriends={showFriends}
@@ -2405,14 +2413,14 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           ) : null}
         </View>
 
-        <View style={styles.exploreModeRow} accessibilityLabel="Globe layers">
+        <View style={styles.exploreModeRow} accessibilityLabel="Map layers">
           {exploreModes.map((option) => {
             const selected = mode === option.key;
             return (
               <Pressable
                 key={option.key}
                 accessibilityRole="button"
-                accessibilityLabel={`Show ${option.label} globe layer`}
+                accessibilityLabel={`Show ${option.label} map layer`}
                 accessibilityState={{ selected }}
                 testID={`explore-mode-${option.key}`}
                 onPress={() => { triggerHaptic(); setMode(option.key); }}

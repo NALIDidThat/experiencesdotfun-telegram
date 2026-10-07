@@ -420,15 +420,28 @@ const friends = [
   { id: 903, name: "Casey Reed", username: "casey", avatarUrl: null, city: "Springfield" },
 ];
 
-test("Explore Globe activity and friend pins, city filtering, zoom controls, and categories stay interactive", async (t) => {
+test("Explore map fallback preserves activity and friend pins, city filtering, zoom controls, and categories", async (t) => {
   const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
-  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the Explore Globe preview test.");
+  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the Explore map fallback test.");
+  if (process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY) {
+    t.skip("This fixture uses the globe fallback; a configured browser key would make a live, billable Places request.");
+    return;
+  }
 
   const client = await launchBrowser(t);
   const apiTraffic = [];
   const unexpectedApiRequests = [];
+  const browserErrors = [];
   let interceptionError;
 
+  client.on("Runtime.exceptionThrown", ({ params }) => {
+    browserErrors.push(params.exceptionDetails.exception?.description ?? params.exceptionDetails.text ?? "Browser exception");
+  });
+  client.on("Runtime.consoleAPICalled", ({ params }) => {
+    if (params.type === "error") {
+      browserErrors.push(params.args.map((arg) => arg.value ?? arg.description ?? "").join(" "));
+    }
+  });
   client.on("Fetch.requestPaused", ({ params }) => {
     void (async () => {
       try {
@@ -505,7 +518,7 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
         } else {
           unexpectedApiRequests.push(`${method} ${url.pathname}${url.search}`);
           status = 404;
-          response = { message: "Unexpected API request in Explore Globe test." };
+          response = { message: "Unexpected API request in Explore map test." };
         }
 
         await client.send("Fetch.fulfillRequest", {
@@ -526,7 +539,16 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
 
   await client.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
   await client.send("Page.addScriptToEvaluateOnNewDocument", {
-    source: `localStorage.setItem('@experiences/auth-token', '${sessionToken}');`,
+    source: `localStorage.setItem('@experiences/auth-token', '${sessionToken}');
+window.__exploreLocationCalls = 0;
+Object.defineProperty(navigator, 'geolocation', {
+  configurable: true,
+  value: {
+    getCurrentPosition() { window.__exploreLocationCalls += 1; },
+    watchPosition() { window.__exploreLocationCalls += 1; return 1; },
+    clearWatch() {},
+  },
+});`,
   });
   await client.send("Emulation.setDeviceMetricsOverride", {
     ...viewport,
@@ -535,11 +557,43 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
   });
   await client.send("Page.navigate", { url: `https://${domain}/?screen=explore` });
 
+  try {
+    await waitForValue(
+      client,
+      `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+      (text) => text === "5 experiences",
+      "the authenticated Explore experience results",
+    );
+  } catch (error) {
+    const pageDiagnostics = await client.evaluate(`JSON.stringify({
+      href: location.href,
+      title: document.title,
+      readyState: document.readyState,
+      bodyText: document.body?.innerText?.slice(0, 2000) ?? '',
+      rootHtml: document.querySelector('#root')?.innerHTML?.slice(0, 1500) ?? '',
+    })`).catch((diagnosticError) => diagnosticError.message);
+    throw new Error(`${error.message}\nPage diagnostics: ${pageDiagnostics}\nBrowser errors: ${browserErrors.join(" | ") || "none"}\nIntercepted API requests: ${apiTraffic.join(", ") || "none"}`);
+  }
   await waitForValue(
     client,
-    `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
-    (text) => text === "5 experiences",
-    "the authenticated Explore experience results",
+    `Boolean(document.querySelector('[data-testid="explore-map-fallback"]') && document.querySelector('[data-testid="explore-map-configuration-notice"]'))`,
+    Boolean,
+    "the visible fallback while no Maps browser key is configured",
+  );
+  assert.equal(
+    await client.evaluate(`window.__exploreLocationCalls ?? 0`),
+    0,
+    "Explore must not request device location until the user taps My location.",
+  );
+  await waitForSheetPosition(client, false, "the collapsed experience sheet before checking the map notice");
+  const fallbackNoticeGeometry = await client.evaluate(`(() => {
+    const notice = document.querySelector('[data-testid="explore-map-configuration-notice"]')?.getBoundingClientRect();
+    const sheet = document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect();
+    return { noticeBottom: notice?.bottom ?? 0, sheetTop: sheet?.top ?? 0 };
+  })()`);
+  assert.ok(
+    fallbackNoticeGeometry.noticeBottom < fallbackNoticeGeometry.sheetTop,
+    `The map configuration notice should stay above the collapsed sheet. Geometry: ${JSON.stringify(fallbackNoticeGeometry)}`,
   );
   assert.ok(
     await client.evaluate(`[...document.querySelectorAll('*')].some((element) => element.children.length === 0 && element.textContent.trim() === 'Explore')`),
@@ -558,6 +612,8 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-profile-button"]'))`),
     "The profile action should remain in the Explore header.",
   );
+  const defaultGlobeRadius = await client.evaluate(`document.querySelector('svg defs circle')?.getAttribute('r') ?? ''`);
+  assert.ok(defaultGlobeRadius, "The default globe scale should be available before any city is focused.");
 
   const initialCards = await client.evaluate(
     ` [...document.querySelectorAll('[data-testid^="explore-experience-card-"]')].map((element) => element.getAttribute('data-testid'))`,
@@ -578,7 +634,7 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     client,
     `Boolean(document.querySelector('[data-testid="explore-mode-social"]'))`,
     Boolean,
-    "the Social globe layer control",
+    "the Social map layer control",
   );
   assert.ok(
     await client.evaluate(`document.querySelector('[data-testid="explore-mode-social"]')?.getAttribute('aria-label')?.includes('Social') ?? false`),
@@ -760,6 +816,7 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
   );
   assert.notEqual(zoomedRadius, initialRadius, "Zoom in should change the globe scale.");
   await tapTestId(client, "explore-globe-zoom-out");
+  let resetTargetRadius = "";
   await waitForValue(
     client,
     `document.querySelector('svg defs circle')?.getAttribute('r') ?? ''`,
@@ -767,12 +824,13 @@ test("Explore Globe activity and friend pins, city filtering, zoom controls, and
     "the initial globe scale after zooming out",
   );
   await tapTestId(client, "explore-globe-zoom-in");
+  resetTargetRadius = await client.evaluate(`document.querySelector('svg defs circle')?.getAttribute('r') ?? ''`);
   await tapTestId(client, "explore-globe-reset");
   await waitForValue(
     client,
     `document.querySelector('svg defs circle')?.getAttribute('r') ?? ''`,
-    (radius) => radius === initialRadius,
-    "the reset globe scale",
+    (radius) => radius === defaultGlobeRadius,
+    `the default globe scale ${defaultGlobeRadius} after zooming from ${resetTargetRadius}`,
   );
 
   const rotationText = `([...document.querySelectorAll("svg text")]
