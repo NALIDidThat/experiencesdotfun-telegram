@@ -7,9 +7,17 @@
  */
 
 export interface MemoryGameStats {
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
   currentLevel: number;
   memoryXp: number;
   levelsCompleted: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
   highestLevel: number;
   gamesPlayed: number;
   gamesCompleted: number;
@@ -17,6 +25,10 @@ export interface MemoryGameStats {
   successfulAttempts: number;
   failedAttempts: number;
   accuracy: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
   bestRun: number;
   /** @nullable */
   fastestRecallMs: number | null;

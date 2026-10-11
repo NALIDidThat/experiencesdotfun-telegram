@@ -6,6 +6,9 @@ export interface MemoryGameLevel {
 }
 
 export const MEMORY_GAME_LEVELS: readonly MemoryGameLevel[];
+export const MAX_MEMORY_GAME_LEVEL: number;
+
+export function getDailyMemoryXpAward(dailyAwarded: number): number;
 
 export function chooseAstronautIndices(
   tileCount: number,

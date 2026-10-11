@@ -2821,30 +2821,50 @@ export const SaveTopFriendsResponse = zod.array(SaveTopFriendsResponseItem)
 /**
  * @summary Get the signed-in participant's Memory Game progress and active attempt
  */
+export const getMemoryGameStatsResponseStatsCurrentLevelMax = 100;
+
+export const getMemoryGameStatsResponseStatsHighestLevelMin = 0;
+export const getMemoryGameStatsResponseStatsHighestLevelMax = 100;
+
+export const getMemoryGameStatsResponseStatsBestRunMin = 0;
+export const getMemoryGameStatsResponseStatsBestRunMax = 100;
+
+export const getMemoryGameStatsResponseActiveAttemptOneLevelMax = 100;
+
+export const getMemoryGameStatsResponseActiveAttemptOneRowsMin = 3;
+export const getMemoryGameStatsResponseActiveAttemptOneRowsMax = 10;
+
+export const getMemoryGameStatsResponseActiveAttemptOneColumnsMin = 3;
+export const getMemoryGameStatsResponseActiveAttemptOneColumnsMax = 10;
+
+export const getMemoryGameStatsResponseActiveAttemptOneAstronautCountMax = 99;
+
+
+
 export const GetMemoryGameStatsResponse = zod.object({
   "needsTutorial": zod.boolean(),
   "stats": zod.object({
-  "currentLevel": zod.number().int(),
+  "currentLevel": zod.number().int().min(1).max(getMemoryGameStatsResponseStatsCurrentLevelMax),
   "memoryXp": zod.number().int(),
   "levelsCompleted": zod.number().int(),
-  "highestLevel": zod.number().int(),
+  "highestLevel": zod.number().int().min(getMemoryGameStatsResponseStatsHighestLevelMin).max(getMemoryGameStatsResponseStatsHighestLevelMax),
   "gamesPlayed": zod.number().int(),
   "gamesCompleted": zod.number().int(),
   "totalAttempts": zod.number().int(),
   "successfulAttempts": zod.number().int(),
   "failedAttempts": zod.number().int(),
   "accuracy": zod.number().int(),
-  "bestRun": zod.number().int(),
+  "bestRun": zod.number().int().min(getMemoryGameStatsResponseStatsBestRunMin).max(getMemoryGameStatsResponseStatsBestRunMax),
   "fastestRecallMs": zod.number().int().nullable(),
   "lastPlayedAt": zod.coerce.date().nullable(),
   "tutorialSeen": zod.boolean()
 }),
   "activeAttempt": zod.union([zod.object({
   "id": zod.string().uuid(),
-  "level": zod.number().int(),
-  "rows": zod.number().int(),
-  "columns": zod.number().int(),
-  "astronautCount": zod.number().int(),
+  "level": zod.number().int().min(1).max(getMemoryGameStatsResponseActiveAttemptOneLevelMax),
+  "rows": zod.number().int().min(getMemoryGameStatsResponseActiveAttemptOneRowsMin).max(getMemoryGameStatsResponseActiveAttemptOneRowsMax),
+  "columns": zod.number().int().min(getMemoryGameStatsResponseActiveAttemptOneColumnsMin).max(getMemoryGameStatsResponseActiveAttemptOneColumnsMax),
+  "astronautCount": zod.number().int().min(1).max(getMemoryGameStatsResponseActiveAttemptOneAstronautCountMax),
   "memorizationMs": zod.number().int(),
   "memorizeUntilAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date(),
@@ -2867,12 +2887,24 @@ export const StartMemoryGameAttemptBody = zod.object({
   "restart": zod.boolean().default(startMemoryGameAttemptBodyRestartDefault)
 })
 
+export const startMemoryGameAttemptResponseLevelMax = 100;
+
+export const startMemoryGameAttemptResponseRowsMin = 3;
+export const startMemoryGameAttemptResponseRowsMax = 10;
+
+export const startMemoryGameAttemptResponseColumnsMin = 3;
+export const startMemoryGameAttemptResponseColumnsMax = 10;
+
+export const startMemoryGameAttemptResponseAstronautCountMax = 99;
+
+
+
 export const StartMemoryGameAttemptResponse = zod.object({
   "id": zod.string().uuid(),
-  "level": zod.number().int(),
-  "rows": zod.number().int(),
-  "columns": zod.number().int(),
-  "astronautCount": zod.number().int(),
+  "level": zod.number().int().min(1).max(startMemoryGameAttemptResponseLevelMax),
+  "rows": zod.number().int().min(startMemoryGameAttemptResponseRowsMin).max(startMemoryGameAttemptResponseRowsMax),
+  "columns": zod.number().int().min(startMemoryGameAttemptResponseColumnsMin).max(startMemoryGameAttemptResponseColumnsMax),
+  "astronautCount": zod.number().int().min(1).max(startMemoryGameAttemptResponseAstronautCountMax),
   "memorizationMs": zod.number().int(),
   "memorizeUntilAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date(),
@@ -2893,16 +2925,26 @@ export const SubmitMemoryGameAttemptParams = zod.object({
 })
 
 export const submitMemoryGameAttemptBodySelectedIndicesItemMin = 0;
-export const submitMemoryGameAttemptBodySelectedIndicesItemMax = 15;
+export const submitMemoryGameAttemptBodySelectedIndicesItemMax = 99;
 
 export const submitMemoryGameAttemptBodySelectedIndicesMin = 0;
-export const submitMemoryGameAttemptBodySelectedIndicesMax = 16;
+export const submitMemoryGameAttemptBodySelectedIndicesMax = 100;
 
 
 
 export const SubmitMemoryGameAttemptBody = zod.object({
   "selectedIndices": zod.array(zod.number().int().min(submitMemoryGameAttemptBodySelectedIndicesItemMin).max(submitMemoryGameAttemptBodySelectedIndicesItemMax)).min(submitMemoryGameAttemptBodySelectedIndicesMin).max(submitMemoryGameAttemptBodySelectedIndicesMax)
 })
+
+export const submitMemoryGameAttemptResponseStatsCurrentLevelMax = 100;
+
+export const submitMemoryGameAttemptResponseStatsHighestLevelMin = 0;
+export const submitMemoryGameAttemptResponseStatsHighestLevelMax = 100;
+
+export const submitMemoryGameAttemptResponseStatsBestRunMin = 0;
+export const submitMemoryGameAttemptResponseStatsBestRunMax = 100;
+
+
 
 export const SubmitMemoryGameAttemptResponse = zod.object({
   "attemptId": zod.string().uuid(),
@@ -2912,22 +2954,23 @@ export const SubmitMemoryGameAttemptResponse = zod.object({
   "selectedIndices": zod.array(zod.number().int()),
   "correctSelections": zod.number().int(),
   "xpAwarded": zod.number().int(),
+  "officialXpAwarded": zod.number().int(),
   "runCompleted": zod.boolean(),
   "runXpAwarded": zod.number().int().nullable(),
   "globalRankBefore": zod.number().int().nullable(),
   "globalRankAfter": zod.number().int().nullable(),
   "stats": zod.object({
-  "currentLevel": zod.number().int(),
+  "currentLevel": zod.number().int().min(1).max(submitMemoryGameAttemptResponseStatsCurrentLevelMax),
   "memoryXp": zod.number().int(),
   "levelsCompleted": zod.number().int(),
-  "highestLevel": zod.number().int(),
+  "highestLevel": zod.number().int().min(submitMemoryGameAttemptResponseStatsHighestLevelMin).max(submitMemoryGameAttemptResponseStatsHighestLevelMax),
   "gamesPlayed": zod.number().int(),
   "gamesCompleted": zod.number().int(),
   "totalAttempts": zod.number().int(),
   "successfulAttempts": zod.number().int(),
   "failedAttempts": zod.number().int(),
   "accuracy": zod.number().int(),
-  "bestRun": zod.number().int(),
+  "bestRun": zod.number().int().min(submitMemoryGameAttemptResponseStatsBestRunMin).max(submitMemoryGameAttemptResponseStatsBestRunMax),
   "fastestRecallMs": zod.number().int().nullable(),
   "lastPlayedAt": zod.coerce.date().nullable(),
   "tutorialSeen": zod.boolean()
@@ -2942,12 +2985,24 @@ export const PauseMemoryGameAttemptParams = zod.object({
   "attemptId": zod.coerce.string().uuid()
 })
 
+export const pauseMemoryGameAttemptResponseLevelMax = 100;
+
+export const pauseMemoryGameAttemptResponseRowsMin = 3;
+export const pauseMemoryGameAttemptResponseRowsMax = 10;
+
+export const pauseMemoryGameAttemptResponseColumnsMin = 3;
+export const pauseMemoryGameAttemptResponseColumnsMax = 10;
+
+export const pauseMemoryGameAttemptResponseAstronautCountMax = 99;
+
+
+
 export const PauseMemoryGameAttemptResponse = zod.object({
   "id": zod.string().uuid(),
-  "level": zod.number().int(),
-  "rows": zod.number().int(),
-  "columns": zod.number().int(),
-  "astronautCount": zod.number().int(),
+  "level": zod.number().int().min(1).max(pauseMemoryGameAttemptResponseLevelMax),
+  "rows": zod.number().int().min(pauseMemoryGameAttemptResponseRowsMin).max(pauseMemoryGameAttemptResponseRowsMax),
+  "columns": zod.number().int().min(pauseMemoryGameAttemptResponseColumnsMin).max(pauseMemoryGameAttemptResponseColumnsMax),
+  "astronautCount": zod.number().int().min(1).max(pauseMemoryGameAttemptResponseAstronautCountMax),
   "memorizationMs": zod.number().int(),
   "memorizeUntilAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date(),
@@ -2967,12 +3022,24 @@ export const ResumeMemoryGameAttemptParams = zod.object({
   "attemptId": zod.coerce.string().uuid()
 })
 
+export const resumeMemoryGameAttemptResponseLevelMax = 100;
+
+export const resumeMemoryGameAttemptResponseRowsMin = 3;
+export const resumeMemoryGameAttemptResponseRowsMax = 10;
+
+export const resumeMemoryGameAttemptResponseColumnsMin = 3;
+export const resumeMemoryGameAttemptResponseColumnsMax = 10;
+
+export const resumeMemoryGameAttemptResponseAstronautCountMax = 99;
+
+
+
 export const ResumeMemoryGameAttemptResponse = zod.object({
   "id": zod.string().uuid(),
-  "level": zod.number().int(),
-  "rows": zod.number().int(),
-  "columns": zod.number().int(),
-  "astronautCount": zod.number().int(),
+  "level": zod.number().int().min(1).max(resumeMemoryGameAttemptResponseLevelMax),
+  "rows": zod.number().int().min(resumeMemoryGameAttemptResponseRowsMin).max(resumeMemoryGameAttemptResponseRowsMax),
+  "columns": zod.number().int().min(resumeMemoryGameAttemptResponseColumnsMin).max(resumeMemoryGameAttemptResponseColumnsMax),
+  "astronautCount": zod.number().int().min(1).max(resumeMemoryGameAttemptResponseAstronautCountMax),
   "memorizationMs": zod.number().int(),
   "memorizeUntilAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date(),

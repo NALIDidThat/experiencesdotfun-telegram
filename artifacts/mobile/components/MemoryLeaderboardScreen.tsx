@@ -65,12 +65,12 @@ function LeaderboardRow({
           {entry.name}{entry.isCurrentUser ? ' · You' : ''}
         </Text>
         <Text style={[styles.playerSub, { color: colors.welcome.subdued }]}>
-          Level {entry.highestLevel} · {entry.levelsCompleted} cleared · best {entry.bestRun}/7 · {entry.accuracy}% accuracy
+          Level {entry.highestLevel} · {entry.levelsCompleted} cleared · best {entry.bestRun}/100 · {entry.accuracy}% accuracy
         </Text>
       </View>
       <View style={styles.xpColumn}>
         <Text style={[styles.xpValue, { color: colors.welcome.gold }]}>{entry.memoryXp}</Text>
-        <Text style={[styles.xpLabel, { color: colors.welcome.subdued }]}>Memory XP</Text>
+        <Text style={[styles.xpLabel, { color: colors.welcome.subdued }]}>Game score</Text>
       </View>
     </View>
   );

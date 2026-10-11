@@ -3,27 +3,28 @@ import test from "node:test";
 import {
   chooseAstronautIndices,
   evaluateMemoryGameSelection,
+  getDailyMemoryXpAward,
   MEMORY_GAME_LEVELS,
+  MAX_MEMORY_GAME_LEVEL,
 } from "./memory-game-rules.mjs";
 
-test("memory game uses the seven specified levels and recall times", () => {
-  assert.deepEqual(
-    MEMORY_GAME_LEVELS.map(({ rows, columns, astronautCount, memorizationMs }) => [
-      rows,
-      columns,
-      astronautCount,
-      memorizationMs,
-    ]),
-    [
-      [3, 3, 3, 5000],
-      [3, 3, 4, 5000],
-      [3, 3, 5, 4000],
-      [4, 3, 5, 4000],
-      [4, 3, 6, 3500],
-      [4, 4, 7, 3000],
-      [4, 4, 8, 3000],
-    ],
-  );
+test("memory game has 100 bounded levels with the requested recall times", () => {
+  assert.equal(MAX_MEMORY_GAME_LEVEL, 100);
+  assert.equal(MEMORY_GAME_LEVELS.length, 100);
+  for (const [index, level] of MEMORY_GAME_LEVELS.entries()) {
+    assert.equal(level.memorizationMs, index < 5 ? 3000 : 5000);
+    assert.ok(level.rows >= 3 && level.rows <= 10);
+    assert.ok(level.columns >= 3 && level.columns <= 10);
+    assert.ok(level.astronautCount > 0 && level.astronautCount < level.rows * level.columns);
+  }
+});
+
+test("official Memory Game XP stops at 50 for the day without changing score progression", () => {
+  assert.equal(getDailyMemoryXpAward(0), 5);
+  assert.equal(getDailyMemoryXpAward(45), 5);
+  assert.equal(getDailyMemoryXpAward(48), 2);
+  assert.equal(getDailyMemoryXpAward(50), 0);
+  assert.equal(getDailyMemoryXpAward(55), 0);
 });
 
 test("astronaut positions are unique, sorted, and remain inside the grid", () => {

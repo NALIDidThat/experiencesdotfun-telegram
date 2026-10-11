@@ -6,9 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 export interface MemoryGameStats {
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
   currentLevel: number;
   memoryXp: number;
   levelsCompleted: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
   highestLevel: number;
   gamesPlayed: number;
   gamesCompleted: number;
@@ -16,6 +24,10 @@ export interface MemoryGameStats {
   successfulAttempts: number;
   failedAttempts: number;
   accuracy: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
   bestRun: number;
   /** @nullable */
   fastestRecallMs: number | null;
@@ -46,9 +58,25 @@ export const MemoryGameAttemptResumePhase = {
 
 export interface MemoryGameAttempt {
   id: string;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
   level: number;
+  /**
+     * @minimum 3
+     * @maximum 10
+     */
   rows: number;
+  /**
+     * @minimum 3
+     * @maximum 10
+     */
   columns: number;
+  /**
+     * @minimum 1
+     * @maximum 99
+     */
   astronautCount: number;
   memorizationMs: number;
   memorizeUntilAt: string;
@@ -76,9 +104,9 @@ export interface MemoryGameStartInput {
 export interface MemoryGameSubmitInput {
   /**
      * @minItems 0
-     * @maxItems 16
+     * @maxItems 100
      * @items.minimum 0
-     * @items.maximum 15
+     * @items.maximum 99
      */
   selectedIndices: number[];
 }
@@ -91,6 +119,7 @@ export interface MemoryGameAttemptResult {
   selectedIndices: number[];
   correctSelections: number;
   xpAwarded: number;
+  officialXpAwarded: number;
   runCompleted: boolean;
   /** @nullable */
   runXpAwarded: number | null;

@@ -9,9 +9,9 @@
 export interface MemoryGameSubmitInput {
   /**
      * @minItems 0
-     * @maxItems 16
+     * @maxItems 100
      * @items.minimum 0
-     * @items.maximum 15
+     * @items.maximum 99
      */
   selectedIndices: number[];
 }

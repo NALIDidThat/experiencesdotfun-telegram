@@ -3,7 +3,6 @@ import * as Haptics from 'expo-haptics';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -31,7 +30,6 @@ import type {
 } from '@workspace/api-client-react';
 import { useMemoryGameColors } from '@/hooks/useMemoryGameColors';
 import { MemoryLeaderboardScreen } from '@/components/MemoryLeaderboardScreen';
-import { getMemoryGameTileOutcome } from '@/lib/memory-game-review';
 
 type Props = {
   onBack: () => void;
@@ -186,25 +184,24 @@ function GameGrid({
   selectedIndices,
   onToggle,
   disabled,
-  now,
 }: {
   attempt: MemoryGameAttempt;
   isMemorizing: boolean;
   selectedIndices: number[];
   onToggle: (index: number) => void;
   disabled: boolean;
-  now: number;
 }) {
   const colors = useMemoryGameColors();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const columns = Math.max(1, attempt.columns);
   const gridWidth = Math.min(width - 44, 360);
-  const gap = columns >= 5 ? 6 : 8;
-  const tileSize = Math.floor((gridWidth - gap * (columns - 1)) / columns);
+  const gap = columns >= 8 ? 3 : columns >= 5 ? 5 : 8;
+  const tileSize = Math.min(
+    Math.floor((gridWidth - gap * (columns - 1)) / columns),
+    Math.floor(Math.max(24, (height - 510) / attempt.rows)),
+  );
   const astronautSet = new Set(attempt.astronautIndices);
   const selectedSet = new Set(selectedIndices);
-  const remainingMs = Math.max(0, timestamp(attempt.memorizeUntilAt) - now);
-  const countdown = Math.ceil(remainingMs / 1000);
   const showPattern = isMemorizing && attempt.phase !== 'paused';
 
   return (
@@ -261,7 +258,7 @@ function GameGrid({
           <>
             <Feather name="eye" size={14} color={colors.welcome.gold} />
             <Text style={[styles.gridFooterText, { color: colors.welcome.muted }]}>
-              Pattern disappears in {countdown}s
+              Study the highlighted tiles
             </Text>
           </>
         ) : (
@@ -280,9 +277,9 @@ function GameGrid({
 function StatsStrip({ stats }: { stats: MemoryGameStats }) {
   const colors = useMemoryGameColors();
   const values = [
-    { label: 'Memory XP', value: stats.memoryXp, icon: 'star' as const },
+    { label: 'Game score', value: stats.memoryXp, icon: 'star' as const },
     { label: 'Levels cleared', value: stats.levelsCompleted, icon: 'check-circle' as const },
-    { label: 'Best run', value: `${stats.bestRun}/7`, icon: 'award' as const },
+    { label: 'Best run', value: `${stats.bestRun}/100`, icon: 'award' as const },
   ];
   return (
     <View style={styles.statsStrip}>
@@ -316,11 +313,10 @@ function GameIntro({
   onHelp: () => void;
 }) {
   const colors = useMemoryGameColors();
-  const level = Math.min(Math.max(stats.currentLevel, 1), 7);
+  const level = Math.min(Math.max(stats.currentLevel, 1), 100);
   return (
-    <ScrollView
-      contentContainerStyle={styles.introContent}
-      showsVerticalScrollIndicator={false}
+    <View
+      style={styles.introContent}
       testID="memory-game-home"
     >
       <View style={styles.hero}>
@@ -337,7 +333,7 @@ function GameIntro({
             <FontAwesome5 name="user-astronaut" size={21} color={colors.primaryForeground} />
           </View>
           <View style={[styles.heroPill, { backgroundColor: `${colors.primaryForeground}1A` }]}>
-            <Text style={[styles.heroPillText, { color: colors.primaryForeground }]}>7 LEVELS</Text>
+            <Text style={[styles.heroPillText, { color: colors.primaryForeground }]}>UP TO 100 LEVELS</Text>
           </View>
         </View>
         <Text style={[styles.heroTitle, { color: colors.primaryForeground }]}>
@@ -349,7 +345,7 @@ function GameIntro({
         <View style={styles.heroReward}>
           <Feather name="star" size={15} color={colors.primaryForeground} />
           <Text style={[styles.heroRewardText, { color: colors.primaryForeground }]}>
-            +5 Memory XP for every level cleared
+            +5 game-score points per level · 50 official XP daily
           </Text>
         </View>
       </View>
@@ -361,24 +357,22 @@ function GameIntro({
               {needsTutorial ? 'FIRST FLIGHT' : 'YOUR PROGRESS'}
             </Text>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              {needsTutorial ? 'How to play' : `Level ${level} of 7`}
+              {needsTutorial ? 'How to play' : `Level ${level} of 100`}
             </Text>
           </View>
           {!needsTutorial ? (
             <View style={[styles.levelBadge, { borderColor: colors.welcome.border, backgroundColor: colors.welcome.surface }]}>
               <Feather name="target" size={15} color={colors.accent} />
-              <Text style={[styles.levelBadgeText, { color: colors.welcome.foreground }]}>{level}/7</Text>
+              <Text style={[styles.levelBadgeText, { color: colors.welcome.foreground }]}>{level}/100</Text>
             </View>
           ) : null}
         </View>
 
         {needsTutorial ? (
           <View style={[styles.instructionCard, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}>
-            <InstructionRow number="1" title="Memorize" body="Study the highlighted astronaut tiles before the timer runs out." />
-            <View style={[styles.instructionDivider, { backgroundColor: colors.welcome.border }]} />
-            <InstructionRow number="2" title="Recall" body="Tap every astronaut tile, and leave the empty tiles untouched." />
-            <View style={[styles.instructionDivider, { backgroundColor: colors.welcome.border }]} />
-            <InstructionRow number="3" title="Climb" body="Clear a level to earn 5 Memory XP and unlock the next one." />
+            <Text style={[styles.instructionBody, { color: colors.welcome.muted }]}>
+              Memorize the highlighted tiles, then tap each astronaut. Levels 1–5 show the pattern for 3 seconds; later levels give you 5.
+            </Text>
           </View>
         ) : (
           <Text style={[styles.progressBody, { color: colors.welcome.muted }]}>
@@ -392,7 +386,7 @@ function GameIntro({
         <View style={styles.separateXpNote}>
           <Feather name="lock" size={13} color={colors.welcome.subdued} />
           <Text style={[styles.separateXpText, { color: colors.welcome.subdued }]}>
-            Memory XP is separate from your overall Experiences.fun XP.
+            Your game score keeps growing. Official Memory Game XP is capped at 50 per day.
           </Text>
         </View>
         {error ? <MessageCard>{error}</MessageCard> : null}
@@ -405,7 +399,7 @@ function GameIntro({
         />
         <QuietButton label="How to play" icon="help-circle" onPress={onHelp} testID="memory-game-help" />
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -419,109 +413,6 @@ function InstructionRow({ number, title, body }: { number: string; title: string
       <View style={styles.instructionCopy}>
         <Text style={[styles.instructionTitle, { color: colors.welcome.foreground }]}>{title}</Text>
         <Text style={[styles.instructionBody, { color: colors.welcome.muted }]}>{body}</Text>
-      </View>
-    </View>
-  );
-}
-
-function AnswerReview({
-  rows,
-  columns,
-  correctTileIndices,
-  selectedIndices,
-}: {
-  rows: number;
-  columns: number;
-  correctTileIndices: number[];
-  selectedIndices: number[];
-}) {
-  const colors = useMemoryGameColors();
-  const { width } = useWindowDimensions();
-  const gridWidth = Math.min(width - 72, 260);
-  const gap = columns >= 5 ? 6 : 8;
-  const tileSize = Math.floor((gridWidth - gap * (columns - 1)) / columns);
-
-  return (
-    <View
-      style={[styles.answerReview, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}
-      testID="memory-game-answer-review"
-    >
-      <View style={styles.reviewHeading}>
-        <View>
-          <Text style={[styles.reviewTitle, { color: colors.welcome.foreground }]}>Answer review</Text>
-          <Text style={[styles.reviewSummary, { color: colors.welcome.muted }]}>
-            {correctTileIndices.length} astronaut{correctTileIndices.length === 1 ? '' : 's'} in the pattern
-          </Text>
-        </View>
-        <Feather name="eye" size={16} color={colors.teal} />
-      </View>
-
-      <View style={[styles.reviewGrid, { width: gridWidth, gap }]}>
-        {Array.from({ length: rows }, (_, row) => (
-          <View key={`review-row-${row}`} style={[styles.gridRow, { gap }]}>
-            {Array.from({ length: columns }, (_, column) => {
-              const index = row * columns + column;
-              const outcome = getMemoryGameTileOutcome(index, correctTileIndices, selectedIndices);
-              const tileColor = outcome === 'correct'
-                ? colors.teal
-                : outcome === 'missed'
-                  ? colors.welcome.gold
-                  : outcome === 'extra'
-                    ? colors.destructive
-                    : colors.welcome.border;
-              const label = outcome === 'correct'
-                ? 'astronaut selected correctly'
-                : outcome === 'missed'
-                  ? 'astronaut missed'
-                  : outcome === 'extra'
-                    ? 'empty tile selected'
-                    : 'empty tile left unselected';
-
-              return (
-                <View
-                  key={`review-tile-${index}`}
-                  accessible
-                  accessibilityLabel={`Tile ${index + 1}, ${label}`}
-                  style={[
-                    styles.reviewTile,
-                    {
-                      width: tileSize,
-                      height: tileSize,
-                      backgroundColor: `${tileColor}18`,
-                      borderColor: `${tileColor}70`,
-                    },
-                  ]}
-                  testID={`memory-game-review-tile-${index}`}
-                >
-                  {outcome === 'missed' ? (
-                    <FontAwesome5 name="user-astronaut" size={Math.max(15, tileSize * 0.35)} color={tileColor} />
-                  ) : outcome === 'correct' ? (
-                    <Feather name="check" size={Math.max(16, tileSize * 0.34)} color={tileColor} />
-                  ) : outcome === 'extra' ? (
-                    <Feather name="x" size={Math.max(16, tileSize * 0.34)} color={tileColor} />
-                  ) : (
-                    <View style={[styles.tileDot, { backgroundColor: tileColor }]} />
-                  )}
-                </View>
-              );
-            })}
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.reviewLegend}>
-        <View style={styles.reviewLegendItem}>
-          <Feather name="check" size={12} color={colors.teal} />
-          <Text style={[styles.reviewLegendText, { color: colors.welcome.muted }]}>Correct</Text>
-        </View>
-        <View style={styles.reviewLegendItem}>
-          <FontAwesome5 name="user-astronaut" size={11} color={colors.welcome.gold} />
-          <Text style={[styles.reviewLegendText, { color: colors.welcome.muted }]}>Missed</Text>
-        </View>
-        <View style={styles.reviewLegendItem}>
-          <Feather name="x" size={12} color={colors.destructive} />
-          <Text style={[styles.reviewLegendText, { color: colors.welcome.muted }]}>Extra pick</Text>
-        </View>
       </View>
     </View>
   );
@@ -554,19 +445,14 @@ function GamePlay({
   const memorizeUntil = timestamp(attempt.memorizeUntilAt);
   const isMemorizing = attempt.phase === 'memorize' && now < memorizeUntil;
   const isExpired = now >= timestamp(attempt.expiresAt);
-  const progress = isMemorizing && attempt.memorizationMs > 0
-    ? Math.max(0, Math.min(1, (memorizeUntil - now) / attempt.memorizationMs))
-    : 0;
-
   return (
-    <ScrollView
-      contentContainerStyle={styles.gameContent}
-      showsVerticalScrollIndicator={false}
+    <View
+      style={styles.gameContent}
       testID="memory-game-play"
     >
       <View style={styles.gameLevelRow}>
         <View style={styles.gameLevelCopy}>
-          <Text style={[styles.sectionEyebrow, { color: colors.teal }]}>LEVEL {attempt.level} OF 7</Text>
+            <Text style={[styles.sectionEyebrow, { color: colors.teal }]}>LEVEL {attempt.level} OF 100</Text>
           <Text style={[styles.sectionTitle, { color: colors.welcome.foreground }]}>
             {isExpired ? 'Session expired' : isMemorizing ? 'Remember the pattern' : 'Find the astronauts'}
           </Text>
@@ -601,19 +487,26 @@ function GamePlay({
           </Text>
         </View>
         {isMemorizing ? (
-          <Text style={[styles.phaseCountdown, { color: colors.welcome.gold }]}>
-            {Math.ceil(Math.max(0, memorizeUntil - now) / 1000)}s
-          </Text>
+          <View accessibilityLabel={`${Math.ceil(Math.max(0, memorizeUntil - now) / 1000)} seconds remaining`} style={styles.countdownPips}>
+            {Array.from({ length: 5 }, (_, index) => (
+              <View
+                key={index}
+                style={[styles.countdownPip, {
+                  backgroundColor: index < Math.ceil(Math.max(0, memorizeUntil - now) / 1000)
+                    ? colors.welcome.gold
+                    : colors.welcome.border,
+                }]}
+              />
+            ))}
+            <Text style={[styles.phaseCountdown, { color: colors.welcome.gold }]}>
+              {Math.ceil(Math.max(0, memorizeUntil - now) / 1000)}
+            </Text>
+          </View>
         ) : (
           <Text style={[styles.phaseCount, { color: colors.teal }]}>
             {selectedIndices.length}/{attempt.astronautCount}
           </Text>
         )}
-        {isMemorizing ? (
-          <View style={[styles.progressTrack, { backgroundColor: colors.welcome.border }]}>
-            <View style={[styles.progressFill, { backgroundColor: colors.welcome.gold, width: `${progress * 100}%` }]} />
-          </View>
-        ) : null}
       </View>
 
       {isExpired ? (
@@ -631,7 +524,6 @@ function GamePlay({
           selectedIndices={selectedIndices}
           onToggle={onToggle}
           disabled={busy}
-          now={now}
         />
       )}
       {error ? <MessageCard>{error}</MessageCard> : null}
@@ -652,7 +544,7 @@ function GamePlay({
         />
       )}
       <QuietButton label="How to play" icon="help-circle" onPress={onHelp} testID="memory-game-help" />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -678,7 +570,7 @@ function PausedPanel({
       <View style={[styles.pauseArtwork, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}>
         <Feather name="pause" size={30} color={colors.welcome.gold} />
       </View>
-      <Text style={[styles.centerEyebrow, { color: colors.teal }]}>LEVEL {attempt.level} OF 7</Text>
+      <Text style={[styles.centerEyebrow, { color: colors.teal }]}>LEVEL {attempt.level} OF 100</Text>
       <Text style={[styles.centerTitle, { color: colors.welcome.foreground }]}>Game paused</Text>
       <Text style={[styles.centerBody, { color: colors.welcome.muted }]}>
         {isExpired
@@ -706,7 +598,6 @@ function PausedPanel({
 
 function ResultPanel({
   result,
-  reviewLayout,
   busy,
   error,
   onNext,
@@ -714,7 +605,6 @@ function ResultPanel({
   onLeaderboard,
 }: {
   result: MemoryGameAttemptResult;
-  reviewLayout: { rows: number; columns: number } | null;
   busy: boolean;
   error: string | null;
   onNext: () => void;
@@ -733,7 +623,7 @@ function ResultPanel({
     rankCopy = `Your global rank is #${rankAfter}.`;
   }
   return (
-    <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false} testID="memory-game-result">
+    <View style={styles.resultContent} testID="memory-game-result">
       <View style={[styles.resultIcon, { backgroundColor: result.successful ? `${colors.accent}18` : `${colors.primary}12` }]}>
         <Feather
           name={result.successful ? result.runCompleted ? 'award' : 'check' : 'rotate-ccw'}
@@ -741,24 +631,15 @@ function ResultPanel({
           color={result.successful ? colors.welcome.gold : colors.primary}
         />
       </View>
-      <Text style={[styles.centerEyebrow, { color: colors.teal }]}>LEVEL {result.level} OF 7</Text>
+      <Text style={[styles.centerEyebrow, { color: colors.teal }]}>LEVEL {result.level} OF 100</Text>
       <Text style={[styles.centerTitle, { color: colors.welcome.foreground }]}>
         {result.successful ? result.runCompleted ? 'Full run complete!' : 'Level cleared!' : 'Not quite yet'}
       </Text>
       <Text style={[styles.centerBody, { color: colors.welcome.muted }]}>
         {result.successful
           ? `${result.correctSelections} astronaut tiles remembered correctly.`
-          : `You found ${result.correctSelections} of ${result.correctTileIndices.length} astronauts. Review the pattern below.`}
+          : `You found ${result.correctSelections} of ${result.correctTileIndices.length} astronauts.`}
       </Text>
-
-      {reviewLayout ? (
-        <AnswerReview
-          rows={reviewLayout.rows}
-          columns={reviewLayout.columns}
-          correctTileIndices={result.correctTileIndices}
-          selectedIndices={result.selectedIndices}
-        />
-      ) : null}
 
       <View style={[styles.rewardCard, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}>
         <View style={[styles.rewardIcon, { backgroundColor: `${colors.accent}18` }]}>
@@ -766,10 +647,14 @@ function ResultPanel({
         </View>
         <View style={styles.rewardCopy}>
           <Text style={[styles.rewardTitle, { color: colors.welcome.foreground }]}>
-            {result.successful ? `+${result.xpAwarded} Memory XP` : 'Memory XP unchanged'}
+            {result.successful ? `+${result.xpAwarded} game-score points` : 'Game score unchanged'}
           </Text>
           <Text style={[styles.rewardSub, { color: colors.welcome.subdued }]}>
-            {result.successful ? 'Added to your Memory Game score' : 'Clear the level to earn 5 Memory XP'}
+            {result.successful
+              ? result.officialXpAwarded > 0
+                ? `+${result.officialXpAwarded} official XP · 50 XP daily game limit`
+                : 'Daily official XP limit reached · score and level still saved'
+              : 'Clear the level to add 5 points to your game score'}
           </Text>
         </View>
         <Text style={[styles.rewardTotal, { color: colors.welcome.gold }]}>{result.stats.memoryXp}</Text>
@@ -801,14 +686,14 @@ function ResultPanel({
         />
       )}
       <QuietButton label="Memory leaderboard" icon="award" onPress={onLeaderboard} testID="memory-game-result-leaderboard" />
-    </ScrollView>
+    </View>
   );
 }
 
 function HelpPanel({ onClose }: { onClose: () => void }) {
   const colors = useMemoryGameColors();
   return (
-    <ScrollView contentContainerStyle={styles.helpContent} showsVerticalScrollIndicator={false} testID="memory-game-help-panel">
+    <View style={styles.helpContent} testID="memory-game-help-panel">
       <View style={[styles.helpIcon, { backgroundColor: `${colors.secondary}12` }]}>
         <Feather name="help-circle" size={25} color={colors.teal} />
       </View>
@@ -822,10 +707,10 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
         <View style={[styles.instructionDivider, { backgroundColor: colors.welcome.border }]} />
         <InstructionRow number="2" title="Select" body="Choose every astronaut tile. Empty tiles count against your answer." />
         <View style={[styles.instructionDivider, { backgroundColor: colors.welcome.border }]} />
-        <InstructionRow number="3" title="Earn" body="A correct level awards 5 Memory XP. Seven levels make a full run." />
+        <InstructionRow number="3" title="Earn" body="Each cleared level adds 5 game-score points. Official game XP is limited to 50 per day; progress still counts after that." />
       </View>
       <PrimaryButton label="Back to game" icon="arrow-left" onPress={onClose} testID="memory-game-help-close" />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -841,7 +726,6 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
   const [localAttempt, setLocalAttempt] = useState<MemoryGameAttempt | null | undefined>(undefined);
   const [statsOverride, setStatsOverride] = useState<MemoryGameStats | null>(null);
   const [result, setResult] = useState<MemoryGameAttemptResult | null>(null);
-  const [reviewLayout, setReviewLayout] = useState<{ rows: number; columns: number } | null>(null);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [panel, setPanel] = useState<Panel>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -873,7 +757,6 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
       const attempt = await startAttempt.mutateAsync({ data: { restart } });
       setLocalAttempt(attempt);
       setResult(null);
-      setReviewLayout(null);
       void invalidateGameQueries();
     } catch (error) {
       setActionError(errorMessage(error, 'We could not start the game. Try again.'));
@@ -926,7 +809,6 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
         attemptId: activeAttempt.id,
         data: { selectedIndices: [...selectedIndices].sort((left, right) => left - right) },
       });
-      setReviewLayout({ rows: attemptBeforeSubmit.rows, columns: attemptBeforeSubmit.columns });
       setResult(submitted);
       setStatsOverride(submitted.stats);
       setLocalAttempt(null);
@@ -989,7 +871,6 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
           <ScreenHeader title="Level result" onBack={handleExit} onLeaderboard={() => setPanel('leaderboard')} />
           <ResultPanel
             result={result}
-            reviewLayout={reviewLayout}
             busy={busy}
             error={actionError}
             onNext={() => void beginAttempt(false)}
@@ -1077,26 +958,26 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1 },
   headerEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.6 },
   headerTitle: { fontFamily: 'Inter_700Bold', fontSize: 18, marginTop: 2 },
-  introContent: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: 28, gap: 18 },
-  hero: { minHeight: 206, borderRadius: 24, overflow: 'hidden', padding: 20, justifyContent: 'center' },
+  introContent: { flex: 1, minHeight: 0, paddingHorizontal: 18, paddingTop: 6, paddingBottom: 6, justifyContent: 'space-between' },
+  hero: { minHeight: 142, borderRadius: 22, overflow: 'hidden', padding: 16, justifyContent: 'center' },
   heroOrbOne: { position: 'absolute', width: 190, height: 190, borderRadius: 95, right: -58, top: -71 },
   heroOrbTwo: { position: 'absolute', width: 80, height: 80, borderRadius: 40, right: 29, bottom: -34 },
-  heroTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+  heroTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   heroIcon: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   heroPill: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6 },
   heroPillText: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1 },
   heroTitle: { fontFamily: 'Inter_700Bold', fontSize: 25, letterSpacing: -0.3 },
   heroBody: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, maxWidth: 280, marginTop: 7 },
-  heroReward: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 14 },
+  heroReward: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 9 },
   heroRewardText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  introSection: { gap: 13 },
+  introSection: { gap: 8 },
   levelHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.4 },
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 21, marginTop: 4 },
   levelBadge: { borderWidth: 1, borderRadius: 13, minWidth: 64, height: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   levelBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
   progressBody: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, marginTop: -3 },
-  instructionCard: { borderWidth: 1, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 4, gap: 0 },
+  instructionCard: { borderWidth: 1, borderRadius: 15, paddingHorizontal: 12, paddingVertical: 10, gap: 0 },
   instructionRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 },
   instructionNumber: { width: 31, height: 31, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   instructionNumberText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
@@ -1104,32 +985,32 @@ const styles = StyleSheet.create({
   instructionTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 },
   instructionBody: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginTop: 3 },
   instructionDivider: { height: 1, marginLeft: 43 },
-  statsStrip: { flexDirection: 'row', gap: 8 },
-  statCard: { flex: 1, minWidth: 0, minHeight: 77, borderWidth: 1, borderRadius: 15, paddingHorizontal: 10, paddingVertical: 9 },
-  statValue: { fontFamily: 'Inter_700Bold', fontSize: 16, marginTop: 5 },
+  statsStrip: { flexDirection: 'row', gap: 7 },
+  statCard: { flex: 1, minWidth: 0, minHeight: 62, borderWidth: 1, borderRadius: 14, paddingHorizontal: 9, paddingVertical: 7 },
+  statValue: { fontFamily: 'Inter_700Bold', fontSize: 15, marginTop: 3 },
   statLabel: { fontFamily: 'Inter_500Medium', fontSize: 9, marginTop: 2 },
   separateXpNote: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 2 },
   separateXpText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
-  primaryButton: { minHeight: 50, borderRadius: 16, overflow: 'hidden' },
-  primaryButtonFill: { flex: 1, minHeight: 50, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  primaryButton: { minHeight: 46, borderRadius: 15, overflow: 'hidden' },
+  primaryButtonFill: { flex: 1, minHeight: 46, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   primaryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 14 },
-  quietButton: { minHeight: 43, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  quietButton: { minHeight: 38, borderWidth: 1, borderRadius: 13, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   quietButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
-  gameContent: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: 25, alignItems: 'center', gap: 14 },
+  gameContent: { flex: 1, minHeight: 0, paddingHorizontal: 18, paddingTop: 6, paddingBottom: 5, alignItems: 'center', justifyContent: 'space-evenly', gap: 7 },
   gameLevelRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   gameLevelCopy: { flex: 1 },
   pauseButton: { minHeight: 37, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 5 },
   pauseText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  phaseCard: { width: '100%', minHeight: 76, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 11, flexWrap: 'wrap' },
-  phaseCopy: { flex: 1, minWidth: 180 },
+  phaseCard: { width: '100%', minHeight: 68, borderWidth: 1, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  phaseCopy: { flex: 1, minWidth: 150 },
   phaseTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   phaseDot: { width: 7, height: 7, borderRadius: 4 },
   phaseTitle: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   phaseSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 4, lineHeight: 14 },
-  phaseCountdown: { fontFamily: 'Inter_700Bold', fontSize: 21 },
+  phaseCountdown: { fontFamily: 'Inter_700Bold', fontSize: 25, minWidth: 22, textAlign: 'right' },
+  countdownPips: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  countdownPip: { width: 5, height: 12, borderRadius: 3 },
   phaseCount: { fontFamily: 'Inter_700Bold', fontSize: 14 },
-  progressTrack: { width: '100%', height: 4, borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: 4, borderRadius: 2 },
   grid: { alignItems: 'center', alignSelf: 'center' },
   gridRow: { flexDirection: 'row', justifyContent: 'center' },
   tile: { borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
@@ -1148,7 +1029,7 @@ const styles = StyleSheet.create({
   centerTitle: { fontFamily: 'Inter_700Bold', fontSize: 23, textAlign: 'center', marginTop: 2 },
   centerBody: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 20, textAlign: 'center', maxWidth: 320 },
   pauseArtwork: { width: 75, height: 75, borderRadius: 26, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  resultContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, paddingTop: 20, paddingBottom: 28, gap: 12 },
+  resultContent: { flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'space-evenly', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 4, gap: 6 },
   resultIcon: { width: 62, height: 62, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   rewardCard: { width: '100%', minHeight: 70, borderWidth: 1, borderRadius: 17, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
   rewardIcon: { width: 36, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
@@ -1167,7 +1048,7 @@ const styles = StyleSheet.create({
   reviewLegend: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12 },
   reviewLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   reviewLegendText: { fontFamily: 'Inter_500Medium', fontSize: 9 },
-  helpContent: { flexGrow: 1, paddingHorizontal: 22, paddingTop: 25, paddingBottom: 25, alignItems: 'center', justifyContent: 'center', gap: 13 },
+  helpContent: { flex: 1, minHeight: 0, paddingHorizontal: 22, paddingTop: 8, paddingBottom: 8, alignItems: 'center', justifyContent: 'center', gap: 8 },
   helpIcon: { width: 58, height: 58, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   helpCard: { width: '100%', borderWidth: 1, borderRadius: 18, paddingHorizontal: 13, marginVertical: 7 },
 });

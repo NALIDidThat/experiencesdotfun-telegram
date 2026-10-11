@@ -53,12 +53,12 @@ export const memoryGameStatsTable = pgTable(
       .where(sql`${table.memoryXp} > 0`),
     levelCheck: check(
       "memory_game_stats_current_level_check",
-      sql`${table.currentLevel} BETWEEN 1 AND 7`,
+      sql`${table.currentLevel} BETWEEN 1 AND 100`,
     ),
     nonNegativeTotalsCheck: check(
       "memory_game_stats_non_negative_totals_check",
       sql`${table.memoryXp} >= 0
-        AND ${table.highestLevel} BETWEEN 0 AND 7
+        AND ${table.highestLevel} BETWEEN 0 AND 100
         AND ${table.levelsCompleted} >= 0
         AND ${table.gamesPlayed} >= 0
         AND ${table.gamesCompleted} >= 0
@@ -68,8 +68,8 @@ export const memoryGameStatsTable = pgTable(
         AND ${table.correctSelections} >= 0
         AND ${table.totalSelections} >= 0
         AND ${table.accuracy} BETWEEN 0 AND 100
-        AND ${table.bestRun} BETWEEN 0 AND 7
-        AND ${table.currentRunLevels} BETWEEN 0 AND 7
+        AND ${table.bestRun} BETWEEN 0 AND 100
+        AND ${table.currentRunLevels} BETWEEN 0 AND 100
         AND (${table.fastestRecallMs} IS NULL OR ${table.fastestRecallMs} >= 0)`,
     ),
   }),
@@ -118,11 +118,11 @@ export const memoryGameAttemptsTable = pgTable(
     ),
     levelCheck: check(
       "memory_game_attempts_level_check",
-      sql`${table.level} BETWEEN 1 AND 7`,
+      sql`${table.level} BETWEEN 1 AND 100`,
     ),
     gridCheck: check(
       "memory_game_attempts_grid_check",
-      sql`${table.gridRows} BETWEEN 3 AND 4 AND ${table.gridColumns} BETWEEN 3 AND 4`,
+      sql`${table.gridRows} BETWEEN 3 AND 10 AND ${table.gridColumns} BETWEEN 3 AND 10`,
     ),
     outcomeCheck: check(
       "memory_game_attempts_outcome_check",

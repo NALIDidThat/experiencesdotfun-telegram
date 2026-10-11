@@ -1,12 +1,23 @@
-export const MEMORY_GAME_LEVELS = Object.freeze([
-  { rows: 3, columns: 3, astronautCount: 3, memorizationMs: 5000 },
-  { rows: 3, columns: 3, astronautCount: 4, memorizationMs: 5000 },
-  { rows: 3, columns: 3, astronautCount: 5, memorizationMs: 4000 },
-  { rows: 4, columns: 3, astronautCount: 5, memorizationMs: 4000 },
-  { rows: 4, columns: 3, astronautCount: 6, memorizationMs: 3500 },
-  { rows: 4, columns: 4, astronautCount: 7, memorizationMs: 3000 },
-  { rows: 4, columns: 4, astronautCount: 8, memorizationMs: 3000 },
-]);
+export const MAX_MEMORY_GAME_LEVEL = 100;
+export const MEMORY_GAME_LEVELS = Object.freeze(
+  Array.from({ length: MAX_MEMORY_GAME_LEVEL }, (_, index) => {
+    const level = index + 1;
+    const astronautCount = 3 + Math.floor((level - 1) * 0.7);
+    const targetTileCount = Math.min(100, Math.max(9, Math.ceil(astronautCount * 1.7)));
+    const columns = Math.min(10, Math.max(3, Math.ceil(Math.sqrt(targetTileCount))));
+    const rows = Math.min(10, Math.max(3, Math.ceil(targetTileCount / columns)));
+    return {
+      rows,
+      columns,
+      astronautCount: Math.min(astronautCount, rows * columns - 1),
+      memorizationMs: level <= 5 ? 3000 : 5000,
+    };
+  }),
+);
+
+export function getDailyMemoryXpAward(dailyAwarded) {
+  return Math.min(5, Math.max(0, 50 - Math.max(0, Math.floor(dailyAwarded))));
+}
 
 /**
  * @param {number} tileCount

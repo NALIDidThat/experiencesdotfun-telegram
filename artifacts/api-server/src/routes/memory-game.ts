@@ -1,5 +1,5 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, gt, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   StartMemoryGameAttemptBody,
@@ -20,6 +20,8 @@ import { currentUser, requireTelegramUser } from "../lib/auth";
 import {
   chooseAstronautIndices,
   evaluateMemoryGameSelection,
+  getDailyMemoryXpAward,
+  MAX_MEMORY_GAME_LEVEL,
   MEMORY_GAME_LEVELS,
 } from "../lib/memory-game-rules.mjs";
 
@@ -449,7 +451,22 @@ router.post("/attempts/:attemptId/submit", async (req, res): Promise<void> => {
     if (!stats) return { kind: "not-found" as const };
 
     if (attempt.status === "completed" || attempt.status === "failed") {
-      return { kind: "result" as const, attempt, stats, newlyCompleted: false };
+      const [existingAward] = await transaction
+        .select({ amount: xpAwardsTable.amount })
+        .from(xpAwardsTable)
+        .where(and(
+          eq(xpAwardsTable.userId, userId),
+          eq(xpAwardsTable.sourceType, "memory_game"),
+          eq(xpAwardsTable.sourceId, attempt.id),
+        ))
+        .limit(1);
+      return {
+        kind: "result" as const,
+        attempt,
+        stats,
+        newlyCompleted: false,
+        officialXpAwarded: existingAward?.amount ?? 0,
+      };
     }
     if (attempt.status !== "in_progress") return { kind: "conflict" as const };
     if (attempt.pausedAt) return { kind: "paused" as const };
@@ -475,21 +492,36 @@ router.post("/attempts/:attemptId/submit", async (req, res): Promise<void> => {
     const elapsedMs = Math.max(0, now.getTime() - attempt.memorizeUntilAt.getTime());
     const successful = selection.successful;
     const xpAwarded = successful ? XP_PER_LEVEL : 0;
+    let officialXpAwarded = 0;
     if (successful) {
-      const [award] = await transaction
-        .insert(xpAwardsTable)
-        .values({
-          userId,
-          sourceType: "memory_game",
-          sourceId: attempt.id,
-          sourceTitle: `Memory Game · Level ${attempt.level}`,
-          amount: XP_PER_LEVEL,
-          status: "pending",
-          awardedAt: now,
-        })
-        .onConflictDoNothing()
-        .returning({ id: xpAwardsTable.id });
-      if (!award) throw new Error("The Memory Game XP award already exists for this attempt.");
+      const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      const [dailyTotal] = await transaction
+        .select({ total: sql<number>`coalesce(sum(${xpAwardsTable.amount}), 0)::int` })
+        .from(xpAwardsTable)
+        .where(and(
+          eq(xpAwardsTable.userId, userId),
+          eq(xpAwardsTable.sourceType, "memory_game"),
+          gte(xpAwardsTable.awardedAt, dayStart),
+          lt(xpAwardsTable.awardedAt, dayEnd),
+        ));
+      officialXpAwarded = getDailyMemoryXpAward(Number(dailyTotal?.total ?? 0));
+      if (officialXpAwarded > 0) {
+        const [award] = await transaction
+          .insert(xpAwardsTable)
+          .values({
+            userId,
+            sourceType: "memory_game",
+            sourceId: attempt.id,
+            sourceTitle: `Memory Game · Level ${attempt.level}`,
+            amount: officialXpAwarded,
+            status: "pending",
+            awardedAt: now,
+          })
+          .onConflictDoNothing()
+          .returning({ id: xpAwardsTable.id });
+        if (!award) throw new Error("The Memory Game XP award already exists for this attempt.");
+      }
     }
 
     const totalAttempts = stats.totalAttempts + 1;
@@ -499,9 +531,9 @@ router.post("/attempts/:attemptId/submit", async (req, res): Promise<void> => {
     const totalSelections = stats.totalSelections + selection.totalSelections;
     const currentRunLevels =
       stats.currentRunLevels + (successful ? 1 : 0);
-    const runCompleted = successful && attempt.level === MEMORY_GAME_LEVELS.length;
+    const runCompleted = successful && attempt.level === MAX_MEMORY_GAME_LEVEL;
     const nextStatsValues = {
-      memoryXp: stats.memoryXp + xpAwarded,
+      memoryXp: stats.memoryXp + (successful ? XP_PER_LEVEL : 0),
       currentLevel: runCompleted
         ? 1
         : successful
@@ -558,6 +590,7 @@ router.post("/attempts/:attemptId/submit", async (req, res): Promise<void> => {
       attempt: updatedAttempt,
       stats,
       newlyCompleted: successful,
+      officialXpAwarded,
     };
   });
 
@@ -605,13 +638,14 @@ router.post("/attempts/:attemptId/submit", async (req, res): Promise<void> => {
     selectedIndices: outcome.attempt.selectedIndices,
     correctSelections: outcome.attempt.correctSelectionCount,
     xpAwarded: outcome.attempt.xpAwarded,
+    officialXpAwarded: outcome.officialXpAwarded ?? 0,
     runCompleted:
       outcome.attempt.status === "completed" &&
-      outcome.attempt.level === MEMORY_GAME_LEVELS.length,
+      outcome.attempt.level === MAX_MEMORY_GAME_LEVEL,
     runXpAwarded:
       outcome.attempt.status === "completed" &&
-      outcome.attempt.level === MEMORY_GAME_LEVELS.length
-        ? XP_PER_LEVEL * MEMORY_GAME_LEVELS.length
+      outcome.attempt.level === MAX_MEMORY_GAME_LEVEL
+        ? XP_PER_LEVEL * MAX_MEMORY_GAME_LEVEL
         : null,
     globalRankBefore: outcome.attempt.leaderboardRankBefore,
     globalRankAfter: rankAfter,

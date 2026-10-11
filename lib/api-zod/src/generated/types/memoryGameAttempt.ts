@@ -10,9 +10,25 @@ import type { MemoryGameAttemptResumePhase } from './memoryGameAttemptResumePhas
 
 export interface MemoryGameAttempt {
   id: string;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
   level: number;
+  /**
+     * @minimum 3
+     * @maximum 10
+     */
   rows: number;
+  /**
+     * @minimum 3
+     * @maximum 10
+     */
   columns: number;
+  /**
+     * @minimum 1
+     * @maximum 99
+     */
   astronautCount: number;
   memorizationMs: number;
   memorizeUntilAt: Date;

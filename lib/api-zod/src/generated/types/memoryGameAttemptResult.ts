@@ -15,6 +15,7 @@ export interface MemoryGameAttemptResult {
   selectedIndices: number[];
   correctSelections: number;
   xpAwarded: number;
+  officialXpAwarded: number;
   runCompleted: boolean;
   /** @nullable */
   runXpAwarded: number | null;
