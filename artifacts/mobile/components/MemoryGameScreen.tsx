@@ -378,7 +378,7 @@ function GameIntro({
           <Text style={[styles.progressBody, { color: colors.welcome.muted }]}>
             {stats.currentLevel === 1 && stats.levelsCompleted > 0
               ? 'Your previous run is saved. Start a fresh run whenever you are ready.'
-              : 'Each level gives you less time to remember more astronauts.'}
+              : 'Patterns grow as you progress. Recall time: 3 seconds for levels 1–5, then 5 seconds.'}
           </Text>
         )}
 
