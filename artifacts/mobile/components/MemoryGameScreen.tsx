@@ -54,12 +54,16 @@ function errorMessage(error: unknown, fallback: string) {
 function PrimaryButton({
   label,
   icon,
+  iconOnLeft = false,
+  endIcon,
   onPress,
   disabled = false,
   testID,
 }: {
   label: string;
   icon?: keyof typeof Feather.glyphMap;
+  iconOnLeft?: boolean;
+  endIcon?: keyof typeof Feather.glyphMap;
   onPress: () => void;
   disabled?: boolean;
   testID?: string;
@@ -80,8 +84,10 @@ function PrimaryButton({
         start={{ x: 0, y: 0 }}
         style={styles.primaryButtonFill}
       >
+        {icon && iconOnLeft ? <Feather name={icon} size={19} color={colors.primaryForeground} /> : null}
         <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>{label}</Text>
-        {icon ? <Feather name={icon} size={17} color={colors.primaryForeground} /> : null}
+        {endIcon ? <Feather name={endIcon} size={17} color={colors.primaryForeground} /> : null}
+        {icon && !iconOnLeft && !endIcon ? <Feather name={icon} size={17} color={colors.primaryForeground} /> : null}
       </LinearGradient>
     </Pressable>
   );
@@ -90,11 +96,13 @@ function PrimaryButton({
 function QuietButton({
   label,
   icon,
+  endIcon,
   onPress,
   testID,
 }: {
   label: string;
   icon: keyof typeof Feather.glyphMap;
+  endIcon?: keyof typeof Feather.glyphMap;
   onPress: () => void;
   testID?: string;
 }) {
@@ -111,6 +119,7 @@ function QuietButton({
     >
       <Feather name={icon} size={15} color={colors.welcome.muted} />
       <Text style={[styles.quietButtonText, { color: colors.welcome.foreground }]}>{label}</Text>
+      {endIcon ? <Feather name={endIcon} size={15} color={colors.welcome.muted} /> : null}
     </Pressable>
   );
 }
@@ -612,8 +621,11 @@ function ResultPanel({
   onLeaderboard: () => void;
 }) {
   const colors = useMemoryGameColors();
+  const { height } = useWindowDimensions();
+  const compact = height < 760;
   const rankBefore = result.globalRankBefore;
   const rankAfter = result.globalRankAfter;
+  const nextLevel = Math.min(100, result.level + 1);
   let rankCopy: string | null = null;
   if (rankAfter !== null && rankBefore !== null && rankAfter < rankBefore) {
     rankCopy = `You moved up ${rankBefore - rankAfter} ${rankBefore - rankAfter === 1 ? 'place' : 'places'} globally.`;
@@ -623,55 +635,105 @@ function ResultPanel({
     rankCopy = `Your global rank is #${rankAfter}.`;
   }
   return (
-    <View style={styles.resultContent} testID="memory-game-result">
-      <View style={[styles.resultIcon, { backgroundColor: result.successful ? `${colors.accent}18` : `${colors.primary}12` }]}>
-        <Feather
-          name={result.successful ? result.runCompleted ? 'award' : 'check' : 'rotate-ccw'}
-          size={28}
-          color={result.successful ? colors.welcome.gold : colors.primary}
-        />
+    <View style={[styles.resultContent, compact && styles.resultContentCompact]} testID="memory-game-result">
+      <View style={styles.resultProgressRow}>
+        <View style={styles.resultGameLabel}>
+          <View style={[styles.resultGameIcon, { backgroundColor: `${colors.secondary}14` }]}>
+            <Feather name="grid" size={17} color={colors.secondary} />
+          </View>
+          <Text style={[styles.resultGameText, { color: colors.welcome.foreground }]}>LEVEL PROGRESS</Text>
+        </View>
+        <View style={styles.resultProgress}>
+          <Text style={[styles.resultProgressText, { color: colors.welcome.foreground }]}>{result.level} / 100</Text>
+          <View style={[styles.resultProgressTrack, { backgroundColor: colors.welcome.border }]}>
+            <LinearGradient
+              colors={[colors.primary, colors.secondary]}
+              end={{ x: 1, y: 0 }}
+              start={{ x: 0, y: 0 }}
+              style={[styles.resultProgressFill, { width: `${Math.min(100, Math.max(4, result.level))}%` }]}
+            />
+          </View>
+        </View>
       </View>
-      <Text style={[styles.centerEyebrow, { color: colors.teal }]}>LEVEL {result.level} OF 100</Text>
-      <Text style={[styles.centerTitle, { color: colors.welcome.foreground }]}>
-        {result.successful ? result.runCompleted ? 'Full run complete!' : 'Level cleared!' : 'Not quite yet'}
-      </Text>
-      <Text style={[styles.centerBody, { color: colors.welcome.muted }]}>
-        {result.successful
-          ? `${result.correctSelections} astronaut tiles remembered correctly.`
-          : `You found ${result.correctSelections} of ${result.correctTileIndices.length} astronauts.`}
-      </Text>
 
-      <View style={[styles.rewardCard, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}>
-        <View style={[styles.rewardIcon, { backgroundColor: `${colors.accent}18` }]}>
-          <Feather name="star" size={17} color={colors.welcome.gold} />
+      <View style={[styles.resultSpace, compact && styles.resultSpaceCompact]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <View style={[styles.resultPlanet, { backgroundColor: `${colors.accent}18` }]} />
+        <View style={[styles.resultOrbit, { borderColor: `${colors.secondary}32` }]} />
+        <Feather name="star" size={16} color={colors.primary} style={styles.resultStarOne} />
+        <Feather name="star" size={12} color={colors.welcome.gold} style={styles.resultStarTwo} />
+        <Feather name="star" size={13} color={colors.secondary} style={styles.resultStarThree} />
+        <View style={[styles.resultAstronautHalo, { backgroundColor: `${colors.secondary}12` }]}>
+          <FontAwesome5
+            name={result.successful ? 'user-astronaut' : 'space-shuttle'}
+            size={compact ? 53 : 67}
+            color={colors.secondary}
+          />
+        </View>
+      </View>
+
+      <View style={[styles.resultBanner, compact && styles.resultBannerCompact]} testID="memory-game-result-banner">
+        <LinearGradient
+          colors={result.successful ? [colors.secondary, colors.primary] : [colors.primary, colors.secondary]}
+          end={{ x: 1, y: 1 }}
+          start={{ x: 0, y: 0 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[styles.resultBannerOrb, { backgroundColor: colors.primaryForeground, opacity: 0.09 }]} />
+        <View style={[styles.resultBannerOrbSmall, { borderColor: colors.primaryForeground, opacity: 0.14 }]} />
+        <Feather name="star" size={17} color={colors.primaryForeground} style={[styles.resultBannerStar, { opacity: 0.72 }]} />
+        <Text style={[styles.resultBannerEyebrow, { color: colors.primaryForeground }]}>
+          LEVEL {result.level} OF 100
+        </Text>
+        <Text style={[styles.resultBannerTitle, compact && styles.resultBannerTitleCompact, { color: colors.primaryForeground }]}>
+          {result.successful ? result.runCompleted ? 'Full run complete!' : 'Level cleared!' : 'Try again'}
+        </Text>
+        <Text style={[styles.resultBannerBody, { color: colors.primaryForeground }]}>
+          {result.successful
+            ? `${result.correctSelections} astronaut tiles remembered correctly.`
+            : `You found ${result.correctSelections} of ${result.correctTileIndices.length} astronauts.`}
+        </Text>
+      </View>
+
+      <View style={[styles.resultRewardCard, compact && styles.resultRewardCardCompact, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}>
+        <View style={[styles.resultRewardIcon, { backgroundColor: `${colors.primary}12` }]}>
+          <Feather name="star" size={25} color={colors.primary} />
         </View>
         <View style={styles.rewardCopy}>
           <Text style={[styles.rewardTitle, { color: colors.welcome.foreground }]}>
             {result.successful ? `+${result.xpAwarded} game-score points` : 'Game score unchanged'}
           </Text>
-          <Text style={[styles.rewardSub, { color: colors.welcome.subdued }]}>
+          <Text style={[styles.resultRewardSub, { color: colors.welcome.subdued }]}>
             {result.successful
               ? result.officialXpAwarded > 0
-                ? `+${result.officialXpAwarded} official XP · 50 XP daily game limit`
-                : 'Daily official XP limit reached · score and level still saved'
+                ? `+${result.officialXpAwarded} official XP · 50 XP daily limit`
+                : 'Daily official XP limit reached'
               : 'Clear the level to add 5 points to your game score'}
           </Text>
         </View>
-        <Text style={[styles.rewardTotal, { color: colors.welcome.gold }]}>{result.stats.memoryXp}</Text>
+        <View style={[styles.resultScoreDivider, { backgroundColor: colors.welcome.border }]} />
+        <View style={styles.resultScoreColumn}>
+          <Text style={[styles.resultScoreLabel, { color: colors.welcome.subdued }]}>SCORE</Text>
+          <Text style={[styles.resultScore, { color: colors.primary }]}>{result.stats.memoryXp}</Text>
+        </View>
       </View>
 
       {rankCopy ? (
-        <View style={[styles.rankChange, { backgroundColor: `${colors.accent}10`, borderColor: colors.welcome.border }]}>
-          <Feather name="trending-up" size={16} color={colors.teal} />
-          <Text style={[styles.rankChangeText, { color: colors.welcome.foreground }]}>{rankCopy}</Text>
+        <View style={[styles.resultRankCard, compact && styles.resultRankCardCompact, { backgroundColor: `${colors.teal}12` }]}>
+          <View style={[styles.resultRankIcon, { backgroundColor: `${colors.teal}16` }]}>
+            <Feather name="award" size={19} color={colors.teal} />
+          </View>
+          <Text style={[styles.resultRankText, { color: colors.welcome.foreground }]}>{rankCopy}</Text>
+          <Feather name="trending-up" size={22} color={colors.teal} />
         </View>
       ) : null}
       {error ? <MessageCard>{error}</MessageCard> : null}
 
       {result.successful ? (
         <PrimaryButton
-          label={busy ? 'Starting…' : result.runCompleted ? 'Start a new run' : 'Next level'}
-          icon="arrow-right"
+          label={busy ? 'Starting…' : result.runCompleted ? 'Start a new run' : `Continue to Level ${nextLevel}`}
+          icon="play"
+          iconOnLeft
+          endIcon="arrow-right"
           onPress={onNext}
           disabled={busy}
           testID="memory-game-next-level"
@@ -685,7 +747,7 @@ function ResultPanel({
           testID="memory-game-retry"
         />
       )}
-      <QuietButton label="Memory leaderboard" icon="award" onPress={onLeaderboard} testID="memory-game-result-leaderboard" />
+      <QuietButton label="Memory leaderboard" icon="award" endIcon="arrow-right" onPress={onLeaderboard} testID="memory-game-result-leaderboard" />
     </View>
   );
 }
@@ -736,7 +798,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
     : localAttempt;
   const stats = statsOverride ?? statsQuery.data?.stats;
   const busy = startAttempt.isPending || pauseAttempt.isPending || resumeAttempt.isPending || submitAttempt.isPending || exitPending;
-  const topInset = Platform.OS === 'web' ? Math.max(insets.top, 48) : insets.top + 8;
+  const topInset = Platform.OS === 'web' ? Math.max(insets.top, result ? 67 : 48) : insets.top + 8;
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 150);
@@ -868,7 +930,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
         </>
       ) : result ? (
         <>
-          <ScreenHeader title="Level result" onBack={handleExit} onLeaderboard={() => setPanel('leaderboard')} />
+          <ScreenHeader title="Memory Game" eyebrow="LEVEL COMPLETE" onBack={handleExit} onLeaderboard={() => setPanel('leaderboard')} />
           <ResultPanel
             result={result}
             busy={busy}
@@ -1029,25 +1091,47 @@ const styles = StyleSheet.create({
   centerTitle: { fontFamily: 'Inter_700Bold', fontSize: 23, textAlign: 'center', marginTop: 2 },
   centerBody: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 20, textAlign: 'center', maxWidth: 320 },
   pauseArtwork: { width: 75, height: 75, borderRadius: 26, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  resultContent: { flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'space-evenly', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 4, gap: 6 },
-  resultIcon: { width: 62, height: 62, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  rewardCard: { width: '100%', minHeight: 70, borderWidth: 1, borderRadius: 17, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
-  rewardIcon: { width: 36, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  resultContent: { flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'space-evenly', paddingHorizontal: 22, paddingTop: 4, paddingBottom: 4, gap: 7 },
+  resultContentCompact: { gap: 5 },
+  resultProgressRow: { width: '100%', minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  resultGameLabel: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  resultGameIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  resultGameText: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 2 },
+  resultProgress: { width: 126, gap: 4 },
+  resultProgressText: { fontFamily: 'Inter_700Bold', fontSize: 13, letterSpacing: 0.5 },
+  resultProgressTrack: { width: '100%', height: 7, borderRadius: 5, overflow: 'hidden' },
+  resultProgressFill: { height: '100%', borderRadius: 5 },
+  resultSpace: { width: '100%', height: 112, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  resultSpaceCompact: { height: 72 },
+  resultPlanet: { position: 'absolute', width: 145, height: 145, borderRadius: 73, top: 16, backgroundColor: 'transparent' },
+  resultOrbit: { position: 'absolute', width: 215, height: 64, borderWidth: 2, borderRadius: 50, transform: [{ rotate: '-12deg' }] },
+  resultAstronautHalo: { width: 90, height: 90, borderRadius: 45, alignItems: 'center', justifyContent: 'center' },
+  resultStarOne: { position: 'absolute', left: '12%', top: 28 },
+  resultStarTwo: { position: 'absolute', right: '16%', top: 17 },
+  resultStarThree: { position: 'absolute', right: '10%', bottom: 21 },
+  resultBanner: { width: '100%', minHeight: 172, borderRadius: 26, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 7 },
+  resultBannerCompact: { minHeight: 132, paddingVertical: 11, gap: 5 },
+  resultBannerOrb: { position: 'absolute', width: 106, height: 106, borderRadius: 53, left: -38, top: -38 },
+  resultBannerOrbSmall: { position: 'absolute', width: 74, height: 74, borderRadius: 37, right: -27, bottom: -27, borderWidth: 12 },
+  resultBannerStar: { position: 'absolute', right: 48, top: 25 },
+  resultBannerEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 3 },
+  resultBannerTitle: { fontFamily: 'Inter_700Bold', fontSize: 34, lineHeight: 40, letterSpacing: -0.7, textAlign: 'center' },
+  resultBannerTitleCompact: { fontSize: 29, lineHeight: 34 },
+  resultBannerBody: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 18, textAlign: 'center', maxWidth: 300 },
+  resultRewardCard: { width: '100%', minHeight: 78, borderWidth: 1, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  resultRewardCardCompact: { minHeight: 66, paddingVertical: 7, gap: 8 },
+  resultRewardIcon: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   rewardCopy: { flex: 1 },
   rewardTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 },
-  rewardSub: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 4 },
-  rewardTotal: { fontFamily: 'Inter_700Bold', fontSize: 16 },
-  rankChange: { width: '100%', minHeight: 42, borderWidth: 1, borderRadius: 13, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rankChangeText: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  answerReview: { width: '100%', borderWidth: 1, borderRadius: 17, padding: 13, gap: 12 },
-  reviewHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  reviewTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 },
-  reviewSummary: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 3 },
-  reviewGrid: { alignItems: 'center', alignSelf: 'center' },
-  reviewTile: { borderWidth: 1, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  reviewLegend: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12 },
-  reviewLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  reviewLegendText: { fontFamily: 'Inter_500Medium', fontSize: 9 },
+  resultRewardSub: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 14, marginTop: 4 },
+  resultScoreDivider: { width: 1, height: 46 },
+  resultScoreColumn: { minWidth: 56, alignItems: 'center', justifyContent: 'center' },
+  resultScoreLabel: { fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 2 },
+  resultScore: { fontFamily: 'Inter_700Bold', fontSize: 29, lineHeight: 33 },
+  resultRankCard: { width: '100%', minHeight: 58, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  resultRankCardCompact: { minHeight: 48, paddingVertical: 6 },
+  resultRankIcon: { width: 39, height: 39, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  resultRankText: { flex: 1, fontFamily: 'Inter_700Bold', fontSize: 12 },
   helpContent: { flex: 1, minHeight: 0, paddingHorizontal: 22, paddingTop: 8, paddingBottom: 8, alignItems: 'center', justifyContent: 'center', gap: 8 },
   helpIcon: { width: 58, height: 58, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   helpCard: { width: '100%', borderWidth: 1, borderRadius: 18, paddingHorizontal: 13, marginVertical: 7 },
