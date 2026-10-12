@@ -190,7 +190,7 @@ function ScreenHeader({
   );
 }
 
-function MessageCard({ children, tone = 'error' }: { children: string; tone?: 'error' | 'info' }) {
+function MessageCard({ children, tone = 'error', dark = false }: { children: string; tone?: 'error' | 'info'; dark?: boolean }) {
   const colors = useMemoryGameColors();
   return (
     <View
@@ -206,9 +206,9 @@ function MessageCard({ children, tone = 'error' }: { children: string; tone?: 'e
       <Feather
         name={tone === 'error' ? 'alert-circle' : 'info'}
         size={16}
-        color={tone === 'error' ? colors.welcome.error : colors.teal}
+        color={tone === 'error' ? (dark ? colors.space.error : colors.welcome.error) : colors.teal}
       />
-      <Text style={[styles.messageText, { color: colors.welcome.foreground }]}>{children}</Text>
+      <Text style={[styles.messageText, { color: dark ? colors.space.foreground : colors.welcome.foreground }]}>{children}</Text>
     </View>
   );
 }
@@ -265,11 +265,11 @@ function GameGrid({
                     width: tileSize,
                     height: tileSize,
                     backgroundColor: showPattern
-                      ? isAstronaut ? `${colors.secondary}18` : colors.muted
-                      : isSelected ? colors.primary : colors.card,
+                      ? isAstronaut ? `${colors.secondary}42` : `${colors.space.surface}B8`
+                      : isSelected ? `${colors.primary}E8` : `${colors.space.surface}D8`,
                     borderColor: showPattern && isAstronaut
                       ? colors.secondary
-                      : isSelected ? colors.primary : colors.welcome.border,
+                      : isSelected ? colors.primary : colors.space.border,
                     borderWidth: (showPattern && isAstronaut) || isSelected ? 2 : 1,
                     opacity: pressed ? 0.78 : 1,
                   },
@@ -277,11 +277,11 @@ function GameGrid({
                 testID={`memory-game-tile-${index}`}
               >
                 {isAstronaut ? (
-                  <FontAwesome5 name="user-astronaut" size={Math.max(18, tileSize * 0.38)} color={colors.welcome.gold} />
+                  <FontAwesome5 name="user-astronaut" size={Math.max(18, tileSize * 0.38)} color={colors.accent} />
                 ) : isSelected ? (
                   <Feather name="check" size={Math.max(18, tileSize * 0.32)} color={colors.primaryForeground} />
                 ) : (
-                  <View style={[styles.tileDot, { backgroundColor: colors.welcome.border }]} />
+                  <View style={[styles.tileDot, { backgroundColor: colors.space.border }]} />
                 )}
               </Pressable>
             );
@@ -291,15 +291,15 @@ function GameGrid({
       <View style={styles.gridFooter}>
         {showPattern ? (
           <>
-            <Feather name="eye" size={14} color={colors.welcome.gold} />
-            <Text style={[styles.gridFooterText, { color: colors.welcome.muted }]}>
+          <Feather name="eye" size={14} color={colors.space.gold} />
+            <Text style={[styles.gridFooterText, { color: colors.space.muted }]}>
               Study the highlighted tiles
             </Text>
           </>
         ) : (
           <>
-            <Feather name="check-square" size={14} color={colors.teal} />
-            <Text style={[styles.gridFooterText, { color: colors.welcome.muted }]}>
+          <Feather name="check-square" size={14} color={colors.teal} />
+            <Text style={[styles.gridFooterText, { color: colors.space.muted }]}>
               {selectedIndices.length} selected
             </Text>
           </>
@@ -440,7 +440,7 @@ function GameIntro({
               Your game score keeps growing. Official Memory Game XP is capped at 50 per day.
             </Text>
           </View>
-          {error ? <MessageCard>{error}</MessageCard> : null}
+          {error ? <MessageCard dark>{error}</MessageCard> : null}
           <PrimaryButton
             label={isBusy ? 'Starting…' : needsTutorial ? 'Start the game' : `Start level ${level}`}
             icon={isBusy ? undefined : 'play'}
@@ -462,12 +462,12 @@ function InstructionRow({ number, title, body }: { number: string; title: string
   const colors = useMemoryGameColors();
   return (
     <View style={styles.instructionRow}>
-      <View style={[styles.instructionNumber, { backgroundColor: `${colors.primary}18` }]}>
+      <View style={[styles.instructionNumber, { backgroundColor: `${colors.primary}24`, borderColor: `${colors.primary}50` }]}>
         <Text style={[styles.instructionNumberText, { color: colors.primary }]}>{number}</Text>
       </View>
       <View style={styles.instructionCopy}>
-        <Text style={[styles.instructionTitle, { color: colors.welcome.foreground }]}>{title}</Text>
-        <Text style={[styles.instructionBody, { color: colors.welcome.muted }]}>{body}</Text>
+        <Text style={[styles.instructionTitle, { color: colors.space.foreground }]}>{title}</Text>
+        <Text style={[styles.instructionBody, { color: colors.space.muted }]}>{body}</Text>
       </View>
     </View>
   );
@@ -507,8 +507,8 @@ function GamePlay({
     >
       <View style={styles.gameLevelRow}>
         <View style={styles.gameLevelCopy}>
-            <Text style={[styles.sectionEyebrow, { color: colors.teal }]}>LEVEL {attempt.level} OF 100</Text>
-          <Text style={[styles.sectionTitle, { color: colors.welcome.foreground }]}>
+            <Text style={[styles.sectionEyebrow, { color: colors.accent }]}>LEVEL {attempt.level} OF 100</Text>
+          <Text style={[styles.sectionTitle, { color: colors.space.foreground }]}>
             {isExpired ? 'Session expired' : isMemorizing ? 'Remember the pattern' : 'Find the astronauts'}
           </Text>
         </View>
@@ -517,23 +517,23 @@ function GamePlay({
           accessibilityLabel="Pause game"
           onPress={onPause}
           disabled={busy || isExpired}
-          style={[styles.pauseButton, { borderColor: colors.welcome.border, opacity: busy || isExpired ? 0.5 : 1 }]}
+          style={[styles.pauseButton, { backgroundColor: `${colors.space.surface}D8`, borderColor: colors.space.border, opacity: busy || isExpired ? 0.5 : 1 }]}
           testID="memory-game-pause"
         >
-          <Feather name="pause" size={16} color={colors.welcome.foreground} />
-          <Text style={[styles.pauseText, { color: colors.welcome.foreground }]}>Pause</Text>
+          <Feather name="pause" size={16} color={colors.space.foreground} />
+          <Text style={[styles.pauseText, { color: colors.space.foreground }]}>Pause</Text>
         </Pressable>
       </View>
 
-      <View style={[styles.phaseCard, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}>
+      <View style={[styles.phaseCard, { backgroundColor: `${colors.space.surface}E8`, borderColor: colors.space.border }]}>
         <View style={styles.phaseCopy}>
           <View style={styles.phaseTitleRow}>
-            <View style={[styles.phaseDot, { backgroundColor: isMemorizing ? colors.welcome.gold : colors.teal }]} />
-            <Text style={[styles.phaseTitle, { color: colors.welcome.foreground }]}>
+            <View style={[styles.phaseDot, { backgroundColor: isMemorizing ? colors.space.gold : colors.teal }]} />
+            <Text style={[styles.phaseTitle, { color: colors.space.foreground }]}>
               {isExpired ? 'Time is up' : isMemorizing ? 'Memorize' : 'Recall'}
             </Text>
           </View>
-          <Text style={[styles.phaseSubtitle, { color: colors.welcome.muted }]}>
+          <Text style={[styles.phaseSubtitle, { color: colors.space.muted }]}>
             {isExpired
               ? 'This attempt has expired. Restart the level to try again.'
               : isMemorizing
@@ -548,12 +548,12 @@ function GamePlay({
                 key={index}
                 style={[styles.countdownPip, {
                   backgroundColor: index < Math.ceil(Math.max(0, memorizeUntil - now) / 1000)
-                    ? colors.welcome.gold
-                    : colors.welcome.border,
+                    ? colors.space.gold
+                    : colors.space.border,
                 }]}
               />
             ))}
-            <Text style={[styles.phaseCountdown, { color: colors.welcome.gold }]}>
+            <Text style={[styles.phaseCountdown, { color: colors.space.gold }]}>
               {Math.ceil(Math.max(0, memorizeUntil - now) / 1000)}
             </Text>
           </View>
@@ -565,10 +565,10 @@ function GamePlay({
       </View>
 
       {isExpired ? (
-        <View style={[styles.expiredCard, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-          <Feather name="clock" size={24} color={colors.welcome.error} />
-          <Text style={[styles.expiredTitle, { color: colors.welcome.foreground }]}>This attempt expired</Text>
-          <Text style={[styles.expiredBody, { color: colors.welcome.muted }]}>
+        <View style={[styles.expiredCard, { backgroundColor: colors.space.surface, borderColor: colors.space.border }]}>
+          <Feather name="clock" size={24} color={colors.space.error} />
+          <Text style={[styles.expiredTitle, { color: colors.space.foreground }]}>This attempt expired</Text>
+          <Text style={[styles.expiredBody, { color: colors.space.muted }]}>
             Your progress is saved. Restart this level to keep going.
           </Text>
         </View>
@@ -581,13 +581,13 @@ function GamePlay({
           disabled={busy}
         />
       )}
-      {error ? <MessageCard>{error}</MessageCard> : null}
+      {error ? <MessageCard dark>{error}</MessageCard> : null}
       {isExpired ? (
         <PrimaryButton label="Retry this level" icon="rotate-ccw" onPress={onRetry} disabled={busy} />
       ) : isMemorizing ? (
-        <View style={[styles.waitButton, { borderColor: colors.welcome.border }]}>
+        <View style={[styles.waitButton, { backgroundColor: `${colors.space.surface}B8`, borderColor: colors.space.border }]}>
           <ActivityIndicator color={colors.teal} size="small" />
-          <Text style={[styles.waitText, { color: colors.welcome.muted }]}>Watch carefully…</Text>
+          <Text style={[styles.waitText, { color: colors.space.muted }]}>Watch carefully…</Text>
         </View>
       ) : (
         <PrimaryButton
@@ -598,7 +598,7 @@ function GamePlay({
           testID="memory-game-submit"
         />
       )}
-      <QuietButton label="How to play" icon="help-circle" onPress={onHelp} testID="memory-game-help" />
+      <QuietButton label="How to play" icon="help-circle" dark onPress={onHelp} testID="memory-game-help" />
     </View>
   );
 }
@@ -802,22 +802,24 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
   const colors = useMemoryGameColors();
   return (
     <View style={styles.helpContent} testID="memory-game-help-panel">
-      <View style={[styles.helpIcon, { backgroundColor: `${colors.secondary}12` }]}>
-        <Feather name="help-circle" size={25} color={colors.teal} />
+      <View style={[styles.helpIcon, { backgroundColor: `${colors.secondary}24`, borderColor: `${colors.secondary}65`, borderWidth: 1 }]}>
+        <Feather name="help-circle" size={25} color={colors.accent} />
       </View>
-      <Text style={[styles.centerEyebrow, { color: colors.teal }]}>QUICK GUIDE</Text>
-      <Text style={[styles.centerTitle, { color: colors.welcome.foreground }]}>How to play</Text>
-      <Text style={[styles.centerBody, { color: colors.welcome.muted }]}>
+      <Text style={[styles.centerEyebrow, { color: colors.accent }]}>QUICK GUIDE</Text>
+      <Text style={[styles.centerTitle, { color: colors.space.foreground }]}>How to play</Text>
+      <Text style={[styles.centerBody, { color: colors.space.muted }]}>
         Remember where the astronauts appear. When they disappear, select those tiles and submit your answer.
       </Text>
-      <View style={[styles.helpCard, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}>
+      <View style={[styles.helpCard, { backgroundColor: `${colors.space.surface}E8`, borderColor: colors.space.border }]}>
         <InstructionRow number="1" title="Watch" body="The pattern is visible only for a short time." />
-        <View style={[styles.instructionDivider, { backgroundColor: colors.welcome.border }]} />
+        <View style={[styles.instructionDivider, { backgroundColor: colors.space.border }]} />
         <InstructionRow number="2" title="Select" body="Choose every astronaut tile. Empty tiles count against your answer." />
-        <View style={[styles.instructionDivider, { backgroundColor: colors.welcome.border }]} />
+        <View style={[styles.instructionDivider, { backgroundColor: colors.space.border }]} />
         <InstructionRow number="3" title="Earn" body="Each cleared level adds 5 game-score points. Official game XP is limited to 50 per day; progress still counts after that." />
       </View>
-      <PrimaryButton label="Back to game" icon="arrow-left" onPress={onClose} testID="memory-game-help-close" />
+      <View style={styles.helpAction}>
+        <PrimaryButton label="Back to game" icon="arrow-left" onPress={onClose} testID="memory-game-help-close" />
+      </View>
     </View>
   );
 }
@@ -845,8 +847,10 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
   const stats = statsOverride ?? statsQuery.data?.stats;
   const busy = startAttempt.isPending || pauseAttempt.isPending || resumeAttempt.isPending || submitAttempt.isPending || exitPending;
   const showingGameIntro = panel === null && !result && !activeAttempt;
+  const showingGameInteraction = panel === 'help' || Boolean(activeAttempt && activeAttempt.phase !== 'paused' && !result);
+  const isDarkGameScreen = showingGameIntro || showingGameInteraction;
   const topInset = Platform.OS === 'web'
-    ? Math.max(insets.top, showingGameIntro ? 12 : result ? 67 : 48)
+    ? Math.max(insets.top, isDarkGameScreen ? 12 : result ? 67 : 48)
     : insets.top + 8;
 
   useEffect(() => {
@@ -964,17 +968,26 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
       style={[
         styles.screen,
         {
-          backgroundColor: showingGameIntro ? colors.space.background : colors.welcome.background,
+          backgroundColor: isDarkGameScreen ? colors.space.background : colors.welcome.background,
           paddingTop: topInset,
-          paddingBottom: Math.max(insets.bottom, showingGameIntro ? 28 : 10),
+          paddingBottom: Math.max(insets.bottom, isDarkGameScreen ? 28 : 10),
         },
       ]}
       testID="memory-game-screen"
     >
-      <StatusBar barStyle={showingGameIntro ? 'light-content' : 'dark-content'} />
+      {isDarkGameScreen ? (
+        <LinearGradient
+          colors={[colors.space.background, `${colors.secondary}12`, colors.space.background]}
+          end={{ x: 1, y: 1 }}
+          start={{ x: 0, y: 0 }}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      ) : null}
+      <StatusBar barStyle={isDarkGameScreen ? 'light-content' : 'dark-content'} />
       {panel === 'help' ? (
         <>
-          <ScreenHeader title="How to play" onBack={() => setPanel(null)} onLeaderboard={() => setPanel('leaderboard')} />
+          <ScreenHeader title="How to play" dark controlsOnly onBack={() => setPanel(null)} onLeaderboard={() => setPanel('leaderboard')} />
           <HelpPanel onClose={() => setPanel(null)} />
         </>
       ) : result ? (
@@ -1024,7 +1037,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
         </>
       ) : panel === null && activeAttempt ? (
         <>
-          <ScreenHeader title={`Level ${activeAttempt.level}`} onBack={handleExit} onLeaderboard={() => setPanel('leaderboard')} />
+          <ScreenHeader title={`Level ${activeAttempt.level}`} dark onBack={handleExit} onLeaderboard={() => setPanel('leaderboard')} />
           <GamePlay
             attempt={activeAttempt}
             now={now}
@@ -1099,7 +1112,7 @@ const styles = StyleSheet.create({
   progressBody: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
   instructionCard: { borderWidth: 1, borderRadius: 15, paddingHorizontal: 12, paddingVertical: 10, gap: 0 },
   instructionRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 },
-  instructionNumber: { width: 31, height: 31, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  instructionNumber: { width: 32, height: 32, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   instructionNumberText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   instructionCopy: { flex: 1 },
   instructionTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 },
@@ -1120,12 +1133,12 @@ const styles = StyleSheet.create({
   quietButton: { minHeight: 38, borderWidth: 1, borderRadius: 13, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   quietButtonDark: { minHeight: 43, borderRadius: 22 },
   quietButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
-  gameContent: { flex: 1, minHeight: 0, paddingHorizontal: 18, paddingTop: 6, paddingBottom: 5, alignItems: 'center', justifyContent: 'space-evenly', gap: 7 },
+  gameContent: { flex: 1, minHeight: 0, paddingHorizontal: 18, paddingTop: 8, paddingBottom: 7, alignItems: 'center', justifyContent: 'space-evenly', gap: 9 },
   gameLevelRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   gameLevelCopy: { flex: 1 },
-  pauseButton: { minHeight: 37, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  pauseButton: { minHeight: 39, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
   pauseText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  phaseCard: { width: '100%', minHeight: 68, borderWidth: 1, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  phaseCard: { width: '100%', minHeight: 72, borderWidth: 1, borderRadius: 19, paddingHorizontal: 15, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   phaseCopy: { flex: 1, minWidth: 150 },
   phaseTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   phaseDot: { width: 7, height: 7, borderRadius: 4 },
@@ -1137,11 +1150,11 @@ const styles = StyleSheet.create({
   phaseCount: { fontFamily: 'Inter_700Bold', fontSize: 14 },
   grid: { alignItems: 'center', alignSelf: 'center' },
   gridRow: { flexDirection: 'row', justifyContent: 'center' },
-  tile: { borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  tileDot: { width: 5, height: 5, borderRadius: 3, opacity: 0.65 },
-  gridFooter: { minHeight: 27, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  gridFooterText: { fontFamily: 'Inter_500Medium', fontSize: 10 },
-  waitButton: { width: '100%', minHeight: 50, borderWidth: 1, borderRadius: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 9 },
+  tile: { borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  tileDot: { width: 4, height: 4, borderRadius: 2, opacity: 0.72 },
+  gridFooter: { minHeight: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  gridFooterText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  waitButton: { width: '100%', minHeight: 52, borderWidth: 1, borderRadius: 19, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
   waitText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   expiredCard: { minHeight: 185, width: '100%', borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center', padding: 20, gap: 9 },
   expiredTitle: { fontFamily: 'Inter_700Bold', fontSize: 17, marginTop: 3 },
@@ -1194,7 +1207,8 @@ const styles = StyleSheet.create({
   resultRankCardCompact: { minHeight: 48, paddingVertical: 6 },
   resultRankIcon: { width: 39, height: 39, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   resultRankText: { flex: 1, fontFamily: 'Inter_700Bold', fontSize: 12 },
-  helpContent: { flex: 1, minHeight: 0, paddingHorizontal: 22, paddingTop: 8, paddingBottom: 8, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  helpContent: { flex: 1, minHeight: 0, paddingHorizontal: 22, paddingTop: 18, paddingBottom: 12, alignItems: 'center', justifyContent: 'flex-start', gap: 8 },
   helpIcon: { width: 58, height: 58, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  helpCard: { width: '100%', borderWidth: 1, borderRadius: 18, paddingHorizontal: 13, marginVertical: 7 },
+  helpCard: { width: '100%', borderWidth: 1, borderRadius: 21, paddingHorizontal: 13, marginTop: 7, marginBottom: 0 },
+  helpAction: { width: '100%', marginTop: 'auto' },
 });
