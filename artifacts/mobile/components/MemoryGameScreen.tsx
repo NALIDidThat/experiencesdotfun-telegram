@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import * as Haptics from 'expo-haptics';
 import {
   ActivityIndicator,
+  ImageBackground,
   Pressable,
   StatusBar,
   StyleSheet,
@@ -56,6 +57,7 @@ function PrimaryButton({
   icon,
   iconOnLeft = false,
   endIcon,
+  prominent = false,
   onPress,
   disabled = false,
   testID,
@@ -64,6 +66,7 @@ function PrimaryButton({
   icon?: keyof typeof Feather.glyphMap;
   iconOnLeft?: boolean;
   endIcon?: keyof typeof Feather.glyphMap;
+  prominent?: boolean;
   onPress: () => void;
   disabled?: boolean;
   testID?: string;
@@ -75,17 +78,21 @@ function PrimaryButton({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.primaryButton, { opacity: disabled ? 0.55 : pressed ? 0.82 : 1 }]}
+      style={({ pressed }) => [
+        styles.primaryButton,
+        prominent && styles.primaryButtonProminent,
+        { opacity: disabled ? 0.55 : pressed ? 0.82 : 1 },
+      ]}
       testID={testID}
     >
       <LinearGradient
         colors={[colors.primary, colors.secondary]}
         end={{ x: 1, y: 0 }}
         start={{ x: 0, y: 0 }}
-        style={styles.primaryButtonFill}
+        style={[styles.primaryButtonFill, prominent && styles.primaryButtonFillProminent]}
       >
         {icon && iconOnLeft ? <Feather name={icon} size={19} color={colors.primaryForeground} /> : null}
-        <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>{label}</Text>
+        <Text style={[styles.primaryButtonText, prominent && styles.primaryButtonTextProminent, { color: colors.primaryForeground }]}>{label}</Text>
         {endIcon ? <Feather name={endIcon} size={17} color={colors.primaryForeground} /> : null}
         {icon && !iconOnLeft && !endIcon ? <Feather name={icon} size={17} color={colors.primaryForeground} /> : null}
       </LinearGradient>
@@ -97,12 +104,14 @@ function QuietButton({
   label,
   icon,
   endIcon,
+  dark = false,
   onPress,
   testID,
 }: {
   label: string;
   icon: keyof typeof Feather.glyphMap;
   endIcon?: keyof typeof Feather.glyphMap;
+  dark?: boolean;
   onPress: () => void;
   testID?: string;
 }) {
@@ -113,13 +122,18 @@ function QuietButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.quietButton,
-        { borderColor: colors.welcome.border, backgroundColor: colors.card, opacity: pressed ? 0.78 : 1 },
+        dark && styles.quietButtonDark,
+        {
+          borderColor: dark ? `${colors.space.border}B0` : colors.welcome.border,
+          backgroundColor: dark ? `${colors.space.surface}B8` : colors.card,
+          opacity: pressed ? 0.78 : 1,
+        },
       ]}
       testID={testID}
     >
-      <Feather name={icon} size={15} color={colors.welcome.muted} />
-      <Text style={[styles.quietButtonText, { color: colors.welcome.foreground }]}>{label}</Text>
-      {endIcon ? <Feather name={endIcon} size={15} color={colors.welcome.muted} /> : null}
+      <Feather name={icon} size={15} color={dark ? colors.space.muted : colors.welcome.muted} />
+      <Text style={[styles.quietButtonText, { color: dark ? colors.space.foreground : colors.welcome.foreground }]}>{label}</Text>
+      {endIcon ? <Feather name={endIcon} size={15} color={dark ? colors.space.muted : colors.welcome.muted} /> : null}
     </Pressable>
   );
 }
@@ -127,11 +141,13 @@ function QuietButton({
 function ScreenHeader({
   title,
   eyebrow = 'MEMORY GAME',
+  dark = false,
   onBack,
   onLeaderboard,
 }: {
   title: string;
   eyebrow?: string;
+  dark?: boolean;
   onBack: () => void;
   onLeaderboard: () => void;
 }) {
@@ -142,23 +158,29 @@ function ScreenHeader({
         accessibilityRole="button"
         accessibilityLabel="Back"
         onPress={onBack}
-        style={[styles.headerButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+        style={[styles.headerButton, {
+          backgroundColor: dark ? `${colors.space.surface}C8` : colors.muted,
+          borderColor: dark ? `${colors.space.border}B0` : colors.border,
+        }]}
         testID="memory-game-back"
       >
-        <Feather name="chevron-left" size={23} color={colors.welcome.foreground} />
+        <Feather name="chevron-left" size={23} color={dark ? colors.space.foreground : colors.welcome.foreground} />
       </Pressable>
       <View style={styles.headerCopy}>
-        <Text style={[styles.headerEyebrow, { color: colors.teal }]}>{eyebrow}</Text>
-        <Text style={[styles.headerTitle, { color: colors.welcome.foreground }]}>{title}</Text>
+        <Text style={[styles.headerEyebrow, { color: dark ? colors.space.muted : colors.teal }]}>{eyebrow}</Text>
+        <Text style={[styles.headerTitle, { color: dark ? colors.space.foreground : colors.welcome.foreground }]}>{title}</Text>
       </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Open Memory Game leaderboard"
         onPress={onLeaderboard}
-        style={[styles.headerButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+        style={[styles.headerButton, {
+          backgroundColor: dark ? `${colors.space.surface}C8` : colors.muted,
+          borderColor: dark ? `${colors.space.border}B0` : colors.border,
+        }]}
         testID="memory-game-leaderboard"
       >
-        <Feather name="award" size={19} color={colors.welcome.gold} />
+        <Feather name="award" size={19} color={dark ? colors.space.gold : colors.welcome.gold} />
       </Pressable>
     </View>
   );
@@ -295,11 +317,11 @@ function StatsStrip({ stats }: { stats: MemoryGameStats }) {
       {values.map((item) => (
         <View
           key={item.label}
-          style={[styles.statCard, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}
+          style={[styles.statCard, { backgroundColor: `${colors.space.surface}D9`, borderColor: `${colors.space.border}D0` }]}
         >
-          <Feather name={item.icon} size={14} color={colors.teal} />
-          <Text numberOfLines={1} style={[styles.statValue, { color: colors.welcome.foreground }]}>{item.value}</Text>
-          <Text numberOfLines={1} style={[styles.statLabel, { color: colors.welcome.subdued }]}>{item.label}</Text>
+          <Feather name={item.icon} size={18} color={item.icon === 'star' ? colors.primary : item.icon === 'award' ? colors.secondary : colors.teal} />
+          <Text numberOfLines={1} style={[styles.statValue, { color: colors.space.foreground }]}>{item.value}</Text>
+          <Text numberOfLines={1} style={[styles.statLabel, { color: colors.space.muted }]}>{item.label}</Text>
         </View>
       ))}
     </View>
@@ -323,92 +345,112 @@ function GameIntro({
 }) {
   const colors = useMemoryGameColors();
   const level = Math.min(Math.max(stats.currentLevel, 1), 100);
+  const { height } = useWindowDimensions();
+  const compact = height < 760;
+  const perks: { icon: keyof typeof Feather.glyphMap; label: string; color: string }[] = [
+    { icon: 'star', label: '+5 game-score points per level', color: colors.primary },
+    { icon: 'zap', label: '50 official XP daily limit', color: colors.secondary },
+    { icon: 'award', label: 'Up to 100 levels', color: colors.space.gold },
+  ];
   return (
-    <View
+    <ImageBackground
+      source={require('../assets/images/memory-game-space-background.png')}
+      resizeMode="cover"
       style={styles.introContent}
       testID="memory-game-home"
     >
-      <View style={styles.hero}>
-        <LinearGradient
-          colors={[colors.secondary, colors.accent, colors.primary]}
-          end={{ x: 1, y: 1 }}
-          start={{ x: 0, y: 0 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={[styles.heroOrbOne, { backgroundColor: `${colors.primaryForeground}0D` }]} />
-        <View style={[styles.heroOrbTwo, { backgroundColor: `${colors.primaryForeground}0B` }]} />
-        <View style={styles.heroTitleRow}>
-          <View style={[styles.heroIcon, { backgroundColor: `${colors.primaryForeground}18` }]}>
-            <FontAwesome5 name="user-astronaut" size={21} color={colors.primaryForeground} />
-          </View>
-          <View style={[styles.heroPill, { backgroundColor: `${colors.primaryForeground}1A` }]}>
-            <Text style={[styles.heroPillText, { color: colors.primaryForeground }]}>UP TO 100 LEVELS</Text>
-          </View>
-        </View>
-        <Text style={[styles.heroTitle, { color: colors.primaryForeground }]}>
-          Ready for liftoff?
-        </Text>
-        <Text style={[styles.heroBody, { color: colors.primaryForeground }]}>
-          Watch the astronauts, then tap every tile you remember.
-        </Text>
-        <View style={styles.heroReward}>
-          <Feather name="star" size={15} color={colors.primaryForeground} />
-          <Text style={[styles.heroRewardText, { color: colors.primaryForeground }]}>
-            +5 game-score points per level · 50 official XP daily
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.introSection}>
-        <View style={styles.levelHeading}>
-          <View>
-            <Text style={[styles.sectionEyebrow, { color: colors.teal }]}>
-              {needsTutorial ? 'FIRST FLIGHT' : 'YOUR PROGRESS'}
-            </Text>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              {needsTutorial ? 'How to play' : `Level ${level} of 100`}
-            </Text>
-          </View>
-          {!needsTutorial ? (
-            <View style={[styles.levelBadge, { borderColor: colors.welcome.border, backgroundColor: colors.welcome.surface }]}>
-              <Feather name="target" size={15} color={colors.accent} />
-              <Text style={[styles.levelBadgeText, { color: colors.welcome.foreground }]}>{level}/100</Text>
+      <LinearGradient
+        colors={[`${colors.space.background}C8`, `${colors.space.background}48`, `${colors.space.background}B8`]}
+        end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.introContentInner}>
+        <View style={[styles.hero, compact && styles.heroCompact]}>
+          <View style={styles.heroTitleRow}>
+            <View style={styles.heroBrand}>
+              <View style={[styles.heroIcon, { backgroundColor: `${colors.secondary}30`, borderColor: `${colors.primary}65` }]}>
+                <FontAwesome5 name="gamepad" size={19} color={colors.primary} />
+              </View>
+              <Text style={[styles.heroBrandText, { color: colors.accent }]}>MEMORY GAME</Text>
             </View>
-          ) : null}
+            <View style={[styles.heroPill, { backgroundColor: `${colors.space.surface}B8`, borderColor: `${colors.space.border}D0` }]}>
+              <Feather name="award" size={12} color={colors.space.gold} />
+              <Text style={[styles.heroPillText, { color: colors.space.foreground }]}>UP TO 100 LEVELS</Text>
+            </View>
+          </View>
+          <Text style={[styles.heroTitle, compact && styles.heroTitleCompact, { color: colors.space.foreground }]}>
+            Ready for{' '}
+            <Text style={{ color: colors.primary }}>liftoff?</Text>
+          </Text>
+          <Text style={[styles.heroBody, { color: colors.space.foreground }]}>
+            Watch the astronauts, then tap every tile you remember.
+          </Text>
+          <View style={styles.heroPerks}>
+            {perks.map((perk) => (
+              <View key={perk.label} style={styles.heroReward}>
+                <Feather name={perk.icon} size={16} color={perk.color} />
+                <Text style={[styles.heroRewardText, { color: colors.space.foreground }]}>{perk.label}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
-        {needsTutorial ? (
-          <View style={[styles.instructionCard, { backgroundColor: colors.welcome.surface, borderColor: colors.welcome.border }]}>
-            <Text style={[styles.instructionBody, { color: colors.welcome.muted }]}>
-              Memorize the highlighted tiles, then tap each astronaut. Levels 1–5 show the pattern for 3 seconds; later levels give you 5.
+        <View style={styles.introSection}>
+          <View style={[styles.progressCard, { backgroundColor: `${colors.space.surface}D9`, borderColor: `${colors.space.border}D0` }]}>
+            <View style={styles.levelHeading}>
+              <View style={styles.progressCopy}>
+                <Text style={[styles.sectionEyebrow, { color: colors.accent }]}>
+                  {needsTutorial ? 'FIRST FLIGHT' : 'YOUR PROGRESS'}
+                </Text>
+                <Text style={[styles.sectionTitle, { color: colors.space.foreground }]}>
+                  {needsTutorial ? 'How to play' : `Level ${level} of 100`}
+                </Text>
+              </View>
+              <View style={[styles.levelBadge, { borderColor: `${colors.space.border}D0`, backgroundColor: `${colors.space.background}75` }]}>
+                <Feather name="target" size={15} color={colors.accent} />
+                <Text style={[styles.levelBadgeText, { color: colors.space.foreground }]}>{level}/100</Text>
+              </View>
+            </View>
+            <View style={[styles.introProgressTrack, { backgroundColor: `${colors.space.background}C8` }]}>
+              <LinearGradient
+                colors={[colors.primary, colors.secondary]}
+                end={{ x: 1, y: 0 }}
+                start={{ x: 0, y: 0 }}
+                style={[styles.introProgressFill, { width: `${level}%` }]}
+              />
+            </View>
+            <Text style={[styles.progressBody, { color: colors.space.muted }]}>
+              {needsTutorial
+                ? 'Memorize the highlighted tiles, then tap each astronaut.'
+                : stats.currentLevel === 1 && stats.levelsCompleted > 0
+                  ? 'Your previous run is saved. Start a fresh run whenever you are ready.'
+                  : 'Patterns grow as you progress. Recall time: 3 seconds for levels 1–5, then 5 seconds.'}
             </Text>
           </View>
-        ) : (
-          <Text style={[styles.progressBody, { color: colors.welcome.muted }]}>
-            {stats.currentLevel === 1 && stats.levelsCompleted > 0
-              ? 'Your previous run is saved. Start a fresh run whenever you are ready.'
-              : 'Patterns grow as you progress. Recall time: 3 seconds for levels 1–5, then 5 seconds.'}
-          </Text>
-        )}
 
-        <StatsStrip stats={stats} />
-        <View style={styles.separateXpNote}>
-          <Feather name="lock" size={13} color={colors.welcome.subdued} />
-          <Text style={[styles.separateXpText, { color: colors.welcome.subdued }]}>
-            Your game score keeps growing. Official Memory Game XP is capped at 50 per day.
-          </Text>
+          <StatsStrip stats={stats} />
+          <View style={[styles.separateXpNote, { backgroundColor: `${colors.space.surface}C8`, borderColor: `${colors.space.border}B8` }]}>
+            <Feather name="lock" size={14} color={colors.space.subdued} />
+            <Text style={[styles.separateXpText, { color: colors.space.muted }]}>
+              Your game score keeps growing. Official Memory Game XP is capped at 50 per day.
+            </Text>
+          </View>
+          {error ? <MessageCard>{error}</MessageCard> : null}
+          <PrimaryButton
+            label={isBusy ? 'Starting…' : needsTutorial ? 'Start the game' : `Start level ${level}`}
+            icon={isBusy ? undefined : 'play'}
+            iconOnLeft
+            endIcon={isBusy ? undefined : 'arrow-right'}
+            prominent
+            onPress={onStart}
+            disabled={isBusy}
+            testID="memory-game-start"
+          />
+          <QuietButton label="How to play" icon="help-circle" endIcon="chevron-right" dark onPress={onHelp} testID="memory-game-help" />
         </View>
-        {error ? <MessageCard>{error}</MessageCard> : null}
-        <PrimaryButton
-          label={isBusy ? 'Starting…' : needsTutorial ? 'Start the game' : 'Start level'}
-          icon={isBusy ? undefined : 'arrow-right'}
-          onPress={onStart}
-          disabled={isBusy}
-          testID="memory-game-start"
-        />
-        <QuietButton label="How to play" icon="help-circle" onPress={onHelp} testID="memory-game-help" />
       </View>
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -798,7 +840,10 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
     : localAttempt;
   const stats = statsOverride ?? statsQuery.data?.stats;
   const busy = startAttempt.isPending || pauseAttempt.isPending || resumeAttempt.isPending || submitAttempt.isPending || exitPending;
-  const topInset = Platform.OS === 'web' ? Math.max(insets.top, result ? 67 : 48) : insets.top + 8;
+  const showingGameIntro = panel === null && !result && !activeAttempt;
+  const topInset = Platform.OS === 'web'
+    ? Math.max(insets.top, result || showingGameIntro ? 67 : 48)
+    : insets.top + 8;
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 150);
@@ -915,14 +960,14 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
       style={[
         styles.screen,
         {
-          backgroundColor: colors.welcome.background,
+          backgroundColor: showingGameIntro ? colors.space.background : colors.welcome.background,
           paddingTop: topInset,
           paddingBottom: Math.max(insets.bottom, 10),
         },
       ]}
       testID="memory-game-screen"
     >
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={showingGameIntro ? 'light-content' : 'dark-content'} />
       {panel === 'help' ? (
         <>
           <ScreenHeader title="How to play" onBack={() => setPanel(null)} onLeaderboard={() => setPanel('leaderboard')} />
@@ -991,7 +1036,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
         </>
       ) : (
         <>
-          <ScreenHeader title="Memory Game" onBack={onBack} onLeaderboard={() => setPanel('leaderboard')} />
+          <ScreenHeader title="Memory Game" dark onBack={onBack} onLeaderboard={() => setPanel('leaderboard')} />
           {stats ? (
             <GameIntro
               stats={stats}
@@ -1020,25 +1065,33 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1 },
   headerEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.6 },
   headerTitle: { fontFamily: 'Inter_700Bold', fontSize: 18, marginTop: 2 },
-  introContent: { flex: 1, minHeight: 0, paddingHorizontal: 18, paddingTop: 6, paddingBottom: 6, justifyContent: 'space-between' },
-  hero: { minHeight: 142, borderRadius: 22, overflow: 'hidden', padding: 16, justifyContent: 'center' },
-  heroOrbOne: { position: 'absolute', width: 190, height: 190, borderRadius: 95, right: -58, top: -71 },
-  heroOrbTwo: { position: 'absolute', width: 80, height: 80, borderRadius: 40, right: 29, bottom: -34 },
-  heroTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  heroIcon: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  heroPill: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6 },
-  heroPillText: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1 },
-  heroTitle: { fontFamily: 'Inter_700Bold', fontSize: 25, letterSpacing: -0.3 },
-  heroBody: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, maxWidth: 280, marginTop: 7 },
-  heroReward: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 9 },
-  heroRewardText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  introContent: { flex: 1, minHeight: 0 },
+  introContentInner: { flex: 1, minHeight: 0, paddingHorizontal: 18, paddingTop: 4, paddingBottom: 7, justifyContent: 'space-between' },
+  hero: { minHeight: 260, justifyContent: 'flex-start', paddingTop: 2 },
+  heroCompact: { minHeight: 202 },
+  heroTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 17, gap: 8 },
+  heroBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  heroIcon: { width: 38, height: 38, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  heroBrandText: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 2.4 },
+  heroPill: { borderRadius: 18, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  heroPillText: { fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 1 },
+  heroTitle: { maxWidth: 286, fontFamily: 'Inter_700Bold', fontSize: 42, lineHeight: 46, letterSpacing: -1.2 },
+  heroTitleCompact: { maxWidth: 250, fontSize: 35, lineHeight: 38 },
+  heroBody: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 20, maxWidth: 246, marginTop: 8 },
+  heroPerks: { gap: 7, marginTop: 14 },
+  heroReward: { minHeight: 20, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  heroRewardText: { fontFamily: 'Inter_500Medium', fontSize: 11 },
   introSection: { gap: 8 },
-  levelHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  progressCard: { borderWidth: 1, borderRadius: 22, paddingHorizontal: 15, paddingVertical: 12, gap: 9 },
+  levelHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  progressCopy: { flex: 1 },
   sectionEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.4 },
-  sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 21, marginTop: 4 },
-  levelBadge: { borderWidth: 1, borderRadius: 13, minWidth: 64, height: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 22, marginTop: 3 },
+  levelBadge: { borderWidth: 1, borderRadius: 13, minWidth: 73, height: 37, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   levelBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
-  progressBody: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, marginTop: -3 },
+  introProgressTrack: { width: '100%', height: 13, borderRadius: 7, overflow: 'hidden' },
+  introProgressFill: { height: '100%', borderRadius: 7 },
+  progressBody: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
   instructionCard: { borderWidth: 1, borderRadius: 15, paddingHorizontal: 12, paddingVertical: 10, gap: 0 },
   instructionRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 },
   instructionNumber: { width: 31, height: 31, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
@@ -1048,15 +1101,19 @@ const styles = StyleSheet.create({
   instructionBody: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginTop: 3 },
   instructionDivider: { height: 1, marginLeft: 43 },
   statsStrip: { flexDirection: 'row', gap: 7 },
-  statCard: { flex: 1, minWidth: 0, minHeight: 62, borderWidth: 1, borderRadius: 14, paddingHorizontal: 9, paddingVertical: 7 },
-  statValue: { fontFamily: 'Inter_700Bold', fontSize: 15, marginTop: 3 },
+  statCard: { flex: 1, minWidth: 0, minHeight: 75, borderWidth: 1, borderRadius: 16, paddingHorizontal: 11, paddingVertical: 8 },
+  statValue: { fontFamily: 'Inter_700Bold', fontSize: 16, marginTop: 4 },
   statLabel: { fontFamily: 'Inter_500Medium', fontSize: 9, marginTop: 2 },
-  separateXpNote: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 2 },
+  separateXpNote: { minHeight: 42, borderWidth: 1, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 13, paddingVertical: 8 },
   separateXpText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
   primaryButton: { minHeight: 46, borderRadius: 15, overflow: 'hidden' },
   primaryButtonFill: { flex: 1, minHeight: 46, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   primaryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  primaryButtonProminent: { minHeight: 55, borderRadius: 28 },
+  primaryButtonFillProminent: { minHeight: 55, paddingHorizontal: 20 },
+  primaryButtonTextProminent: { fontSize: 16 },
   quietButton: { minHeight: 38, borderWidth: 1, borderRadius: 13, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  quietButtonDark: { minHeight: 43, borderRadius: 22 },
   quietButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   gameContent: { flex: 1, minHeight: 0, paddingHorizontal: 18, paddingTop: 6, paddingBottom: 5, alignItems: 'center', justifyContent: 'space-evenly', gap: 7 },
   gameLevelRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },

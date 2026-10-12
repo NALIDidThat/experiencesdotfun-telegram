@@ -5,6 +5,7 @@ export function useMemoryGameColors() {
 
   return {
     ...colors,
+    space: { ...colors.welcome },
     welcome: {
       ...colors.welcome,
       background: colors.background,
