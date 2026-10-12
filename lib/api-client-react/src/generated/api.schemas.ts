@@ -285,6 +285,20 @@ export const ExperienceCategory = {
   community: 'community',
 } as const;
 
+export type OrganisationType = typeof OrganisationType[keyof typeof OrganisationType];
+
+
+export const OrganisationType = {
+  charity: 'charity',
+  nonprofit: 'nonprofit',
+  school: 'school',
+  community_centre: 'community_centre',
+  library: 'library',
+  youth_organisation: 'youth_organisation',
+  business: 'business',
+  other: 'other',
+} as const;
+
 export interface Organisation {
   id: number;
   name: string;
@@ -295,6 +309,7 @@ export interface Organisation {
   /** @nullable */
   country: string | null;
   categories: ExperienceCategory[];
+  type: OrganisationType | null;
   verified: boolean;
 }
 
@@ -519,6 +534,7 @@ export interface OrganisationProfileInput {
   city: string;
   /** @minItems 1 */
   categories: ExperienceCategory[];
+  type?: OrganisationType;
 }
 
 export interface ProfileUpdateInput {

@@ -137,6 +137,7 @@ export * from './organisationPartnershipDirection';
 export * from './organisationPartnershipStatus';
 export * from './organisationPartnerSummary';
 export * from './organisationProfileInput';
+export * from './organisationType';
 export * from './participantSummary';
 export * from './participation';
 export * from './participationStatus';

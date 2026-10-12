@@ -92,6 +92,7 @@ import {
   type ExperienceDetail,
   type ExperienceCreateInput,
   type ExperienceMilestoneSubmission,
+  type OrganisationType,
   type Participation,
   type User,
   type UserType,
@@ -1208,7 +1209,9 @@ function AccountTypeSelection({
               <Pressable
                 key={option.value}
                 accessibilityRole="radio"
-                accessibilityState={{ selected }}
+                accessibilityLabel={`${option.title}. ${option.description}`}
+                accessibilityState={{ checked: selected }}
+                aria-checked={selected}
                 testID={`account-type-${option.value}`}
                 onPress={() => { triggerHaptic(); onSelect(option.value); }}
                 style={[
@@ -1247,6 +1250,100 @@ function AccountTypeSelection({
           onPress={onContinue}
           icon="arrow-right"
           testID="account-type-continue"
+        />
+      </View>
+    </KeyboardAwareScrollViewCompat>
+  );
+}
+
+const organisationTypeOptions: Array<{
+  value: OrganisationType;
+  title: string;
+  description: string;
+  icon: IconName;
+}> = [
+  { value: 'charity', title: 'Charity', description: 'A registered charity or charitable trust.', icon: 'heart' },
+  { value: 'nonprofit', title: 'Non-profit', description: 'A non-profit or voluntary organisation.', icon: 'users' },
+  { value: 'school', title: 'School / Educational Institution', description: 'A school, college or learning provider.', icon: 'book-open' },
+  { value: 'community_centre', title: 'Community Centre', description: 'A local hub bringing people together.', icon: 'home' },
+  { value: 'library', title: 'Library', description: 'A public, school or community library.', icon: 'book' },
+  { value: 'youth_organisation', title: 'Youth Organisation', description: 'A group supporting young people.', icon: 'users' },
+  { value: 'business', title: 'Business / Sponsor', description: 'A business supporting community activity.', icon: 'briefcase' },
+  { value: 'other', title: 'Other Organisation', description: 'Another community or social organisation.', icon: 'grid' },
+];
+
+function OrganisationTypeSelection({
+  selectedType,
+  onSelect,
+  onBack,
+  onContinue,
+}: {
+  selectedType: OrganisationType | null;
+  onSelect: (value: OrganisationType) => void;
+  onBack: () => void;
+  onContinue: () => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  return (
+    <KeyboardAwareScrollViewCompat
+      style={[styles.onboarding, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.flowScreenContent, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 24) }]}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      testID="organisation-type-selection"
+    >
+      <FlowProgressHeader step={2} total={3} label="ORGANISATION TYPE" onBack={onBack} />
+      <View style={styles.flowContent}>
+        <View style={[styles.flowHeroBadge, { backgroundColor: colors.primary + '14' }]}>
+          <Feather name="briefcase" size={25} color={colors.primary} />
+        </View>
+        <Text style={[styles.flowEyebrow, { color: colors.primary }]}>TELL US ABOUT YOUR ORGANISATION</Text>
+        <Text style={[styles.flowTitle, { color: colors.foreground }]}>What kind of organisation are you?</Text>
+        <Text style={[styles.flowDescription, { color: colors.mutedForeground }]}>
+          Choose the closest match. Fundraising access is reviewed separately.
+        </Text>
+
+        <View style={styles.organisationTypeOptions}>
+          {organisationTypeOptions.map((option) => {
+            const selected = selectedType === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                accessibilityRole="radio"
+                accessibilityLabel={`${option.title}. ${option.description}`}
+                accessibilityState={{ checked: selected }}
+                aria-checked={selected}
+                testID={`organisation-type-${option.value}`}
+                onPress={() => { triggerHaptic(); onSelect(option.value); }}
+                style={[
+                  styles.organisationTypeCard,
+                  {
+                    backgroundColor: selected ? colors.primary + '08' : colors.card,
+                    borderColor: selected ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <View style={[styles.organisationTypeIcon, { backgroundColor: selected ? colors.primary + '14' : colors.muted }]}>
+                  <Feather name={option.icon} size={18} color={selected ? colors.primary : colors.mutedForeground} />
+                </View>
+                <Text style={[styles.organisationTypeTitle, { color: colors.foreground }]}>{option.title}</Text>
+                <Text style={[styles.organisationTypeDescription, { color: colors.mutedForeground }]}>{option.description}</Text>
+                <View style={[styles.organisationTypeRadio, { borderColor: selected ? colors.primary : colors.border }]}>
+                  {selected ? <View style={[styles.accountTypeRadioInner, { backgroundColor: colors.primary }]} /> : null}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+      <View style={[styles.flowFooter, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        <Button
+          label="Continue"
+          disabled={!selectedType}
+          onPress={onContinue}
+          icon="arrow-right"
+          testID="organisation-type-continue"
         />
       </View>
     </KeyboardAwareScrollViewCompat>
@@ -1403,10 +1500,12 @@ function SignupCongratulations({
 function Onboarding({
   user,
   accountType: initialAccountType,
+  initialOrganisationType,
   onDone,
 }: {
   user: User;
   accountType: UserType;
+  initialOrganisationType: OrganisationType | null;
   onDone: () => void;
 }) {
   const colors = useColors();
@@ -1421,6 +1520,9 @@ function Onboarding({
   const [city, setCity] = useState(user.city ?? '');
   const [organisationName, setOrganisationName] = useState(user.organisation?.name ?? '');
   const [organisationDescription, setOrganisationDescription] = useState(user.organisation?.description ?? '');
+  const [organisationType] = useState<OrganisationType | null>(
+    user.organisation?.type ?? initialOrganisationType,
+  );
   const [bio, setBio] = useState(user.bio ?? '');
   const [name, setName] = useState(user.name ?? '');
   const [username, setUsername] = useState(user.username ?? '');
@@ -1493,6 +1595,10 @@ function Onboarding({
     if (step === 2 && accountType === 'participant' && interests.length === 0) return;
     if (step === 2 && accountType === 'organisation' && (!organisationName.trim() || !organisationDescription.trim())) return;
     if (step === 3 && (!city.trim() || (accountType === 'organisation' && interests.length === 0))) return;
+    if (step === totalSteps && accountType === 'organisation' && !organisationType) {
+      setSaveError('Choose an organisation type before saving your profile.');
+      return;
+    }
 
     if (step === totalSteps) {
       if (!user || !accountType) {
@@ -1515,6 +1621,7 @@ function Onboarding({
                 description: organisationDescription.trim(),
                 city: city.trim(),
                 categories: interests,
+                type: organisationType!,
               },
             }
           : {
@@ -7580,8 +7687,9 @@ export default function App() {
   const analyticsMutation = useTrackAnalyticsEvent();
   const analyticsMutationRef = useRef(analyticsMutation);
   analyticsMutationRef.current = analyticsMutation;
-  const [entryStage, setEntryStage] = useState<'start' | 'account-type' | 'login'>('start');
+  const [entryStage, setEntryStage] = useState<'start' | 'account-type' | 'organisation-type' | 'login'>('start');
   const [selectedAccountType, setSelectedAccountType] = useState<UserType | null>(null);
+  const [selectedOrganisationType, setSelectedOrganisationType] = useState<OrganisationType | null>(null);
   const [accountAuthType, setAccountAuthType] = useState<UserType | null>(null);
   const [accountTypeConfirmed, setAccountTypeConfirmed] = useState(false);
   const [showSignupCongratulations, setShowSignupCongratulations] = useState(false);
@@ -7598,6 +7706,7 @@ export default function App() {
     if (!user) {
       setEntryStage('start');
       setSelectedAccountType(null);
+      setSelectedOrganisationType(null);
       setAccountTypeConfirmed(false);
       setShowSignupCongratulations(false);
     }
@@ -7689,6 +7798,7 @@ export default function App() {
 
   const organisationProfileIncomplete = user?.userType === 'organisation'
     && (!user.organisation
+      || !user.organisation.type
       || !user.organisation.name.trim()
       || !user.organisation.description?.trim()
       || !user.organisation.city?.trim()
@@ -7763,6 +7873,24 @@ export default function App() {
     );
   }
 
+  if (accountAuthType && entryStage === 'organisation-type') {
+    return (
+      <AppShell showFeedbackBanner={false}>
+        <OrganisationTypeSelection
+          selectedType={selectedOrganisationType}
+          onSelect={setSelectedOrganisationType}
+          onBack={() => {
+            setAccountAuthType(null);
+            setEntryStage('start');
+          }}
+          onContinue={() => {
+            if (selectedOrganisationType) setEntryStage('login');
+          }}
+        />
+      </AppShell>
+    );
+  }
+
   if (accountAuthType) {
     return (
       <AppShell showFeedbackBanner={false}>
@@ -7782,7 +7910,17 @@ export default function App() {
   if (!user) {
     return (
       <AppShell showFeedbackBanner={false}>
-        {entryStage === 'start' ? (
+        {entryStage === 'organisation-type' ? (
+          <OrganisationTypeSelection
+            selectedType={selectedOrganisationType}
+            onSelect={setSelectedOrganisationType}
+            onBack={() => setEntryStage('account-type')}
+            onContinue={() => {
+              if (!selectedOrganisationType) return;
+              setEntryStage('login');
+            }}
+          />
+        ) : entryStage === 'start' ? (
           <TalentWelcome onContinue={() => {
             clearAuthError();
             setEntryStage('account-type');
@@ -7799,7 +7937,7 @@ export default function App() {
               if (!selectedAccountType) return;
               clearAuthError();
               setAccountTypeConfirmed(true);
-              setEntryStage('login');
+              setEntryStage(selectedAccountType === 'organisation' ? 'organisation-type' : 'login');
             }}
           />
         ) : (
@@ -7844,12 +7982,33 @@ export default function App() {
         </AppShell>
       );
     }
+    if (
+      onboardingAccountType === 'organisation'
+      && !user.organisation?.type
+      && !selectedOrganisationType
+    ) {
+      return (
+        <AppShell showFeedbackBanner={false}>
+          <OrganisationTypeSelection
+            selectedType={selectedOrganisationType}
+            onSelect={setSelectedOrganisationType}
+            onBack={() => {
+              if (!user.userType) setAccountTypeConfirmed(false);
+            }}
+            onContinue={() => {
+              if (selectedOrganisationType) setAccountTypeConfirmed(true);
+            }}
+          />
+        </AppShell>
+      );
+    }
     return (
       <AppShell showFeedbackBanner={false}>
         <Onboarding
           key={user.id}
           user={user}
           accountType={onboardingAccountType}
+          initialOrganisationType={selectedOrganisationType}
           onDone={() => {
             router.setParams({ screen, id: screen === 'experience' || screen === 'host-detail' ? experienceId : undefined });
           }}
@@ -7912,6 +8071,12 @@ export default function App() {
             clearAuthError();
             setSelectedAccountType(accountType);
             setAccountAuthType(accountType);
+            if (accountType === 'organisation') {
+              setSelectedOrganisationType(null);
+              setEntryStage('organisation-type');
+            } else {
+              setEntryStage('login');
+            }
           }}
         />
       );
@@ -8224,6 +8389,12 @@ const styles = StyleSheet.create({
   flowDescription: { fontSize: 14, lineHeight: 22, fontFamily: 'Inter_400Regular', marginBottom: 25 },
   accountTypeOptions: { gap: 12, marginTop: 2 },
   accountTypeCard: { minHeight: 106, flexDirection: 'row', alignItems: 'center', gap: 13, padding: 16, borderWidth: 1.5, borderRadius: 22 },
+  organisationTypeOptions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 9, marginTop: 4 },
+  organisationTypeCard: { width: '48%', minHeight: 132, alignItems: 'flex-start', padding: 12, borderWidth: 1.5, borderRadius: 18, position: 'relative' },
+  organisationTypeIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginBottom: 7 },
+  organisationTypeTitle: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_700Bold', paddingRight: 16 },
+  organisationTypeDescription: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  organisationTypeRadio: { position: 'absolute', top: 12, right: 11, width: 18, height: 18, borderWidth: 1.5, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   accountTypeIcon: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   accountTypeCopy: { flex: 1 },
   accountTypeTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: -0.2 },

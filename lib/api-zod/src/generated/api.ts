@@ -328,6 +328,7 @@ export const AuthenticateTelegramResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }).nullable(),
   "xp": zod.number().int(),
@@ -411,6 +412,7 @@ export const SignUpWithEmailResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }).nullable(),
   "xp": zod.number().int(),
@@ -485,6 +487,7 @@ export const LoginWithEmailResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }).nullable(),
   "xp": zod.number().int(),
@@ -930,6 +933,7 @@ export const ListAccountProfilesResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }).nullable(),
   "xp": zod.number().int(),
@@ -995,6 +999,7 @@ export const CreateAccountProfileResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }).nullable(),
   "xp": zod.number().int(),
@@ -1065,6 +1070,7 @@ export const ActivateAccountProfileResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }).nullable(),
   "xp": zod.number().int(),
@@ -1126,6 +1132,7 @@ export const GetMeResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }).nullable(),
   "xp": zod.number().int(),
@@ -1194,7 +1201,8 @@ export const UpdateMeBody = zod.object({
   "name": zod.string().min(updateMeBodyOrganisationNameMin).max(updateMeBodyOrganisationNameMax),
   "description": zod.string().min(updateMeBodyOrganisationDescriptionMin).max(updateMeBodyOrganisationDescriptionMax),
   "city": zod.string().min(updateMeBodyOrganisationCityMin).max(updateMeBodyOrganisationCityMax),
-  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])).min(1)
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])).min(1),
+  "type": zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']).optional()
 }).optional()
 })
 
@@ -1243,6 +1251,7 @@ export const UpdateMeResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }).nullable(),
   "xp": zod.number().int(),
@@ -1321,6 +1330,7 @@ export const RedeemMyXpAwardsResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }).nullable(),
   "xp": zod.number().int(),
@@ -1458,6 +1468,7 @@ export const ListExperiencesResponseItem = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -1553,6 +1564,7 @@ export const CreateExperienceResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -1616,6 +1628,7 @@ export const GetExperienceResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -1655,6 +1668,7 @@ export const GetExperienceResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -1736,6 +1750,7 @@ export const JoinExperienceResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -1805,6 +1820,7 @@ export const ListMyParticipationsResponseItem = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -1875,6 +1891,7 @@ export const SubmitCompletionResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -1950,6 +1967,7 @@ export const GetHostOverviewResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),zod.null()]),
   "upcomingExperiences": zod.number().int(),
@@ -1985,6 +2003,7 @@ export const ListHostExperiencesResponseItem = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -2086,6 +2105,7 @@ export const UpdateHostExperienceResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -2140,6 +2160,7 @@ export const CancelHostExperienceResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -2265,6 +2286,7 @@ export const ListExperienceParticipantsResponseItem = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -2335,6 +2357,7 @@ export const PromoteNextWaitlistedParticipantResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -2404,6 +2427,7 @@ export const MarkAttendanceResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -2473,6 +2497,7 @@ export const VerifyParticipationResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -2542,6 +2567,7 @@ export const RejectParticipationResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),
   "title": zod.string(),
@@ -3294,6 +3320,7 @@ export const GetFriendProfileResponse = zod.object({
   "city": zod.string().nullable(),
   "country": zod.string().nullable(),
   "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }).nullable(),
   "xp": zod.number().int(),

@@ -2763,6 +2763,9 @@ components:
     UserType:
       type: string
       enum: [participant, organisation]
+    OrganisationType:
+      type: string
+      enum: [charity, nonprofit, school, community_centre, library, youth_organisation, business, other]
     ExperienceStatus:
       type: string
       enum: [published, full, completed, archived, cancelled]
@@ -3071,9 +3074,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ExperienceCategory"
+        type:
+          oneOf:
+            - $ref: "#/components/schemas/OrganisationType"
+            - type: "null"
         verified:
           type: boolean
-      required: [id, name, description, city, country, categories, verified]
+      required: [id, name, description, city, country, categories, type, verified]
     OrganisationProfileInput:
       type: object
       properties:
@@ -3094,6 +3101,8 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/ExperienceCategory"
+        type:
+          $ref: "#/components/schemas/OrganisationType"
       required: [name, description, city, categories]
       additionalProperties: false
     ExperienceMilestoneInput:

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ExperienceCategory } from './experienceCategory';
+import type { OrganisationType } from './organisationType';
 
 export interface Organisation {
   id: number;
@@ -17,5 +18,6 @@ export interface Organisation {
   /** @nullable */
   country: string | null;
   categories: ExperienceCategory[];
+  type: OrganisationType | null;
   verified: boolean;
 }

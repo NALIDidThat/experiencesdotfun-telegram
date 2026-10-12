@@ -20,6 +20,18 @@ export type PersistedSocialLinks = Partial<
   Record<"website" | "instagram" | "linkedin" | "x" | "youtube", string>
 >;
 
+export const organisationTypeValues = [
+  "charity",
+  "nonprofit",
+  "school",
+  "community_centre",
+  "library",
+  "youth_organisation",
+  "business",
+  "other",
+] as const;
+export type OrganisationType = (typeof organisationTypeValues)[number];
+
 export const usersTable = pgTable(
   "users",
   {
@@ -121,9 +133,15 @@ export const organisationsTable = pgTable("organisations", {
   city: text("city"),
   country: text("country"),
   categories: text("categories").array().notNull().default([]),
+  organisationType: text("organisation_type", { enum: organisationTypeValues }),
   verified: boolean("verified").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  organisationTypeCheck: check(
+    "organisations_organisation_type_check",
+    sql`${table.organisationType} IS NULL OR ${table.organisationType} IN ('charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other')`,
+  ),
+}));
 
 export const experiencesTable = pgTable("experiences", {
   id: serial("id").primaryKey(),

@@ -1,0 +1,1095 @@
+Experiences.fun
+
+Organisation Onboarding & Charity Fundraising
+
+Implementation Specification | Coding Agent
+
+Repository: NALIDidThat/experiencesdotfun-telegram
+Primary application: artifacts/mobile/
+Backend: artifacts/api-server/
+Database and API packages: lib/db/, lib/api-zod/, lib/api-client-react/
+
+⸻
+
+1. OBJECTIVE
+
+Extend Experiences.fun to support charities and other social organisations as first-class organisations within the existing application.
+
+The implementation must introduce organisation-type selection after the user selects Organisation, enable charities to establish verified profiles, and lay the foundations for fundraising campaigns backed by Solana treasury infrastructure using Squads.
+
+The existing application must continue to work without breaking participant accounts, organisation accounts, authentication, experience creation, or other existing features.
+
+Core product principle
+
+There are three distinct concepts:
+
+1. Account type: Participant or Organisation.
+2. Organisation type: Charity, School, Community Centre, Business, and other supported categories.
+3. Permissions: What an organisation is authorised to do, including hosting experiences, publishing fundraising campaigns, and accessing treasury operations.
+
+These concepts must remain separate throughout the application.
+
+Do not introduce Charity as a third top-level account type.
+
+Primary outcomes
+
+The completed implementation should allow a user to:
+
+1. Open Experiences.fun.
+2. Select Participant or Organisation.
+3. Select Organisation.
+4. Choose their organisation type.
+5. Complete the appropriate onboarding flow.
+6. Create an organisation profile.
+7. Complete any applicable verification requirements.
+8. Access functionality appropriate to their organisation type.
+9. Allow eligible charities to create fundraising campaigns.
+10. Associate an approved campaign with an appropriately controlled treasury.
+11. Track donations and campaign progress.
+12. Connect funded initiatives to Experiences.fun’s existing experience and impact-tracking functionality.
+
+The implementation must distinguish between functionality that is fully operational and functionality that still requires external integrations, administrative approval, or legal review.
+
+⸻
+
+2. REPOSITORY INVESTIGATION
+
+Before making changes, inspect the current repository and establish the existing architecture.
+
+Do not assume that proposed file paths, schemas, or APIs already exist.
+
+Relevant existing files
+
+Mobile application
+
+artifacts/mobile/app/index.tsx
+
+This file contains several relevant components:
+
+* AccountTypeSelection
+* EmailAuthPanel
+* Onboarding
+
+The current account selection already distinguishes Participant and Organisation.
+
+The onboarding component also contains separate participant and organisation profile flows.
+
+Extend these existing components rather than replacing them wholesale.
+
+artifacts/mobile/context/AuthContext.tsx
+
+This manages authentication, user sessions, profile creation, and account types.
+
+Ensure any new onboarding state integrates correctly with existing authentication.
+
+artifacts/mobile/components/AccountsCenter.tsx
+
+Inspect this component to understand how multiple account profiles are represented and switched.
+
+Any new organisation metadata must remain associated with the correct profile.
+
+Backend
+
+artifacts/api-server/src/routes/accounts.ts
+
+This route handles account profile creation, retrieval, and profile activation.
+
+Inspect its validation and session-management behaviour before modifying account creation.
+
+artifacts/api-server/src/routes/organisation-partnerships.ts
+
+Inspect existing organisation functionality and reuse applicable patterns.
+
+Database and API types
+
+Inspect:
+
+* lib/db/src/schema/
+* lib/db/src/schema/index.ts
+* lib/api-zod/
+* lib/api-client-react/
+
+Identify the canonical source schemas, database tables, validation definitions, and API-generation process.
+
+The existing generated organisation type is located at:
+
+lib/api-zod/src/generated/types/organisation.ts
+
+This type includes organisation information such as its name, description, location, categories, and verification state.
+
+Determine how that API representation maps to the actual database model.
+
+Important: Do not edit generated types as a substitute for changing their source schemas.
+
+Investigation requirements
+
+Before implementation:
+
+1. Identify the database table or tables that represent organisation profiles.
+2. Identify how organisation profiles relate to user accounts.
+3. Identify how existing organisation verification works.
+4. Identify the endpoint responsible for updating organisation profile information.
+5. Identify the existing experience creation and publishing endpoints.
+6. Identify how the application determines whether a user can host experiences.
+7. Identify the database migration and schema-generation workflows.
+8. Identify existing testing conventions.
+
+Summarise the relevant architecture and then implement the changes.
+
+Do not stop after producing a plan.
+
+⸻
+
+3. ONBOARDING EXPERIENCE
+
+3.1 Initial account selection
+
+Preserve the existing initial account selection screen.
+
+It must continue displaying exactly two options:
+
+Participant
+
+Discover local experiences, participate in initiatives, and build a contribution history.
+
+Organisation
+
+Bring communities together, host experiences, and coordinate local impact.
+
+Do not add Charity, School, Business, or any other subtype to this screen.
+
+Do not change the underlying UserType values.
+
+The existing values must remain:
+
+* participant
+* organisation
+
+Existing users must retain their current account type.
+
+3.2 Organisation-type selection
+
+When a user selects Organisation, introduce an organisation-type selection step before collecting organisation profile information.
+
+Create a reusable component named:
+
+OrganisationTypeSelection
+
+Place it in the existing mobile application’s component architecture, following the repository’s established conventions.
+
+The component must:
+
+* Display selectable organisation-type cards.
+* Include an icon, title, and short description for each option.
+* Clearly indicate the selected option.
+* Support mobile and web layouts.
+* Include accessible labels and selection states.
+* Provide Continue and Back actions.
+* Preserve the selected value when navigating backwards.
+* Prevent progression without a valid selection.
+
+Supported organisation types
+
+Implement the following initial options:
+
+Value	Display name
+charity	Charity
+nonprofit	Non-profit
+school	School / Educational Institution
+community_centre	Community Centre
+library	Library
+youth_organisation	Youth Organisation
+business	Business / Sponsor
+other	Other Organisation
+
+Use a single option for Charity and a separate option for Non-profit so the application can collect the appropriate registration information for each.
+
+These values are organisation subtypes, not account types.
+
+Store them using a consistent, validated representation.
+
+Do not allow arbitrary organisation-type strings to be submitted through the API.
+
+3.3 Navigation flow
+
+Implement the following flow:
+
+WELCOME
+→ ACCOUNT TYPE
+
+If Participant:
+
+ACCOUNT TYPE
+→ EXISTING PARTICIPANT ONBOARDING
+→ PARTICIPANT PROFILE
+→ PARTICIPANT DASHBOARD
+
+If Organisation:
+
+ACCOUNT TYPE
+→ ORGANISATION TYPE
+→ ORGANISATION PROFILE
+→ VERIFICATION, WHERE REQUIRED
+→ ORGANISATION DASHBOARD
+
+Do not introduce the organisation-type selection into the participant flow.
+
+Do not require users to select an organisation subtype when creating participant accounts.
+
+3.4 Authentication compatibility
+
+The repository supports authentication flows that must continue working.
+
+Ensure the new selection works with:
+
+* Existing email signup.
+* Existing email login.
+* Telegram authentication.
+* Existing account creation.
+* Existing profile switching.
+
+Do not create duplicate user accounts simply because a user changes their organisation onboarding selection.
+
+The organisation subtype must be persisted against the appropriate organisation profile and restored when the user returns.
+
+If the user leaves onboarding before completing it, preserve the information using the existing persistence patterns where appropriate.
+
+Do not store authoritative organisation metadata exclusively in local application state.
+
+⸻
+
+4. DATA MODEL
+
+4.1 Organisation subtype
+
+Extend the canonical organisation data model to include an organisation subtype.
+
+Conceptually:
+
+type OrganisationType =
+  | "charity"
+  | "nonprofit"
+  | "school"
+  | "community_centre"
+  | "library"
+  | "youth_organisation"
+  | "business"
+  | "other";
+
+This is a proposed type definition. Implement it using the repository’s actual schema and validation conventions.
+
+The organisation subtype must be available to both the mobile application and backend.
+
+4.2 Verification status
+
+Introduce or extend the organisation verification model to support the following states:
+
+type OrganisationVerificationStatus =
+  | "unverified"
+  | "pending"
+  | "verified"
+  | "rejected";
+
+Use the existing verification model if it already provides equivalent functionality.
+
+Do not create a second, conflicting verification system.
+
+The verification status must be controlled by authorised backend operations.
+
+A user must not be able to mark their own organisation as verified by submitting a profile update.
+
+4.3 Fundraising permissions
+
+Fundraising access must be modelled separately from organisation type and verification status.
+
+Conceptually, the application needs to distinguish between:
+
+* An organisation that has declared itself a charity.
+* An organisation whose identity has been verified.
+* An organisation that has been approved for fundraising.
+* An organisation that has a configured treasury.
+* An organisation that can publish an active campaign.
+
+Do not assume that verifying an organisation automatically grants every financial permission.
+
+Implement explicit permission checks using the existing authorisation architecture.
+
+4.4 Backwards compatibility
+
+Existing organisation profiles may not have an organisation subtype.
+
+Handle these records safely.
+
+Requirements:
+
+* Existing profiles must continue loading.
+* Existing participant accounts must remain unaffected.
+* Existing organisation accounts must retain their experience-hosting capabilities.
+* Missing subtype values must not crash the application.
+* Existing verification states must not be silently overwritten.
+* Database migrations must preserve existing data.
+
+Where necessary, allow a legacy organisation profile to have an unset subtype until its owner completes the relevant profile update.
+
+Do not automatically classify all existing organisations as charities or businesses.
+
+⸻
+
+5. ORGANISATION PROFILE ONBOARDING
+
+Extend the existing Onboarding component to collect information appropriate to the selected organisation type.
+
+Reuse the existing profile fields and validation wherever possible.
+
+5.1 Shared fields
+
+Collect:
+
+* Organisation name.
+* Organisation description.
+* Contact person’s name.
+* City or operating location.
+* Country, where supported by the existing model.
+* Areas of focus.
+* Profile biography or introduction, where applicable.
+
+Do not duplicate information unnecessarily if it is already collected in the existing onboarding flow.
+
+5.2 Charity-specific fields
+
+For charities, collect or support the collection of:
+
+* Legal organisation name.
+* Public-facing name, if different.
+* Organisation description.
+* Country of registration.
+* Charity registration number, where applicable.
+* Website, where available.
+* Primary contact.
+* Areas of work.
+* Operating location.
+* Verification status.
+
+For non-profits, support the appropriate equivalent registration details for the relevant jurisdiction.
+
+Registration numbers must be optional where no equivalent registration scheme exists, but the organisation must not be treated as verified merely because a registration number was supplied.
+
+Keep sensitive verification information separate from publicly displayed profile information.
+
+Do not expose private contact information or verification documents through public organisation endpoints.
+
+5.3 Other organisation types
+
+Initially, schools, community centres, libraries, youth organisations, and businesses can reuse the existing organisation onboarding form.
+
+Only introduce subtype-specific fields when they are necessary.
+
+Avoid building entirely separate onboarding systems for every organisation category.
+
+⸻
+
+6. CHARITY DASHBOARD
+
+Introduce charity-specific capabilities within the existing organisation experience.
+
+Do not create a completely separate application.
+
+The dashboard should adapt based on the organisation’s subtype and permissions.
+
+6.1 Initial navigation
+
+For eligible charity accounts, provide the following sections:
+
+1. Overview.
+2. Organisation Profile.
+3. Experiences.
+4. Initiatives.
+5. Fundraising.
+6. Impact.
+7. Settings.
+
+Treasury management should be exposed only where appropriate.
+
+Do not show financial actions to accounts that lack the relevant permissions.
+
+6.2 Overview
+
+Display:
+
+* Organisation verification status.
+* Active experiences.
+* Active initiatives.
+* Fundraising campaign status.
+* Funds raised, where applicable.
+* Participant engagement.
+* Verified impact metrics.
+
+Only display financial metrics derived from reliable, reconciled transaction data.
+
+Do not invent or estimate funds raised using campaign targets or pending payments.
+
+6.3 Initiatives
+
+An initiative represents a project or programme that an organisation wants to deliver.
+
+Examples:
+
+* A neighbourhood clean-up.
+* A youth education programme.
+* A community skills workshop.
+* A food distribution initiative.
+* A local environmental restoration project.
+
+Each initiative should be capable of connecting to one or more Experiences.fun experiences.
+
+Reuse the existing experience model wherever possible.
+
+Do not create duplicate experience records solely to represent a funded initiative.
+
+6.4 Fundraising access
+
+The Fundraising section may be visible to eligible charity accounts.
+
+However, creating a campaign must be restricted to accounts that satisfy the relevant fundraising requirements.
+
+For organisations that have not completed verification, display a clear explanation of what is required before fundraising can begin.
+
+Do not allow an unverified organisation to bypass the restriction through direct API requests.
+
+⸻
+
+7. FUNDRAISING CAMPAIGNS
+
+Create a fundraising system that allows eligible organisations to raise funds for specific initiatives.
+
+The fundraising system must remain separate from ordinary organisation profile management.
+
+7.1 Campaign creation
+
+A campaign should support:
+
+* Campaign title.
+* Campaign description.
+* Associated organisation.
+* Associated initiative, where applicable.
+* Funding target.
+* Currency.
+* Campaign image or media.
+* Campaign start and end dates, where applicable.
+* Intended use of funds.
+* Public campaign status.
+* Donation and transaction totals.
+* Associated treasury configuration.
+* Impact milestones.
+
+Use the repository’s existing money and database conventions.
+
+Do not represent monetary values using floating-point arithmetic.
+
+Where supported by the chosen payment and token infrastructure, store monetary amounts as integer minor units or exact token base units.
+
+7.2 Campaign statuses
+
+Implement a validated campaign lifecycle.
+
+Recommended states:
+
+* draft
+* pending_approval
+* active
+* paused
+* completed
+* cancelled
+
+Use these as the target states, adapting them to existing conventions where necessary.
+
+Define which transitions are permitted.
+
+For example:
+
+* A draft campaign can be submitted for approval.
+* A pending campaign can be approved or rejected by an authorised actor.
+* An active campaign can be paused.
+* A completed campaign cannot silently return to an active state.
+* A cancelled campaign must not accept new donations.
+
+Campaign status changes must be validated on the backend.
+
+7.3 Campaign API
+
+Introduce fundraising-specific API routes following the existing routing conventions.
+
+Suggested responsibilities:
+
+fundraising.ts
+
+* Create campaigns.
+* Retrieve campaign details.
+* Update draft campaigns.
+* Submit campaigns for approval.
+* Publish approved campaigns.
+* Pause or complete campaigns.
+* Retrieve authorised organisation campaign lists.
+
+donations.ts
+
+* Initiate supported donation flows.
+* Record donation attempts.
+* Process verified payment events.
+* Track confirmed donations.
+* Handle failed or refunded payments.
+* Reconcile donation records.
+
+treasuries.ts
+
+* Associate an organisation with an approved treasury.
+* Retrieve treasury metadata.
+* Monitor treasury-related transactions.
+* Initiate authorised treasury operations where supported.
+* Track transaction and reconciliation status.
+
+These are proposed responsibilities, not confirmed existing files.
+
+Inspect the repository before creating them, and reuse any existing equivalent functionality.
+
+Do not place the entire fundraising system in accounts.ts.
+
+⸻
+
+8. SOLANA SQUADS TREASURY INTEGRATION
+
+Use Squads as the multisig treasury infrastructure for eligible organisations.
+
+Official documentation:
+
+https://docs.squads.so/
+
+Inspect the current Squads SDK and treasury APIs before implementing the integration.
+
+Do not assume that a proposed SDK method or transaction flow exists without verifying it.
+
+8.1 Treasury architecture
+
+The intended relationship is:
+
+Organisation
+→ Fundraising Permissions
+→ Fundraising Campaign
+→ Associated Treasury
+→ Confirmed Donations
+→ Approved Treasury Operations
+→ Initiative Delivery
+→ Verified Impact
+
+Each organisation must be associated with the correct treasury.
+
+Do not associate every charity with a single shared treasury by default.
+
+The application must distinguish between an organisation’s treasury and the individual campaigns that it runs.
+
+8.2 Treasury metadata
+
+Store the minimum necessary metadata to associate an organisation with its treasury.
+
+Depending on the integration, this may include:
+
+* Organisation ID.
+* Network or cluster.
+* Treasury public key.
+* Treasury configuration status.
+* Creation or association timestamp.
+* Relevant transaction signatures.
+* Integration status.
+
+Never store private keys, recovery phrases, or signing secrets in ordinary organisation records.
+
+8.3 Treasury approval
+
+Treasury operations must follow the actual authorisation and approval rules configured for the relevant Squads multisig.
+
+Do not assume that a transaction submitted by the application has been approved or executed.
+
+Distinguish between:
+
+* Operation requested.
+* Transaction constructed.
+* Approval pending.
+* Transaction executed.
+* Transaction failed.
+
+Only report execution after verifying the relevant transaction state.
+
+8.4 Donation collection
+
+Do not assume that every donation should be sent directly into a Squads treasury without considering the payment flow.
+
+Implement the appropriate collection and settlement architecture for the supported donation methods.
+
+For Solana-native donations, determine how the receiving treasury address, supported assets, transaction verification, and reconciliation will work.
+
+For card or other fiat donations, use a suitable payment provider and implement its required settlement, webhook, and reconciliation flow.
+
+Do not fabricate successful donation records from client-submitted transaction signatures alone.
+
+Verify transactions through a trusted server-side process.
+
+8.5 Security boundaries
+
+The integration must:
+
+* Keep private keys out of the database and frontend.
+* Avoid exposing privileged treasury operations to ordinary users.
+* Validate the organisation’s authorisation for every treasury action.
+* Verify relevant on-chain transactions.
+* Prevent duplicate transaction processing.
+* Record an audit trail for privileged operations.
+* Handle failed, pending, and confirmed transactions distinctly.
+* Avoid claiming that funds are available before settlement or confirmation.
+
+Use the current Squads documentation to determine which operations can be executed directly and which require multisig proposals or approvals.
+
+If a complete treasury integration requires additional credentials or external configuration, implement the appropriate integration boundary and clearly document the outstanding setup.
+
+⸻
+
+9. DONATION RECORDS AND RECONCILIATION
+
+Donation records must be separate from campaign records.
+
+A campaign can exist before it receives any donations.
+
+A donation can be initiated without being successfully completed.
+
+The application must represent these situations accurately.
+
+9.1 Donation record
+
+The target donation model should capture:
+
+* Donation ID.
+* Campaign ID.
+* Organisation ID.
+* Donor reference, where appropriate.
+* Payment method.
+* Asset or currency.
+* Amount.
+* Transaction or payment-provider reference.
+* Payment status.
+* Creation timestamp.
+* Confirmation timestamp, where applicable.
+* Refund status, where applicable.
+
+Avoid collecting unnecessary personal information about donors.
+
+9.2 Payment states
+
+Use an explicit lifecycle for donations, covering the applicable states:
+
+* Pending.
+* Confirmed.
+* Failed.
+* Refunded.
+
+Additional states may be required by the payment provider or settlement process.
+
+Do not count pending, failed, or refunded payments as successfully raised funds.
+
+9.3 Idempotency
+
+Implement idempotent processing for payment events and blockchain transaction observations.
+
+Processing the same event twice must not create two donations or double-count campaign totals.
+
+Use database constraints and transactional updates where appropriate.
+
+Do not rely exclusively on frontend checks to prevent duplicates.
+
+9.4 Financial reconciliation
+
+The campaign’s displayed totals must be derived from authoritative donation records.
+
+Where relevant, distinguish between:
+
+* Gross donations.
+* Fees.
+* Refunds.
+* Net proceeds.
+* Funds received by the treasury.
+* Funds available for an initiative.
+
+These values are not necessarily identical.
+
+Do not report them as interchangeable.
+
+⸻
+
+10. IMPACT AND EXPERIENCES INTEGRATION
+
+Fundraising should be integrated into the core Experiences.fun product rather than becoming a disconnected donation directory.
+
+The intended lifecycle is:
+
+Create → Fund → Coordinate → Execute → Verify → Measure → Report
+
+10.1 Initiative milestones
+
+Support milestones for funded initiatives.
+
+A milestone should be capable of recording:
+
+* Title.
+* Description.
+* Target outcome.
+* Associated initiative.
+* Target completion date, where applicable.
+* Current status.
+* Evidence or supporting records.
+* Verification status.
+
+Reuse existing experience milestones if they support the required functionality.
+
+Do not create a parallel milestone system unnecessarily.
+
+10.2 Experience connections
+
+Allow an initiative to reference the Experiences.fun experiences used to execute it.
+
+For example, a charity could launch a campaign to raise funds for a neighbourhood clean-up programme.
+
+The charity could then organise several clean-up experiences, recruit participants, verify participation, and report the resulting impact.
+
+Use existing participation and completion-verification functionality where possible.
+
+10.3 Impact reporting
+
+Allow organisations to report:
+
+* Funding received.
+* Initiative expenditure, where appropriately supported.
+* Experiences delivered.
+* Participants involved.
+* Verified contribution records.
+* Completed milestones.
+* Measured outcomes.
+
+Clearly distinguish self-reported outcomes from independently or otherwise verifiably confirmed outcomes.
+
+Do not automatically treat participation counts, XP, or campaign expenditure as proof of social impact.
+
+⸻
+
+11. AUTHORISATION AND SECURITY
+
+Security must be implemented in the backend, not merely through hiding buttons in the interface.
+
+11.1 Organisation ownership
+
+Every organisation-specific mutation must verify that the authenticated user is authorised to manage the relevant organisation.
+
+A user must not be able to modify another organisation by changing an ID in a request.
+
+11.2 Verification
+
+Only authorised administrative or verification workflows may change an organisation’s verification status.
+
+Do not allow the client to submit:
+
+verificationStatus: "verified"
+
+and have that value accepted as authoritative.
+
+11.3 Fundraising permissions
+
+Campaign creation, approval, publication, donation administration, and treasury actions must have explicit permission checks.
+
+Where an organisation has not been approved for fundraising, the API must reject attempts to publish campaigns or perform restricted financial actions.
+
+11.4 Audit logging
+
+Record security-relevant actions, including:
+
+* Verification decisions.
+* Fundraising approval decisions.
+* Campaign publication.
+* Treasury association changes.
+* Privileged financial operations.
+* Administrative changes to organisation permissions.
+
+Do not log passwords, authentication tokens, private keys, or unnecessary sensitive personal information.
+
+11.5 Legal and operational requirements
+
+Do not represent the application as legally authorised to process charitable donations simply because a campaign can be created.
+
+Before enabling real-money fundraising, document the requirements for the intended jurisdictions and payment methods.
+
+For UK operations, investigate applicable charity registration requirements, payment-provider requirements, Gift Aid eligibility, AML/KYC obligations, safeguarding considerations, data protection, and relevant financial-services or cryptoasset rules.
+
+Do not implement Gift Aid claims or imply eligibility without the necessary supporting workflow.
+
+The initial implementation may support campaign setup and test transactions before real-money fundraising is enabled.
+
+⸻
+
+12. API AND GENERATED TYPES
+
+Follow the repository’s existing API architecture.
+
+For each new or modified API operation:
+
+1. Update the canonical API schema or route definition.
+2. Update request validation.
+3. Update response validation and types where applicable.
+4. Update database models and queries.
+5. Regenerate generated API types using the repository’s existing tooling.
+6. Update frontend API usage.
+7. Add tests for successful and rejected requests.
+
+Do not manually modify generated files and assume that the implementation is complete.
+
+Ensure organisation subtype, verification state, and fundraising permissions are represented consistently across the database, backend, and mobile application.
+
+⸻
+
+13. DATABASE MIGRATIONS
+
+Implement database changes using the existing migration workflow.
+
+Requirements:
+
+* Preserve existing user and organisation records.
+* Avoid destructive schema changes.
+* Handle existing records without organisation subtypes.
+* Use appropriate database constraints.
+* Add indexes for frequently queried fields where justified.
+* Prevent duplicate treasury associations where the intended relationship requires uniqueness.
+* Prevent duplicate donation processing through suitable constraints.
+* Keep financial updates transactionally consistent.
+
+Do not execute destructive production migrations.
+
+Do not reset the database to make the new schema work.
+
+Include migration and rollback considerations in the implementation summary.
+
+⸻
+
+14. TESTING REQUIREMENTS
+
+Add tests using the repository’s existing test framework and conventions.
+
+14.1 Onboarding
+
+Verify that:
+
+* The initial screen still displays only Participant and Organisation.
+* Selecting Participant opens the existing participant flow.
+* Selecting Organisation opens organisation-type selection.
+* Every supported organisation subtype can be selected.
+* Continuing without a selection is rejected.
+* Back navigation preserves the selected subtype.
+* The selected subtype is persisted.
+* Existing authentication flows still work.
+
+14.2 Data and API
+
+Verify that:
+
+* Valid organisation subtypes are accepted.
+* Invalid organisation subtypes are rejected.
+* Existing organisation profiles remain readable.
+* Existing participant profiles remain unaffected.
+* Unauthorised organisation updates are rejected.
+* Users cannot self-approve their verification status.
+* Users cannot grant themselves fundraising permissions.
+* Database migrations preserve existing records.
+
+14.3 Fundraising
+
+Verify that:
+
+* Eligible organisations can create draft campaigns.
+* Unauthorised organisations cannot publish campaigns.
+* Campaign status transitions are validated.
+* Pending donations are not counted as confirmed funds.
+* Failed payments are not counted as donations received.
+* Duplicate payment events do not create duplicate donations.
+* Refunded payments are reflected correctly.
+* Campaign totals are derived from authoritative records.
+
+14.4 Treasury integration
+
+Verify that:
+
+* Invalid treasury associations are rejected.
+* Organisation ownership and permissions are enforced.
+* Unauthorised users cannot initiate privileged treasury operations.
+* Transaction statuses are represented accurately.
+* Repeated transaction observations do not double-count funds.
+* Failed transactions are not presented as successful transfers.
+
+14.5 Regression testing
+
+Run the relevant existing test suites.
+
+Pay particular attention to:
+
+* Authentication.
+* Profile creation.
+* Account switching.
+* Organisation profile updates.
+* Experience hosting.
+* Experience discovery.
+* Existing participation and verification functionality.
+
+Do not declare completion if the new tests pass but existing functionality has regressed.
+
+⸻
+
+15. IMPLEMENTATION ORDER
+
+Implement the feature in the following order.
+
+Phase 1: Repository inspection
+
+Identify the canonical schemas, database relationships, routes, and existing verification and experience functionality.
+
+Confirm the implementation plan against the actual repository.
+
+Phase 2: Organisation-type onboarding
+
+Add the organisation-type selection screen and integrate it with the existing organisation onboarding flow.
+
+Preserve the initial Participant/Organisation choice and all existing authentication flows.
+
+Phase 3: Database and API
+
+Add the organisation subtype and any necessary verification metadata.
+
+Update validation, persistence, API responses, generated types, and migrations.
+
+Ensure existing accounts remain compatible.
+
+Phase 4: Charity profile
+
+Add charity-specific profile fields and an appropriate verification workflow.
+
+Ensure sensitive information is not exposed publicly.
+
+Phase 5: Fundraising foundation
+
+Implement campaign creation, lifecycle management, authorisation, and donation record structures.
+
+At this stage, campaigns may operate in draft or test mode while payment and treasury integrations are configured.
+
+Phase 6: Squads integration
+
+Integrate treasury association and the required transaction or proposal workflows.
+
+Verify transactions and reconcile donation records using trusted server-side processes.
+
+Phase 7: Impact integration
+
+Connect fundraising initiatives to existing experiences, participation, milestones, and impact records.
+
+Reuse existing functionality wherever possible.
+
+Phase 8: Testing and documentation
+
+Run regression tests, validate migrations, document configuration requirements, and report any remaining integration dependencies.
+
+Do not enable real-money fundraising in production until the required operational and legal checks have been completed.
+
+⸻
+
+16. DEFINITION OF DONE
+
+The implementation is complete when all applicable criteria below are satisfied.
+
+Onboarding
+
+* [ ]	Initial account selection contains only Participant and Organisation.
+* [ ]	Selecting Organisation opens organisation-type selection.
+* [ ]	All eight organisation types are supported.
+* [ ]	The selected subtype is saved and restored correctly.
+* [ ]	Participant onboarding remains unchanged.
+* [ ]	Email and Telegram authentication continue working.
+* [ ]	Existing profiles remain compatible.
+
+Data and permissions
+
+* [ ]	Organisation subtype is stored in the canonical data model.
+* [ ]	Verification status is controlled by authorised backend operations.
+* [ ]	Fundraising permissions are separate from organisation type.
+* [ ]	API validation rejects invalid subtype values.
+* [ ]	Database migrations preserve existing records.
+* [ ]	Generated API types are updated correctly.
+
+Fundraising
+
+* [ ]	Eligible organisations can create campaigns.
+* [ ]	Campaign statuses and transitions are validated.
+* [ ]	Donation records are separate from campaigns.
+* [ ]	Payment processing is idempotent.
+* [ ]	Campaign totals use authoritative donation records.
+* [ ]	Unverified or unauthorised organisations cannot bypass fundraising restrictions.
+
+Treasury
+
+* [ ]	Organisation-to-treasury associations are validated.
+* [ ]	Privileged treasury operations require appropriate authorisation.
+* [ ]	Transaction states are verified rather than assumed.
+* [ ]	Donation reconciliation prevents double-counting.
+* [ ]	No private keys or signing secrets are exposed.
+
+Impact
+
+* [ ]	Fundraising initiatives can connect to existing experiences.
+* [ ]	Relevant milestones and contribution records can be associated with initiatives.
+* [ ]	Impact reports distinguish verified and self-reported outcomes.
+
+Quality
+
+* [ ]	Relevant new tests pass.
+* [ ]	Relevant existing regression tests pass.
+* [ ]	Migrations and configuration requirements are documented.
+* [ ]	Any incomplete integrations are explicitly identified.
+* [ ]	No existing functionality has been silently removed.
+
+⸻
+
+17. REQUIRED FINAL REPORT FROM THE CODING AGENT
+
+When implementation is complete, provide a concise report containing:
+
+1. Files changed: Every modified and newly created file.
+2. Architecture: How organisation subtypes, verification, and fundraising permissions are represented.
+3. Database: Schema changes and migrations performed.
+4. API: New and modified endpoints.
+5. Frontend: The new onboarding flow and dashboard changes.
+6. Treasury: What is integrated with Squads and what remains dependent on external configuration.
+7. Testing: Tests executed and their results.
+8. Outstanding work: Any incomplete payment, treasury, verification, or compliance dependencies.
+9. Deployment: Environment variables, migration commands, and configuration steps required to deploy safely.
+
+Do not report an integration as complete if only its interface has been implemented.
+
+Distinguish working functionality, tested integration boundaries, and outstanding production configuration.
+
+⸻
+
+FINAL DIRECTIVE
+
+Implement this feature within the existing Experiences.fun architecture.
+
+Prioritise backward compatibility, clear data boundaries, reusable components, server-side authorisation, and reliable financial records.
+
+Preserve Participant and Organisation as the only top-level account types.
+
+Introduce organisation subtype selection only after Organisation has been selected.
+
+Build fundraising as an additional capability for eligible organisations, not as a replacement for existing organisation functionality.
+
+Reuse existing profile, experience, participation, milestone, and impact functionality wherever practical.
+
+Inspect the repository before making assumptions. Implement the feature, test it, and report exactly what works and what remains incomplete.

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ExperienceCategory } from './experienceCategory';
+import type { OrganisationType } from './organisationType';
 
 export interface OrganisationProfileInput {
   /**
@@ -25,4 +26,5 @@ export interface OrganisationProfileInput {
   city: string;
   /** @minItems 1 */
   categories: ExperienceCategory[];
+  type?: OrganisationType;
 }

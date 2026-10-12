@@ -552,3 +552,67 @@ test("login accepts an @-prefixed username", async (t) => {
     password: "LocalTestPass123!",
   });
 });
+
+test("organisation signup requires a supported subtype before sign-in", async (t) => {
+  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile organisation flow test.");
+
+  const client = await launchBrowser(t);
+  await setViewport(client, viewport.height);
+  await client.send("Page.navigate", { url: `https://${domain}/` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="welcome-start"]'))`,
+    Boolean,
+    "the signed-out welcome screen",
+  );
+
+  await tapTestId(client, "welcome-start");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="account-type-organisation"]'))`,
+    Boolean,
+    "the account type choices",
+  );
+  await tapTestId(client, "account-type-organisation");
+  await tapTestId(client, "account-type-continue");
+
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-type-selection"]'))`,
+    Boolean,
+    "the organisation subtype choices",
+  );
+  const initialState = await client.evaluate(`(() => ({
+    cards: document.querySelectorAll('[data-testid^="organisation-type-"][role="radio"]').length,
+    continueDisabled: document.querySelector('[data-testid="organisation-type-continue"]')?.disabled,
+  }))()`);
+  assert.equal(initialState.cards, 8);
+  assert.equal(initialState.continueDisabled, true, "users must choose a subtype before continuing");
+
+  const unselectedBorder = await client.evaluate(
+    `getComputedStyle(document.querySelector('[data-testid="organisation-type-charity"]')).borderColor`,
+  );
+  await tapTestId(client, "organisation-type-charity");
+  const selectedBorder = await waitForValue(
+    client,
+    `getComputedStyle(document.querySelector('[data-testid="organisation-type-charity"]')).borderColor`,
+    (value) => value !== unselectedBorder,
+    "the selected organisation subtype state",
+  );
+  assert.notEqual(selectedBorder, unselectedBorder);
+  const continueDisabled = await client.evaluate(
+    `document.querySelector('[data-testid="organisation-type-continue"]')?.disabled`,
+  );
+  assert.equal(continueDisabled, false);
+  await client.evaluate(
+    `document.querySelector('[data-testid="organisation-type-continue"]')?.scrollIntoView({ block: "center" })`,
+  );
+  await tapTestId(client, "organisation-type-continue");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="login-choice-email"]'))`,
+    Boolean,
+    "the sign-in choices after selecting an organisation subtype",
+  );
+});

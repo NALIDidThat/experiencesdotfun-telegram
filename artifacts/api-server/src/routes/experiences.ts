@@ -616,6 +616,7 @@ router.patch("/me", async (req, res) => {
           city: profile.city.trim(),
           country: patch.country ?? user.country,
           categories: profile.categories,
+          ...(profile.type !== undefined ? { organisationType: profile.type } : {}),
         };
         if (existing) {
           await transaction
