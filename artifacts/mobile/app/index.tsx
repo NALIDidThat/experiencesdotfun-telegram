@@ -772,11 +772,13 @@ function EmailAuthPanel({
                 <Text style={[styles.emailBackText, { color: colors.primary }]}>Back</Text>
               </Pressable>
               <View style={styles.emailSignupIntroRow}>
-                <View style={[styles.emailIllustration, { backgroundColor: colors.primary + '14' }]} accessible={false}>
-                  <Feather name={activeSignupField.icon} size={27} color={colors.primary} />
+                <View style={styles.emailSignupBrandRow}>
+                  <View style={[styles.emailIllustration, { backgroundColor: colors.primary + '12' }]} accessible={false}>
+                    <Feather name={activeSignupField.icon} size={20} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.emailHeroEyebrow, { color: colors.primary }]}>EXPERIENCES.FUN</Text>
                 </View>
                 <View style={styles.emailCardIntro}>
-                  <Text style={[styles.emailHeroEyebrow, { color: colors.primary }]}>EXPERIENCES.FUN</Text>
                   <Text style={[styles.emailCardTitle, { color: colors.foreground }]}>{activeSignupField.title}</Text>
                   <Text style={[styles.emailCardBody, { color: colors.mutedForeground }]}>{activeSignupField.description}</Text>
                 </View>
@@ -8388,7 +8390,8 @@ const styles = StyleSheet.create({
   emailLoginHeroBody: { maxWidth: 310, fontSize: 14, lineHeight: 20, fontFamily: 'Inter_500Medium', opacity: 0.92 },
   emailLoginFields: { paddingHorizontal: 22, paddingTop: 21, paddingBottom: 18 },
   emailAuthHeader: { gap: 18 },
-  emailSignupIntroRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  emailSignupIntroRow: { gap: 14 },
+  emailSignupBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   emailAuthFields: { gap: 14 },
   signupCongratsScreen: { flex: 1 },
   signupCongratsContent: { flexGrow: 1, width: '100%', maxWidth: 520, alignSelf: 'center', justifyContent: 'center', paddingHorizontal: 24 },
@@ -8409,11 +8412,11 @@ const styles = StyleSheet.create({
   emailSignupProgressSegment: { flex: 1, height: 5, borderRadius: 3 },
   emailSignupPrevious: { alignItems: 'center', paddingVertical: 6 },
   emailSignupPreviousText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  emailIllustration: { width: 56, height: 56, flexShrink: 0, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  emailCardIntro: { flex: 1, minWidth: 0, gap: 5, alignItems: 'flex-start' },
-  emailHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.3, marginBottom: 1 },
-  emailCardTitle: { fontSize: 25, lineHeight: 30, fontFamily: 'Inter_700Bold', letterSpacing: -0.5, textAlign: 'left' },
-  emailCardBody: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular', textAlign: 'left' },
+  emailIllustration: { width: 38, height: 38, flexShrink: 0, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  emailCardIntro: { width: '100%', gap: 7, alignItems: 'flex-start' },
+  emailHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2 },
+  emailCardTitle: { fontSize: 28, lineHeight: 34, fontFamily: 'Inter_700Bold', letterSpacing: -0.65, textAlign: 'left' },
+  emailCardBody: { maxWidth: 330, fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', textAlign: 'left' },
   emailSwitchRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 0, marginBottom: 0 },
   emailLoginSwitch: { minHeight: 58, paddingHorizontal: 18, borderTopWidth: 1 },
   emailAuthSwitchBottom: { marginTop: 'auto' },
