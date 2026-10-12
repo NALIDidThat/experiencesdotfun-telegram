@@ -613,6 +613,7 @@ function EmailAuthPanel({
   const [localError, setLocalError] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
   const isSignup = mode === 'signup';
+  const isOrganisationLogin = !isSignup && accountType === 'organisation';
   const normalizedUsername = username.trim().replace(/^@+/, '').toLowerCase();
   const signupFields = [
     {
@@ -735,11 +736,12 @@ function EmailAuthPanel({
           style={[
             styles.emailAuthForm,
             !isSignup && styles.emailLoginForm,
+            isOrganisationLogin && styles.emailOrganisationLoginForm,
             {
               backgroundColor: colors.card,
               borderColor: colors.border,
               borderWidth: 1,
-              borderRadius: colors.radius + 8,
+              borderRadius: isOrganisationLogin ? 26 : colors.radius + 8,
               paddingHorizontal: isSignup ? 22 : 0,
               paddingTop: isSignup ? 22 : 0,
               paddingBottom: isSignup ? 20 : 0,
@@ -796,6 +798,43 @@ function EmailAuthPanel({
                 </View>
               </View>
             </View>
+          ) : isOrganisationLogin ? (
+            <View style={styles.emailOrganisationLoginHeader}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Back to sign-in options"
+                onPress={() => {
+                  setLocalError(null);
+                  clearAuthError();
+                  onBack();
+                }}
+                style={styles.emailLoginBack}
+              >
+                <Feather name="arrow-left" size={17} color={colors.mutedForeground} />
+                <Text style={[styles.emailLoginBackText, { color: colors.mutedForeground }]}>Back</Text>
+              </Pressable>
+              <View style={styles.emailOrganisationBrandRow}>
+                <View style={[styles.emailOrganisationBrandMark, { backgroundColor: colors.primary + '12' }]}>
+                  <Feather name="users" size={19} color={colors.primary} />
+                </View>
+                <View>
+                  <Text style={[styles.emailLoginBrandName, { color: colors.foreground }]}>
+                    EXPERIENCES.FUN
+                  </Text>
+                  <Text style={[styles.emailLoginBrandCaption, { color: colors.mutedForeground, opacity: 1 }]}>
+                    ORGANISATION PORTAL
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.emailOrganisationTitleGroup}>
+                <Text style={[styles.emailLoginHeroTitle, styles.emailOrganisationTitle, { color: colors.foreground }]}>
+                  Welcome back
+                </Text>
+                <Text style={[styles.emailLoginHeroBody, styles.emailOrganisationSubtitle, { color: colors.mutedForeground }]}>
+                  Sign in to manage your organisation.
+                </Text>
+              </View>
+            </View>
           ) : (
             <LinearGradient
               colors={[colors.secondary, colors.primary]}
@@ -850,7 +889,11 @@ function EmailAuthPanel({
             </LinearGradient>
           )}
 
-          <View style={[styles.emailAuthFields, !isSignup && styles.emailLoginFields]}>
+          <View style={[
+            styles.emailAuthFields,
+            !isSignup && styles.emailLoginFields,
+            isOrganisationLogin && styles.emailOrganisationLoginFields,
+          ]}>
             {isSignup ? (
               <View style={styles.emailField}>
                 <Text style={[styles.emailLabel, { color: colors.foreground }]}>{activeSignupField.label}</Text>
@@ -885,9 +928,9 @@ function EmailAuthPanel({
             ) : (
               <>
                 <View style={styles.emailField}>
-                  <Text style={[styles.emailLabel, { color: colors.foreground }]}>Email or username</Text>
-                  <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
-                    <Feather name="mail" size={17} color={colors.primary} style={styles.emailInputIcon} />
+                  <Text style={[styles.emailLabel, isOrganisationLogin && styles.emailOrganisationLabel, { color: colors.foreground }]}>Email or username</Text>
+                  <View style={[styles.emailInputRow, isOrganisationLogin && styles.emailOrganisationInputRow, { backgroundColor: colors.card, borderColor: isOrganisationLogin ? colors.border : colors.input, borderRadius: colors.radius }]}>
+                    <Feather name="mail" size={17} color={isOrganisationLogin ? colors.mutedForeground : colors.primary} style={styles.emailInputIcon} />
                     <TextInput
                       testID="email-login-identifier"
                       accessibilityLabel="Email or username"
@@ -903,9 +946,9 @@ function EmailAuthPanel({
                   </View>
                 </View>
               <View style={styles.emailField}>
-                  <Text style={[styles.emailLabel, { color: colors.foreground }]}>Password</Text>
-                  <View style={[styles.emailInputRow, { backgroundColor: colors.card, borderColor: colors.input, borderRadius: colors.radius }]}>
-                    <Feather name="lock" size={17} color={colors.primary} style={styles.emailInputIcon} />
+                  <Text style={[styles.emailLabel, isOrganisationLogin && styles.emailOrganisationLabel, { color: colors.foreground }]}>Password</Text>
+                  <View style={[styles.emailInputRow, isOrganisationLogin && styles.emailOrganisationInputRow, { backgroundColor: colors.card, borderColor: isOrganisationLogin ? colors.border : colors.input, borderRadius: colors.radius }]}>
+                    <Feather name="lock" size={17} color={isOrganisationLogin ? colors.mutedForeground : colors.primary} style={styles.emailInputIcon} />
                     <TextInput
                       testID="email-login-password"
                       accessibilityLabel="Password"
@@ -930,7 +973,7 @@ function EmailAuthPanel({
               onPress={() => { void (isSignup ? continueSignup() : submitLogin()); }}
               icon={isSignup ? 'user-plus' : 'log-in'}
               color={colors.primary}
-              style={styles.emailSubmitButton}
+              style={[styles.emailSubmitButton, isOrganisationLogin && styles.emailOrganisationSubmitButton]}
               testID="email-auth-submit"
             />
             {isSignup && signupStep > 0 ? (
@@ -962,6 +1005,7 @@ function EmailAuthPanel({
             style={[
               styles.emailSwitchRow,
               !isSignup && styles.emailLoginSwitch,
+              isOrganisationLogin && styles.emailOrganisationLoginSwitch,
               !isSignup && { borderTopColor: colors.border },
             ]}
           >
@@ -8312,6 +8356,18 @@ const styles = StyleSheet.create({
   emailBackText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   emailAuthForm: { width: '100%', maxWidth: 430, alignSelf: 'center', gap: 18 },
   emailLoginForm: { gap: 0, overflow: 'hidden' },
+  emailOrganisationLoginForm: { overflow: 'hidden' },
+  emailOrganisationLoginHeader: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 26, gap: 22 },
+  emailOrganisationBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  emailOrganisationBrandMark: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  emailOrganisationTitleGroup: { gap: 7, marginTop: 1 },
+  emailOrganisationTitle: { fontSize: 30, lineHeight: 36, letterSpacing: -0.9, marginTop: 0 },
+  emailOrganisationSubtitle: { maxWidth: 300, fontSize: 14, lineHeight: 21, fontFamily: 'Inter_400Regular', opacity: 1 },
+  emailOrganisationLoginFields: { paddingHorizontal: 24, paddingTop: 2, paddingBottom: 22, gap: 17 },
+  emailOrganisationLabel: { fontSize: 12, letterSpacing: 0.15, fontFamily: 'Inter_600SemiBold' },
+  emailOrganisationInputRow: { height: 54 },
+  emailOrganisationSubmitButton: { marginTop: 5 },
+  emailOrganisationLoginSwitch: { minHeight: 60 },
   emailLoginHero: { minHeight: 238, paddingHorizontal: 22, paddingTop: 14, paddingBottom: 24, justifyContent: 'space-between', overflow: 'hidden' },
   emailLoginOrbit: { position: 'absolute', width: 206, height: 206, borderRadius: 103, borderWidth: 1, top: -110, right: -68, opacity: 0.17 },
   emailLoginOrbitSmall: { position: 'absolute', width: 138, height: 138, borderRadius: 69, borderWidth: 1, top: -51, right: 2, opacity: 0.12 },

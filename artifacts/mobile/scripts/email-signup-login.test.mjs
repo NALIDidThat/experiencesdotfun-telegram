@@ -615,4 +615,16 @@ test("organisation signup requires a supported subtype before sign-in", async (t
     Boolean,
     "the sign-in choices after selecting an organisation subtype",
   );
+  await tapTestId(client, "login-choice-email");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="email-auth-mode-switch"]'))`,
+    Boolean,
+    "the organisation email login form",
+  );
+  const organisationLoginText = await client.evaluate("document.body.innerText");
+  assert.match(organisationLoginText, /ORGANISATION PORTAL/);
+  assert.match(organisationLoginText, /Welcome back/);
+  assert.match(organisationLoginText, /Email or username/);
+  assert.match(organisationLoginText, /Password/);
 });
