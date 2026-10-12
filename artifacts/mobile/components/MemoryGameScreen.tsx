@@ -142,18 +142,20 @@ function ScreenHeader({
   title,
   eyebrow = 'MEMORY GAME',
   dark = false,
+  controlsOnly = false,
   onBack,
   onLeaderboard,
 }: {
   title: string;
   eyebrow?: string;
   dark?: boolean;
+  controlsOnly?: boolean;
   onBack: () => void;
   onLeaderboard: () => void;
 }) {
   const colors = useMemoryGameColors();
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, controlsOnly && styles.headerControlsOnly]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Back"
@@ -166,10 +168,12 @@ function ScreenHeader({
       >
         <Feather name="chevron-left" size={23} color={dark ? colors.space.foreground : colors.welcome.foreground} />
       </Pressable>
-      <View style={styles.headerCopy}>
-        <Text style={[styles.headerEyebrow, { color: dark ? colors.space.muted : colors.teal }]}>{eyebrow}</Text>
-        <Text style={[styles.headerTitle, { color: dark ? colors.space.foreground : colors.welcome.foreground }]}>{title}</Text>
-      </View>
+      {!controlsOnly ? (
+        <View style={styles.headerCopy}>
+          <Text style={[styles.headerEyebrow, { color: dark ? colors.space.muted : colors.teal }]}>{eyebrow}</Text>
+          <Text style={[styles.headerTitle, { color: dark ? colors.space.foreground : colors.welcome.foreground }]}>{title}</Text>
+        </View>
+      ) : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Open Memory Game leaderboard"
@@ -842,7 +846,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
   const busy = startAttempt.isPending || pauseAttempt.isPending || resumeAttempt.isPending || submitAttempt.isPending || exitPending;
   const showingGameIntro = panel === null && !result && !activeAttempt;
   const topInset = Platform.OS === 'web'
-    ? Math.max(insets.top, result || showingGameIntro ? 67 : 48)
+    ? Math.max(insets.top, showingGameIntro ? 12 : result ? 67 : 48)
     : insets.top + 8;
 
   useEffect(() => {
@@ -962,7 +966,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
         {
           backgroundColor: showingGameIntro ? colors.space.background : colors.welcome.background,
           paddingTop: topInset,
-          paddingBottom: Math.max(insets.bottom, 10),
+          paddingBottom: Math.max(insets.bottom, showingGameIntro ? 28 : 10),
         },
       ]}
       testID="memory-game-screen"
@@ -1036,7 +1040,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
         </>
       ) : (
         <>
-          <ScreenHeader title="Memory Game" dark onBack={onBack} onLeaderboard={() => setPanel('leaderboard')} />
+          <ScreenHeader title="Memory Game" dark controlsOnly onBack={onBack} onLeaderboard={() => setPanel('leaderboard')} />
           {stats ? (
             <GameIntro
               stats={stats}
@@ -1061,6 +1065,7 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, minHeight: 0 },
   header: { minHeight: 66, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  headerControlsOnly: { minHeight: 48 },
   headerButton: { width: 40, height: 40, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1 },
   headerEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.6 },
