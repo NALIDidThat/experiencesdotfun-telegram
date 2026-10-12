@@ -723,11 +723,17 @@ function EmailAuthPanel({
   };
 
   return (
-    <View style={[styles.emailAuthScreen, { backgroundColor: colors.muted }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.muted} />
+    <View testID="email-auth-screen" style={[styles.emailAuthScreen, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       <KeyboardAwareScrollViewCompat
-        style={[styles.emailAuthScroll, { backgroundColor: colors.muted }]}
-        contentContainerStyle={[styles.emailAuthContent, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 24) }]}
+        style={[styles.emailAuthScroll, { backgroundColor: colors.background }]}
+        contentContainerStyle={[
+          styles.emailAuthContent,
+          {
+            paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 67 : 16),
+            paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 24),
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="none"
         bottomOffset={24}
@@ -738,10 +744,9 @@ function EmailAuthPanel({
             !isSignup && styles.emailLoginForm,
             isOrganisationLogin && styles.emailOrganisationLoginForm,
             {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              borderWidth: 1,
-              borderRadius: isOrganisationLogin ? 26 : colors.radius + 8,
+              backgroundColor: colors.background,
+              borderWidth: 0,
+              borderRadius: 0,
               paddingHorizontal: isSignup ? 22 : 0,
               paddingTop: isSignup ? 22 : 0,
               paddingBottom: isSignup ? 20 : 0,
@@ -1006,6 +1011,7 @@ function EmailAuthPanel({
               styles.emailSwitchRow,
               !isSignup && styles.emailLoginSwitch,
               isOrganisationLogin && styles.emailOrganisationLoginSwitch,
+              styles.emailAuthSwitchBottom,
               !isSignup && { borderTopColor: colors.border },
             ]}
           >
@@ -8350,11 +8356,11 @@ const styles = StyleSheet.create({
   emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   emailAuthScreen: { flex: 1 },
   emailAuthScroll: { flex: 1 },
-  emailAuthContent: { flexGrow: 1, paddingHorizontal: 22, justifyContent: 'center' },
+  emailAuthContent: { flexGrow: 1, width: '100%', paddingHorizontal: 0, justifyContent: 'flex-start' },
   emailBack: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, alignSelf: 'flex-start' },
   emailBackIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   emailBackText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  emailAuthForm: { width: '100%', maxWidth: 430, alignSelf: 'center', gap: 18 },
+  emailAuthForm: { flexGrow: 1, width: '100%', alignSelf: 'stretch', gap: 18 },
   emailLoginForm: { gap: 0, overflow: 'hidden' },
   emailOrganisationLoginForm: { overflow: 'hidden' },
   emailOrganisationLoginHeader: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 26, gap: 22 },
@@ -8410,6 +8416,7 @@ const styles = StyleSheet.create({
   emailCardBody: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular', textAlign: 'left' },
   emailSwitchRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 0, marginBottom: 0 },
   emailLoginSwitch: { minHeight: 58, paddingHorizontal: 18, borderTopWidth: 1 },
+  emailAuthSwitchBottom: { marginTop: 'auto' },
   emailSwitchPrompt: { fontSize: 13, fontFamily: 'Inter_500Medium' },
   emailSwitchLink: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   emailField: { gap: 8 },

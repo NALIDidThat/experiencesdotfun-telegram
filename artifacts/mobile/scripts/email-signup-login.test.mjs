@@ -156,6 +156,23 @@ async function waitForValue(client, expression, predicate, description, timeoutM
   throw new Error(`Timed out waiting for ${description}. Last value: ${JSON.stringify(lastValue)}`);
 }
 
+async function assertAuthScreenFillsViewport(client) {
+  const bounds = await client.evaluate(`(() => {
+    const screen = document.querySelector('[data-testid="email-auth-screen"]');
+    if (!screen) return null;
+    const rect = screen.getBoundingClientRect();
+    return {
+      width: rect.width,
+      height: rect.height,
+      viewportWidth: document.documentElement.clientWidth,
+      viewportHeight: document.documentElement.clientHeight,
+    };
+  })()`);
+  assert.ok(bounds, "Expected the email auth screen to be rendered.");
+  assert.ok(bounds.width >= bounds.viewportWidth - 1, "The email auth screen should fill the viewport width.");
+  assert.ok(bounds.height >= bounds.viewportHeight - 1, "The email auth screen should fill the viewport height.");
+}
+
 async function setViewport(client, height) {
   await client.send("Emulation.setDeviceMetricsOverride", {
     width: viewport.width,
@@ -501,7 +518,9 @@ test("signup creates an authenticated session without production data", async (t
     Boolean,
     "the email sign-in form",
   );
+  await assertAuthScreenFillsViewport(client);
   await tapTestId(client, "email-auth-mode-switch");
+  await assertAuthScreenFillsViewport(client);
 
   const signupFields = [
     ["email-signup-name", "Signup QA"],
