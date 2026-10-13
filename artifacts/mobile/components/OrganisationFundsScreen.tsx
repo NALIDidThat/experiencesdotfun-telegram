@@ -18,6 +18,8 @@ import { buildDonationUri, isValidSolanaAddress } from "@/lib/solana-pay.mjs";
 function FundCard({ fund }: { fund: OrganisationFund }) {
   const colors = useColors();
   const [amount, setAmount] = useState("");
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const launchedDate = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(new Date(fund.createdAt));
   const donate = async () => {
     const parsed = Number(amount);
     let uri: string;
@@ -60,12 +62,32 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
           </View>
         </View>
 
-        <Text numberOfLines={3} style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>{fund.description}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: 6, rowGap: 3 }}>
+          <Feather name="briefcase" size={12} color={colors.mutedForeground} />
+          <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>{fund.organisationName}</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>·</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Launched {launchedDate}</Text>
+        </View>
+
+        <View style={{ gap: 4 }}>
+          <Text numberOfLines={descriptionExpanded ? undefined : 3} style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>{fund.description}</Text>
+          {fund.description.length > 150 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={descriptionExpanded ? "Show less campaign information" : "Read full campaign information"}
+              testID={`fund-description-toggle-${fund.id}`}
+              onPress={() => setDescriptionExpanded((expanded) => !expanded)}
+              style={{ alignSelf: "flex-start", paddingVertical: 3 }}
+            >
+              <Text style={{ color: colors.primary, fontSize: 12, fontFamily: "Inter_700Bold" }}>{descriptionExpanded ? "Show less" : "Read more"}</Text>
+            </Pressable>
+          ) : null}
+        </View>
 
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, borderRadius: colors.radius - 4, backgroundColor: colors.muted, paddingHorizontal: 13, paddingVertical: 11 }}>
           <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
             <Text style={{ color: colors.mutedForeground, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.7 }}>FUND GOAL</Text>
-            <Text style={{ color: colors.foreground, fontSize: 12 }}>Help make this work possible</Text>
+            <Text style={{ color: colors.foreground, fontSize: 12 }}>Target for this raise</Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
             <Feather name="target" size={14} color={colors.primary} />
@@ -77,6 +99,7 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
           <Feather name="shield" size={15} color={colors.mutedForeground} />
           <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
             <Text style={{ color: colors.foreground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>Shared charity treasury</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>Solana · {fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}</Text>
             <Text selectable numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>{fund.walletAddress}</Text>
           </View>
         </View>
