@@ -39,6 +39,8 @@ import {
   friendNotificationsTable,
   friendshipsTable,
   organisationsTable,
+  organisationVerificationApplicationsTable,
+  organisationVerificationEventsTable,
   participationsTable,
   usersTable,
   xpAwardsTable,
@@ -372,6 +374,314 @@ router.post("/auth/email/login", async (req, res) => {
 });
 
 router.use(requireTelegramUser);
+
+const companiesHouseSearchWindow = new Map<number, number[]>();
+
+router.post("/organisations/verification/companies-house", async (req, res) => {
+  if (!enforceAccountType(req, res, "organisation")) return;
+  const organisation = await currentOrganisation(currentUser(req).id);
+  if (!organisation) {
+    error(res, 404, "Organisation profile not found.");
+    return;
+  }
+  const query = typeof req.body?.query === "string" ? req.body.query.trim() : "";
+  if (query.length < 2 || query.length > 120) {
+    error(res, 400, "Enter a company name or registration number.");
+    return;
+  }
+
+  const now = Date.now();
+  const recent = (companiesHouseSearchWindow.get(currentUser(req).id) ?? [])
+    .filter((timestamp) => now - timestamp < 60_000);
+  if (recent.length >= 12) {
+    error(res, 429, "Please wait before searching Companies House again.");
+    return;
+  }
+  recent.push(now);
+  companiesHouseSearchWindow.set(currentUser(req).id, recent);
+
+  const apiKey = process.env.COMPANIES_HOUSE_API_KEY;
+  if (!apiKey) {
+    error(res, 503, "Companies House lookup is not configured.");
+    return;
+  }
+  try {
+    const response = await fetch(
+      `https://api.company-information.service.gov.uk/search/companies?q=${encodeURIComponent(query)}`,
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${apiKey}:`).toString("base64")}`,
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(8_000),
+      },
+    );
+    if (!response.ok) {
+      logger.warn({ status: response.status }, "Companies House search failed.");
+      error(res, response.status === 429 ? 503 : 502, "Companies House lookup is temporarily unavailable.");
+      return;
+    }
+    const payload = await response.json() as {
+      items?: Array<{
+        company_name?: string;
+        company_number?: string;
+        company_status?: string;
+        type?: string;
+        date_of_creation?: string;
+        registered_office_address?: { locality?: string; postal_code?: string; country?: string };
+      }>;
+    };
+    res.json({
+      results: (payload.items ?? []).slice(0, 10).map((item) => ({
+        name: item.company_name ?? "",
+        registrationNumber: item.company_number ?? "",
+        status: item.company_status ?? "",
+        entityType: item.type ?? "",
+        incorporatedOn: item.date_of_creation ?? null,
+        registeredAddress: item.registered_office_address
+          ? {
+              locality: item.registered_office_address.locality ?? null,
+              postalCode: item.registered_office_address.postal_code ?? null,
+              country: item.registered_office_address.country ?? null,
+            }
+          : null,
+      })),
+    });
+  } catch (cause) {
+    logger.warn({ cause }, "Companies House search request failed.");
+    error(res, 502, "Companies House lookup is temporarily unavailable.");
+  }
+});
+
+router.get("/organisations/verification", async (req, res) => {
+  if (!enforceAccountType(req, res, "organisation")) return;
+  const organisation = await currentOrganisation(currentUser(req).id);
+  if (!organisation) {
+    error(res, 404, "Organisation profile not found.");
+    return;
+  }
+  const [application] = await db
+    .select()
+    .from(organisationVerificationApplicationsTable)
+    .where(eq(organisationVerificationApplicationsTable.organisationId, organisation.id))
+    .orderBy(desc(organisationVerificationApplicationsTable.createdAt))
+    .limit(1);
+  const events = await db
+    .select({
+      id: organisationVerificationEventsTable.id,
+      eventType: organisationVerificationEventsTable.eventType,
+      createdAt: organisationVerificationEventsTable.createdAt,
+    })
+    .from(organisationVerificationEventsTable)
+    .where(eq(organisationVerificationEventsTable.organisationId, organisation.id))
+    .orderBy(asc(organisationVerificationEventsTable.createdAt));
+  res.json({
+    status: organisation.verificationStatus,
+    submittedAt: organisation.verificationSubmittedAt?.toISOString() ?? null,
+    reviewedAt: organisation.verificationReviewedAt?.toISOString() ?? null,
+    history: events.map((event) => ({
+      id: event.id,
+      event: event.eventType,
+      at: event.createdAt.toISOString(),
+    })),
+    application: application
+      ? {
+          id: application.id,
+          legalName: application.legalName,
+          organisationType: application.organisationType,
+          jurisdiction: application.jurisdiction,
+          registrationNumber: application.registrationNumber,
+          website: application.website,
+          representativeName: application.representativeName,
+          representativeRole: application.representativeRole,
+          contactEmail: application.contactEmail,
+          status: application.status,
+          reviewerNotes: application.reviewerNotes,
+          submittedAt: application.submittedAt?.toISOString() ?? null,
+          reviewedAt: application.reviewedAt?.toISOString() ?? null,
+        }
+      : null,
+  });
+});
+
+router.post("/organisations/verification/applications", async (req, res) => {
+  if (!enforceAccountType(req, res, "organisation")) return;
+  const organisation = await currentOrganisation(currentUser(req).id);
+  if (!organisation) {
+    error(res, 404, "Organisation profile not found.");
+    return;
+  }
+  const body = req.body ?? {};
+  const fields = [
+    "legalName",
+    "organisationType",
+    "jurisdiction",
+    "representativeName",
+    "representativeRole",
+    "contactEmail",
+  ] as const;
+  if (fields.some((field) => typeof body[field] !== "string" || !body[field].trim())) {
+    error(res, 400, "Complete all required organisation verification fields.");
+    return;
+  }
+  const values = Object.fromEntries(fields.map((field) => [field, body[field].trim()])) as Record<typeof fields[number], string>;
+  if (
+    values.legalName.length > 180 ||
+    values.organisationType.length > 48 ||
+    values.jurisdiction.length > 80 ||
+    values.representativeName.length > 120 ||
+    values.representativeRole.length > 120 ||
+    values.contactEmail.length > 254 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.contactEmail)
+  ) {
+    error(res, 400, "Check the organisation name, role, jurisdiction, and contact email.");
+    return;
+  }
+  const registrationNumber = typeof body.registrationNumber === "string"
+    ? body.registrationNumber.trim().slice(0, 40) || null
+    : null;
+  let website: string | null = null;
+  if (typeof body.website === "string" && body.website.trim()) {
+    try {
+      const parsedWebsite = new URL(body.website.trim());
+      if (parsedWebsite.protocol !== "https:" || parsedWebsite.username || parsedWebsite.password) throw new Error();
+      website = parsedWebsite.origin;
+    } catch {
+      error(res, 400, "The organisation website must be a valid HTTPS address.");
+      return;
+    }
+  }
+
+  const submittedAt = new Date();
+  const result = await db.transaction(async (transaction) => {
+    const [lockedOrganisation] = await transaction
+      .select({ id: organisationsTable.id })
+      .from(organisationsTable)
+      .where(eq(organisationsTable.id, organisation.id))
+      .for("update");
+    if (!lockedOrganisation) throw new Error("Organisation profile not found.");
+    const [latestApplication] = await transaction
+      .select({ status: organisationVerificationApplicationsTable.status })
+      .from(organisationVerificationApplicationsTable)
+      .where(eq(organisationVerificationApplicationsTable.organisationId, organisation.id))
+      .orderBy(desc(organisationVerificationApplicationsTable.createdAt))
+      .limit(1);
+    if (latestApplication && ["pending", "under_review"].includes(latestApplication.status)) return undefined;
+    const [application] = await transaction
+      .insert(organisationVerificationApplicationsTable)
+      .values({
+        organisationId: organisation.id,
+        applicantUserId: currentUser(req).id,
+        status: "pending",
+        submittedAt,
+        ...values,
+        registrationNumber,
+        website,
+      })
+      .returning();
+    if (!application) throw new Error("Unable to submit verification application.");
+    await transaction
+      .update(organisationsTable)
+      .set({
+        verificationStatus: "pending",
+        verificationSubmittedAt: submittedAt,
+        verificationReviewedAt: null,
+        verified: false,
+      })
+      .where(eq(organisationsTable.id, organisation.id));
+    await transaction.insert(organisationVerificationEventsTable).values({
+      organisationId: organisation.id,
+      applicationId: application.id,
+      actorUserId: currentUser(req).id,
+      eventType: "application_submitted",
+      details: { status: "pending" },
+    });
+    return application;
+  });
+  if (!result) {
+    error(res, 409, "Your organisation already has an application awaiting review.");
+    return;
+  }
+  res.status(201).json({
+    id: result.id,
+    status: result.status,
+    submittedAt: submittedAt.toISOString(),
+  });
+});
+
+router.post("/admin/organisation-verification/:applicationId/review", async (req, res) => {
+  const reviewerId = process.env.VERIFICATION_REVIEWER_TELEGRAM_ID;
+  if (!reviewerId || !/^\d+$/.test(reviewerId) || currentUser(req).telegramId !== reviewerId) {
+    error(res, reviewerId ? 403 : 503, reviewerId ? "You cannot review verification applications." : "Verification review is not configured.");
+    return;
+  }
+  const applicationId = Number(req.params.applicationId);
+  const action = req.body?.action;
+  const note = typeof req.body?.note === "string" ? req.body.note.trim() : null;
+  if (!Number.isSafeInteger(applicationId) || applicationId < 1 || !["approve", "reject", "needs_information", "suspend"].includes(action)) {
+    error(res, 400, "Choose a valid review action.");
+    return;
+  }
+  if (note && note.length > 500) {
+    error(res, 400, "Review notes must be 500 characters or fewer.");
+    return;
+  }
+  const reviewer = currentUser(req);
+  const reviewedAt = new Date();
+  const outcome = await db.transaction(async (transaction) => {
+    const [application] = await transaction
+      .select()
+      .from(organisationVerificationApplicationsTable)
+      .where(eq(organisationVerificationApplicationsTable.id, applicationId))
+      .for("update");
+    if (!application || !["pending", "under_review", "needs_information"].includes(application.status)) return undefined;
+    const [latestApplication] = await transaction
+      .select({ id: organisationVerificationApplicationsTable.id })
+      .from(organisationVerificationApplicationsTable)
+      .where(eq(organisationVerificationApplicationsTable.organisationId, application.organisationId))
+      .orderBy(desc(organisationVerificationApplicationsTable.createdAt))
+      .limit(1);
+    if (latestApplication?.id !== application.id) return undefined;
+    const status = action === "approve"
+      ? "verified"
+      : action === "reject"
+        ? "rejected"
+        : action === "suspend"
+          ? "suspended"
+          : "needs_information";
+    await transaction
+      .update(organisationVerificationApplicationsTable)
+      .set({ status, reviewerNotes: note, reviewedAt })
+      .where(eq(organisationVerificationApplicationsTable.id, application.id));
+    await transaction
+      .update(organisationsTable)
+      .set({
+        verificationStatus: action === "approve"
+          ? "verified"
+          : action === "reject"
+            ? "rejected"
+            : action === "suspend"
+              ? "suspended"
+              : "pending",
+        verificationReviewedAt: reviewedAt,
+        verified: action === "approve",
+      })
+      .where(eq(organisationsTable.id, application.organisationId));
+    await transaction.insert(organisationVerificationEventsTable).values({
+      organisationId: application.organisationId,
+      applicationId: application.id,
+      actorUserId: reviewer.id,
+      eventType: `application_${status}`,
+      details: { status },
+    });
+    return { id: application.id, status, reviewedAt: reviewedAt.toISOString() };
+  });
+  if (!outcome) {
+    error(res, 409, "This application is no longer awaiting review.");
+    return;
+  }
+  res.json(outcome);
+});
 
 router.post("/social-invites", async (req, res) => {
   const parsed = CreateSocialInviteBody.safeParse(req.body);

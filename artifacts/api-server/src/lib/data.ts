@@ -156,7 +156,7 @@ export function organisationResponse(organisation: Organisation) {
     country: organisation.country,
     categories: organisation.categories,
     type: organisation.organisationType ?? null,
-    verified: organisation.verified,
+    verified: organisation.verificationStatus === "verified",
   };
 }
 

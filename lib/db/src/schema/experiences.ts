@@ -135,11 +135,19 @@ export const organisationsTable = pgTable("organisations", {
   categories: text("categories").array().notNull().default([]),
   organisationType: text("organisation_type", { enum: organisationTypeValues }),
   verified: boolean("verified").notNull().default(false),
+  legacyVerified: boolean("legacy_verified").notNull().default(false),
+  verificationStatus: text("verification_status").notNull().default("unsubmitted"),
+  verificationSubmittedAt: timestamp("verification_submitted_at", { withTimezone: true }),
+  verificationReviewedAt: timestamp("verification_reviewed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   organisationTypeCheck: check(
     "organisations_organisation_type_check",
     sql`${table.organisationType} IS NULL OR ${table.organisationType} IN ('charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other')`,
+  ),
+  verificationStatusCheck: check(
+    "organisations_verification_status_check",
+    sql`${table.verificationStatus} IN ('unsubmitted', 'pending', 'under_review', 'verified', 'rejected', 'suspended', 'expired')`,
   ),
 }));
 
