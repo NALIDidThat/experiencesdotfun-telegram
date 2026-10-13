@@ -15,6 +15,22 @@ import { useColors } from "@/hooks/useColors";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { buildDonationUri, isValidSolanaAddress } from "@/lib/solana-pay.mjs";
 
+function shortAddress(address: string) {
+  return address.length > 18 ? `${address.slice(0, 8)}…${address.slice(-6)}` : address;
+}
+
+function solscanUrl(path: string, cluster: string) {
+  return `https://solscan.io/${path}${cluster === "mainnet-beta" ? "" : `?cluster=${cluster}`}`;
+}
+
+function transactionDateLabel(value: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? null
+    : date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 function FundCard({ fund }: { fund: OrganisationFund }) {
   const colors = useColors();
   const [amount, setAmount] = useState("");
@@ -167,6 +183,7 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
   const [cluster, setCluster] = useState<OrganisationTreasuryInput["cluster"]>("mainnet-beta");
   const [before, setBefore] = useState<string | undefined>();
   const [loadedTransactions, setLoadedTransactions] = useState<OrganisationTreasuryDashboard["transactions"]>([]);
+  const [activityExpanded, setActivityExpanded] = useState(false);
   const [stage, setStage] = useState<"dashboard" | "create" | "success" | "detail">("dashboard");
   const [createdFund, setCreatedFund] = useState<OrganisationFund | null>(null);
   const [selectedFund, setSelectedFund] = useState<OrganisationFund | null>(null);
@@ -223,6 +240,8 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
       </View>
     </View>
   );
+  const allTransactions = [...loadedTransactions, ...(treasuryQuery.data?.transactions ?? [])];
+  const visibleTransactions = activityExpanded ? allTransactions : allTransactions.slice(0, 5);
 
   if (stage === "success" && createdFund) {
     return (
@@ -331,20 +350,69 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
           </View>
         ) : treasuryQuery.data ? (
           <>
-            <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius + 4, backgroundColor: colors.card, padding: 17, gap: 11 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.8 }}>TREASURY BALANCE</Text>
-                <Feather name="eye" size={16} color={colors.mutedForeground} />
+            <View style={{ borderWidth: 1, borderColor: colors.primary + "35", borderRadius: colors.radius + 8, backgroundColor: colors.primary + "0A", padding: 18, gap: 14 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+                  <View style={{ width: 28, height: 28, borderRadius: 10, backgroundColor: colors.primary + "18", alignItems: "center", justifyContent: "center" }}>
+                    <Feather name="shield" size={14} color={colors.primary} />
+                  </View>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.8 }}>SHARED TREASURY</Text>
+                </View>
+                <View style={{ borderRadius: 20, backgroundColor: colors.card, paddingHorizontal: 9, paddingVertical: 5 }}>
+                  <Text style={{ color: colors.foreground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>
+                    Solana · {treasuryQuery.data.treasury.cluster === "mainnet-beta" ? "Mainnet" : treasuryQuery.data.treasury.cluster}
+                  </Text>
+                </View>
               </View>
-              <Text accessibilityLabel={`Treasury balance ${treasuryQuery.data.balanceSol} SOL`} style={{ color: colors.foreground, fontSize: 32, fontFamily: "Inter_700Bold" }}>{treasuryQuery.data.balanceSol} SOL</Text>
-              <Text selectable numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 11 }}>{treasuryQuery.data.treasury.walletAddress}</Text>
+              <View style={{ gap: 3 }}>
+                <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Available balance</Text>
+                <Text
+                  accessibilityLabel={`Treasury balance ${treasuryQuery.data.balanceSol} SOL`}
+                  adjustsFontSizeToFit
+                  numberOfLines={1}
+                  style={{ color: colors.foreground, fontSize: 34, fontFamily: "Inter_700Bold", letterSpacing: -0.8 }}
+                >
+                  {treasuryQuery.data.balanceSol} <Text style={{ color: colors.primary, fontSize: 20 }}>SOL</Text>
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, borderRadius: colors.radius - 4, backgroundColor: colors.card, paddingHorizontal: 11, paddingVertical: 10 }}>
+                <Feather name="key" size={14} color={colors.mutedForeground} />
+                <Text
+                  selectable
+                  numberOfLines={1}
+                  accessibilityLabel={`Treasury wallet address ${treasuryQuery.data.treasury.walletAddress}`}
+                  style={{ flex: 1, color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}
+                >
+                  {shortAddress(treasuryQuery.data.treasury.walletAddress)}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Share treasury address"
+                  onPress={() => { void Share.share({ message: `Send SOL to the charity treasury: ${treasuryQuery.data!.treasury.walletAddress}` }); }}
+                  style={{ width: 34, height: 34, alignItems: "center", justifyContent: "center" }}
+                  hitSlop={8}
+                >
+                  <Feather name="share" size={15} color={colors.primary} />
+                </Pressable>
+              </View>
               <View style={{ flexDirection: "row", gap: 9 }}>
-                {button("View on Solscan", () => { void Linking.openURL(`https://solscan.io/account/${treasuryQuery.data!.treasury.walletAddress}${treasuryQuery.data!.treasury.cluster === "mainnet-beta" ? "" : `?cluster=${treasuryQuery.data!.treasury.cluster}`}`); }, true, false, "external-link")}
-                <View style={{ flex: 1 }}>{button("Receive SOL", () => { void Share.share({ message: `Send SOL to the charity treasury: ${treasuryQuery.data!.treasury.walletAddress}` }); }, false, false, "share-2")}</View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  {button("Solscan", () => { void Linking.openURL(solscanUrl(`account/${treasuryQuery.data!.treasury.walletAddress}`, treasuryQuery.data!.treasury.cluster)); }, true, false, "external-link")}
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  {button("Receive SOL", () => { void Share.share({ message: `Send SOL to the charity treasury: ${treasuryQuery.data!.treasury.walletAddress}` }); }, false, false, "share-2")}
+                </View>
               </View>
-              <Pressable accessibilityRole="button" onPress={() => void treasuryQuery.refetch()} style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={treasuryQuery.isFetching ? "Refreshing treasury" : "Refresh treasury balance and activity"}
+                onPress={() => void treasuryQuery.refetch()}
+                style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 2 }}
+              >
                 <Feather name="refresh-cw" size={13} color={colors.primary} />
-                <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{treasuryQuery.isFetching ? "Refreshing…" : "Refresh balance and activity"}</Text>
+                <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
+                  {treasuryQuery.isFetching ? "Refreshing…" : "Refresh balance and activity"}
+                </Text>
               </Pressable>
             </View>
             <View style={{ flexDirection: "row", gap: 9 }}>
@@ -352,10 +420,14 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
                 { label: "ACTIVE FUNDS", value: fundsQuery.data?.length ?? 0, icon: "heart" as const },
                 { label: "RECENT TRANSFERS", value: treasuryQuery.data.transactions.length, icon: "activity" as const },
               ].map((metric) => (
-                <View key={metric.label} style={{ flex: 1, minHeight: 82, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius, padding: 12, gap: 6 }}>
-                  <Feather name={metric.icon} size={15} color={colors.primary} />
-                  <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>{metric.value}</Text>
-                  <Text style={{ color: colors.mutedForeground, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.45 }}>{metric.label}</Text>
+                <View key={metric.label} style={{ flex: 1, minHeight: 74, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 2, padding: 13, flexDirection: "row", alignItems: "center", gap: 11 }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.primary + "12", alignItems: "center", justifyContent: "center" }}>
+                    <Feather name={metric.icon} size={16} color={colors.primary} />
+                  </View>
+                  <View style={{ gap: 3 }}>
+                    <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>{metric.value}</Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.4 }}>{metric.label}</Text>
+                  </View>
                 </View>
               ))}
             </View>
@@ -395,29 +467,77 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
                   </View>
                 )}
             </View>
-            <View style={{ gap: 10 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Treasury activity</Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Finalized on-chain transfers</Text>
+            <View style={{ gap: 12 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <View style={{ gap: 3 }}>
+                  <Text style={{ color: colors.foreground, fontSize: 19, fontFamily: "Inter_700Bold" }}>Recent activity</Text>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Finalized transfers to this treasury</Text>
+                </View>
+                {allTransactions.length ? (
+                  <View style={{ borderRadius: 20, backgroundColor: colors.muted, paddingHorizontal: 9, paddingVertical: 5 }}>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>{allTransactions.length} loaded</Text>
+                  </View>
+                ) : null}
               </View>
               {treasuryQuery.isError ? <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 12 }}>Treasury activity could not be refreshed. Check your connection and try again.</Text> : null}
-              {[...loadedTransactions, ...treasuryQuery.data.transactions].map((transaction) => (
-                <View key={transaction.signature} style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius - 4, padding: 12, gap: 5 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <Text style={{ color: transaction.status === "confirmed" ? colors.foreground : colors.destructive, fontFamily: "Inter_700Bold", fontSize: 14 }}>
-                      {transaction.amountSol ? `+${transaction.amountSol} SOL` : transaction.status === "failed" ? "Failed transaction" : "Transaction details unavailable"}
-                    </Text>
-                    <Text style={{ color: colors.mutedForeground, fontSize: 10, textTransform: "uppercase" }}>{transaction.status}</Text>
+              {visibleTransactions.map((transaction) => {
+                const confirmed = transaction.status === "confirmed";
+                const failed = transaction.status === "failed";
+                const statusColor = confirmed ? colors.success : failed ? colors.destructive : colors.mutedForeground;
+                const timestamp = transactionDateLabel(transaction.blockTime);
+                return (
+                  <View key={transaction.signature} style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 2, padding: 13, gap: 10 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                      <View style={{ width: 36, height: 36, borderRadius: 13, backgroundColor: statusColor + "16", alignItems: "center", justifyContent: "center" }}>
+                        <Feather name={confirmed ? "arrow-down-left" : failed ? "x" : "clock"} size={17} color={statusColor} />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                        <Text numberOfLines={1} style={{ color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 14 }}>
+                          {confirmed && transaction.amountSol ? `+${transaction.amountSol} SOL` : failed ? "Failed transfer" : "Details unavailable"}
+                        </Text>
+                        <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
+                          {timestamp ?? (transaction.sender ? `From ${shortAddress(transaction.sender)}` : "On-chain transaction")}
+                        </Text>
+                      </View>
+                      <View style={{ borderRadius: 18, backgroundColor: statusColor + "14", paddingHorizontal: 8, paddingVertical: 5 }}>
+                        <Text style={{ color: statusColor, fontFamily: "Inter_700Bold", fontSize: 9, textTransform: "uppercase" }}>{transaction.status}</Text>
+                      </View>
+                    </View>
+                    {transaction.error && !confirmed && !failed ? null : transaction.error ? (
+                      <Text numberOfLines={2} style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 15 }}>{transaction.error}</Text>
+                    ) : null}
+                    <Pressable
+                      accessibilityRole="link"
+                      accessibilityLabel={`View transaction ${shortAddress(transaction.signature)} on Solscan`}
+                      onPress={() => { void Linking.openURL(solscanUrl(`tx/${transaction.signature}`, treasuryQuery.data!.treasury.cluster)); }}
+                      style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 9 }}
+                    >
+                      <Text selectable numberOfLines={1} style={{ flex: 1, color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>
+                        {shortAddress(transaction.signature)}
+                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                        <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_700Bold" }}>View</Text>
+                        <Feather name="external-link" size={12} color={colors.primary} />
+                      </View>
+                    </Pressable>
                   </View>
-                  <Text selectable style={{ color: colors.mutedForeground, fontSize: 11 }}>From {transaction.sender ?? "Unknown sender"}{transaction.blockTime ? ` · ${new Date(transaction.blockTime).toLocaleString()}` : ""}</Text>
-                  <Text selectable numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>{transaction.signature}</Text>
-                  {transaction.error ? <Text style={{ color: colors.destructive, fontSize: 11 }}>{transaction.error}</Text> : null}
-                </View>
-              ))}
+                );
+              })}
               {!treasuryQuery.data.transactions.length && !loadedTransactions.length && !treasuryQuery.isError
                 ? <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>No finalized treasury activity found yet.</Text>
                 : null}
-              {treasuryQuery.data.hasMore ? <Pressable accessibilityRole="button" disabled={treasuryQuery.isFetching} onPress={() => {
+              {!activityExpanded && allTransactions.length > 5 ? (
+                <Pressable accessibilityRole="button" onPress={() => setActivityExpanded(true)} style={{ minHeight: 44, justifyContent: "center", alignItems: "center", flexDirection: "row", gap: 7 }}>
+                  <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold" }}>Show all loaded transfers</Text>
+                  <Feather name="chevron-down" size={16} color={colors.primary} />
+                </Pressable>
+              ) : activityExpanded && allTransactions.length > 5 ? (
+                <Pressable accessibilityRole="button" onPress={() => setActivityExpanded(false)} style={{ minHeight: 44, justifyContent: "center", alignItems: "center", flexDirection: "row", gap: 7 }}>
+                  <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold" }}>Show recent only</Text>
+                  <Feather name="chevron-up" size={16} color={colors.primary} />
+                </Pressable>
+              ) : null}
+              {activityExpanded && treasuryQuery.data.hasMore ? <Pressable accessibilityRole="button" disabled={treasuryQuery.isFetching} onPress={() => {
                 if (!treasuryQuery.data?.nextCursor) return;
                 setLoadedTransactions((previous) => [...previous, ...treasuryQuery.data!.transactions]);
                 setBefore(treasuryQuery.data.nextCursor);
