@@ -369,6 +369,7 @@ test("signup creates an authenticated session without production data", async (t
 
   const client = await launchBrowser(t);
   const requests = [];
+  const xpAwardRequests = [];
   let interceptionError;
   let signupUser;
 
@@ -378,8 +379,11 @@ test("signup creates an authenticated session without production data", async (t
         const url = new URL(params.request.url);
         if (
           params.request.method === "OPTIONS"
-          && url.pathname.startsWith("/api/auth/email/")
+          && url.pathname.startsWith("/api/")
         ) {
+          if (url.pathname === "/api/me/xp-awards") {
+            xpAwardRequests.push({ method: params.request.method, path: url.pathname });
+          }
           const origin = params.request.headers.Origin ?? `https://${domain}`;
           const requestedHeaders = params.request.headers["Access-Control-Request-Headers"]
             ?? params.request.headers["access-control-request-headers"]
@@ -389,8 +393,12 @@ test("signup creates an authenticated session without production data", async (t
             responseCode: 204,
             responseHeaders: [
               { name: "Access-Control-Allow-Origin", value: origin },
-              { name: "Access-Control-Allow-Methods", value: "POST, OPTIONS" },
+              { name: "Access-Control-Allow-Methods", value: "GET, POST, PATCH, DELETE, OPTIONS" },
               { name: "Access-Control-Allow-Headers", value: requestedHeaders },
+              { name: "Access-Control-Allow-Credentials", value: "true" },
+              ...(params.request.headers["Access-Control-Request-Private-Network"] === "true"
+                ? [{ name: "Access-Control-Allow-Private-Network", value: "true" }]
+                : []),
             ],
             body: "",
           });
@@ -458,6 +466,31 @@ test("signup creates an authenticated session without production data", async (t
               user: signupUser,
               isNew: false,
               sessionToken: "email_local-test-session",
+            })).toString("base64"),
+          });
+          return;
+        }
+
+        if (url.pathname === "/api/me/xp-awards") {
+          xpAwardRequests.push({ method: params.request.method, path: url.pathname });
+        }
+        if (url.pathname === "/api/me/xp-awards" && params.request.method === "GET") {
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 200,
+            responseHeaders: apiResponseHeaders(params.request, domain),
+            body: Buffer.from(JSON.stringify({
+              balanceXp: 0,
+              pendingXp: 50,
+              awards: [{
+                id: "award:1",
+                sourceType: "email_signup",
+                sourceId: "signup-bonus",
+                title: "Email sign-up bonus",
+                amount: 50,
+                status: "pending",
+                awardedAt: "2026-01-01T00:00:00.000Z",
+              }],
             })).toString("base64"),
           });
           return;
@@ -547,6 +580,32 @@ test("signup creates an authenticated session without production data", async (t
     `Boolean(document.querySelector('[data-testid="signup-congratulations"]'))`,
     Boolean,
     "the signed-in signup congratulations screen",
+  );
+  let displayedReward;
+  try {
+    displayedReward = await waitForValue(
+      client,
+      `document.querySelector('[data-testid="signup-reward-amount"]')?.textContent`,
+      (value) => value === "+50 XP",
+      "the actual pending sign-up reward",
+    );
+  } catch (error) {
+    throw new Error(`${error.message}; XP API requests: ${JSON.stringify(xpAwardRequests)}; interception error: ${interceptionError?.message ?? "none"}`);
+  }
+  assert.equal(displayedReward, "+50 XP");
+  const displayedRewardStatus = await client.evaluate(
+    `document.querySelector('[data-testid="signup-reward"]')?.textContent`,
+  );
+  assert.match(displayedRewardStatus, /Ready to redeem/);
+  const continueBounds = await client.evaluate(`(() => {
+    const button = document.querySelector('[data-testid="signup-congratulations-continue"]');
+    if (!button) return null;
+    const rect = button.getBoundingClientRect();
+    return { top: rect.top, bottom: rect.bottom, viewportHeight: window.innerHeight };
+  })()`);
+  assert.ok(
+    continueBounds && continueBounds.top >= 0 && continueBounds.bottom <= continueBounds.viewportHeight + 1,
+    `Continue action should fit in the 390x740 signup screen: ${JSON.stringify(continueBounds)}`,
   );
   assert.ifError(interceptionError);
   assert.equal(

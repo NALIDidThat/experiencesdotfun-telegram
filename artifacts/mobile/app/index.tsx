@@ -1486,67 +1486,124 @@ function SignupCongratulations({
 }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
+  const compact = screenHeight < 760;
+  const xpAwards = useGetMyXpAwards({
+    query: {
+      queryKey: getGetMyXpAwardsQueryKey(),
+      staleTime: 0,
+    },
+  });
+  const signupAward = xpAwards.data?.awards.find((award) => award.sourceType === 'email_signup');
+  const rewardLabel = signupAward
+    ? `+${signupAward.amount} XP`
+    : xpAwards.isLoading
+      ? 'Checking…'
+      : 'Bonus unavailable';
+  const rewardDescription = signupAward?.status === 'pending'
+    ? 'Ready to redeem from XP rewards after setup'
+    : signupAward?.status === 'redeemed'
+      ? 'Added to your XP balance'
+      : xpAwards.isLoading
+        ? 'Checking your sign-up reward'
+        : xpAwards.isError
+          ? 'We could not load your sign-up reward'
+          : 'No sign-up reward was recorded';
 
   return (
-    <KeyboardAwareScrollViewCompat
-      testID="signup-congratulations"
-      style={[styles.signupCongratsScreen, { backgroundColor: colors.background }]}
-      contentContainerStyle={[
-        styles.signupCongratsContent,
-        {
-          paddingTop: Math.max(insets.top, 20),
-          paddingBottom: Math.max(insets.bottom, 24),
-        },
-      ]}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="none"
-      bottomOffset={24}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={[styles.signupCongratsMark, { backgroundColor: colors.primary + '14' }]}>
-        <Feather name="check" size={32} color={colors.primary} />
+    <View style={[styles.signupCongratsScreen, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <View style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}>
+        <View style={[styles.signupCongratsCornerPink, { backgroundColor: colors.primary + '18' }]} />
+        <View style={[styles.signupCongratsCornerPurple, { backgroundColor: colors.secondary + '18' }]} />
+        <View style={[styles.signupCongratsBottomLeft, { backgroundColor: colors.secondary + '16' }]} />
+        <View style={[styles.signupCongratsBottomRight, { backgroundColor: colors.primary + '14' }]} />
       </View>
-      <Text style={[styles.signupCongratsEyebrow, { color: colors.primary }]}>
-        WELCOME TO EXPERIENCES.FUN
-      </Text>
-      <Text accessibilityRole="header" style={[styles.signupCongratsTitle, { color: colors.foreground }]}>
-        Congratulations — you’re in.
-      </Text>
-      <Text style={[styles.signupCongratsBody, { color: colors.mutedForeground }]}>
-        Your account is ready. Set up your profile to find experiences and opportunities that fit you.
-      </Text>
-
-      <View
-        testID="signup-reward-50"
-        style={[
-          styles.signupCongratsReward,
+      <KeyboardAwareScrollViewCompat
+        testID="signup-congratulations"
+        style={styles.signupCongratsScroll}
+        contentContainerStyle={[
+          styles.signupCongratsContent,
           {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-            borderRadius: colors.radius * 2,
+            paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 67 : 16),
+            paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 24),
+            paddingHorizontal: compact ? 22 : 26,
+            gap: compact ? 14 : 19,
           },
         ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="none"
+        bottomOffset={24}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.signupCongratsRewardIcon, { backgroundColor: colors.success + '14' }]}>
-          <Feather name="award" size={27} color={colors.success} />
+        <View style={[styles.signupCongratsHero, { height: compact ? 128 : 158 }]}>
+          <Feather name="star" size={19} color={colors.primary} style={[styles.signupCongratsSpark, { top: 22, left: '18%' }]} />
+          <Feather name="star" size={17} color={colors.accent} style={[styles.signupCongratsSpark, { top: 72, left: '10%' }]} />
+          <Feather name="star" size={18} color={colors.accent} style={[styles.signupCongratsSpark, { top: 28, right: '16%' }]} />
+          <View style={[styles.signupCongratsConfetti, { backgroundColor: colors.secondary, top: 24, left: '30%', transform: [{ rotate: '-38deg' }] }]} />
+          <View style={[styles.signupCongratsConfetti, { backgroundColor: colors.primary, top: 42, right: '28%', transform: [{ rotate: '40deg' }] }]} />
+          <View style={[styles.signupCongratsConfetti, { backgroundColor: colors.accent, bottom: 19, right: '18%', transform: [{ rotate: '-35deg' }] }]} />
+          <View style={[styles.signupCongratsMarkBack, { backgroundColor: colors.primary + '22', transform: [{ rotate: '-10deg' }] }]} />
+          <View style={[styles.signupCongratsMark, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '20', transform: [{ rotate: '-8deg' }] }]}>
+            <Feather name="check" size={compact ? 48 : 56} color={colors.primary} />
+          </View>
         </View>
-        <View style={styles.signupCongratsRewardCopy}>
-          <Text style={[styles.signupCongratsRewardTitle, { color: colors.success }]}>
-            +{user.xp} XP
-          </Text>
-          <Text style={[styles.signupCongratsRewardText, { color: colors.mutedForeground }]}>
-            Added to your account for signing up
-          </Text>
-        </View>
-      </View>
 
-      <Button
-        label="Continue to profile setup"
-        icon="arrow-right"
-        onPress={onContinue}
-        testID="signup-congratulations-continue"
-      />
-    </KeyboardAwareScrollViewCompat>
+        <View style={styles.signupCongratsHeading}>
+          <Text style={[styles.signupCongratsEyebrow, { color: colors.primary }]}>WELCOME TO EXPERIENCES.FUN</Text>
+          <Text accessibilityRole="header" style={[styles.signupCongratsTitle, { color: colors.foreground }]}>Congratulations —</Text>
+          <Text style={[styles.signupCongratsTitleAccent, { color: colors.primary }]}>you’re in!</Text>
+          <Text style={[styles.signupCongratsBody, { color: colors.mutedForeground }]}>
+            Your account is ready, {user.name}. Set up your profile to find experiences and opportunities that fit you.
+          </Text>
+        </View>
+
+        <View
+          testID="signup-reward"
+          accessibilityLabel={`Sign-up bonus: ${rewardLabel}. ${rewardDescription}`}
+          style={[
+            styles.signupCongratsReward,
+            {
+              backgroundColor: colors.primary + '0B',
+              borderColor: colors.primary + '20',
+              borderRadius: colors.radius * 1.7,
+            },
+          ]}
+        >
+          <View style={[styles.signupCongratsRewardIcon, { backgroundColor: colors.primary + '14' }]}>
+            <Feather name="star" size={24} color={colors.primary} />
+          </View>
+          <View style={styles.signupCongratsRewardCopy}>
+            <Text style={[styles.signupCongratsRewardEyebrow, { color: colors.mutedForeground }]}>SIGN-UP BONUS</Text>
+            <Text testID="signup-reward-amount" style={[styles.signupCongratsRewardTitle, { color: colors.primary }]}>{rewardLabel}</Text>
+            <Text style={[styles.signupCongratsRewardText, { color: colors.mutedForeground }]}>{rewardDescription}</Text>
+          </View>
+        </View>
+
+        <View style={styles.signupCongratsBenefits}>
+          {[
+            { icon: 'users' as const, label: 'Join\ncommunities', color: colors.primary },
+            { icon: 'compass' as const, label: 'Discover\nopportunities', color: colors.accent },
+            { icon: 'award' as const, label: 'Earn XP\n& rewards', color: colors.secondary },
+          ].map((benefit) => (
+            <View key={benefit.label} style={styles.signupCongratsBenefit}>
+              <View style={[styles.signupCongratsBenefitIcon, { backgroundColor: benefit.color + '14' }]}>
+                <Feather name={benefit.icon} size={20} color={benefit.color} />
+              </View>
+              <Text style={[styles.signupCongratsBenefitLabel, { color: colors.foreground }]}>{benefit.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        <Button
+          label="Continue to profile setup"
+          icon="arrow-right"
+          onPress={onContinue}
+          style={styles.signupCongratsContinue}
+          testID="signup-congratulations-continue"
+        />
+      </KeyboardAwareScrollViewCompat>
+    </View>
   );
 }
 
@@ -8420,17 +8477,34 @@ const styles = StyleSheet.create({
   emailSignupIntroRow: { gap: 14 },
   emailSignupBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   emailAuthFields: { gap: 14 },
-  signupCongratsScreen: { flex: 1 },
-  signupCongratsContent: { flexGrow: 1, width: '100%', maxWidth: 520, alignSelf: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  signupCongratsMark: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 20 },
-  signupCongratsEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.3, textAlign: 'center', marginBottom: 10 },
-  signupCongratsTitle: { maxWidth: 360, alignSelf: 'center', fontSize: 32, lineHeight: 38, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, textAlign: 'center' },
-  signupCongratsBody: { maxWidth: 340, alignSelf: 'center', fontSize: 15, lineHeight: 22, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 12, marginBottom: 24 },
-  signupCongratsReward: { flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, padding: 16, marginBottom: 24 },
-  signupCongratsRewardIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  signupCongratsScreen: { flex: 1, overflow: 'hidden' },
+  signupCongratsScroll: { flex: 1 },
+  signupCongratsContent: { flexGrow: 1, width: '100%', maxWidth: 520, alignSelf: 'center', justifyContent: 'center', paddingVertical: 18 },
+  signupCongratsCornerPink: { position: 'absolute', top: -96, left: -84, width: 170, height: 280, borderRadius: 100, transform: [{ rotate: '-14deg' }] },
+  signupCongratsCornerPurple: { position: 'absolute', top: -62, right: -82, width: 140, height: 180, borderRadius: 90, transform: [{ rotate: '20deg' }] },
+  signupCongratsBottomLeft: { position: 'absolute', bottom: -74, left: -60, width: 220, height: 112, borderRadius: 120, transform: [{ rotate: '13deg' }] },
+  signupCongratsBottomRight: { position: 'absolute', bottom: -82, right: -54, width: 230, height: 122, borderRadius: 130, transform: [{ rotate: '-14deg' }] },
+  signupCongratsHero: { width: '100%', maxWidth: 360, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  signupCongratsSpark: { position: 'absolute' },
+  signupCongratsConfetti: { position: 'absolute', width: 17, height: 8, borderRadius: 5 },
+  signupCongratsMarkBack: { position: 'absolute', width: 108, height: 108, borderRadius: 36 },
+  signupCongratsMark: { width: 104, height: 104, borderRadius: 34, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  signupCongratsHeading: { width: '100%', alignItems: 'center' },
+  signupCongratsEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2, textAlign: 'center', marginBottom: 7 },
+  signupCongratsTitle: { maxWidth: 360, alignSelf: 'center', fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, textAlign: 'center' },
+  signupCongratsTitleAccent: { maxWidth: 360, alignSelf: 'center', fontSize: 34, lineHeight: 40, fontFamily: 'Inter_700Bold', letterSpacing: -0.9, textAlign: 'center' },
+  signupCongratsBody: { maxWidth: 340, alignSelf: 'center', fontSize: 15, lineHeight: 22, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 8 },
+  signupCongratsReward: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, padding: 15 },
+  signupCongratsRewardIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   signupCongratsRewardCopy: { flex: 1, minWidth: 0 },
-  signupCongratsRewardTitle: { fontSize: 24, lineHeight: 30, fontFamily: 'Inter_700Bold' },
-  signupCongratsRewardText: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_500Medium', marginTop: 2 },
+  signupCongratsRewardEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.7, marginBottom: 1 },
+  signupCongratsRewardTitle: { fontSize: 25, lineHeight: 30, fontFamily: 'Inter_700Bold' },
+  signupCongratsRewardText: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_500Medium', marginTop: 2 },
+  signupCongratsBenefits: { width: '100%', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingVertical: 2 },
+  signupCongratsBenefit: { flex: 1, alignItems: 'center', gap: 7 },
+  signupCongratsBenefitIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  signupCongratsBenefitLabel: { fontSize: 11, lineHeight: 15, textAlign: 'center', fontFamily: 'Inter_600SemiBold' },
+  signupCongratsContinue: { borderRadius: 30, minHeight: 56, width: '100%' },
   emailSignupProgress: { gap: 8, marginTop: 2 },
   emailSignupProgressMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   emailSignupProgressLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.1 },
