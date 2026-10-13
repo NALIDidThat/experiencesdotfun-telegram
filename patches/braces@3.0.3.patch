@@ -1,0 +1,27 @@
+diff --git a/lib/parse.js b/lib/parse.js
+index 3a6988e629f52aee6609dc5ec290a5e9ff47cecb..dba38bdafa7968379311b38d214f747322717db3 100644
+--- a/lib/parse.js
++++ b/lib/parse.js
+@@ -35,6 +35,12 @@ const parse = (input, options = {}) => {
+ 
+   const opts = options || {};
+   const max = typeof opts.maxLength === 'number' ? Math.min(MAX_LENGTH, opts.maxLength) : MAX_LENGTH;
++  // Bound recursive AST walkers (compile, expand, and stringify) for deeply
++  // nested attacker-controlled brace patterns. Keep this below Node's stack
++  // exhaustion threshold; callers may choose a stricter limit, never a looser one.
++  const maxDepth = typeof opts.maxDepth === 'number'
++    ? Math.max(1, Math.min(100, opts.maxDepth))
++    : 100;
+   if (input.length > max) {
+     throw new SyntaxError(`Input length (${input.length}), exceeds max characters (${max})`);
+   }
+@@ -196,6 +202,9 @@ const parse = (input, options = {}) => {
+ 
+     if (value === CHAR_LEFT_CURLY_BRACE) {
+       depth++;
++      if (depth > maxDepth) {
++        throw new SyntaxError(`Brace nesting depth (${depth}) exceeds max depth (${maxDepth})`);
++      }
+ 
+       const dollar = prev.value && prev.value.slice(-1) === '$' || block.dollar === true;
+       const brace = {

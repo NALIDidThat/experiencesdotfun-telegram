@@ -81,7 +81,7 @@ async function waitForRedemptionLockWaiters(pool, expectedCount) {
          AND pid <> pg_backend_pid()
          AND wait_event_type = 'Lock'
          AND state = 'active'
-         AND lower(query) LIKE 'update "xp_awards"%'`,
+         AND lower(query) LIKE 'update public.xp_awards%'`,
     );
     if (result.rows[0].count >= expectedCount) return result.rows[0].count;
     await delay(25);

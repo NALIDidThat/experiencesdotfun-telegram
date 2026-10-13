@@ -47,7 +47,7 @@ catalog:
   '@tailwindcss/vite': ^4.1.14
   '@tanstack/react-query': ^5.90.21
   '@types/node': ^25.3.3
-  '@types/react': ^19.2.0
+  '@types/react': 19.2.18
   '@types/react-dom': ^19.2.0
   '@vitejs/plugin-react': ^5.0.4
   class-variance-authority: ^0.7.1
@@ -75,6 +75,8 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
+  # Pin peers to the same React type definitions to avoid duplicate incompatible ref types.
+  '@types/react': 19.2.18
   # replit uses linux-x64 only, we can exclude all other platforms
   "esbuild>@esbuild/darwin-arm64": "-"
   "esbuild>@esbuild/darwin-x64": "-"
@@ -166,5 +168,16 @@ overrides:
   "xcode>uuid": "11.1.1"
   # query-string v7 expects a CommonJS callable; unwrap the ESM decoder's default export via the package patch.
   "query-string>decode-uri-component": "0.5.0"
+  # Fix all three brace-expansion advisories while preserving older major APIs.
+  "brace-expansion@>=4.0.0 <5.0.12": "5.0.12"
+  # Keep AJV's 3.x URI API while fixing GHSA-hrr3-gc8f-f4qj.
+  "fast-uri@>=3.0.0 <3.1.8": "3.1.8"
+  # Additional patched versions selected by pnpm audit --fix.
+  "source-map-js@>=1.0.0 <1.2.2": ">=1.2.2"
+  "shell-quote@>=1.8.4 <1.11.0": ">=1.11.0"
 patchedDependencies:
   query-string@7.1.3: patches/query-string@7.1.3.patch
+  # No official patched release exists; backport digitalbazaar/forge#1152.
+  node-forge@1.4.0: patches/node-forge@1.4.0.patch
+  # No official fix exists for GHSA-vfj7-8cjw-p6xm; bound brace AST nesting.
+  braces@3.0.3: patches/braces@3.0.3.patch
