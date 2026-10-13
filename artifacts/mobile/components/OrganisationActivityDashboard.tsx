@@ -1,6 +1,8 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useGetOrganisationVerification } from '@workspace/api-client-react';
 import type { HostExperience, HostOverview } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 
@@ -57,6 +59,8 @@ export function OrganisationActivityDashboard({
   onCreateExperience,
 }: Props) {
   const colors = useColors();
+  const router = useRouter();
+  const verification = useGetOrganisationVerification();
   const valueFor = (value: number | undefined) => {
     if (overviewIsLoading) return '…';
     if (overviewHasError || value === undefined) return '—';
@@ -83,6 +87,29 @@ export function OrganisationActivityDashboard({
           </Text>
         </View>
       </View>
+
+      <Pressable
+        testID="organisation-verification-open"
+        accessibilityRole="button"
+        accessibilityLabel={`Organisation verification: ${verification.data?.status ?? 'check status'}`}
+        accessibilityHint="View or submit your organisation verification application."
+        onPress={() => router.push('/organisation-verification' as never)}
+        style={({ pressed }) => [
+          styles.verificationCard,
+          { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.76 : 1 },
+        ]}
+      >
+        <View style={[styles.verificationIcon, { backgroundColor: colors.primary + '12' }]}>
+          <Feather name="shield" size={16} color={colors.primary} />
+        </View>
+        <View style={styles.headingCopy}>
+          <Text style={[styles.verificationTitle, { color: colors.foreground }]}>Organisation verification</Text>
+          <Text style={[styles.verificationSubtitle, { color: colors.mutedForeground }]}>
+            {verification.isLoading ? 'Checking status…' : (verification.data?.status ?? 'unsubmitted').replace(/_/g, ' ')}
+          </Text>
+        </View>
+        <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+      </Pressable>
 
       <View style={styles.statsGrid}>
         {stats.map((stat) => (
@@ -212,6 +239,10 @@ const styles = StyleSheet.create({
   heading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headingIcon: { width: 37, height: 37, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   headingCopy: { flex: 1, gap: 2 },
+  verificationCard: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, paddingHorizontal: 12 },
+  verificationIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  verificationTitle: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  verificationSubtitle: { fontSize: 10, textTransform: 'capitalize', fontFamily: 'Inter_400Regular' },
   title: { fontSize: 18, lineHeight: 24, fontFamily: 'Inter_700Bold' },
   subtitle: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

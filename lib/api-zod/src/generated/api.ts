@@ -9,6 +9,195 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Search Companies House records for an organisation verification application
+ */
+export const searchCompaniesHouseForOrganisationVerificationBodyQueryMin = 2;
+export const searchCompaniesHouseForOrganisationVerificationBodyQueryMax = 120;
+
+
+
+export const SearchCompaniesHouseForOrganisationVerificationBody = zod.object({
+  "query": zod.string().min(searchCompaniesHouseForOrganisationVerificationBodyQueryMin).max(searchCompaniesHouseForOrganisationVerificationBodyQueryMax)
+})
+
+export const SearchCompaniesHouseForOrganisationVerificationResponse = zod.object({
+  "results": zod.array(zod.object({
+  "name": zod.string(),
+  "registrationNumber": zod.string(),
+  "status": zod.string(),
+  "entityType": zod.string(),
+  "incorporatedOn": zod.coerce.date().nullable(),
+  "registeredAddress": zod.object({
+  "locality": zod.string().nullish(),
+  "postalCode": zod.string().nullish(),
+  "country": zod.string().nullish()
+}).nullable()
+}))
+})
+
+
+/**
+ * @summary Get the signed-in organisation's verification status, latest application, and history
+ */
+export const GetOrganisationVerificationResponse = zod.object({
+  "status": zod.enum(['unsubmitted', 'pending', 'under_review', 'needs_information', 'verified', 'rejected', 'suspended', 'expired']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.number().int(),
+  "event": zod.string(),
+  "at": zod.coerce.date()
+})),
+  "application": zod.object({
+  "id": zod.number().int(),
+  "legalName": zod.string().nullable(),
+  "organisationType": zod.string().nullable(),
+  "jurisdiction": zod.string().nullable(),
+  "registrationNumber": zod.string().nullable(),
+  "website": zod.string().nullable(),
+  "representativeName": zod.string().nullable(),
+  "representativeRole": zod.string().nullable(),
+  "contactEmail": zod.string().nullable(),
+  "status": zod.string(),
+  "reviewerNotes": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable()
+}).nullable()
+})
+
+
+/**
+ * @summary Save progress on the signed-in organisation's verification application
+ */
+export const saveOrganisationVerificationDraftBodyLegalNameMax = 180;
+
+export const saveOrganisationVerificationDraftBodyOrganisationTypeMax = 48;
+
+export const saveOrganisationVerificationDraftBodyJurisdictionMax = 80;
+
+export const saveOrganisationVerificationDraftBodyRegistrationNumberMax = 40;
+
+export const saveOrganisationVerificationDraftBodyRepresentativeNameMax = 120;
+
+export const saveOrganisationVerificationDraftBodyRepresentativeRoleMax = 120;
+
+export const saveOrganisationVerificationDraftBodyContactEmailMax = 254;
+
+
+
+export const SaveOrganisationVerificationDraftBody = zod.object({
+  "legalName": zod.string().max(saveOrganisationVerificationDraftBodyLegalNameMax).nullable(),
+  "organisationType": zod.string().max(saveOrganisationVerificationDraftBodyOrganisationTypeMax).nullable(),
+  "jurisdiction": zod.string().max(saveOrganisationVerificationDraftBodyJurisdictionMax).nullable(),
+  "registrationNumber": zod.string().max(saveOrganisationVerificationDraftBodyRegistrationNumberMax).nullable(),
+  "website": zod.string().url().nullable(),
+  "representativeName": zod.string().max(saveOrganisationVerificationDraftBodyRepresentativeNameMax).nullable(),
+  "representativeRole": zod.string().max(saveOrganisationVerificationDraftBodyRepresentativeRoleMax).nullable(),
+  "contactEmail": zod.string().email().max(saveOrganisationVerificationDraftBodyContactEmailMax).nullable()
+})
+
+export const SaveOrganisationVerificationDraftResponse = zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['draft']),
+  "savedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Submit an organisation verification application
+ */
+export const submitOrganisationVerificationApplicationBodyLegalNameMax = 180;
+
+export const submitOrganisationVerificationApplicationBodyOrganisationTypeMax = 48;
+
+export const submitOrganisationVerificationApplicationBodyJurisdictionMax = 80;
+
+export const submitOrganisationVerificationApplicationBodyRegistrationNumberMax = 40;
+
+export const submitOrganisationVerificationApplicationBodyRepresentativeNameMax = 120;
+
+export const submitOrganisationVerificationApplicationBodyRepresentativeRoleMax = 120;
+
+export const submitOrganisationVerificationApplicationBodyContactEmailMax = 254;
+
+
+
+export const SubmitOrganisationVerificationApplicationBody = zod.object({
+  "legalName": zod.string().min(1).max(submitOrganisationVerificationApplicationBodyLegalNameMax),
+  "organisationType": zod.string().min(1).max(submitOrganisationVerificationApplicationBodyOrganisationTypeMax),
+  "jurisdiction": zod.string().min(1).max(submitOrganisationVerificationApplicationBodyJurisdictionMax),
+  "registrationNumber": zod.string().max(submitOrganisationVerificationApplicationBodyRegistrationNumberMax).nullish(),
+  "website": zod.string().url().nullish(),
+  "representativeName": zod.string().min(1).max(submitOrganisationVerificationApplicationBodyRepresentativeNameMax),
+  "representativeRole": zod.string().min(1).max(submitOrganisationVerificationApplicationBodyRepresentativeRoleMax),
+  "contactEmail": zod.string().email().max(submitOrganisationVerificationApplicationBodyContactEmailMax)
+})
+
+export const SubmitOrganisationVerificationApplicationResponse = zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['pending']),
+  "submittedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Review an organisation verification application as the configured reviewer
+ */
+
+
+
+export const ReviewOrganisationVerificationApplicationParams = zod.object({
+  "applicationId": zod.coerce.number().int().min(1)
+})
+
+export const reviewOrganisationVerificationApplicationBodyNoteMax = 500;
+
+
+
+export const ReviewOrganisationVerificationApplicationBody = zod.object({
+  "action": zod.enum(['approve', 'reject', 'needs_information', 'suspend']),
+  "note": zod.string().max(reviewOrganisationVerificationApplicationBodyNoteMax).nullish()
+})
+
+export const ReviewOrganisationVerificationApplicationResponse = zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['verified', 'rejected', 'suspended', 'needs_information']),
+  "reviewedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List applications awaiting the configured reviewer's decision
+ */
+export const ListOrganisationVerificationReviewQueueResponseItem = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "legalName": zod.string().nullable(),
+  "organisationType": zod.string().nullable(),
+  "jurisdiction": zod.string().nullable(),
+  "registrationNumber": zod.string().nullable(),
+  "website": zod.string().nullable(),
+  "representativeName": zod.string().nullable(),
+  "representativeRole": zod.string().nullable(),
+  "contactEmail": zod.string().nullable(),
+  "status": zod.string(),
+  "reviewerNotes": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListOrganisationVerificationReviewQueueResponse = zod.array(ListOrganisationVerificationReviewQueueResponseItem)
+
+
+/**
+ * @summary Check whether the signed-in Telegram identity is the configured reviewer
+ */
+export const GetOrganisationVerificationReviewAccessResponse = zod.object({
+  "canReview": zod.boolean()
+})
+
+
+/**
  * @summary Get the signed-in charity treasury and finalized on-chain activity
  */
 export const getOrganisationTreasuryQueryLimitDefault = 20;

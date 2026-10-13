@@ -24,3 +24,4 @@
 - [Express router auth scope](express-router-auth-scope.md) — mount protected subrouters at their resource prefix so auth guards cannot intercept unrelated public routes.
 - [Explore globe hit testing](explore-globe-hit-testing.md) — keep map markers and zoom controls clear of overlay controls, and assert selected-city state, not just result counts.
 - [Fundraising treasury model](fundraising-wallet-custody.md) — one charity DAO treasury, multisig-approved payouts, wallet-only deposits, and visible contributions.
+- [Verification migration target](verification-migration-target.md) — the user designated Production — Experiences Dot Fun as the intended Supabase target; confirm authorization before applying schema changes.

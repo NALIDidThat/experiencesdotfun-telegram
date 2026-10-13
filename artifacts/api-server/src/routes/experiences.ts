@@ -103,6 +103,10 @@ import {
 } from "../lib/telegram";
 import { createOrReopenFriendRequest, updateFriendRequestStatus } from "../lib/friends";
 import { createSocialInvite } from "../lib/social-invites";
+import {
+  isVerificationReviewer,
+  isVerificationSelfReview,
+} from "../lib/organisation-verification-rules.mjs";
 
 const router: IRouter = Router();
 const EXPLORE_ACTIVITY_WINDOW_DAYS = 30;
@@ -476,7 +480,9 @@ router.get("/organisations/verification", async (req, res) => {
     .where(eq(organisationVerificationEventsTable.organisationId, organisation.id))
     .orderBy(asc(organisationVerificationEventsTable.createdAt));
   res.json({
-    status: organisation.verificationStatus,
+    status: application?.status === "needs_information"
+      ? "needs_information"
+      : organisation.verificationStatus,
     submittedAt: organisation.verificationSubmittedAt?.toISOString() ?? null,
     reviewedAt: organisation.verificationReviewedAt?.toISOString() ?? null,
     history: events.map((event) => ({
@@ -502,6 +508,139 @@ router.get("/organisations/verification", async (req, res) => {
         }
       : null,
   });
+});
+
+router.put("/organisations/verification/draft", async (req, res) => {
+  if (!enforceAccountType(req, res, "organisation")) return;
+  const organisation = await currentOrganisation(currentUser(req).id);
+  if (!organisation) {
+    error(res, 404, "Organisation profile not found.");
+    return;
+  }
+  const body = req.body ?? {};
+  const limits = {
+    legalName: 180,
+    organisationType: 48,
+    jurisdiction: 80,
+    representativeName: 120,
+    representativeRole: 120,
+    contactEmail: 254,
+  } as const;
+  const fields = Object.keys(limits) as (keyof typeof limits)[];
+  const values: Record<keyof typeof limits, string | null> = {
+    legalName: null,
+    organisationType: null,
+    jurisdiction: null,
+    representativeName: null,
+    representativeRole: null,
+    contactEmail: null,
+  };
+  for (const field of fields) {
+    const value = body[field];
+    if (value !== undefined && value !== null && typeof value !== "string") {
+      error(res, 400, "Verification draft fields must be text.");
+      return;
+    }
+    const trimmed = typeof value === "string" ? value.trim() : "";
+    if (trimmed.length > limits[field]) {
+      error(res, 400, "One or more verification fields are too long.");
+      return;
+    }
+    values[field] = trimmed || null;
+  }
+  if (
+    values.contactEmail &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.contactEmail)
+  ) {
+    error(res, 400, "Enter a valid contact email.");
+    return;
+  }
+  let registrationNumber: string | null = null;
+  if (body.registrationNumber !== undefined && body.registrationNumber !== null) {
+    if (typeof body.registrationNumber !== "string" || body.registrationNumber.trim().length > 40) {
+      error(res, 400, "Check the registration number.");
+      return;
+    }
+    registrationNumber = body.registrationNumber.trim() || null;
+  }
+  let website: string | null = null;
+  if (body.website !== undefined && body.website !== null && body.website !== "") {
+    if (typeof body.website !== "string") {
+      error(res, 400, "The organisation website must be a valid HTTPS address.");
+      return;
+    }
+    try {
+      const parsedWebsite = new URL(body.website.trim());
+      if (parsedWebsite.protocol !== "https:" || parsedWebsite.username || parsedWebsite.password) throw new Error();
+      website = parsedWebsite.origin;
+    } catch {
+      error(res, 400, "The organisation website must be a valid HTTPS address.");
+      return;
+    }
+  }
+
+  const savedAt = new Date();
+  const result = await db.transaction(async (transaction) => {
+    await transaction
+      .select({ id: organisationsTable.id })
+      .from(organisationsTable)
+      .where(eq(organisationsTable.id, organisation.id))
+      .for("update");
+    const [latest] = await transaction
+      .select({
+        id: organisationVerificationApplicationsTable.id,
+        status: organisationVerificationApplicationsTable.status,
+      })
+      .from(organisationVerificationApplicationsTable)
+      .where(eq(organisationVerificationApplicationsTable.organisationId, organisation.id))
+      .orderBy(desc(organisationVerificationApplicationsTable.createdAt))
+      .limit(1);
+    if (latest && ["pending", "under_review", "verified", "suspended"].includes(latest.status)) {
+      return undefined;
+    }
+    const draftValues = {
+      applicantUserId: currentUser(req).id,
+      status: "draft",
+      submittedAt: null,
+      ...values,
+      registrationNumber,
+      website,
+    } as const;
+    if (latest?.status === "draft") {
+      const [draft] = await transaction
+        .update(organisationVerificationApplicationsTable)
+        .set(draftValues)
+        .where(eq(organisationVerificationApplicationsTable.id, latest.id))
+        .returning({ id: organisationVerificationApplicationsTable.id });
+      if (draft) {
+        await transaction.insert(organisationVerificationEventsTable).values({
+          organisationId: organisation.id,
+          applicationId: draft.id,
+          actorUserId: currentUser(req).id,
+          eventType: "application_draft_saved",
+          details: { status: "draft" },
+        });
+      }
+      return draft;
+    }
+    const [draft] = await transaction
+      .insert(organisationVerificationApplicationsTable)
+      .values({ organisationId: organisation.id, ...draftValues })
+      .returning({ id: organisationVerificationApplicationsTable.id });
+    await transaction.insert(organisationVerificationEventsTable).values({
+      organisationId: organisation.id,
+      applicationId: draft.id,
+      actorUserId: currentUser(req).id,
+      eventType: "application_draft_saved",
+      details: { status: "draft" },
+    });
+    return draft;
+  });
+  if (!result) {
+    error(res, 409, "Your organisation already has an active verification decision or review.");
+    return;
+  }
+  res.json({ id: result.id, status: "draft", savedAt: savedAt.toISOString() });
 });
 
 router.post("/organisations/verification/applications", async (req, res) => {
@@ -561,24 +700,43 @@ router.post("/organisations/verification/applications", async (req, res) => {
       .for("update");
     if (!lockedOrganisation) throw new Error("Organisation profile not found.");
     const [latestApplication] = await transaction
-      .select({ status: organisationVerificationApplicationsTable.status })
+      .select({
+        id: organisationVerificationApplicationsTable.id,
+        status: organisationVerificationApplicationsTable.status,
+      })
       .from(organisationVerificationApplicationsTable)
       .where(eq(organisationVerificationApplicationsTable.organisationId, organisation.id))
       .orderBy(desc(organisationVerificationApplicationsTable.createdAt))
       .limit(1);
-    if (latestApplication && ["pending", "under_review"].includes(latestApplication.status)) return undefined;
-    const [application] = await transaction
-      .insert(organisationVerificationApplicationsTable)
-      .values({
-        organisationId: organisation.id,
-        applicantUserId: currentUser(req).id,
-        status: "pending",
-        submittedAt,
-        ...values,
-        registrationNumber,
-        website,
-      })
-      .returning();
+    if (
+      latestApplication &&
+      ["pending", "under_review", "verified", "suspended"].includes(latestApplication.status)
+    ) return undefined;
+    const [application] = latestApplication?.status === "draft"
+      ? await transaction
+          .update(organisationVerificationApplicationsTable)
+          .set({
+            applicantUserId: currentUser(req).id,
+            status: "pending",
+            submittedAt,
+            ...values,
+            registrationNumber,
+            website,
+          })
+          .where(eq(organisationVerificationApplicationsTable.id, latestApplication.id))
+          .returning()
+      : await transaction
+          .insert(organisationVerificationApplicationsTable)
+          .values({
+            organisationId: organisation.id,
+            applicantUserId: currentUser(req).id,
+            status: "pending",
+            submittedAt,
+            ...values,
+            registrationNumber,
+            website,
+          })
+          .returning();
     if (!application) throw new Error("Unable to submit verification application.");
     await transaction
       .update(organisationsTable)
@@ -609,9 +767,65 @@ router.post("/organisations/verification/applications", async (req, res) => {
   });
 });
 
+router.get("/admin/organisation-verification/access", async (req, res) => {
+  const reviewerId = process.env.VERIFICATION_REVIEWER_TELEGRAM_ID;
+  res.json({
+    canReview: Boolean(
+      reviewerId && isVerificationReviewer(reviewerId, currentUser(req).telegramId),
+    ),
+  });
+});
+
+router.get("/admin/organisation-verification/applications", async (req, res) => {
+  const reviewerId = process.env.VERIFICATION_REVIEWER_TELEGRAM_ID;
+  if (!reviewerId) {
+    error(res, 503, "Verification review is not configured.");
+    return;
+  }
+  if (!isVerificationReviewer(reviewerId, currentUser(req).telegramId)) {
+    error(res, 403, "You cannot review verification applications.");
+    return;
+  }
+  const applications = await db
+    .select({
+      id: organisationVerificationApplicationsTable.id,
+      organisationId: organisationVerificationApplicationsTable.organisationId,
+      organisationName: organisationsTable.name,
+      legalName: organisationVerificationApplicationsTable.legalName,
+      organisationType: organisationVerificationApplicationsTable.organisationType,
+      jurisdiction: organisationVerificationApplicationsTable.jurisdiction,
+      registrationNumber: organisationVerificationApplicationsTable.registrationNumber,
+      website: organisationVerificationApplicationsTable.website,
+      representativeName: organisationVerificationApplicationsTable.representativeName,
+      representativeRole: organisationVerificationApplicationsTable.representativeRole,
+      contactEmail: organisationVerificationApplicationsTable.contactEmail,
+      status: organisationVerificationApplicationsTable.status,
+      reviewerNotes: organisationVerificationApplicationsTable.reviewerNotes,
+      submittedAt: organisationVerificationApplicationsTable.submittedAt,
+      createdAt: organisationVerificationApplicationsTable.createdAt,
+    })
+    .from(organisationVerificationApplicationsTable)
+    .innerJoin(
+      organisationsTable,
+      eq(organisationsTable.id, organisationVerificationApplicationsTable.organisationId),
+    )
+    .where(inArray(organisationVerificationApplicationsTable.status, [
+      "pending",
+      "under_review",
+      "needs_information",
+    ]))
+    .orderBy(asc(organisationVerificationApplicationsTable.createdAt))
+    .limit(100);
+  res.json(applications.map((application) => ({
+    ...application,
+    submittedAt: application.submittedAt?.toISOString() ?? null,
+    createdAt: application.createdAt.toISOString(),
+  })));
+});
+
 router.post("/admin/organisation-verification/:applicationId/review", async (req, res) => {
   const reviewerId = process.env.VERIFICATION_REVIEWER_TELEGRAM_ID;
-  if (!reviewerId || !/^\d+$/.test(reviewerId) || currentUser(req).telegramId !== reviewerId) {
+  if (!reviewerId || !isVerificationReviewer(reviewerId, currentUser(req).telegramId)) {
     error(res, reviewerId ? 403 : 503, reviewerId ? "You cannot review verification applications." : "Verification review is not configured.");
     return;
   }
@@ -635,6 +849,17 @@ router.post("/admin/organisation-verification/:applicationId/review", async (req
       .where(eq(organisationVerificationApplicationsTable.id, applicationId))
       .for("update");
     if (!application || !["pending", "under_review", "needs_information"].includes(application.status)) return undefined;
+    const [applicant] = await transaction
+      .select({ telegramId: usersTable.telegramId })
+      .from(usersTable)
+      .where(eq(usersTable.id, application.applicantUserId))
+      .limit(1);
+    if (isVerificationSelfReview({
+      applicantUserId: application.applicantUserId,
+      reviewerUserId: reviewer.id,
+      applicantTelegramId: applicant?.telegramId,
+      reviewerTelegramId: reviewer.telegramId,
+    })) return "self_review";
     const [latestApplication] = await transaction
       .select({ id: organisationVerificationApplicationsTable.id })
       .from(organisationVerificationApplicationsTable)
@@ -676,6 +901,10 @@ router.post("/admin/organisation-verification/:applicationId/review", async (req
     });
     return { id: application.id, status, reviewedAt: reviewedAt.toISOString() };
   });
+  if (outcome === "self_review") {
+    error(res, 403, "You cannot review an application submitted from your own account.");
+    return;
+  }
   if (!outcome) {
     error(res, 409, "This application is no longer awaiting review.");
     return;

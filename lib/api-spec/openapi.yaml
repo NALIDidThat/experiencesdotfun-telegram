@@ -35,6 +35,194 @@ tags:
   - name: ai-assistant
     description: Persistent AI experience discovery conversations
 paths:
+  /organisations/verification/companies-house:
+    post:
+      operationId: searchCompaniesHouseForOrganisationVerification
+      tags: [host]
+      summary: Search Companies House records for an organisation verification application
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompaniesHouseSearchInput"
+      responses:
+        "200":
+          description: Sanitised Companies House results; a match does not verify applicant authority
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompaniesHouseSearchResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Organisation profile required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Search rate limit reached
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: Companies House lookup is not configured or temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /organisations/verification:
+    get:
+      operationId: getOrganisationVerification
+      tags: [host]
+      summary: Get the signed-in organisation's verification status, latest application, and history
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Organisation verification status and application
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationVerificationStatus"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Organisation profile required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /organisations/verification/draft:
+    put:
+      operationId: saveOrganisationVerificationDraft
+      tags: [host]
+      summary: Save progress on the signed-in organisation's verification application
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganisationVerificationDraftInput"
+      responses:
+        "200":
+          description: Saved verification draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationVerificationDraft"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Organisation profile required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /organisations/verification/applications:
+    post:
+      operationId: submitOrganisationVerificationApplication
+      tags: [host]
+      summary: Submit an organisation verification application
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganisationVerificationApplicationInput"
+      responses:
+        "201":
+          description: Submitted verification application
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationVerificationSubmission"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Organisation profile required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /admin/organisation-verification/{applicationId}/review:
+    post:
+      operationId: reviewOrganisationVerificationApplication
+      tags: [host]
+      summary: Review an organisation verification application as the configured reviewer
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganisationVerificationReviewInput"
+      responses:
+        "200":
+          description: Recorded review decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationVerificationReviewResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: This Telegram identity is not the configured reviewer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503":
+          description: Verification review is not configured
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /admin/organisation-verification/applications:
+    get:
+      operationId: listOrganisationVerificationReviewQueue
+      tags: [host]
+      summary: List applications awaiting the configured reviewer's decision
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Verification applications visible only to the configured reviewer
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrganisationVerificationReviewQueueItem"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: This Telegram identity is not the configured reviewer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: Verification review is not configured
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /admin/organisation-verification/access:
+    get:
+      operationId: getOrganisationVerificationReviewAccess
+      tags: [host]
+      summary: Check whether the signed-in Telegram identity is the configured reviewer
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Review permission for the current identity only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationVerificationReviewAccess"
   /funds/treasury:
     get:
       operationId: getOrganisationTreasury
@@ -2411,6 +2599,140 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
   schemas:
+    CompaniesHouseSearchInput:
+      type: object
+      properties:
+        query: { type: string, minLength: 2, maxLength: 120 }
+      required: [query]
+    CompaniesHouseSearchResult:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              registrationNumber: { type: string }
+              status: { type: string }
+              entityType: { type: string }
+              incorporatedOn: { type: [string, "null"], format: date }
+              registeredAddress:
+                type: [object, "null"]
+                properties:
+                  locality: { type: [string, "null"] }
+                  postalCode: { type: [string, "null"] }
+                  country: { type: [string, "null"] }
+            required: [name, registrationNumber, status, entityType, incorporatedOn, registeredAddress]
+      required: [results]
+    OrganisationVerificationApplicationInput:
+      type: object
+      properties:
+        legalName: { type: string, minLength: 1, maxLength: 180 }
+        organisationType: { type: string, minLength: 1, maxLength: 48 }
+        jurisdiction: { type: string, minLength: 1, maxLength: 80 }
+        registrationNumber: { type: [string, "null"], maxLength: 40 }
+        website: { type: [string, "null"], format: uri }
+        representativeName: { type: string, minLength: 1, maxLength: 120 }
+        representativeRole: { type: string, minLength: 1, maxLength: 120 }
+        contactEmail: { type: string, format: email, maxLength: 254 }
+      required: [legalName, organisationType, jurisdiction, representativeName, representativeRole, contactEmail]
+    OrganisationVerificationDraftInput:
+      type: object
+      properties:
+        legalName: { type: [string, "null"], maxLength: 180 }
+        organisationType: { type: [string, "null"], maxLength: 48 }
+        jurisdiction: { type: [string, "null"], maxLength: 80 }
+        registrationNumber: { type: [string, "null"], maxLength: 40 }
+        website: { type: [string, "null"], format: uri }
+        representativeName: { type: [string, "null"], maxLength: 120 }
+        representativeRole: { type: [string, "null"], maxLength: 120 }
+        contactEmail: { type: [string, "null"], format: email, maxLength: 254 }
+      required: [legalName, organisationType, jurisdiction, registrationNumber, website, representativeName, representativeRole, contactEmail]
+    OrganisationVerificationDraft:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [draft] }
+        savedAt: { type: string, format: date-time }
+      required: [id, status, savedAt]
+    OrganisationVerificationSubmission:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [pending] }
+        submittedAt: { type: string, format: date-time }
+      required: [id, status, submittedAt]
+    OrganisationVerificationReviewInput:
+      type: object
+      properties:
+        action: { type: string, enum: [approve, reject, needs_information, suspend] }
+        note: { type: [string, "null"], maxLength: 500 }
+      required: [action]
+    OrganisationVerificationReviewResult:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [verified, rejected, suspended, needs_information] }
+        reviewedAt: { type: string, format: date-time }
+      required: [id, status, reviewedAt]
+    OrganisationVerificationReviewQueueItem:
+      type: object
+      properties:
+        id: { type: integer }
+        organisationId: { type: integer }
+        organisationName: { type: string }
+        legalName: { type: [string, "null"] }
+        organisationType: { type: [string, "null"] }
+        jurisdiction: { type: [string, "null"] }
+        registrationNumber: { type: [string, "null"] }
+        website: { type: [string, "null"] }
+        representativeName: { type: [string, "null"] }
+        representativeRole: { type: [string, "null"] }
+        contactEmail: { type: [string, "null"] }
+        status: { type: string }
+        reviewerNotes: { type: [string, "null"] }
+        submittedAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+      required: [id, organisationId, organisationName, legalName, organisationType, jurisdiction, registrationNumber, website, representativeName, representativeRole, contactEmail, status, reviewerNotes, submittedAt, createdAt]
+    OrganisationVerificationReviewAccess:
+      type: object
+      properties:
+        canReview: { type: boolean }
+      required: [canReview]
+    OrganisationVerificationStatus:
+      type: object
+      properties:
+        status: { type: string, enum: [unsubmitted, pending, under_review, needs_information, verified, rejected, suspended, expired] }
+        submittedAt: { type: [string, "null"], format: date-time }
+        reviewedAt: { type: [string, "null"], format: date-time }
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              event: { type: string }
+              at: { type: string, format: date-time }
+            required: [id, event, at]
+        application:
+          type: [object, "null"]
+          properties:
+            id: { type: integer }
+            legalName: { type: [string, "null"] }
+            organisationType: { type: [string, "null"] }
+            jurisdiction: { type: [string, "null"] }
+            registrationNumber: { type: [string, "null"] }
+            website: { type: [string, "null"] }
+            representativeName: { type: [string, "null"] }
+            representativeRole: { type: [string, "null"] }
+            contactEmail: { type: [string, "null"] }
+            status: { type: string }
+            reviewerNotes: { type: [string, "null"] }
+            submittedAt: { type: [string, "null"], format: date-time }
+            reviewedAt: { type: [string, "null"], format: date-time }
+          required: [id, legalName, organisationType, jurisdiction, registrationNumber, website, representativeName, representativeRole, contactEmail, status, reviewerNotes, submittedAt, reviewedAt]
+      required: [status, submittedAt, reviewedAt, history, application]
     OrganisationFund:
       type: object
       properties:

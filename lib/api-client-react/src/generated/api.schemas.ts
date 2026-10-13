@@ -5,6 +5,272 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface CompaniesHouseSearchInput {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  query: string;
+}
+
+/**
+ * @nullable
+ */
+export type CompaniesHouseSearchResultResultsItemRegisteredAddress = {
+  /** @nullable */
+  locality?: string | null;
+  /** @nullable */
+  postalCode?: string | null;
+  /** @nullable */
+  country?: string | null;
+} | null;
+
+export type CompaniesHouseSearchResultResultsItem = {
+  name: string;
+  registrationNumber: string;
+  status: string;
+  entityType: string;
+  /** @nullable */
+  incorporatedOn: string | null;
+  /** @nullable */
+  registeredAddress: CompaniesHouseSearchResultResultsItemRegisteredAddress;
+};
+
+export interface CompaniesHouseSearchResult {
+  results: CompaniesHouseSearchResultResultsItem[];
+}
+
+export interface OrganisationVerificationApplicationInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  legalName: string;
+  /**
+     * @minLength 1
+     * @maxLength 48
+     */
+  organisationType: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  jurisdiction: string;
+  /**
+     * @maxLength 40
+     * @nullable
+     */
+  registrationNumber?: string | null;
+  /** @nullable */
+  website?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  representativeName: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  representativeRole: string;
+  /** @maxLength 254 */
+  contactEmail: string;
+}
+
+export interface OrganisationVerificationDraftInput {
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  legalName: string | null;
+  /**
+     * @maxLength 48
+     * @nullable
+     */
+  organisationType: string | null;
+  /**
+     * @maxLength 80
+     * @nullable
+     */
+  jurisdiction: string | null;
+  /**
+     * @maxLength 40
+     * @nullable
+     */
+  registrationNumber: string | null;
+  /** @nullable */
+  website: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  representativeName: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  representativeRole: string | null;
+  /**
+     * @maxLength 254
+     * @nullable
+     */
+  contactEmail: string | null;
+}
+
+export type OrganisationVerificationDraftStatus = typeof OrganisationVerificationDraftStatus[keyof typeof OrganisationVerificationDraftStatus];
+
+
+export const OrganisationVerificationDraftStatus = {
+  draft: 'draft',
+} as const;
+
+export interface OrganisationVerificationDraft {
+  id: number;
+  status: OrganisationVerificationDraftStatus;
+  savedAt: string;
+}
+
+export type OrganisationVerificationSubmissionStatus = typeof OrganisationVerificationSubmissionStatus[keyof typeof OrganisationVerificationSubmissionStatus];
+
+
+export const OrganisationVerificationSubmissionStatus = {
+  pending: 'pending',
+} as const;
+
+export interface OrganisationVerificationSubmission {
+  id: number;
+  status: OrganisationVerificationSubmissionStatus;
+  submittedAt: string;
+}
+
+export type OrganisationVerificationReviewInputAction = typeof OrganisationVerificationReviewInputAction[keyof typeof OrganisationVerificationReviewInputAction];
+
+
+export const OrganisationVerificationReviewInputAction = {
+  approve: 'approve',
+  reject: 'reject',
+  needs_information: 'needs_information',
+  suspend: 'suspend',
+} as const;
+
+export interface OrganisationVerificationReviewInput {
+  action: OrganisationVerificationReviewInputAction;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  note?: string | null;
+}
+
+export type OrganisationVerificationReviewResultStatus = typeof OrganisationVerificationReviewResultStatus[keyof typeof OrganisationVerificationReviewResultStatus];
+
+
+export const OrganisationVerificationReviewResultStatus = {
+  verified: 'verified',
+  rejected: 'rejected',
+  suspended: 'suspended',
+  needs_information: 'needs_information',
+} as const;
+
+export interface OrganisationVerificationReviewResult {
+  id: number;
+  status: OrganisationVerificationReviewResultStatus;
+  reviewedAt: string;
+}
+
+export interface OrganisationVerificationReviewQueueItem {
+  id: number;
+  organisationId: number;
+  organisationName: string;
+  /** @nullable */
+  legalName: string | null;
+  /** @nullable */
+  organisationType: string | null;
+  /** @nullable */
+  jurisdiction: string | null;
+  /** @nullable */
+  registrationNumber: string | null;
+  /** @nullable */
+  website: string | null;
+  /** @nullable */
+  representativeName: string | null;
+  /** @nullable */
+  representativeRole: string | null;
+  /** @nullable */
+  contactEmail: string | null;
+  status: string;
+  /** @nullable */
+  reviewerNotes: string | null;
+  /** @nullable */
+  submittedAt: string | null;
+  createdAt: string;
+}
+
+export interface OrganisationVerificationReviewAccess {
+  canReview: boolean;
+}
+
+export type OrganisationVerificationStatusStatus = typeof OrganisationVerificationStatusStatus[keyof typeof OrganisationVerificationStatusStatus];
+
+
+export const OrganisationVerificationStatusStatus = {
+  unsubmitted: 'unsubmitted',
+  pending: 'pending',
+  under_review: 'under_review',
+  needs_information: 'needs_information',
+  verified: 'verified',
+  rejected: 'rejected',
+  suspended: 'suspended',
+  expired: 'expired',
+} as const;
+
+export type OrganisationVerificationStatusHistoryItem = {
+  id: number;
+  event: string;
+  at: string;
+};
+
+/**
+ * @nullable
+ */
+export type OrganisationVerificationStatusApplication = {
+  id: number;
+  /** @nullable */
+  legalName: string | null;
+  /** @nullable */
+  organisationType: string | null;
+  /** @nullable */
+  jurisdiction: string | null;
+  /** @nullable */
+  registrationNumber: string | null;
+  /** @nullable */
+  website: string | null;
+  /** @nullable */
+  representativeName: string | null;
+  /** @nullable */
+  representativeRole: string | null;
+  /** @nullable */
+  contactEmail: string | null;
+  status: string;
+  /** @nullable */
+  reviewerNotes: string | null;
+  /** @nullable */
+  submittedAt: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+} | null;
+
+export interface OrganisationVerificationStatus {
+  status: OrganisationVerificationStatusStatus;
+  /** @nullable */
+  submittedAt: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+  history: OrganisationVerificationStatusHistoryItem[];
+  /** @nullable */
+  application: OrganisationVerificationStatusApplication;
+}
+
 export type OrganisationFundCluster = typeof OrganisationFundCluster[keyof typeof OrganisationFundCluster];
 
 

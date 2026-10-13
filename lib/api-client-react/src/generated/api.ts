@@ -40,6 +40,8 @@ import type {
   BotInfo,
   CommunityDetails,
   CommunitySummary,
+  CompaniesHouseSearchInput,
+  CompaniesHouseSearchResult,
   ConflictResponse,
   CreateAccountProfileInput,
   CreateFeedPostInput,
@@ -102,6 +104,15 @@ import type {
   OrganisationTreasury,
   OrganisationTreasuryDashboard,
   OrganisationTreasuryInput,
+  OrganisationVerificationApplicationInput,
+  OrganisationVerificationDraft,
+  OrganisationVerificationDraftInput,
+  OrganisationVerificationReviewAccess,
+  OrganisationVerificationReviewInput,
+  OrganisationVerificationReviewQueueItem,
+  OrganisationVerificationReviewResult,
+  OrganisationVerificationStatus,
+  OrganisationVerificationSubmission,
   Participation,
   ProfilePostsResponse,
   ProfileUpdateInput,
@@ -143,6 +154,590 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getSearchCompaniesHouseForOrganisationVerificationUrl = () => {
+
+
+
+
+  return `/api/organisations/verification/companies-house`
+}
+
+/**
+ * @summary Search Companies House records for an organisation verification application
+ */
+export const searchCompaniesHouseForOrganisationVerification = async (companiesHouseSearchInput: CompaniesHouseSearchInput, options?: Parameters<typeof customFetch>[1]): Promise<CompaniesHouseSearchResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CompaniesHouseSearchResult>(getSearchCompaniesHouseForOrganisationVerificationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(companiesHouseSearchInput)
+  }
+);}
+
+
+
+
+
+export const getSearchCompaniesHouseForOrganisationVerificationMutationKey = () => ['searchCompaniesHouseForOrganisationVerification'] as const;
+
+export const getSearchCompaniesHouseForOrganisationVerificationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchCompaniesHouseForOrganisationVerification>>, TError,SearchCompaniesHouseForOrganisationVerificationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof searchCompaniesHouseForOrganisationVerification>>, TError,SearchCompaniesHouseForOrganisationVerificationMutationVariables, TContext> => {
+
+const mutationKey = getSearchCompaniesHouseForOrganisationVerificationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof searchCompaniesHouseForOrganisationVerification>>, SearchCompaniesHouseForOrganisationVerificationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  searchCompaniesHouseForOrganisationVerification(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SearchCompaniesHouseForOrganisationVerificationMutationResult = NonNullable<Awaited<ReturnType<typeof searchCompaniesHouseForOrganisationVerification>>>
+    export type SearchCompaniesHouseForOrganisationVerificationMutationBody = BodyType<CompaniesHouseSearchInput>
+    export type SearchCompaniesHouseForOrganisationVerificationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error>
+    export type SearchCompaniesHouseForOrganisationVerificationMutationVariables = {data: BodyType<CompaniesHouseSearchInput>}
+
+    /**
+ * @summary Search Companies House records for an organisation verification application
+ */
+export const useSearchCompaniesHouseForOrganisationVerification = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchCompaniesHouseForOrganisationVerification>>, TError,SearchCompaniesHouseForOrganisationVerificationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof searchCompaniesHouseForOrganisationVerification>>,
+        TError,
+        SearchCompaniesHouseForOrganisationVerificationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSearchCompaniesHouseForOrganisationVerificationMutationOptions(options));
+    }
+
+export const getGetOrganisationVerificationUrl = () => {
+
+
+
+
+  return `/api/organisations/verification`
+}
+
+/**
+ * @summary Get the signed-in organisation's verification status, latest application, and history
+ */
+export const getOrganisationVerification = async ( options?: Parameters<typeof customFetch>[1]): Promise<OrganisationVerificationStatus> => {
+
+  return customFetch<OrganisationVerificationStatus>(getGetOrganisationVerificationUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOrganisationVerificationQueryKey = () => {
+    return [
+    `/api/organisations/verification`
+    ] as const;
+    }
+
+
+export const getGetOrganisationVerificationQueryOptions = <TData = Awaited<ReturnType<typeof getOrganisationVerification>>, TError = ErrorType<UnauthorizedResponse | Error | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganisationVerification>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOrganisationVerificationQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOrganisationVerification>>> = ({ signal }) => getOrganisationVerification({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOrganisationVerification>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOrganisationVerificationQueryResult = NonNullable<Awaited<ReturnType<typeof getOrganisationVerification>>>
+export type GetOrganisationVerificationQueryError = ErrorType<UnauthorizedResponse | Error | NotFoundResponse>
+
+
+/**
+ * @summary Get the signed-in organisation's verification status, latest application, and history
+ */
+
+export function useGetOrganisationVerification<TData = Awaited<ReturnType<typeof getOrganisationVerification>>, TError = ErrorType<UnauthorizedResponse | Error | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganisationVerification>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOrganisationVerificationQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveOrganisationVerificationDraftUrl = () => {
+
+
+
+
+  return `/api/organisations/verification/draft`
+}
+
+/**
+ * @summary Save progress on the signed-in organisation's verification application
+ */
+export const saveOrganisationVerificationDraft = async (organisationVerificationDraftInput: OrganisationVerificationDraftInput, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationVerificationDraft> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrganisationVerificationDraft>(getSaveOrganisationVerificationDraftUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(organisationVerificationDraftInput)
+  }
+);}
+
+
+
+
+
+export const getSaveOrganisationVerificationDraftMutationKey = () => ['saveOrganisationVerificationDraft'] as const;
+
+export const getSaveOrganisationVerificationDraftMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveOrganisationVerificationDraft>>, TError,SaveOrganisationVerificationDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveOrganisationVerificationDraft>>, TError,SaveOrganisationVerificationDraftMutationVariables, TContext> => {
+
+const mutationKey = getSaveOrganisationVerificationDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveOrganisationVerificationDraft>>, SaveOrganisationVerificationDraftMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveOrganisationVerificationDraft(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveOrganisationVerificationDraftMutationResult = NonNullable<Awaited<ReturnType<typeof saveOrganisationVerificationDraft>>>
+    export type SaveOrganisationVerificationDraftMutationBody = BodyType<OrganisationVerificationDraftInput>
+    export type SaveOrganisationVerificationDraftMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | NotFoundResponse | ConflictResponse>
+    export type SaveOrganisationVerificationDraftMutationVariables = {data: BodyType<OrganisationVerificationDraftInput>}
+
+    /**
+ * @summary Save progress on the signed-in organisation's verification application
+ */
+export const useSaveOrganisationVerificationDraft = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveOrganisationVerificationDraft>>, TError,SaveOrganisationVerificationDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveOrganisationVerificationDraft>>,
+        TError,
+        SaveOrganisationVerificationDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveOrganisationVerificationDraftMutationOptions(options));
+    }
+
+export const getSubmitOrganisationVerificationApplicationUrl = () => {
+
+
+
+
+  return `/api/organisations/verification/applications`
+}
+
+/**
+ * @summary Submit an organisation verification application
+ */
+export const submitOrganisationVerificationApplication = async (organisationVerificationApplicationInput: OrganisationVerificationApplicationInput, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationVerificationSubmission> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrganisationVerificationSubmission>(getSubmitOrganisationVerificationApplicationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(organisationVerificationApplicationInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitOrganisationVerificationApplicationMutationKey = () => ['submitOrganisationVerificationApplication'] as const;
+
+export const getSubmitOrganisationVerificationApplicationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitOrganisationVerificationApplication>>, TError,SubmitOrganisationVerificationApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitOrganisationVerificationApplication>>, TError,SubmitOrganisationVerificationApplicationMutationVariables, TContext> => {
+
+const mutationKey = getSubmitOrganisationVerificationApplicationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitOrganisationVerificationApplication>>, SubmitOrganisationVerificationApplicationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitOrganisationVerificationApplication(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitOrganisationVerificationApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof submitOrganisationVerificationApplication>>>
+    export type SubmitOrganisationVerificationApplicationMutationBody = BodyType<OrganisationVerificationApplicationInput>
+    export type SubmitOrganisationVerificationApplicationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | NotFoundResponse | ConflictResponse>
+    export type SubmitOrganisationVerificationApplicationMutationVariables = {data: BodyType<OrganisationVerificationApplicationInput>}
+
+    /**
+ * @summary Submit an organisation verification application
+ */
+export const useSubmitOrganisationVerificationApplication = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitOrganisationVerificationApplication>>, TError,SubmitOrganisationVerificationApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitOrganisationVerificationApplication>>,
+        TError,
+        SubmitOrganisationVerificationApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitOrganisationVerificationApplicationMutationOptions(options));
+    }
+
+export const getReviewOrganisationVerificationApplicationUrl = (applicationId: number,) => {
+
+
+
+
+  return `/api/admin/organisation-verification/${applicationId}/review`
+}
+
+/**
+ * @summary Review an organisation verification application as the configured reviewer
+ */
+export const reviewOrganisationVerificationApplication = async (applicationId: number,
+    organisationVerificationReviewInput: OrganisationVerificationReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationVerificationReviewResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrganisationVerificationReviewResult>(getReviewOrganisationVerificationApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(organisationVerificationReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewOrganisationVerificationApplicationMutationKey = () => ['reviewOrganisationVerificationApplication'] as const;
+
+export const getReviewOrganisationVerificationApplicationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewOrganisationVerificationApplication>>, TError,ReviewOrganisationVerificationApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewOrganisationVerificationApplication>>, TError,ReviewOrganisationVerificationApplicationMutationVariables, TContext> => {
+
+const mutationKey = getReviewOrganisationVerificationApplicationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewOrganisationVerificationApplication>>, ReviewOrganisationVerificationApplicationMutationVariables> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  reviewOrganisationVerificationApplication(applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewOrganisationVerificationApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof reviewOrganisationVerificationApplication>>>
+    export type ReviewOrganisationVerificationApplicationMutationBody = BodyType<OrganisationVerificationReviewInput>
+    export type ReviewOrganisationVerificationApplicationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | ConflictResponse>
+    export type ReviewOrganisationVerificationApplicationMutationVariables = {applicationId: number;data: BodyType<OrganisationVerificationReviewInput>}
+
+    /**
+ * @summary Review an organisation verification application as the configured reviewer
+ */
+export const useReviewOrganisationVerificationApplication = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewOrganisationVerificationApplication>>, TError,ReviewOrganisationVerificationApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewOrganisationVerificationApplication>>,
+        TError,
+        ReviewOrganisationVerificationApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewOrganisationVerificationApplicationMutationOptions(options));
+    }
+
+export const getListOrganisationVerificationReviewQueueUrl = () => {
+
+
+
+
+  return `/api/admin/organisation-verification/applications`
+}
+
+/**
+ * @summary List applications awaiting the configured reviewer's decision
+ */
+export const listOrganisationVerificationReviewQueue = async ( options?: Parameters<typeof customFetch>[1]): Promise<OrganisationVerificationReviewQueueItem[]> => {
+
+  return customFetch<OrganisationVerificationReviewQueueItem[]>(getListOrganisationVerificationReviewQueueUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOrganisationVerificationReviewQueueQueryKey = () => {
+    return [
+    `/api/admin/organisation-verification/applications`
+    ] as const;
+    }
+
+
+export const getListOrganisationVerificationReviewQueueQueryOptions = <TData = Awaited<ReturnType<typeof listOrganisationVerificationReviewQueue>>, TError = ErrorType<UnauthorizedResponse | Error>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganisationVerificationReviewQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOrganisationVerificationReviewQueueQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganisationVerificationReviewQueue>>> = ({ signal }) => listOrganisationVerificationReviewQueue({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOrganisationVerificationReviewQueue>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOrganisationVerificationReviewQueueQueryResult = NonNullable<Awaited<ReturnType<typeof listOrganisationVerificationReviewQueue>>>
+export type ListOrganisationVerificationReviewQueueQueryError = ErrorType<UnauthorizedResponse | Error>
+
+
+/**
+ * @summary List applications awaiting the configured reviewer's decision
+ */
+
+export function useListOrganisationVerificationReviewQueue<TData = Awaited<ReturnType<typeof listOrganisationVerificationReviewQueue>>, TError = ErrorType<UnauthorizedResponse | Error>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganisationVerificationReviewQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOrganisationVerificationReviewQueueQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetOrganisationVerificationReviewAccessUrl = () => {
+
+
+
+
+  return `/api/admin/organisation-verification/access`
+}
+
+/**
+ * @summary Check whether the signed-in Telegram identity is the configured reviewer
+ */
+export const getOrganisationVerificationReviewAccess = async ( options?: Parameters<typeof customFetch>[1]): Promise<OrganisationVerificationReviewAccess> => {
+
+  return customFetch<OrganisationVerificationReviewAccess>(getGetOrganisationVerificationReviewAccessUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOrganisationVerificationReviewAccessQueryKey = () => {
+    return [
+    `/api/admin/organisation-verification/access`
+    ] as const;
+    }
+
+
+export const getGetOrganisationVerificationReviewAccessQueryOptions = <TData = Awaited<ReturnType<typeof getOrganisationVerificationReviewAccess>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganisationVerificationReviewAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOrganisationVerificationReviewAccessQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOrganisationVerificationReviewAccess>>> = ({ signal }) => getOrganisationVerificationReviewAccess({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOrganisationVerificationReviewAccess>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOrganisationVerificationReviewAccessQueryResult = NonNullable<Awaited<ReturnType<typeof getOrganisationVerificationReviewAccess>>>
+export type GetOrganisationVerificationReviewAccessQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Check whether the signed-in Telegram identity is the configured reviewer
+ */
+
+export function useGetOrganisationVerificationReviewAccess<TData = Awaited<ReturnType<typeof getOrganisationVerificationReviewAccess>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganisationVerificationReviewAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOrganisationVerificationReviewAccessQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetOrganisationTreasuryUrl = (params?: GetOrganisationTreasuryParams,) => {
   const normalizedParams = new URLSearchParams();
