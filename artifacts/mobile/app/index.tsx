@@ -7256,8 +7256,8 @@ function BottomNav({
     ...(userType === 'organisation' && canLaunchFunds
       ? [{
           id: 'fund' as const,
-          label: 'Launch a fund',
-          description: 'Invite your community to support your charity with SOL.',
+          label: 'Organisation funds',
+          description: 'Manage your charity treasury and campaigns.',
           icon: 'heart' as const,
         }]
       : []),
