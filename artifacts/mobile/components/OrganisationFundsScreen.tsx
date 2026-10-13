@@ -45,29 +45,62 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
     }
   };
   return (
-    <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius, padding: 16, gap: 10 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Feather name="heart" size={16} color={colors.primary} />
-        <Text style={{ color: colors.foreground, fontSize: 17, fontFamily: "Inter_700Bold", flex: 1 }}>{fund.title}</Text>
+    <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 4, overflow: "hidden" }}>
+      <View style={{ height: 4, backgroundColor: colors.primary }} />
+      <View style={{ padding: 16, gap: 14 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
+          <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: colors.primary + "14", alignItems: "center", justifyContent: "center" }}>
+            <Feather name="heart" size={19} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <View style={{ alignSelf: "flex-start", borderRadius: 20, backgroundColor: colors.primary + "14", paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ color: colors.primary, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.7 }}>ACTIVE RAISE</Text>
+            </View>
+            <Text numberOfLines={2} style={{ color: colors.foreground, fontSize: 18, lineHeight: 23, fontFamily: "Inter_700Bold" }}>{fund.title}</Text>
+          </View>
+        </View>
+
+        <Text numberOfLines={3} style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>{fund.description}</Text>
+
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, borderRadius: colors.radius - 4, backgroundColor: colors.muted, paddingHorizontal: 13, paddingVertical: 11 }}>
+          <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+            <Text style={{ color: colors.mutedForeground, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.7 }}>FUND GOAL</Text>
+            <Text style={{ color: colors.foreground, fontSize: 12 }}>Help make this work possible</Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            <Feather name="target" size={14} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontSize: 19, fontFamily: "Inter_700Bold" }}>{fund.goalSol.toLocaleString()} SOL</Text>
+          </View>
+        </View>
+
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
+          <Feather name="shield" size={15} color={colors.mutedForeground} />
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <Text style={{ color: colors.foreground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>Shared charity treasury</Text>
+            <Text selectable numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>{fund.walletAddress}</Text>
+          </View>
+        </View>
+
+        <View style={{ gap: 8 }}>
+          <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Make a contribution</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius - 4, padding: 5, minHeight: 54 }}>
+            <TextInput
+              accessibilityLabel={`Donation amount in SOL for ${fund.title}`}
+              testID={`donation-amount-${fund.id}`}
+              keyboardType="decimal-pad"
+              value={amount}
+              onChangeText={setAmount}
+              placeholder="Amount in SOL"
+              placeholderTextColor={colors.mutedForeground}
+              style={{ flex: 1, minWidth: 0, paddingHorizontal: 9, color: colors.foreground, fontSize: 14 }}
+            />
+            <Pressable accessibilityRole="button" accessibilityLabel={`Donate to ${fund.title}`} testID={`donate-${fund.id}`} onPress={() => void donate()} style={{ minHeight: 42, backgroundColor: colors.primary, borderRadius: colors.radius - 7, paddingHorizontal: 16, alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ color: colors.primaryForeground, fontFamily: "Inter_700Bold", fontSize: 13 }}>Donate</Text>
+            </Pressable>
+          </View>
+          <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 14 }}>Your wallet will ask you to approve the transfer. Transfers cannot be reversed.</Text>
+        </View>
       </View>
-      <Text style={{ color: colors.mutedForeground, fontSize: 14, lineHeight: 20 }}>{fund.description}</Text>
-      <Text style={{ color: colors.primary, fontSize: 13, fontFamily: "Inter_700Bold" }}>Goal: {fund.goalSol.toLocaleString()} SOL</Text>
-      <Text selectable style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>Charity DAO treasury · {fund.walletAddress}</Text>
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        <TextInput
-          accessibilityLabel={`Donation amount in SOL for ${fund.title}`}
-          keyboardType="decimal-pad"
-          value={amount}
-          onChangeText={setAmount}
-          placeholder="Amount in SOL"
-          placeholderTextColor={colors.mutedForeground}
-          style={{ flex: 1, minWidth: 0, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius - 6, paddingHorizontal: 12, color: colors.foreground }}
-        />
-        <Pressable accessibilityRole="button" onPress={() => void donate()} style={{ backgroundColor: colors.primary, borderRadius: colors.radius - 6, paddingHorizontal: 15, justifyContent: "center" }}>
-          <Text style={{ color: colors.primaryForeground, fontFamily: "Inter_700Bold" }}>Donate</Text>
-        </Pressable>
-      </View>
-      <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 15 }}>Your wallet will show the charity treasury and ask you to approve. Transfers cannot be reversed.</Text>
     </View>
   );
 }
