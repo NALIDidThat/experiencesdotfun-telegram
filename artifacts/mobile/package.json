@@ -10,6 +10,7 @@
     "test:auth": "node --test scripts/email-signup-login.test.mjs",
     "test:home-prompt": "node --test scripts/home-prompt-interaction.test.mjs",
     "test:host": "node --test scripts/host-management-interaction.test.mjs",
+    "test:solana-pay": "node --test scripts/solana-pay.test.mjs",
     "test:keyboard": "node --test scripts/keyboard-interaction.test.mjs",
     "test:memory-game": "node --test scripts/memory-game-review.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"

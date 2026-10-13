@@ -8,6 +8,7 @@ import {
   usersTable,
 } from "@workspace/db";
 import { currentUser, requireTelegramUser } from "../lib/auth";
+import { canLaunchCharityFund } from "../lib/fund-rules.mjs";
 
 const router: IRouter = Router();
 const base58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -78,7 +79,7 @@ router.post("/", requireTelegramUser, async (req, res): Promise<void> => {
   const [organisation] = await db.select().from(organisationsTable)
     .where(and(eq(organisationsTable.ownerUserId, user.id), eq(organisationsTable.organisationType, "charity")))
     .limit(1);
-  if (!organisation) {
+  if (!canLaunchCharityFund(user.userType, organisation?.organisationType)) {
     res.status(403).json({ message: "Only charity organisation profiles can launch funds." });
     return;
   }

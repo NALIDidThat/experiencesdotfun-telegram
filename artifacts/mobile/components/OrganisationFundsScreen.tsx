@@ -9,24 +9,31 @@ import {
 } from "@workspace/api-client-react";
 import type { OrganisationFund } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { buildDonationUri, resolveSolanaCluster } from "@/lib/solana-pay.mjs";
 
 function FundCard({ fund }: { fund: OrganisationFund }) {
   const colors = useColors();
   const [amount, setAmount] = useState("");
   const donate = async () => {
     const parsed = Number(amount);
-    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1_000_000_000 || Number(parsed.toFixed(9)) !== parsed) {
-      Alert.alert("Enter a valid amount", "Choose a positive SOL amount with up to 9 decimal places.");
+    let uri: string;
+    try {
+      uri = buildDonationUri({
+        recipient: fund.walletAddress,
+        amount: parsed,
+        organisationName: fund.organisationName,
+        fundTitle: fund.title,
+        fundId: fund.id,
+        cluster: resolveSolanaCluster(process.env.EXPO_PUBLIC_SOLANA_CLUSTER, __DEV__),
+      });
+    } catch (cause) {
+      Alert.alert(
+        "Unable to prepare donation",
+        cause instanceof Error ? cause.message : "Check the amount and charity treasury address.",
+      );
       return;
     }
     const transferAmount = parsed.toFixed(9).replace(/0+$/, "").replace(/\.$/, "");
-    const params = new URLSearchParams({
-      amount: transferAmount,
-      label: fund.organisationName,
-      message: fund.title,
-      memo: `Experiences.fun fund ${fund.id}`,
-    });
-    const uri = `solana:${fund.walletAddress}?${params.toString()}`;
     try {
       await Linking.openURL(uri);
     } catch {
