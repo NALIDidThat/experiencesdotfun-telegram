@@ -35,11 +35,74 @@ tags:
   - name: ai-assistant
     description: Persistent AI experience discovery conversations
 paths:
+  /funds/treasury:
+    get:
+      operationId: getOrganisationTreasury
+      tags: [host]
+      summary: Get the signed-in charity treasury and finalized on-chain activity
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 25, default: 20 }
+        - name: before
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Charity treasury snapshot and recent finalized activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationTreasuryDashboard"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Only charity organisation profiles can view this treasury
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503":
+          description: Solana RPC is unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    put:
+      operationId: registerOrganisationTreasury
+      tags: [host]
+      summary: Register or update the signed-in charity's treasury address
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganisationTreasuryInput"
+      responses:
+        "200":
+          description: Registered charity treasury
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationTreasury"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Only charity organisation profiles can register a treasury
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503":
+          description: The treasury could not be checked on Solana
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
   /funds:
     post:
       operationId: createOrganisationFund
       tags: [host]
-      summary: Launch a direct-to-wallet SOL fundraiser for the signed-in charity
+      summary: Launch a SOL fundraiser using the signed-in charity's shared treasury
       security: [{ telegramInitData: [] }]
       requestBody:
         required: true
@@ -2358,18 +2421,58 @@ components:
         title: { type: string }
         description: { type: string }
         walletAddress: { type: string }
+        cluster: { type: string, enum: [mainnet-beta, devnet, testnet] }
         goalSol: { type: number }
         status: { type: string, enum: [active, closed] }
         createdAt: { type: string, format: date-time }
-      required: [id, organisationId, organisationUserId, organisationName, title, description, walletAddress, goalSol, status, createdAt]
+      required: [id, organisationId, organisationUserId, organisationName, title, description, walletAddress, cluster, goalSol, status, createdAt]
     OrganisationFundCreateInput:
       type: object
       properties:
         title: { type: string, minLength: 3, maxLength: 80 }
         description: { type: string, minLength: 10, maxLength: 600 }
-        walletAddress: { type: string, minLength: 32, maxLength: 44 }
         goalSol: { type: number, exclusiveMinimum: 0, maximum: 1000000000 }
-      required: [title, description, walletAddress, goalSol]
+      required: [title, description, goalSol]
+    OrganisationTreasury:
+      type: object
+      properties:
+        organisationId: { type: integer }
+        organisationUserId: { type: integer }
+        walletAddress: { type: string }
+        cluster: { type: string, enum: [mainnet-beta, devnet, testnet] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [organisationId, organisationUserId, walletAddress, cluster, createdAt, updatedAt]
+    OrganisationTreasuryInput:
+      type: object
+      properties:
+        walletAddress: { type: string, minLength: 32, maxLength: 44 }
+        cluster: { type: string, enum: [mainnet-beta, devnet, testnet] }
+      required: [walletAddress, cluster]
+    OrganisationTreasuryTransaction:
+      type: object
+      properties:
+        signature: { type: string }
+        status: { type: string, enum: [confirmed, failed, unavailable] }
+        sender: { type: [string, "null"] }
+        amountSol: { type: [string, "null"] }
+        blockTime: { type: [string, "null"], format: date-time }
+        error: { type: [string, "null"] }
+      required: [signature, status, sender, amountSol, blockTime, error]
+    OrganisationTreasuryDashboard:
+      type: object
+      properties:
+        treasury:
+          $ref: "#/components/schemas/OrganisationTreasury"
+        balanceSol: { type: string }
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrganisationTreasuryTransaction"
+        nextCursor: { type: [string, "null"] }
+        hasMore: { type: boolean }
+        checkedAt: { type: string, format: date-time }
+      required: [treasury, balanceSol, transactions, nextCursor, hasMore, checkedAt]
     MemoryGameStats:
       type: object
       properties:

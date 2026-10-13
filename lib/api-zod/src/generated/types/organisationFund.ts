@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { OrganisationFundCluster } from './organisationFundCluster';
 import type { OrganisationFundStatus } from './organisationFundStatus';
 
 export interface OrganisationFund {
@@ -15,6 +16,7 @@ export interface OrganisationFund {
   title: string;
   description: string;
   walletAddress: string;
+  cluster: OrganisationFundCluster;
   goalSol: number;
   status: OrganisationFundStatus;
   createdAt: Date;

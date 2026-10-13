@@ -79,6 +79,7 @@ import type {
   FriendRequestCreateInput,
   GetFeedParams,
   GetMemoryGameLeaderboardParams,
+  GetOrganisationTreasuryParams,
   HealthStatus,
   HostExperience,
   HostExperienceMilestonesResponse,
@@ -98,6 +99,9 @@ import type {
   OrganisationFundCreateInput,
   OrganisationPartnership,
   OrganisationPartnershipCreateInput,
+  OrganisationTreasury,
+  OrganisationTreasuryDashboard,
+  OrganisationTreasuryInput,
   Participation,
   ProfilePostsResponse,
   ProfileUpdateInput,
@@ -140,6 +144,178 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
+export const getGetOrganisationTreasuryUrl = (params?: GetOrganisationTreasuryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/funds/treasury?${stringifiedParams}` : `/api/funds/treasury`
+}
+
+/**
+ * @summary Get the signed-in charity treasury and finalized on-chain activity
+ */
+export const getOrganisationTreasury = async (params?: GetOrganisationTreasuryParams, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationTreasuryDashboard> => {
+
+  return customFetch<OrganisationTreasuryDashboard>(getGetOrganisationTreasuryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOrganisationTreasuryQueryKey = (params?: GetOrganisationTreasuryParams,) => {
+    return [
+    `/api/funds/treasury`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetOrganisationTreasuryQueryOptions = <TData = Awaited<ReturnType<typeof getOrganisationTreasury>>, TError = ErrorType<UnauthorizedResponse | Error | NotFoundResponse>>(params?: GetOrganisationTreasuryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganisationTreasury>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOrganisationTreasuryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOrganisationTreasury>>> = ({ signal }) => getOrganisationTreasury(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOrganisationTreasury>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOrganisationTreasuryQueryResult = NonNullable<Awaited<ReturnType<typeof getOrganisationTreasury>>>
+export type GetOrganisationTreasuryQueryError = ErrorType<UnauthorizedResponse | Error | NotFoundResponse>
+
+
+/**
+ * @summary Get the signed-in charity treasury and finalized on-chain activity
+ */
+
+export function useGetOrganisationTreasury<TData = Awaited<ReturnType<typeof getOrganisationTreasury>>, TError = ErrorType<UnauthorizedResponse | Error | NotFoundResponse>>(
+ params?: GetOrganisationTreasuryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganisationTreasury>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOrganisationTreasuryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRegisterOrganisationTreasuryUrl = () => {
+
+
+
+
+  return `/api/funds/treasury`
+}
+
+/**
+ * @summary Register or update the signed-in charity's treasury address
+ */
+export const registerOrganisationTreasury = async (organisationTreasuryInput: OrganisationTreasuryInput, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationTreasury> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrganisationTreasury>(getRegisterOrganisationTreasuryUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(organisationTreasuryInput)
+  }
+);}
+
+
+
+
+
+export const getRegisterOrganisationTreasuryMutationKey = () => ['registerOrganisationTreasury'] as const;
+
+export const getRegisterOrganisationTreasuryMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerOrganisationTreasury>>, TError,RegisterOrganisationTreasuryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof registerOrganisationTreasury>>, TError,RegisterOrganisationTreasuryMutationVariables, TContext> => {
+
+const mutationKey = getRegisterOrganisationTreasuryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerOrganisationTreasury>>, RegisterOrganisationTreasuryMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  registerOrganisationTreasury(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterOrganisationTreasuryMutationResult = NonNullable<Awaited<ReturnType<typeof registerOrganisationTreasury>>>
+    export type RegisterOrganisationTreasuryMutationBody = BodyType<OrganisationTreasuryInput>
+    export type RegisterOrganisationTreasuryMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | ConflictResponse>
+    export type RegisterOrganisationTreasuryMutationVariables = {data: BodyType<OrganisationTreasuryInput>}
+
+    /**
+ * @summary Register or update the signed-in charity's treasury address
+ */
+export const useRegisterOrganisationTreasury = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerOrganisationTreasury>>, TError,RegisterOrganisationTreasuryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof registerOrganisationTreasury>>,
+        TError,
+        RegisterOrganisationTreasuryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRegisterOrganisationTreasuryMutationOptions(options));
+    }
+
 export const getCreateOrganisationFundUrl = () => {
 
 
@@ -149,7 +325,7 @@ export const getCreateOrganisationFundUrl = () => {
 }
 
 /**
- * @summary Launch a direct-to-wallet SOL fundraiser for the signed-in charity
+ * @summary Launch a SOL fundraiser using the signed-in charity's shared treasury
  */
 export const createOrganisationFund = async (organisationFundCreateInput: OrganisationFundCreateInput, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationFund> => {
 
@@ -215,7 +391,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateOrganisationFundMutationVariables = {data: BodyType<OrganisationFundCreateInput>}
 
     /**
- * @summary Launch a direct-to-wallet SOL fundraiser for the signed-in charity
+ * @summary Launch a SOL fundraiser using the signed-in charity's shared treasury
  */
 export const useCreateOrganisationFund = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrganisationFund>>, TError,CreateOrganisationFundMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

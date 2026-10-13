@@ -9,16 +9,73 @@ import * as zod from 'zod';
 
 
 /**
- * @summary Launch a direct-to-wallet SOL fundraiser for the signed-in charity
+ * @summary Get the signed-in charity treasury and finalized on-chain activity
+ */
+export const getOrganisationTreasuryQueryLimitDefault = 20;
+export const getOrganisationTreasuryQueryLimitMax = 25;
+
+
+
+export const GetOrganisationTreasuryQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(getOrganisationTreasuryQueryLimitMax).default(getOrganisationTreasuryQueryLimitDefault),
+  "before": zod.coerce.string().optional()
+})
+
+export const GetOrganisationTreasuryResponse = zod.object({
+  "treasury": zod.object({
+  "organisationId": zod.number().int(),
+  "organisationUserId": zod.number().int(),
+  "walletAddress": zod.string(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "balanceSol": zod.string(),
+  "transactions": zod.array(zod.object({
+  "signature": zod.string(),
+  "status": zod.enum(['confirmed', 'failed', 'unavailable']),
+  "sender": zod.string().nullable(),
+  "amountSol": zod.string().nullable(),
+  "blockTime": zod.coerce.date().nullable(),
+  "error": zod.string().nullable()
+})),
+  "nextCursor": zod.string().nullable(),
+  "hasMore": zod.boolean(),
+  "checkedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Register or update the signed-in charity's treasury address
+ */
+export const registerOrganisationTreasuryBodyWalletAddressMin = 32;
+export const registerOrganisationTreasuryBodyWalletAddressMax = 44;
+
+
+
+export const RegisterOrganisationTreasuryBody = zod.object({
+  "walletAddress": zod.string().min(registerOrganisationTreasuryBodyWalletAddressMin).max(registerOrganisationTreasuryBodyWalletAddressMax),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet'])
+})
+
+export const RegisterOrganisationTreasuryResponse = zod.object({
+  "organisationId": zod.number().int(),
+  "organisationUserId": zod.number().int(),
+  "walletAddress": zod.string(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Launch a SOL fundraiser using the signed-in charity's shared treasury
  */
 export const createOrganisationFundBodyTitleMin = 3;
 export const createOrganisationFundBodyTitleMax = 80;
 
 export const createOrganisationFundBodyDescriptionMin = 10;
 export const createOrganisationFundBodyDescriptionMax = 600;
-
-export const createOrganisationFundBodyWalletAddressMin = 32;
-export const createOrganisationFundBodyWalletAddressMax = 44;
 
 export const createOrganisationFundBodyGoalSolExclusiveMin = 0;
 export const createOrganisationFundBodyGoalSolMax = 1000000000;
@@ -28,7 +85,6 @@ export const createOrganisationFundBodyGoalSolMax = 1000000000;
 export const CreateOrganisationFundBody = zod.object({
   "title": zod.string().min(createOrganisationFundBodyTitleMin).max(createOrganisationFundBodyTitleMax),
   "description": zod.string().min(createOrganisationFundBodyDescriptionMin).max(createOrganisationFundBodyDescriptionMax),
-  "walletAddress": zod.string().min(createOrganisationFundBodyWalletAddressMin).max(createOrganisationFundBodyWalletAddressMax),
   "goalSol": zod.number().gt(createOrganisationFundBodyGoalSolExclusiveMin).max(createOrganisationFundBodyGoalSolMax)
 })
 
@@ -40,6 +96,7 @@ export const CreateOrganisationFundResponse = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "walletAddress": zod.string(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
   "goalSol": zod.number(),
   "status": zod.enum(['active', 'closed']),
   "createdAt": zod.coerce.date()
@@ -64,6 +121,7 @@ export const ListOrganisationFundsResponseItem = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "walletAddress": zod.string(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
   "goalSol": zod.number(),
   "status": zod.enum(['active', 'closed']),
   "createdAt": zod.coerce.date()

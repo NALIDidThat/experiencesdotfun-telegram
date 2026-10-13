@@ -18,11 +18,6 @@ export interface OrganisationFundCreateInput {
      */
   description: string;
   /**
-     * @minLength 32
-     * @maxLength 44
-     */
-  walletAddress: string;
-  /**
      * @maximum 1000000000
      * @exclusiveMinimum 0
      */

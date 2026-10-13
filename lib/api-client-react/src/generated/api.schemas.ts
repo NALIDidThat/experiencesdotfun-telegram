@@ -5,6 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type OrganisationFundCluster = typeof OrganisationFundCluster[keyof typeof OrganisationFundCluster];
+
+
+export const OrganisationFundCluster = {
+  'mainnet-beta': 'mainnet-beta',
+  devnet: 'devnet',
+  testnet: 'testnet',
+} as const;
+
 export type OrganisationFundStatus = typeof OrganisationFundStatus[keyof typeof OrganisationFundStatus];
 
 
@@ -21,6 +30,7 @@ export interface OrganisationFund {
   title: string;
   description: string;
   walletAddress: string;
+  cluster: OrganisationFundCluster;
   goalSol: number;
   status: OrganisationFundStatus;
   createdAt: string;
@@ -38,15 +48,78 @@ export interface OrganisationFundCreateInput {
      */
   description: string;
   /**
-     * @minLength 32
-     * @maxLength 44
-     */
-  walletAddress: string;
-  /**
      * @maximum 1000000000
      * @exclusiveMinimum 0
      */
   goalSol: number;
+}
+
+export type OrganisationTreasuryCluster = typeof OrganisationTreasuryCluster[keyof typeof OrganisationTreasuryCluster];
+
+
+export const OrganisationTreasuryCluster = {
+  'mainnet-beta': 'mainnet-beta',
+  devnet: 'devnet',
+  testnet: 'testnet',
+} as const;
+
+export interface OrganisationTreasury {
+  organisationId: number;
+  organisationUserId: number;
+  walletAddress: string;
+  cluster: OrganisationTreasuryCluster;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type OrganisationTreasuryInputCluster = typeof OrganisationTreasuryInputCluster[keyof typeof OrganisationTreasuryInputCluster];
+
+
+export const OrganisationTreasuryInputCluster = {
+  'mainnet-beta': 'mainnet-beta',
+  devnet: 'devnet',
+  testnet: 'testnet',
+} as const;
+
+export interface OrganisationTreasuryInput {
+  /**
+     * @minLength 32
+     * @maxLength 44
+     */
+  walletAddress: string;
+  cluster: OrganisationTreasuryInputCluster;
+}
+
+export type OrganisationTreasuryTransactionStatus = typeof OrganisationTreasuryTransactionStatus[keyof typeof OrganisationTreasuryTransactionStatus];
+
+
+export const OrganisationTreasuryTransactionStatus = {
+  confirmed: 'confirmed',
+  failed: 'failed',
+  unavailable: 'unavailable',
+} as const;
+
+export interface OrganisationTreasuryTransaction {
+  signature: string;
+  status: OrganisationTreasuryTransactionStatus;
+  /** @nullable */
+  sender: string | null;
+  /** @nullable */
+  amountSol: string | null;
+  /** @nullable */
+  blockTime: string | null;
+  /** @nullable */
+  error: string | null;
+}
+
+export interface OrganisationTreasuryDashboard {
+  treasury: OrganisationTreasury;
+  balanceSol: string;
+  transactions: OrganisationTreasuryTransaction[];
+  /** @nullable */
+  nextCursor: string | null;
+  hasMore: boolean;
+  checkedAt: string;
 }
 
 export interface MemoryGameStats {
@@ -1573,6 +1646,15 @@ export type CategoryParameter = ExperienceCategory;
 export type SearchParameter = string;
 
 export type AvailableOnlyParameter = boolean;
+
+export type GetOrganisationTreasuryParams = {
+/**
+ * @minimum 1
+ * @maximum 25
+ */
+limit?: number;
+before?: string;
+};
 
 export type GetFeedParams = {
 mode?: FeedMode;
