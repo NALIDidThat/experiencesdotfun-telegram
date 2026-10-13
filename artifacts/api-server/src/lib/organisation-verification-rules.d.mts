@@ -13,3 +13,7 @@ export function verificationReviewReasonError(
   action: string,
   note: string | null | undefined,
 ): string | null;
+
+export function participationReviewReasonError(
+  reason: string | null | undefined,
+): string | null;

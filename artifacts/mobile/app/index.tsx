@@ -3264,6 +3264,16 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
                           ? 'Complete each step above and submit it for host verification.'
                           : 'Show up, then submit your completion.'}
                 </Text>
+                {participation.reviewHistory.length > 0 ? (
+                  <View style={{ marginTop: 8, gap: 4 }}>
+                    {participation.reviewHistory.map((review, index) => (
+                      <Text key={`${review.createdAt}-${index}`} style={[styles.joinedSub, { color: colors.mutedForeground }]}>
+                        {review.decision === 'rejected' ? 'Revision requested' : 'Verified'} · {review.reviewerName}
+                        {review.reason ? ` — ${review.reason}` : ''}
+                      </Text>
+                    ))}
+                  </View>
+                ) : null}
               </View>
             </View>
             {participation.status === 'waitlisted' ? (
@@ -5694,6 +5704,7 @@ function HostExperienceDetail({
   });
   const [participantSearch, setParticipantSearch] = useState('');
   const [participantFilter, setParticipantFilter] = useState<HostParticipantFilter>('all');
+  const [rejectReasons, setRejectReasons] = useState<Record<number, string>>({});
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmingCancellation, setConfirmingCancellation] = useState(false);
   const attend = useMarkAttendance({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
@@ -5769,6 +5780,14 @@ function HostExperienceDetail({
   const reviewMilestoneSubmission = (submissionId: number, action: 'verify' | 'reject') => runHostAction(
     () => reviewMilestone.mutateAsync({ submissionId, data: { action } }),
   );
+  const rejectParticipation = (participationId: number) => {
+    const reason = (rejectReasons[participationId] ?? '').trim();
+    if (reason.length < 10) {
+      setActionError('Add a review reason of at least 10 characters before rejecting.');
+      return;
+    }
+    void runHostAction(() => reject.mutateAsync({ participationId, data: { reason } }));
+  };
   const statusColor = experience?.status === 'published'
     ? colors.success
     : experience?.status === 'full'
@@ -6225,6 +6244,14 @@ function HostExperienceDetail({
                 </View>
                 {item.status === 'submitted' ? (
                   <>
+                    {item.completionStatement ? (
+                      <View style={[styles.hostReviewNote, { backgroundColor: colors.muted }]}>
+                        <Feather name="file-text" size={15} color={colors.mutedForeground} />
+                        <Text style={[styles.hostReviewText, { color: colors.foreground }]}>
+                          {item.completionStatement}
+                        </Text>
+                      </View>
+                    ) : null}
                     <View style={[styles.hostReviewNote, { backgroundColor: colors.primary + '0C' }]}>
                       <Feather name="award" size={16} color={colors.primary} />
                       <Text style={[styles.hostReviewText, { color: colors.foreground }]}>
@@ -6241,16 +6268,26 @@ function HostExperienceDetail({
                         testID={`host-verify-${item.id}`}
                         onPress={() => void runHostAction(() => verify.mutateAsync({ participationId: item.id }))}
                       />
-                      <Button
-                        label={reject.isPending ? 'Saving…' : 'Reject'}
-                        icon="x"
-                        variant="secondary"
-                        disabled={verify.isPending || reject.isPending}
-                        style={styles.hostActionButton}
-                        testID={`host-reject-${item.id}`}
-                        onPress={() => void runHostAction(() => reject.mutateAsync({ participationId: item.id }))}
-                      />
                     </View>
+                    <TextInput
+                      value={rejectReasons[item.id] ?? ''}
+                      onChangeText={(value) => setRejectReasons((current) => ({ ...current, [item.id]: value.slice(0, 500) }))}
+                      placeholder="Explain what needs to change (at least 10 characters)"
+                      placeholderTextColor={colors.mutedForeground}
+                      accessibilityLabel={`Rejection reason for ${item.participant.name}`}
+                      maxLength={500}
+                      multiline
+                      style={{ minHeight: 68, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius, padding: 10, color: colors.foreground, backgroundColor: colors.card, marginTop: 10, textAlignVertical: 'top' }}
+                    />
+                    <Button
+                      label={reject.isPending ? 'Saving…' : 'Reject with reason'}
+                      icon="x"
+                      variant="secondary"
+                      disabled={verify.isPending || reject.isPending || (rejectReasons[item.id] ?? '').trim().length < 10}
+                      style={styles.hostFullActionButton}
+                      testID={`host-reject-with-reason-${item.id}`}
+                      onPress={() => rejectParticipation(item.id)}
+                    />
                   </>
                 ) : item.status === 'joined' ? (
                   <Button

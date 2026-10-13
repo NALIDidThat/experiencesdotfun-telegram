@@ -41,6 +41,7 @@ import {
   organisationsTable,
   organisationVerificationApplicationsTable,
   organisationVerificationEventsTable,
+  participationReviewEventsTable,
   participationsTable,
   usersTable,
   xpAwardsTable,
@@ -107,6 +108,7 @@ import { createSocialInvite } from "../lib/social-invites";
 import {
   isVerificationReviewer,
   isVerificationSelfReview,
+  participationReviewReasonError,
   verificationReviewReasonError,
 } from "../lib/organisation-verification-rules.mjs";
 
@@ -2448,6 +2450,14 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
       )
       .returning();
     if (!verified) return undefined;
+    await transaction.insert(participationReviewEventsTable).values({
+      participationId: verified.id,
+      reviewerUserId: currentUser(req).id,
+      submissionVersion: Math.max(1, participation.submissionVersion),
+      decision: "verified",
+      reason: null,
+      createdAt: verifiedAt,
+    });
     await transaction
       .update(experienceChallengesTable)
       .set({ status: "completed", completedAt: verifiedAt })
@@ -2781,6 +2791,12 @@ router.post("/host/participations/:participationId/reject", async (req, res) => 
     error(res, 400, "Invalid participation.");
     return;
   }
+  const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+  const reasonError = participationReviewReasonError(reason);
+  if (reasonError) {
+    error(res, 400, reasonError);
+    return;
+  }
   const participation = await hostParticipation(req, parsed.data.participationId);
   if (!participation) {
     error(res, 404, "Participation not found.");
@@ -2797,22 +2813,35 @@ router.post("/host/participations/:participationId/reject", async (req, res) => 
     error(res, 409, "This contribution is no longer awaiting review.");
     return;
   }
-  const [updated] = await db
-    .update(participationsTable)
-    .set({
-      status: "rejected",
-      rewardStatus: "pending",
-      reviewReason: "Please update your completion statement and resubmit.",
-      reviewedByUserId: currentUser(req).id,
-      reviewedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(participationsTable.id, participation.id),
-        eq(participationsTable.status, "submitted"),
-      ),
-    )
-    .returning();
+  const reviewedAt = new Date();
+  const updated = await db.transaction(async (transaction) => {
+    const [rejected] = await transaction
+      .update(participationsTable)
+      .set({
+        status: "rejected",
+        rewardStatus: "pending",
+        reviewReason: reason,
+        reviewedByUserId: currentUser(req).id,
+        reviewedAt,
+      })
+      .where(
+        and(
+          eq(participationsTable.id, participation.id),
+          eq(participationsTable.status, "submitted"),
+        ),
+      )
+      .returning();
+    if (!rejected) return undefined;
+    await transaction.insert(participationReviewEventsTable).values({
+      participationId: rejected.id,
+      reviewerUserId: currentUser(req).id,
+      submissionVersion: Math.max(1, participation.submissionVersion),
+      decision: "rejected",
+      reason,
+      createdAt: reviewedAt,
+    });
+    return rejected;
+  });
   if (!updated) {
     error(res, 409, "This contribution is no longer awaiting review.");
     return;

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   emailAccountsTable,
@@ -6,6 +6,7 @@ import {
   experienceLocationEvidenceTable,
   friendshipsTable,
   organisationsTable,
+  participationReviewEventsTable,
   participationsTable,
   usersTable,
   type Experience,
@@ -220,6 +221,17 @@ export async function participationResponse(
         where: eq(usersTable.id, participation.userId),
       })
     : undefined;
+  const reviewHistory = await db
+    .select({
+      decision: participationReviewEventsTable.decision,
+      reason: participationReviewEventsTable.reason,
+      reviewerName: usersTable.name,
+      createdAt: participationReviewEventsTable.createdAt,
+    })
+    .from(participationReviewEventsTable)
+    .innerJoin(usersTable, eq(usersTable.id, participationReviewEventsTable.reviewerUserId))
+    .where(eq(participationReviewEventsTable.participationId, participation.id))
+    .orderBy(asc(participationReviewEventsTable.createdAt));
   return {
     id: participation.id,
     experience: await experienceResponse(experience),
@@ -236,6 +248,12 @@ export async function participationResponse(
     submissionVersion: participation.submissionVersion,
     reviewReason: participation.reviewReason ?? null,
     reviewedAt: participation.reviewedAt?.toISOString() ?? null,
+    reviewHistory: reviewHistory.map((event) => ({
+      decision: event.decision,
+      reason: event.reason,
+      reviewerName: event.reviewerName,
+      createdAt: event.createdAt.toISOString(),
+    })),
     verifiedAt: participation.verifiedAt?.toISOString() ?? null,
     rewardStatus: participation.rewardStatus,
   };

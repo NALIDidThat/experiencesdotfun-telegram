@@ -3,12 +3,20 @@ import test from "node:test";
 import {
   isVerificationReviewer,
   isVerificationSelfReview,
+  participationReviewReasonError,
   verificationReviewReasonError,
 } from "./organisation-verification-rules.mjs";
 
 test("only the configured numeric Telegram identity can review", () => {
   assert.equal(isVerificationReviewer("1248154114", "1248154114"), true);
   assert.equal(isVerificationReviewer("1248154114", "1248154115"), false);
+});
+
+test("contribution rejection requires a bounded, actionable reason", () => {
+  assert.match(participationReviewReasonError("too short"), /10 and 500/);
+  assert.match(participationReviewReasonError("   "), /10 and 500/);
+  assert.match(participationReviewReasonError("x".repeat(501)), /10 and 500/);
+  assert.equal(participationReviewReasonError("Please add the event date."), null);
 });
 
 test("missing or mutable reviewer identifiers never grant access", () => {

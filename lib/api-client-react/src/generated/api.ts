@@ -115,6 +115,7 @@ import type {
   OrganisationVerificationStatus,
   OrganisationVerificationSubmission,
   Participation,
+  ParticipationReviewReasonInput,
   ProfilePostsResponse,
   ProfileUpdateInput,
   RedeemXpAwardsResponse,
@@ -5419,16 +5420,31 @@ export const getRejectParticipationUrl = (participationId: number,) => {
 }
 
 /**
- * @summary Reject a submitted completion
+ * @summary Reject a submitted completion with an actionable reason
  */
-export const rejectParticipation = async (participationId: number, options?: Parameters<typeof customFetch>[1]): Promise<Participation> => {
+export const rejectParticipation = async (participationId: number,
+    participationReviewReasonInput: ParticipationReviewReasonInput, options?: Parameters<typeof customFetch>[1]): Promise<Participation> => {
 
-  return customFetch<Participation>(getRejectParticipationUrl(participationId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Participation>(getRejectParticipationUrl(participationId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(participationReviewReasonInput)
   }
 );}
 
@@ -5453,9 +5469,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectParticipation>>, RejectParticipationMutationVariables> = (props) => {
-          const {participationId} = props ?? {};
+          const {participationId,data} = props ?? {};
 
-          return  rejectParticipation(participationId,requestOptions)
+          return  rejectParticipation(participationId,data,requestOptions)
         }
 
 
@@ -5466,12 +5482,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type RejectParticipationMutationResult = NonNullable<Awaited<ReturnType<typeof rejectParticipation>>>
-
+    export type RejectParticipationMutationBody = BodyType<ParticipationReviewReasonInput>
     export type RejectParticipationMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse>
-    export type RejectParticipationMutationVariables = {participationId: number}
+    export type RejectParticipationMutationVariables = {participationId: number;data: BodyType<ParticipationReviewReasonInput>}
 
     /**
- * @summary Reject a submitted completion
+ * @summary Reject a submitted completion with an actionable reason
  */
 export const useRejectParticipation = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectParticipation>>, TError,RejectParticipationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

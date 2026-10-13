@@ -1522,10 +1522,16 @@ paths:
     post:
       operationId: rejectParticipation
       tags: [host]
-      summary: Reject a submitted completion
+      summary: Reject a submitted completion with an actionable reason
       security: [{ telegramInitData: [] }]
       parameters:
         - $ref: "#/components/parameters/ParticipationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParticipationReviewReasonInput"
       responses:
         "200":
           description: Rejected participation
@@ -3930,12 +3936,24 @@ components:
         reviewedAt:
           type: [string, "null"]
           format: date-time
+        reviewHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParticipationReviewHistoryItem"
         verifiedAt:
           type: [string, "null"]
           format: date-time
         rewardStatus:
           $ref: "#/components/schemas/RewardStatus"
-      required: [id, experience, participant, status, joinedAt, attendedAt, submittedAt, completionStatement, submissionVersion, reviewReason, reviewedAt, verifiedAt, rewardStatus]
+      required: [id, experience, participant, status, joinedAt, attendedAt, submittedAt, completionStatement, submissionVersion, reviewReason, reviewedAt, reviewHistory, verifiedAt, rewardStatus]
+    ParticipationReviewHistoryItem:
+      type: object
+      properties:
+        decision: { type: string, enum: [verified, rejected] }
+        reason: { type: [string, "null"] }
+        reviewerName: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [decision, reason, reviewerName, createdAt]
     CompletionEvidenceInput:
       type: object
       properties:
@@ -3944,6 +3962,11 @@ components:
           minLength: 20
           maxLength: 1500
       required: [statement]
+    ParticipationReviewReasonInput:
+      type: object
+      properties:
+        reason: { type: string, minLength: 10, maxLength: 500 }
+      required: [reason]
     ParticipantSummary:
       type: object
       properties:

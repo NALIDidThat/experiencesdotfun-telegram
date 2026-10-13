@@ -7,6 +7,7 @@
  */
 import type { Experience } from './experience';
 import type { ParticipantSummary } from './participantSummary';
+import type { ParticipationReviewHistoryItem } from './participationReviewHistoryItem';
 import type { ParticipationStatus } from './participationStatus';
 import type { RewardStatus } from './rewardStatus';
 
@@ -27,6 +28,7 @@ export interface Participation {
   reviewReason: string | null;
   /** @nullable */
   reviewedAt: Date | null;
+  reviewHistory: ParticipationReviewHistoryItem[];
   /** @nullable */
   verifiedAt: Date | null;
   rewardStatus: RewardStatus;

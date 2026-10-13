@@ -2018,6 +2018,12 @@ export const GetExperienceResponse = zod.object({
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
+  "reviewHistory": zod.array(zod.object({
+  "decision": zod.enum(['verified', 'rejected']),
+  "reason": zod.string().nullable(),
+  "reviewerName": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 }),zod.null()]),
@@ -2104,6 +2110,12 @@ export const JoinExperienceResponse = zod.object({
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
+  "reviewHistory": zod.array(zod.object({
+  "decision": zod.enum(['verified', 'rejected']),
+  "reason": zod.string().nullable(),
+  "reviewerName": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
@@ -2178,6 +2190,12 @@ export const ListMyParticipationsResponseItem = zod.object({
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
+  "reviewHistory": zod.array(zod.object({
+  "decision": zod.enum(['verified', 'rejected']),
+  "reason": zod.string().nullable(),
+  "reviewerName": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
@@ -2262,6 +2280,12 @@ export const SubmitCompletionResponse = zod.object({
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
+  "reviewHistory": zod.array(zod.object({
+  "decision": zod.enum(['verified', 'rejected']),
+  "reason": zod.string().nullable(),
+  "reviewerName": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
@@ -2661,6 +2685,12 @@ export const ListExperienceParticipantsResponseItem = zod.object({
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
+  "reviewHistory": zod.array(zod.object({
+  "decision": zod.enum(['verified', 'rejected']),
+  "reason": zod.string().nullable(),
+  "reviewerName": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
@@ -2736,6 +2766,12 @@ export const PromoteNextWaitlistedParticipantResponse = zod.object({
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
+  "reviewHistory": zod.array(zod.object({
+  "decision": zod.enum(['verified', 'rejected']),
+  "reason": zod.string().nullable(),
+  "reviewerName": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
@@ -2810,6 +2846,12 @@ export const MarkAttendanceResponse = zod.object({
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
+  "reviewHistory": zod.array(zod.object({
+  "decision": zod.enum(['verified', 'rejected']),
+  "reason": zod.string().nullable(),
+  "reviewerName": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
@@ -2884,16 +2926,31 @@ export const VerifyParticipationResponse = zod.object({
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
+  "reviewHistory": zod.array(zod.object({
+  "decision": zod.enum(['verified', 'rejected']),
+  "reason": zod.string().nullable(),
+  "reviewerName": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
 
 
 /**
- * @summary Reject a submitted completion
+ * @summary Reject a submitted completion with an actionable reason
  */
 export const RejectParticipationParams = zod.object({
   "participationId": zod.coerce.number().int()
+})
+
+export const rejectParticipationBodyReasonMin = 10;
+export const rejectParticipationBodyReasonMax = 500;
+
+
+
+export const RejectParticipationBody = zod.object({
+  "reason": zod.string().min(rejectParticipationBodyReasonMin).max(rejectParticipationBodyReasonMax)
 })
 
 export const rejectParticipationResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
@@ -2958,6 +3015,12 @@ export const RejectParticipationResponse = zod.object({
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
+  "reviewHistory": zod.array(zod.object({
+  "decision": zod.enum(['verified', 'rejected']),
+  "reason": zod.string().nullable(),
+  "reviewerName": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })

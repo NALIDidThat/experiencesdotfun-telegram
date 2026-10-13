@@ -28,3 +28,10 @@ export function verificationReviewReasonError(action, note) {
   }
   return null;
 }
+
+export function participationReviewReasonError(reason) {
+  if (typeof reason !== "string" || reason.trim().length < 10 || reason.trim().length > 500) {
+    return "Add a clear review reason between 10 and 500 characters.";
+  }
+  return null;
+}

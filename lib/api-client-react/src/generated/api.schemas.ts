@@ -1181,6 +1181,22 @@ export interface ExploreActivityResponse {
   cities: ExploreActivityCity[];
 }
 
+export type ParticipationReviewHistoryItemDecision = typeof ParticipationReviewHistoryItemDecision[keyof typeof ParticipationReviewHistoryItemDecision];
+
+
+export const ParticipationReviewHistoryItemDecision = {
+  verified: 'verified',
+  rejected: 'rejected',
+} as const;
+
+export interface ParticipationReviewHistoryItem {
+  decision: ParticipationReviewHistoryItemDecision;
+  /** @nullable */
+  reason: string | null;
+  reviewerName: string;
+  createdAt: string;
+}
+
 export interface Participation {
   id: number;
   experience: Experience;
@@ -1198,6 +1214,7 @@ export interface Participation {
   reviewReason: string | null;
   /** @nullable */
   reviewedAt: string | null;
+  reviewHistory: ParticipationReviewHistoryItem[];
   /** @nullable */
   verifiedAt: string | null;
   rewardStatus: RewardStatus;
@@ -1257,6 +1274,14 @@ export interface CompletionEvidenceInput {
      * @maxLength 1500
      */
   statement: string;
+}
+
+export interface ParticipationReviewReasonInput {
+  /**
+     * @minLength 10
+     * @maxLength 500
+     */
+  reason: string;
 }
 
 export interface HostOverview {
