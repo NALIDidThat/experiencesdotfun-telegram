@@ -8,3 +8,8 @@ export function isVerificationSelfReview(args: {
   applicantTelegramId: string | number | null | undefined;
   reviewerTelegramId: string | number | null | undefined;
 }): boolean;
+
+export function verificationReviewReasonError(
+  action: string,
+  note: string | null | undefined,
+): string | null;

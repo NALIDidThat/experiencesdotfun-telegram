@@ -20,3 +20,11 @@ export function isVerificationSelfReview({
     String(applicantTelegramId) === String(reviewerTelegramId)
   );
 }
+
+export function verificationReviewReasonError(action, note) {
+  if (action !== "reject" && action !== "suspend") return null;
+  if (typeof note !== "string" || note.trim().length < 5) {
+    return "Add a reason of at least 5 characters for rejection or suspension.";
+  }
+  return null;
+}

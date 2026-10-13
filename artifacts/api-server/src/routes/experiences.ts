@@ -106,6 +106,7 @@ import { createSocialInvite } from "../lib/social-invites";
 import {
   isVerificationReviewer,
   isVerificationSelfReview,
+  verificationReviewReasonError,
 } from "../lib/organisation-verification-rules.mjs";
 
 const router: IRouter = Router();
@@ -840,6 +841,11 @@ router.post("/admin/organisation-verification/:applicationId/review", async (req
     error(res, 400, "Review notes must be 500 characters or fewer.");
     return;
   }
+  const reasonError = verificationReviewReasonError(action, note);
+  if (reasonError) {
+    error(res, 400, reasonError);
+    return;
+  }
   const reviewer = currentUser(req);
   const reviewedAt = new Date();
   const outcome = await db.transaction(async (transaction) => {
@@ -897,7 +903,11 @@ router.post("/admin/organisation-verification/:applicationId/review", async (req
       applicationId: application.id,
       actorUserId: reviewer.id,
       eventType: `application_${status}`,
-      details: { status },
+      details: {
+        previousStatus: application.status,
+        status,
+        ...(note ? { reason: note } : {}),
+      },
     });
     return { id: application.id, status, reviewedAt: reviewedAt.toISOString() };
   });
@@ -2437,7 +2447,7 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
         amount: experience.xpReward,
         status: "pending",
         awardedAt: verifiedAt,
-      });
+      }).onConflictDoNothing();
     }
     if (experience) {
       const visibility = await automaticActivityVisibility(
@@ -2754,6 +2764,13 @@ router.post("/host/participations/:participationId/reject", async (req, res) => 
   const participation = await hostParticipation(req, parsed.data.participationId);
   if (!participation) {
     error(res, 404, "Participation not found.");
+    return;
+  }
+  const participantAccount = await db.query.usersTable.findFirst({
+    where: eq(usersTable.id, participation.userId),
+  });
+  if (participantAccount && hasSameTelegramIdentity(participantAccount, currentUser(req))) {
+    error(res, 403, "You can’t review a contribution from another profile linked to your Telegram account.");
     return;
   }
   if (participation.status !== "submitted") {

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isVerificationReviewer, isVerificationSelfReview } from "./organisation-verification-rules.mjs";
+import {
+  isVerificationReviewer,
+  isVerificationSelfReview,
+  verificationReviewReasonError,
+} from "./organisation-verification-rules.mjs";
 
 test("only the configured numeric Telegram identity can review", () => {
   assert.equal(isVerificationReviewer("1248154114", "1248154114"), true);
@@ -32,4 +36,12 @@ test("an applicant cannot review their own application through another profile",
     applicantTelegramId: "100",
     reviewerTelegramId: "200",
   }), false);
+});
+
+test("rejection and suspension require an auditable reason", () => {
+  assert.match(verificationReviewReasonError("reject", ""), /reason/);
+  assert.match(verificationReviewReasonError("suspend", "no"), /reason/);
+  assert.equal(verificationReviewReasonError("reject", "Evidence did not match."), null);
+  assert.equal(verificationReviewReasonError("approve", null), null);
+  assert.equal(verificationReviewReasonError("needs_information", null), null);
 });

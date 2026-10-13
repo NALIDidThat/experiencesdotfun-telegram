@@ -76,6 +76,7 @@ export default function OrganisationVerificationScreen() {
   const searchCompanies = useSearchCompaniesHouseForOrganisationVerification();
   const reviewerAccess = useGetOrganisationVerificationReviewAccess();
   const [showReviewQueue, setShowReviewQueue] = useState(false);
+  const [reviewNotes, setReviewNotes] = useState<Record<number, string>>({});
   const reviewQueue = useListOrganisationVerificationReviewQueue({
     query: {
       queryKey: getListOrganisationVerificationReviewQueueQueryKey(),
@@ -184,8 +185,13 @@ export default function OrganisationVerificationScreen() {
   const onReview = async (applicationId: number, action: 'approve' | 'reject' | 'needs_information' | 'suspend') => {
     setError('');
     setNotice('');
+    const note = reviewNotes[applicationId]?.trim() ?? '';
+    if ((action === 'reject' || action === 'suspend') && note.length < 5) {
+      setError('Add a reason of at least 5 characters before rejecting or suspending.');
+      return;
+    }
     try {
-      await reviewApplication.mutateAsync({ applicationId, data: { action } });
+      await reviewApplication.mutateAsync({ applicationId, data: { action, note: note || undefined } });
       await reviewQueue.refetch();
       await refreshStatus();
       setNotice('Review decision recorded.');
@@ -283,6 +289,16 @@ export default function OrganisationVerificationScreen() {
                           {application.registrationNumber ?? 'No registration number'} · {application.website ?? 'No website'}
                         </Text>
                         <Text style={[styles.statusDescription, { color: colors.mutedForeground }]}>{application.contactEmail ?? 'No contact email'}</Text>
+                        <TextInput
+                          value={reviewNotes[application.id] ?? ''}
+                          onChangeText={(value) => setReviewNotes((previous) => ({ ...previous, [application.id]: value }))}
+                          placeholder="Reviewer note (required for rejection or suspension)"
+                          placeholderTextColor={colors.mutedForeground}
+                          maxLength={500}
+                          multiline
+                          accessibilityLabel={`Reviewer note for ${application.organisationName}`}
+                          style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, borderRadius: colors.radius, minHeight: 70 }]}
+                        />
                         <View style={styles.reviewActions}>
                           {(['approve', 'reject', 'needs_information', 'suspend'] as const).map((action) => (
                             <Pressable
