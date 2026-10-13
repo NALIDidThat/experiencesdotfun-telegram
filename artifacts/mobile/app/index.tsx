@@ -2791,6 +2791,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
   const submit = useSubmitCompletion({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const submitMilestone = useSubmitExperienceMilestone({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const [actionError, setActionError] = useState<string | null>(null);
+  const [completionStatement, setCompletionStatement] = useState('');
   const item = query.data as ExperienceDetail | undefined;
 
   const joinExperience = async () => {
@@ -2803,8 +2804,13 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
   };
   const submitCompletion = async (participationId: number) => {
     setActionError(null);
+    if (completionStatement.trim().length < 20) {
+      setActionError('Add a completion statement of at least 20 characters.');
+      return;
+    }
     try {
-      await submit.mutateAsync({ participationId });
+      await submit.mutateAsync({ participationId, data: { statement: completionStatement.trim() } });
+      setCompletionStatement('');
     } catch (error) {
       setActionError(requestErrorMessage(error, 'Your completion wasn’t submitted. Please try again.'));
     }
@@ -3252,7 +3258,9 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
                         : 'Completion verified and reward issued.'
                       : participation.status === 'submitted'
                         ? 'Awaiting host verification.'
-                        : hasConfiguredMilestones
+                        : participation.status === 'rejected'
+                          ? (participation.reviewReason ?? 'Your submission needs an update before it can be verified.')
+                          : hasConfiguredMilestones
                           ? 'Complete each step above and submit it for host verification.'
                           : 'Show up, then submit your completion.'}
                 </Text>
@@ -3268,17 +3276,31 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
               <Text style={[styles.joinedSub, { color: colors.mutedForeground, marginTop: 10 }]}>
                 Submit milestones from the timeline above. Each verified step releases its XP award.
               </Text>
-            ) : ['joined', 'attended'].includes(participation.status) ? (
+            ) : ['joined', 'attended', 'rejected'].includes(participation.status) ? (
+              <>
+              {participation.status === 'attended' || participation.status === 'rejected' ? (
+                <TextInput
+                  value={completionStatement}
+                  onChangeText={setCompletionStatement}
+                  placeholder="Describe what you completed (at least 20 characters)"
+                  placeholderTextColor={colors.mutedForeground}
+                  maxLength={1500}
+                  multiline
+                  accessibilityLabel="Completion statement"
+                  style={{ minHeight: 84, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius, padding: 12, color: colors.foreground, backgroundColor: colors.card, marginBottom: 10, textAlignVertical: 'top' }}
+                />
+              ) : null}
               <Button
-                label={participation.status === 'attended'
-                  ? (submit.isPending ? 'Submitting…' : 'Submit completion')
+                label={participation.status === 'attended' || participation.status === 'rejected'
+                  ? (submit.isPending ? 'Submitting…' : participation.status === 'rejected' ? 'Resubmit completion' : 'Submit completion')
                   : (query.isRefetching ? 'Refreshing…' : 'Refresh status')}
-                disabled={participation.status === 'attended' ? submit.isPending : query.isRefetching}
+                disabled={participation.status === 'attended' || participation.status === 'rejected' ? submit.isPending : query.isRefetching}
                 onPress={() => {
-                  if (participation.status === 'attended') void submitCompletion(participation.id);
+                  if (participation.status === 'attended' || participation.status === 'rejected') void submitCompletion(participation.id);
                   else void query.refetch();
                 }}
               />
+              </>
             ) : null}
           </View>
         ) : (

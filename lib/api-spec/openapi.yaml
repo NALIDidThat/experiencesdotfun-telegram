@@ -1263,6 +1263,12 @@ paths:
       security: [{ telegramInitData: [] }]
       parameters:
         - $ref: "#/components/parameters/ParticipationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompletionEvidenceInput"
       responses:
         "200":
           description: Updated participation
@@ -3915,12 +3921,29 @@ components:
         submittedAt:
           type: [string, "null"]
           format: date-time
+        completionStatement:
+          type: [string, "null"]
+        submissionVersion:
+          type: integer
+        reviewReason:
+          type: [string, "null"]
+        reviewedAt:
+          type: [string, "null"]
+          format: date-time
         verifiedAt:
           type: [string, "null"]
           format: date-time
         rewardStatus:
           $ref: "#/components/schemas/RewardStatus"
-      required: [id, experience, participant, status, joinedAt, attendedAt, submittedAt, verifiedAt, rewardStatus]
+      required: [id, experience, participant, status, joinedAt, attendedAt, submittedAt, completionStatement, submissionVersion, reviewReason, reviewedAt, verifiedAt, rewardStatus]
+    CompletionEvidenceInput:
+      type: object
+      properties:
+        statement:
+          type: string
+          minLength: 20
+          maxLength: 1500
+      required: [statement]
     ParticipantSummary:
       type: object
       properties:

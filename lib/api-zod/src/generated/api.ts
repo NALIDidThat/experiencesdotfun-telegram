@@ -2014,6 +2014,10 @@ export const GetExperienceResponse = zod.object({
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
+  "completionStatement": zod.string().nullable(),
+  "submissionVersion": zod.number().int(),
+  "reviewReason": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 }),zod.null()]),
@@ -2096,6 +2100,10 @@ export const JoinExperienceResponse = zod.object({
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
+  "completionStatement": zod.string().nullable(),
+  "submissionVersion": zod.number().int(),
+  "reviewReason": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
@@ -2166,6 +2174,10 @@ export const ListMyParticipationsResponseItem = zod.object({
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
+  "completionStatement": zod.string().nullable(),
+  "submissionVersion": zod.number().int(),
+  "reviewReason": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
@@ -2177,6 +2189,15 @@ export const ListMyParticipationsResponse = zod.array(ListMyParticipationsRespon
  */
 export const SubmitCompletionParams = zod.object({
   "participationId": zod.coerce.number().int()
+})
+
+export const submitCompletionBodyStatementMin = 20;
+export const submitCompletionBodyStatementMax = 1500;
+
+
+
+export const SubmitCompletionBody = zod.object({
+  "statement": zod.string().min(submitCompletionBodyStatementMin).max(submitCompletionBodyStatementMax)
 })
 
 export const submitCompletionResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
@@ -2237,6 +2258,10 @@ export const SubmitCompletionResponse = zod.object({
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
+  "completionStatement": zod.string().nullable(),
+  "submissionVersion": zod.number().int(),
+  "reviewReason": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
@@ -2632,6 +2657,10 @@ export const ListExperienceParticipantsResponseItem = zod.object({
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
+  "completionStatement": zod.string().nullable(),
+  "submissionVersion": zod.number().int(),
+  "reviewReason": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
@@ -2703,6 +2732,10 @@ export const PromoteNextWaitlistedParticipantResponse = zod.object({
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
+  "completionStatement": zod.string().nullable(),
+  "submissionVersion": zod.number().int(),
+  "reviewReason": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
@@ -2773,6 +2806,10 @@ export const MarkAttendanceResponse = zod.object({
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
+  "completionStatement": zod.string().nullable(),
+  "submissionVersion": zod.number().int(),
+  "reviewReason": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
@@ -2843,6 +2880,10 @@ export const VerifyParticipationResponse = zod.object({
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
+  "completionStatement": zod.string().nullable(),
+  "submissionVersion": zod.number().int(),
+  "reviewReason": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })
@@ -2913,6 +2954,10 @@ export const RejectParticipationResponse = zod.object({
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
+  "completionStatement": zod.string().nullable(),
+  "submissionVersion": zod.number().int(),
+  "reviewReason": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "verifiedAt": zod.coerce.date().nullable(),
   "rewardStatus": zod.enum(['pending', 'issued'])
 })

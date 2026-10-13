@@ -232,6 +232,10 @@ export async function participationResponse(
     joinedAt: participation.joinedAt.toISOString(),
     attendedAt: participation.attendedAt?.toISOString() ?? null,
     submittedAt: participation.submittedAt?.toISOString() ?? null,
+    completionStatement: participation.completionStatement ?? null,
+    submissionVersion: participation.submissionVersion,
+    reviewReason: participation.reviewReason ?? null,
+    reviewedAt: participation.reviewedAt?.toISOString() ?? null,
     verifiedAt: participation.verifiedAt?.toISOString() ?? null,
     rewardStatus: participation.rewardStatus,
   };

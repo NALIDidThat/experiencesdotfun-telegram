@@ -1192,6 +1192,13 @@ export interface Participation {
   /** @nullable */
   submittedAt: string | null;
   /** @nullable */
+  completionStatement: string | null;
+  submissionVersion: number;
+  /** @nullable */
+  reviewReason: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+  /** @nullable */
   verifiedAt: string | null;
   rewardStatus: RewardStatus;
 }
@@ -1242,6 +1249,14 @@ export interface ExperienceCreateInput {
      * @maxItems 12
      */
   milestones?: ExperienceMilestoneInput[];
+}
+
+export interface CompletionEvidenceInput {
+  /**
+     * @minLength 20
+     * @maxLength 1500
+     */
+  statement: string;
 }
 
 export interface HostOverview {

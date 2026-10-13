@@ -42,6 +42,7 @@ import type {
   CommunitySummary,
   CompaniesHouseSearchInput,
   CompaniesHouseSearchResult,
+  CompletionEvidenceInput,
   ConflictResponse,
   CreateAccountProfileInput,
   CreateFeedPostInput,
@@ -4473,14 +4474,29 @@ export const getSubmitCompletionUrl = (participationId: number,) => {
 /**
  * @summary Submit a completed experience for host verification
  */
-export const submitCompletion = async (participationId: number, options?: Parameters<typeof customFetch>[1]): Promise<Participation> => {
+export const submitCompletion = async (participationId: number,
+    completionEvidenceInput: CompletionEvidenceInput, options?: Parameters<typeof customFetch>[1]): Promise<Participation> => {
 
-  return customFetch<Participation>(getSubmitCompletionUrl(participationId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Participation>(getSubmitCompletionUrl(participationId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(completionEvidenceInput)
   }
 );}
 
@@ -4505,9 +4521,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitCompletion>>, SubmitCompletionMutationVariables> = (props) => {
-          const {participationId} = props ?? {};
+          const {participationId,data} = props ?? {};
 
-          return  submitCompletion(participationId,requestOptions)
+          return  submitCompletion(participationId,data,requestOptions)
         }
 
 
@@ -4518,9 +4534,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type SubmitCompletionMutationResult = NonNullable<Awaited<ReturnType<typeof submitCompletion>>>
-
+    export type SubmitCompletionMutationBody = BodyType<CompletionEvidenceInput>
     export type SubmitCompletionMutationError = ErrorType<UnauthorizedResponse | ConflictResponse>
-    export type SubmitCompletionMutationVariables = {participationId: number}
+    export type SubmitCompletionMutationVariables = {participationId: number;data: BodyType<CompletionEvidenceInput>}
 
     /**
  * @summary Submit a completed experience for host verification

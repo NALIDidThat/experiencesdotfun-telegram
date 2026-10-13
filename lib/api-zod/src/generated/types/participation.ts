@@ -21,6 +21,13 @@ export interface Participation {
   /** @nullable */
   submittedAt: Date | null;
   /** @nullable */
+  completionStatement: string | null;
+  submissionVersion: number;
+  /** @nullable */
+  reviewReason: string | null;
+  /** @nullable */
+  reviewedAt: Date | null;
+  /** @nullable */
   verifiedAt: Date | null;
   rewardStatus: RewardStatus;
 }

@@ -66,6 +66,7 @@ import { recordAnalyticsEvent } from "../lib/analytics";
 import {
   canJoinOrWaitlist,
   canMarkAttendance,
+  canSubmitCompletion,
   participationStatusForCapacity,
   isValidExperienceSchedule,
 } from "../lib/experience-rules";
@@ -1525,6 +1526,11 @@ router.post("/participations/:participationId/submit", async (req, res) => {
     return;
   }
   const user = currentUser(req);
+  const statement = typeof req.body?.statement === "string" ? req.body.statement.trim() : "";
+  if (statement.length < 20 || statement.length > 1500) {
+    error(res, 400, "Add a completion statement between 20 and 1,500 characters.");
+    return;
+  }
   const participation = await db.query.participationsTable.findFirst({
     where: and(
       eq(participationsTable.id, parsed.data.participationId),
@@ -1544,17 +1550,24 @@ router.post("/participations/:participationId/submit", async (req, res) => {
     error(res, 409, "Submit each milestone from the experience timeline.");
     return;
   }
-  if (!["joined", "attended"].includes(participation.status)) {
+  if (!canSubmitCompletion(participation.status)) {
     error(res, 409, "This participation is not ready for completion submission.");
     return;
   }
   const [updated] = await db
     .update(participationsTable)
-    .set({ status: "submitted", submittedAt: new Date() })
+    .set({
+      status: "submitted",
+      submittedAt: new Date(),
+      completionStatement: statement,
+      submissionVersion: sql`${participationsTable.submissionVersion} + 1`,
+      reviewedByUserId: null,
+      reviewedAt: null,
+    })
     .where(
       and(
         eq(participationsTable.id, participation.id),
-        inArray(participationsTable.status, ["joined", "attended"]),
+        inArray(participationsTable.status, ["joined", "attended", "rejected"]),
       ),
     )
     .returning();
@@ -2419,7 +2432,14 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
   const updated = await db.transaction(async (transaction) => {
     const [verified] = await transaction
       .update(participationsTable)
-      .set({ status: "verified", verifiedAt, rewardStatus: "issued" })
+      .set({
+        status: "verified",
+        verifiedAt,
+        rewardStatus: "issued",
+        reviewReason: null,
+        reviewedByUserId: currentUser(req).id,
+        reviewedAt: verifiedAt,
+      })
       .where(
         and(
           eq(participationsTable.id, participation.id),
@@ -2779,7 +2799,13 @@ router.post("/host/participations/:participationId/reject", async (req, res) => 
   }
   const [updated] = await db
     .update(participationsTable)
-    .set({ status: "rejected", rewardStatus: "pending" })
+    .set({
+      status: "rejected",
+      rewardStatus: "pending",
+      reviewReason: "Please update your completion statement and resubmit.",
+      reviewedByUserId: currentUser(req).id,
+      reviewedAt: new Date(),
+    })
     .where(
       and(
         eq(participationsTable.id, participation.id),

@@ -17,6 +17,10 @@ export function canMarkAttendance(status: string): boolean {
   return status === "joined";
 }
 
+export function canSubmitCompletion(status: string): boolean {
+  return status === "joined" || status === "attended" || status === "rejected";
+}
+
 export function isValidExperienceSchedule(
   date: string,
   startTime: string,

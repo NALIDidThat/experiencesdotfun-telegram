@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   canJoinOrWaitlist,
   canMarkAttendance,
+  canSubmitCompletion,
   isExperienceJoinable,
   participationStatusForCapacity,
   isValidExperienceSchedule,
@@ -35,6 +36,14 @@ test("attendance can only be marked from the joined state", () => {
   assert.equal(canMarkAttendance("submitted"), false);
   assert.equal(canMarkAttendance("verified"), false);
   assert.equal(canMarkAttendance("rejected"), false);
+});
+
+test("a rejected completion can be resubmitted, but pending or verified ones cannot", () => {
+  assert.equal(canSubmitCompletion("joined"), true);
+  assert.equal(canSubmitCompletion("attended"), true);
+  assert.equal(canSubmitCompletion("rejected"), true);
+  assert.equal(canSubmitCompletion("submitted"), false);
+  assert.equal(canSubmitCompletion("verified"), false);
 });
 
 test("accepts a real date and a forward same-day schedule", () => {

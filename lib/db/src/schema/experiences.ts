@@ -187,7 +187,12 @@ export const participationsTable = pgTable(
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
     attendedAt: timestamp("attended_at", { withTimezone: true }),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    completionStatement: text("completion_statement"),
+    submissionVersion: integer("submission_version").notNull().default(0),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    reviewReason: text("review_reason"),
+    reviewedByUserId: integer("reviewed_by_user_id").references(() => usersTable.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     rewardStatus: text("reward_status").notNull().default("pending"),
   },
   (table) => ({

@@ -51,6 +51,7 @@ export * from './companiesHouseSearchInput';
 export * from './companiesHouseSearchResult';
 export * from './companiesHouseSearchResultResultsItem';
 export * from './companiesHouseSearchResultResultsItemRegisteredAddress';
+export * from './completionEvidenceInput';
 export * from './conflictResponse';
 export * from './createAccountProfileInput';
 export * from './createFeedPostInput';
