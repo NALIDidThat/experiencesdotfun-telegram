@@ -1,0 +1,397 @@
+# Implementation Brief: Experiences.fun Verification System
+
+## Objective
+
+Audit, improve and implement the verification system in the existing Experiences.fun application.
+
+Repository: https://github.com/NALIDidThat/experiencesdotfun-telegram
+
+Work within the existing codebase, architecture, design system, database conventions, generated API patterns and testing infrastructure. Do not build a separate application or replace working authentication, experience, XP, or organisation functionality without a clear technical reason.
+
+This is an implementation task, not a proposal-writing exercise. Inspect the real code, identify actual deficiencies, implement the changes, run the relevant tests and report the results.
+
+## 1. Begin with a focused repository audit
+
+Before editing, inspect at least:
+
+- `artifacts/api-server/src/routes/experiences.ts`
+- `artifacts/api-server/src/lib/auth.ts`
+- `artifacts/api-server/src/lib/data.ts`
+- `lib/db/src/schema/experiences.ts`
+- `lib/db/src/schema/experience-milestones.ts`
+- `lib/db/src/schema/experience-locations.ts`
+- `lib/db/migrations/`
+- `artifacts/mobile/components/` and the relevant profile, organisation, experience and host review screens.
+- API route registration and authentication middleware.
+- API validation schemas, OpenAPI definitions and generated client types.
+- Existing tests for authentication, experience completion, milestone reviews, XP awards, profile ownership and database migrations.
+
+Trace each verification flow from the UI to the API, database and reward issuance.
+
+Produce a short internal findings checklist, then proceed directly to implementation. Do not stop after writing an audit document.
+
+Verify whether each proposed fix is already implemented elsewhere before introducing a duplicate table, route, status field or component.
+
+## 2. Preserve the existing account model
+
+Keep the existing signup options exactly as they are:
+
+- Participant
+- Organisation
+
+Do not add Charity, School, Business, Volunteer or other account types.
+
+Use the existing organisation type field to determine the organisation-specific verification requirements.
+
+Preserve Telegram authentication, email authentication, account switching, session restoration, profile ownership, and existing API response behaviour.
+
+Apply authentication and authorisation on the server. The client must never be trusted to declare an organisation verified, approve a contribution, award XP or authorise a monetary payment.
+
+## 3. Implement organisation verification
+
+### Data model
+
+The repository currently has an `organisations.verified` boolean. Inspect every use of it and introduce a proper verification lifecycle without breaking existing records or consumers.
+
+Add the necessary database fields and/or dedicated application tables using existing Drizzle conventions and additive SQL migrations.
+
+The resulting model should support:
+
+- `unsubmitted`
+- `pending`
+- `under_review`
+- `verified`
+- `rejected`
+- `suspended`
+- `expired`, where applicable
+
+Use a constrained status field or equivalent type-safe representation. Keep any legacy boolean field temporarily if required by existing response contracts, but make the new canonical verification status authoritative. Ensure the boolean cannot drift out of sync.
+
+Store, as appropriate:
+
+- Organisation ID.
+- Verification status.
+- Submission ID and version.
+- Organisation type.
+- Official registration number and jurisdiction, where applicable.
+- Official website and organisation contact details.
+- Evidence references and evidence types.
+- Submitted timestamp.
+- Assigned reviewer.
+- Decision timestamp.
+- Decision reason or rejection reason.
+- Expiry or next-review date.
+- Suspension or revocation reason.
+- Created and updated timestamps.
+
+Do not store uploaded files as arbitrary public URLs. Use the project's existing storage provider if available. Otherwise, implement a secure storage abstraction that can use private object storage. Persist storage keys and evidence metadata, not public file access.
+
+If verification applications require a separate table, model application history separately from the current organisation status. Avoid overwriting earlier applications and decisions.
+
+Add database constraints and indexes that enforce valid states, unique submission identifiers, appropriate foreign keys and efficient reviewer queue queries.
+
+Write safe, additive migrations. Backfill existing data deliberately. Do not automatically mark old organisations verified merely because the old boolean or related fields appear populated. Do not silently invalidate existing legitimate organisations without a documented migration strategy.
+
+### Submission form
+
+Implement an organisation verification flow within the existing Organisation experience and account UI.
+
+Collect the minimum necessary information, with fields conditionally shown for each organisation type:
+
+- Official organisation name.
+- Organisation type.
+- Country and location.
+- Registration identifier and jurisdiction, where applicable.
+- Official website or another reliable means of corroborating identity.
+- Representative's name, role and contact details.
+- Supporting evidence required for that organisation type.
+- Consent and declaration that the submitted information is accurate.
+
+Allow informal community organisations that do not have formal registration to submit alternative evidence for manual review. Do not falsely imply that an unregistered community group is a registered charity.
+
+Validate input on the client for usability and repeat validation on the server. Enforce file type, file size, upload and access controls server-side.
+
+Allow applicants to save a draft, submit, view status, respond to requests for more information and resubmit after rejection or correction.
+
+Prevent duplicate concurrent submissions for the same organisation where appropriate. Support legitimate corrections and resubmissions without creating unnecessary duplicate organisation records.
+
+### Review and administration
+
+Implement an authorised reviewer interface or integrate with an existing admin interface if one exists.
+
+Reviewers need:
+
+- A queue of pending applications.
+- Applicant and organisation details.
+- Private evidence access.
+- Registration and corroboration results.
+- Submission history.
+- Approve, reject, request-more-information and suspend actions.
+- Required reasons for rejection and suspension.
+- A clear decision confirmation step.
+- Search and filtering by status, type, jurisdiction and submission date.
+
+Enforce reviewer permissions on every server route. Never implement a reviewer interface whose authority is based only on hiding UI elements.
+
+Use explicit server-side administrative roles or the project's existing permission system. Do not assume every Organisation user or every authenticated user is permitted to verify organisations.
+
+Record every decision and change in an audit log with actor, action, timestamp, affected record, prior status, new status and reason. Avoid logging passwords, session tokens or the contents of sensitive documents.
+
+Only publish verification information that is safe to disclose. Do not expose private application data, registration evidence, personal contact details or reviewer notes through public organisation responses.
+
+### Verification badge
+
+Expose a typed verification status and an appropriate public badge through the existing API response patterns.
+
+A verified organisation badge must be derived from authoritative server data. It must not depend on a client-side boolean supplied in an update request.
+
+Provide a sensible presentation for unverified, pending, rejected and suspended organisations without publicly exposing sensitive rejection reasons.
+
+A suspended organisation must not continue to display an active verified badge.
+
+Determine and document how expired applications and any legacy `verified` field map to the authoritative state.
+
+## 4. Improve contribution and attendance verification
+
+Preserve and strengthen the existing flows in `artifacts/api-server/src/routes/experiences.ts`, particularly:
+
+- `POST /participations/:participationId/submit`
+- `POST /participations/:participationId/milestones/:milestoneId/submit`
+- `POST /host/participations/:participationId/attend`
+- `POST /host/participations/:participationId/verify`
+- `POST /host/participations/:participationId/reject`
+- `POST /host/milestone-submissions/:submissionId/review`
+
+Confirm the exact current route definitions before changing them.
+
+### Evidence
+
+Introduce a suitable completion-evidence model if the existing implementation does not already support one.
+
+Evidence can include:
+
+- A participant reflection or completion statement.
+- An optional or experience-specific required file or image.
+- Supporting links.
+- A milestone-specific submission.
+- Attendance confirmation.
+- Other evidence appropriate to the experience.
+
+Do not require photographs for every experience. Provide privacy-conscious alternatives for experiences involving children, vulnerable participants, personal information or sensitive locations.
+
+Evidence must be private by default. Authorise every upload and read operation. Validate MIME type, file signature where practical, file size, file count and file ownership. Prevent arbitrary remote URL fetching and unsafe file handling.
+
+Track evidence references and metadata, submission time, version and author. If a submission is amended or resubmitted, preserve its prior decision history.
+
+### Reviewer permissions
+
+Only an organisation owner or explicitly authorised reviewer associated with the relevant organisation may review its submissions.
+
+For every review, verify the complete relationship chain:
+
+1. The reviewer is authenticated.
+2. The reviewer has an Organisation profile.
+3. The organisation exists and is under that reviewer's authorised control.
+4. The experience belongs to that organisation.
+5. The participation belongs to the target participant and experience.
+6. The submission is in a reviewable state.
+7. The reviewer is not approving their own contribution through another profile or linked identity.
+
+Reuse existing ownership and identity helpers where correct, and improve them where necessary. Cover both Telegram and email account pathways and any linked-profile relationships.
+
+Never trust organisation IDs, participant IDs, reviewer IDs, reward amounts or verification states submitted by the client.
+
+Use database transactions and row-level locking or guarded conditional updates where appropriate to prevent simultaneous decisions. Return meaningful conflict responses when submissions are already reviewed, withdrawn or otherwise not eligible.
+
+### Decision history and disputes
+
+Record who verified or rejected each submission, when the decision occurred, the decision reason, and the relevant evidence/submission version.
+
+Implement rejection feedback that allows participants to understand what needs improvement and submit again where permitted.
+
+Provide a basic appeal or escalation path, using the existing notification and UI patterns where practical. Appeals should not overwrite the original decision.
+
+Prevent repeated approvals from creating repeated XP awards, repeated completed activities or duplicate monetary reward eligibility.
+
+## 5. Protect XP and funded rewards
+
+Audit all completion and milestone reward issuance paths before editing.
+
+Maintain the principle that XP and rewards are controlled by the server.
+
+Use an idempotent award mechanism backed by database uniqueness constraints and transactions. Repeated requests, retries, concurrent reviews or webhook retries must not issue duplicate XP awards.
+
+Make sure an XP award is only created when a valid transition to a verified state succeeds. Rejected submissions must not receive completion XP.
+
+Preserve pending-award redemption and existing XP balance logic. Do not replace these systems with direct client-side balance updates.
+
+Where a contribution or experience has a monetary reward, separate the states:
+
+- Contribution verified.
+- Reward eligible.
+- Reward approved or authorised.
+- Payment pending.
+- Payment completed or failed.
+- Payment reconciled.
+
+Verification alone must not transfer money automatically unless a separate, explicitly authorised payment workflow permits it. Any future treasury distribution must use a durable allocation record, an idempotency key, appropriate authorisation and a reconciled transaction status.
+
+Do not expose wallet secrets, administrative credentials or payment-provider secrets to the client.
+
+## 6. Abuse prevention and risk controls
+
+Implement appropriate safeguards, using existing infrastructure first:
+
+- Rate limits for verification submission and review actions.
+- Duplicate application detection using normalised registration identifiers, jurisdiction and other reliable identifiers.
+- Detection of repeated evidence references or repeated claims where useful.
+- Protection against repeated or concurrent submission and review requests.
+- Restricted access to sensitive evidence and reviewer operations.
+- Clear separation between public profile information and private verification evidence.
+- Audit logging for security-relevant decisions.
+- Safe error responses that do not reveal private records.
+- Expiry, suspension and reverification mechanisms when justified.
+- A route to correct inaccurate verification data.
+- Privacy-conscious retention and deletion rules for rejected applications and uploaded evidence.
+
+Do not block legitimate organisations solely because they lack formal registration. Use manual evidence review and a documented alternative pathway.
+
+Do not implement facial recognition, biometric identity verification or unnecessary collection of identity documents as a default.
+
+Do not claim an organisation was independently registry-verified unless a real check was performed and its source and outcome were recorded.
+
+## 7. API contracts and frontend integration
+
+Follow the repository's existing source-of-truth workflow for API definitions and generated types.
+
+If schemas and clients are generated, modify their sources and regenerate them using the established scripts. Do not manually patch generated files and leave them inconsistent.
+
+Add authenticated endpoints using the existing route organisation and middleware patterns. Ensure public authentication routes cannot be accidentally intercepted by a new router-wide guard.
+
+Implement UI states for:
+
+- No verification submitted.
+- Draft.
+- Pending review.
+- Under review.
+- More information requested.
+- Approved.
+- Rejected.
+- Suspended or expired.
+
+Show progress, validation errors, upload states, success confirmations and useful next steps. Prevent duplicate submissions while a request is pending.
+
+Use the existing Experiences.fun design system, typography, colour tokens and navigation. Make the workflow accessible and responsive. Reuse existing components and API hooks where appropriate.
+
+Organisation verification status should be visible where it materially informs trust, including the organisation profile and relevant experience cards/details. Do not add intrusive badges across unrelated areas of the application.
+
+Keep the existing Participant and Organisation signup choices unchanged.
+
+## 8. Database and migration requirements
+
+Use the existing schema and SQL migration conventions in `lib/db/migrations/`.
+
+Ensure that:
+
+- New tables and columns have correct types, constraints, indexes and foreign keys.
+- Migrations are additive and safe for existing data.
+- Migration order and schema export/import wiring are correct.
+- Generated types and API response contracts remain consistent.
+- Existing experience and organisation records remain readable during deployment.
+- Legacy records are handled explicitly.
+- Unique constraints prevent duplicated verification applications or reward issuance where required.
+- All decisions that affect status and rewards are transactionally safe.
+
+Do not rely only on application-level checks where a database constraint can prevent invalid or duplicate records.
+
+## 9. Required tests
+
+Add unit, integration and route-level tests that match the existing testing setup.
+
+At minimum test:
+
+### Organisation verification
+- Submission validation for each supported organisation type.
+- Draft and resubmission behaviour.
+- Invalid or unsupported files.
+- Duplicate registration identifier handling.
+- Unauthorised reviewers cannot access applications or make decisions.
+- A reviewer can only review organisations they are authorised to manage.
+- Approval sets the correct canonical status and public badge.
+- Rejection records its reason and does not expose private evidence.
+- Suspension removes active verified presentation and enforces relevant restrictions.
+- Expired verification is handled correctly.
+- Existing legacy organisations remain compatible.
+
+### Contribution verification
+- An eligible participant can submit completion evidence.
+- Unrelated users cannot submit or retrieve another person's evidence.
+- An organisation cannot review another organisation's experience.
+- Self-review is blocked across linked profiles and supported auth methods.
+- A contribution cannot be verified before submission.
+- Duplicate and concurrent review requests cannot issue duplicate rewards.
+- Rejection does not award XP.
+- A rejected submission can be resubmitted according to the state machine.
+- Milestone verification only completes the participation when all required milestones are verified.
+- Appeals preserve the original decision history.
+
+### Regression and security
+- Existing Telegram authentication continues to work.
+- Existing email authentication and sessions continue to work.
+- Account switching and profile ownership remain intact.
+- Existing host dashboards and review queues show accurate counts.
+- Existing XP-award redemption remains correct.
+- Public endpoints do not reveal private evidence or reviewer information.
+- No new root-mounted middleware intercepts public authentication routes.
+- Invalid IDs, malformed data and stale status transitions return appropriate errors.
+- Database migrations apply successfully against the expected schema.
+
+Run relevant tests, type checks, lint and build commands available in the repository. If a command cannot be run because the environment or secrets are unavailable, state that explicitly rather than claiming it passed.
+
+## 10. Implementation sequence
+
+Implement in this order:
+
+1. Complete the focused audit and trace existing verification paths.
+2. Design the canonical status model and migration.
+3. Implement database records, constraints and audit history.
+4. Implement authenticated server routes and permission checks.
+5. Integrate secure evidence storage and review decisions.
+6. Make XP/reward issuance idempotent.
+7. Integrate organisation and contribution verification UI.
+8. Regenerate API/client types through the existing workflow.
+9. Add and run tests.
+10. Review the final diff for accidental changes to authentication, account types, existing XP and experience behaviour.
+
+Do not stop at mock data or UI-only changes. Implement a real end-to-end flow using the app's actual database and API.
+
+## 11. Acceptance criteria
+
+The work is complete only when:
+
+- An organisation can submit a verification application and view its real status.
+- An authorised reviewer can inspect evidence, request information, approve, reject or suspend an application.
+- Decisions and status changes are auditable.
+- Public organisation responses expose only safe verification information.
+- Relevant UI surfaces display correct, server-derived badges.
+- Completion and milestone verification retain correct ownership boundaries.
+- Evidence is securely stored and access-controlled.
+- Duplicate and concurrent reviews cannot issue duplicate rewards.
+- XP and monetary reward eligibility cannot be manipulated from the client.
+- Existing authentication, participant/organisation account selection, account switching, host dashboards and XP functionality continue to work.
+- Database migrations, types, builds and applicable tests are successful or any remaining blockers are explicitly documented.
+
+## 12. Final report
+
+When finished, provide:
+
+1. The actual issues discovered, separating confirmed bugs from risks.
+2. The files created or modified and why.
+3. The database migration details.
+4. The new or changed API endpoints.
+5. A summary of the user-facing changes.
+6. Security controls added.
+7. Tests and build commands run, with pass/fail results.
+8. Any remaining limitations, required environment variables, storage configuration or manual setup.
+
+Do not claim completion for features that were only designed, mocked or partially implemented. Preserve unrelated work in the repository and avoid broad refactors outside verification unless they are necessary to make the feature safe and functional.
