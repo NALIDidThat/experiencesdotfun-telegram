@@ -35,6 +35,62 @@ tags:
   - name: ai-assistant
     description: Persistent AI experience discovery conversations
 paths:
+  /funds:
+    post:
+      operationId: createOrganisationFund
+      tags: [host]
+      summary: Launch a direct-to-wallet SOL fundraiser for the signed-in charity
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganisationFundCreateInput"
+      responses:
+        "201":
+          description: Fund launched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationFund"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The profile cannot create this fund
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /funds/{organisationUserId}:
+    get:
+      operationId: listOrganisationFunds
+      tags: [host]
+      summary: List active funds for a public organisation profile
+      parameters:
+        - name: organisationUserId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Public fund campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrganisationFund"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /challenges:
     get:
       operationId: listExperienceChallenges
@@ -2292,6 +2348,28 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
   schemas:
+    OrganisationFund:
+      type: object
+      properties:
+        id: { type: integer }
+        organisationId: { type: integer }
+        organisationUserId: { type: integer }
+        organisationName: { type: string }
+        title: { type: string }
+        description: { type: string }
+        walletAddress: { type: string }
+        goalSol: { type: number }
+        status: { type: string, enum: [active, closed] }
+        createdAt: { type: string, format: date-time }
+      required: [id, organisationId, organisationUserId, organisationName, title, description, walletAddress, goalSol, status, createdAt]
+    OrganisationFundCreateInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 3, maxLength: 80 }
+        description: { type: string, minLength: 10, maxLength: 600 }
+        walletAddress: { type: string, minLength: 32, maxLength: 44 }
+        goalSol: { type: number, exclusiveMinimum: 0, maximum: 1000000000 }
+      required: [title, description, walletAddress, goalSol]
     MemoryGameStats:
       type: object
       properties:
@@ -2742,7 +2820,7 @@ components:
       properties:
         screen:
           type: string
-          enum: [home, explore, experiences, ai, challenges, profile, notifications, messages, direct-message, friends, friend-profile, experience, host, create, email, memory-game]
+          enum: [home, explore, experiences, ai, challenges, profile, notifications, messages, direct-message, friends, friend-profile, experience, host, create, funds, email, memory-game]
         platform:
           type: string
           enum: [ios, android, web]

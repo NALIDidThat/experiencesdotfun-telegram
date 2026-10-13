@@ -24,6 +24,7 @@ export const AnalyticsEventInputScreen = {
   experience: 'experience',
   host: 'host',
   create: 'create',
+  funds: 'funds',
   email: 'email',
   'memory-game': 'memory-game',
 } as const;

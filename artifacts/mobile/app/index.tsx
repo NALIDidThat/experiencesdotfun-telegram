@@ -103,6 +103,7 @@ import { useMotionPreferences } from '@/context/MotionContext';
 import { useColors } from '@/hooks/useColors';
 import { AccountabilityPartnerScreen } from '@/components/AccountabilitySection';
 import { OrganisationPartnershipsSection } from '@/components/OrganisationPartnershipsSection';
+import { OrganisationFundsScreen, OrganisationFundraiserSection } from '@/components/OrganisationFundsScreen';
 import { SocialFeed } from '@/components/SocialFeed';
 import { PersonalActivityScreen } from '@/components/PersonalActivityScreen';
 import { OrganisationActivityDashboard } from '@/components/OrganisationActivityDashboard';
@@ -125,9 +126,9 @@ import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
-type BottomNavQuickAction = 'post' | 'create' | 'progress' | 'assistant' | 'challenges' | 'accountability' | 'memory-game';
+type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'assistant' | 'challenges' | 'accountability' | 'memory-game';
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
 const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
@@ -136,7 +137,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -4114,25 +4115,28 @@ function FriendProfileScreen({
           onAction={() => { void profile.refetch(); }}
         />
       ) : friend ? (
-        <SocialProfileHeader
-          user={{
-            name: friend.name,
-            username: friend.username,
-            avatarUrl: friend.avatarUrl,
-            createdAt: friend.memberSince,
-            level: friend.level,
-            completedCount: friend.completedCount,
-            hostedCount: friend.hostedCount,
-            xp: friend.xp,
-            bio: friend.bio,
-            city: friend.city,
-            interests: friend.interests,
-            socialLinks: friend.socialLinks,
-            userType: friend.userType,
-            organisation: friend.organisation,
-          }}
-          friendsCount={friend.friendsCount}
-        />
+        <>
+          <SocialProfileHeader
+            user={{
+              name: friend.name,
+              username: friend.username,
+              avatarUrl: friend.avatarUrl,
+              createdAt: friend.memberSince,
+              level: friend.level,
+              completedCount: friend.completedCount,
+              hostedCount: friend.hostedCount,
+              xp: friend.xp,
+              bio: friend.bio,
+              city: friend.city,
+              interests: friend.interests,
+              socialLinks: friend.socialLinks,
+              userType: friend.userType,
+              organisation: friend.organisation,
+            }}
+            friendsCount={friend.friendsCount}
+          />
+          {friend.userType === 'organisation' ? <OrganisationFundraiserSection organisationUserId={friend.id} /> : null}
+        </>
       ) : null}
     </ScrollView>
   );
@@ -5282,6 +5286,9 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           setSelectedProfileMetric(metric);
         }}
       />
+      {current.userType === 'organisation' && current.organisation?.type === 'charity' ? (
+        <OrganisationFundraiserSection organisationUserId={current.id} canLaunch onLaunch={() => go('funds')} />
+      ) : null}
 
       {current.userType === 'participant' ? (
         <>
@@ -6971,11 +6978,13 @@ function BottomNav({
   active,
   go,
   userType,
+  canLaunchFunds = false,
   onQuickAction,
 }: {
   active: Screen;
   go: (screen: Screen) => void;
   userType: UserType;
+  canLaunchFunds?: boolean;
   onQuickAction: (action: BottomNavQuickAction) => void;
 }) {
   const colors = useColors();
@@ -7244,6 +7253,14 @@ function BottomNav({
           icon: 'calendar' as const,
         }]
       : []),
+    ...(userType === 'organisation' && canLaunchFunds
+      ? [{
+          id: 'fund' as const,
+          label: 'Launch a fund',
+          description: 'Invite your community to support your charity with SOL.',
+          icon: 'heart' as const,
+        }]
+      : []),
     {
       id: 'progress',
       label: 'View progress',
@@ -7417,7 +7434,7 @@ function BottomNav({
         accessibilityLabel="Quick actions"
         accessibilityHint={userType === 'participant'
           ? 'Open Assistant, Memory Game, Challenges, accountability, feed posting, and progress actions.'
-          : 'Post to the feed, create an experience, or view progress.'}
+          : canLaunchFunds ? 'Post to the feed, create an experience, launch a charity fund, or view progress.' : 'Post to the feed, create an experience, or view progress.'}
         accessibilityState={{ expanded: quickActionsOpen }}
         testID="bottom-nav-quick-button"
         onPress={openQuickActions}
@@ -7837,6 +7854,10 @@ export default function App() {
       if (user?.userType === 'organisation') go('create');
       return;
     }
+    if (action === 'fund') {
+      if (user?.userType === 'organisation' && user.organisation?.type === 'charity') go('funds');
+      return;
+    }
     go('profile');
   };
   const continueAccountLogin = async (accountType: UserType) => {
@@ -8069,7 +8090,7 @@ export default function App() {
     );
   }
 
-  if (user.userType !== 'organisation' && (screen === 'host' || screen === 'host-detail' || screen === 'create')) {
+  if (user.userType !== 'organisation' && (screen === 'host' || screen === 'host-detail' || screen === 'create' || screen === 'funds')) {
     return (
       <AppShell>
         <EmptyState
@@ -8194,6 +8215,9 @@ export default function App() {
     if (screen === 'profile') return <Profile user={user} go={go} />;
     if (screen === 'host') return <Host go={go} />;
     if (screen === 'create') return <Create go={go} initialStep={Number(params.step) || 1} editExperienceId={experienceId ? Number(experienceId) : undefined} />;
+    if (screen === 'funds') return user.userType === 'organisation' && user.organisation?.type === 'charity'
+      ? <OrganisationFundsScreen organisationUserId={user.id} onBack={() => go('profile')} />
+      : <EmptyState title="Charity account required" body="Only charity organisation profiles can launch funds." actionLabel="Back to profile" onAction={() => go('profile')} />;
     return (
       <Home
         user={user}
@@ -8207,7 +8231,9 @@ export default function App() {
   })();
 
   const noNav = ['experience', 'host-detail', 'create', 'direct-message', 'memory-game'].includes(screen);
-  const navActive = user.userType === 'organisation' && screen === 'experiences'
+  const navActive = screen === 'funds'
+    ? 'profile'
+    : user.userType === 'organisation' && screen === 'experiences'
     ? 'host'
     : screen === 'experiences'
       ? 'home'
@@ -8230,6 +8256,7 @@ export default function App() {
             active={navActive}
             go={go}
             userType={user.userType ?? 'participant'}
+            canLaunchFunds={user.userType === 'organisation' && user.organisation?.type === 'charity'}
             onQuickAction={handleBottomNavQuickAction}
           />
         )

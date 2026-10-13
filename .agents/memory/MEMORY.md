@@ -23,3 +23,4 @@
 - [Host milestone history](host-milestone-history.md) — lock milestone definitions after submissions exist, while keeping unrelated experience details editable.
 - [Express router auth scope](express-router-auth-scope.md) — mount protected subrouters at their resource prefix so auth guards cannot intercept unrelated public routes.
 - [Explore globe hit testing](explore-globe-hit-testing.md) — keep map markers and zoom controls clear of overlay controls, and assert selected-city state, not just result counts.
+- [Fundraising wallet custody](fundraising-wallet-custody.md) — charity SOL donations go directly to the charity wallet; Experiences.fun never holds funds or private keys.

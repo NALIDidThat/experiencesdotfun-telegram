@@ -9,6 +9,69 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Launch a direct-to-wallet SOL fundraiser for the signed-in charity
+ */
+export const createOrganisationFundBodyTitleMin = 3;
+export const createOrganisationFundBodyTitleMax = 80;
+
+export const createOrganisationFundBodyDescriptionMin = 10;
+export const createOrganisationFundBodyDescriptionMax = 600;
+
+export const createOrganisationFundBodyWalletAddressMin = 32;
+export const createOrganisationFundBodyWalletAddressMax = 44;
+
+export const createOrganisationFundBodyGoalSolExclusiveMin = 0;
+export const createOrganisationFundBodyGoalSolMax = 1000000000;
+
+
+
+export const CreateOrganisationFundBody = zod.object({
+  "title": zod.string().min(createOrganisationFundBodyTitleMin).max(createOrganisationFundBodyTitleMax),
+  "description": zod.string().min(createOrganisationFundBodyDescriptionMin).max(createOrganisationFundBodyDescriptionMax),
+  "walletAddress": zod.string().min(createOrganisationFundBodyWalletAddressMin).max(createOrganisationFundBodyWalletAddressMax),
+  "goalSol": zod.number().gt(createOrganisationFundBodyGoalSolExclusiveMin).max(createOrganisationFundBodyGoalSolMax)
+})
+
+export const CreateOrganisationFundResponse = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationUserId": zod.number().int(),
+  "organisationName": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "walletAddress": zod.string(),
+  "goalSol": zod.number(),
+  "status": zod.enum(['active', 'closed']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List active funds for a public organisation profile
+ */
+
+
+
+export const ListOrganisationFundsParams = zod.object({
+  "organisationUserId": zod.coerce.number().int().min(1)
+})
+
+export const ListOrganisationFundsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationUserId": zod.number().int(),
+  "organisationName": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "walletAddress": zod.string(),
+  "goalSol": zod.number(),
+  "status": zod.enum(['active', 'closed']),
+  "createdAt": zod.coerce.date()
+})
+export const ListOrganisationFundsResponse = zod.array(ListOrganisationFundsResponseItem)
+
+
+/**
  * @summary List challenges involving the signed-in participant
  */
 export const listExperienceChallengesResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
@@ -505,7 +568,7 @@ export const LoginWithEmailResponse = zod.object({
  * @summary Record a privacy-minimized app screen view
  */
 export const TrackAnalyticsEventBody = zod.object({
-  "screen": zod.enum(['home', 'explore', 'experiences', 'ai', 'challenges', 'profile', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'create', 'email', 'memory-game']),
+  "screen": zod.enum(['home', 'explore', 'experiences', 'ai', 'challenges', 'profile', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'create', 'funds', 'email', 'memory-game']),
   "platform": zod.enum(['ios', 'android', 'web'])
 })
 

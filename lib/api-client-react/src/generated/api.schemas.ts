@@ -5,6 +5,50 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type OrganisationFundStatus = typeof OrganisationFundStatus[keyof typeof OrganisationFundStatus];
+
+
+export const OrganisationFundStatus = {
+  active: 'active',
+  closed: 'closed',
+} as const;
+
+export interface OrganisationFund {
+  id: number;
+  organisationId: number;
+  organisationUserId: number;
+  organisationName: string;
+  title: string;
+  description: string;
+  walletAddress: string;
+  goalSol: number;
+  status: OrganisationFundStatus;
+  createdAt: string;
+}
+
+export interface OrganisationFundCreateInput {
+  /**
+     * @minLength 3
+     * @maxLength 80
+     */
+  title: string;
+  /**
+     * @minLength 10
+     * @maxLength 600
+     */
+  description: string;
+  /**
+     * @minLength 32
+     * @maxLength 44
+     */
+  walletAddress: string;
+  /**
+     * @maximum 1000000000
+     * @exclusiveMinimum 0
+     */
+  goalSol: number;
+}
+
 export interface MemoryGameStats {
   /**
      * @minimum 1
@@ -412,6 +456,7 @@ export const AnalyticsEventInputScreen = {
   experience: 'experience',
   host: 'host',
   create: 'create',
+  funds: 'funds',
   email: 'email',
   'memory-game': 'memory-game',
 } as const;

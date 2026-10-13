@@ -94,6 +94,8 @@ import type {
   MemoryGameSubmitInput,
   MyCommunitiesResponse,
   NotFoundResponse,
+  OrganisationFund,
+  OrganisationFundCreateInput,
   OrganisationPartnership,
   OrganisationPartnershipCreateInput,
   Participation,
@@ -137,6 +139,171 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getCreateOrganisationFundUrl = () => {
+
+
+
+
+  return `/api/funds`
+}
+
+/**
+ * @summary Launch a direct-to-wallet SOL fundraiser for the signed-in charity
+ */
+export const createOrganisationFund = async (organisationFundCreateInput: OrganisationFundCreateInput, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationFund> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrganisationFund>(getCreateOrganisationFundUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(organisationFundCreateInput)
+  }
+);}
+
+
+
+
+
+export const getCreateOrganisationFundMutationKey = () => ['createOrganisationFund'] as const;
+
+export const getCreateOrganisationFundMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrganisationFund>>, TError,CreateOrganisationFundMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOrganisationFund>>, TError,CreateOrganisationFundMutationVariables, TContext> => {
+
+const mutationKey = getCreateOrganisationFundMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOrganisationFund>>, CreateOrganisationFundMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createOrganisationFund(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOrganisationFundMutationResult = NonNullable<Awaited<ReturnType<typeof createOrganisationFund>>>
+    export type CreateOrganisationFundMutationBody = BodyType<OrganisationFundCreateInput>
+    export type CreateOrganisationFundMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | ConflictResponse>
+    export type CreateOrganisationFundMutationVariables = {data: BodyType<OrganisationFundCreateInput>}
+
+    /**
+ * @summary Launch a direct-to-wallet SOL fundraiser for the signed-in charity
+ */
+export const useCreateOrganisationFund = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrganisationFund>>, TError,CreateOrganisationFundMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOrganisationFund>>,
+        TError,
+        CreateOrganisationFundMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateOrganisationFundMutationOptions(options));
+    }
+
+export const getListOrganisationFundsUrl = (organisationUserId: number,) => {
+
+
+
+
+  return `/api/funds/${organisationUserId}`
+}
+
+/**
+ * @summary List active funds for a public organisation profile
+ */
+export const listOrganisationFunds = async (organisationUserId: number, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationFund[]> => {
+
+  return customFetch<OrganisationFund[]>(getListOrganisationFundsUrl(organisationUserId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOrganisationFundsQueryKey = (organisationUserId: number,) => {
+    return [
+    `/api/funds/${organisationUserId}`
+    ] as const;
+    }
+
+
+export const getListOrganisationFundsQueryOptions = <TData = Awaited<ReturnType<typeof listOrganisationFunds>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(organisationUserId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganisationFunds>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOrganisationFundsQueryKey(organisationUserId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganisationFunds>>> = ({ signal }) => listOrganisationFunds(organisationUserId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: organisationUserId !== null && organisationUserId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOrganisationFunds>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOrganisationFundsQueryResult = NonNullable<Awaited<ReturnType<typeof listOrganisationFunds>>>
+export type ListOrganisationFundsQueryError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+
+/**
+ * @summary List active funds for a public organisation profile
+ */
+
+export function useListOrganisationFunds<TData = Awaited<ReturnType<typeof listOrganisationFunds>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
+ organisationUserId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganisationFunds>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOrganisationFundsQueryOptions(organisationUserId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListExperienceChallengesUrl = () => {
 
