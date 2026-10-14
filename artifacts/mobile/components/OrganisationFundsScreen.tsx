@@ -63,20 +63,19 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
     }
   };
   return (
-    <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 4, overflow: "hidden" }}>
-      <View style={{ height: 4, backgroundColor: colors.primary }} />
-      <View style={{ padding: 16, gap: 14 }}>
+    <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 6, overflow: "hidden" }}>
+      <View style={{ padding: 18, gap: 16 }}>
         <View style={{ gap: 10 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+          <View style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 7, borderRadius: 999, backgroundColor: `${colors.primary}18`, paddingHorizontal: 10, paddingVertical: 6 }}>
             <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success }} />
-            <Text style={{ color: colors.success, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.8 }}>ACTIVE FUNDRAISER</Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>·</Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>Launched {launchedDate}</Text>
+            <Text style={{ color: colors.primary, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.6 }}>ACTIVE FUNDRAISER</Text>
           </View>
-          <Text style={{ color: colors.foreground, fontSize: 21, lineHeight: 27, fontFamily: "Inter_700Bold" }}>{fund.title}</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+          <Text style={{ color: colors.foreground, fontSize: 23, lineHeight: 29, fontFamily: "Inter_700Bold" }}>{fund.title}</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 7 }}>
             <Feather name="briefcase" size={13} color={colors.mutedForeground} />
             <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{fund.organisationName}</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>·</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Launched {launchedDate}</Text>
           </View>
         </View>
 
@@ -99,35 +98,46 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
           testID={`fund-progress-${fund.id}`}
           accessible
           accessibilityLabel={`Fundraising progress unavailable. Goal: ${fund.goalSol.toLocaleString()} SOL. Donations go directly to the shared treasury.`}
-          style={{ gap: 10, borderRadius: colors.radius, backgroundColor: colors.muted, padding: 14 }}
+          style={{ gap: 12, borderRadius: colors.radius + 2, backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}28`, borderWidth: 1, padding: 16 }}
         >
-          <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 10 }}>
-            <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-              <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.7 }}>FUNDRAISING GOAL</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
+            <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: `${colors.primary}20` }}>
+              <Feather name="target" size={19} color={colors.primary} />
             </View>
-            <Text style={{ color: colors.primary, fontSize: 20, fontFamily: "Inter_700Bold" }}>{fund.goalSol.toLocaleString()} SOL</Text>
+            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+              <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.8 }}>FUND GOAL</Text>
+              <Text style={{ color: colors.foreground, fontSize: 27, lineHeight: 32, fontFamily: "Inter_700Bold" }}>{fund.goalSol.toLocaleString()} SOL</Text>
+            </View>
           </View>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Raised so far</Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>Not tracked</Text>
+          <View style={{ height: 1, backgroundColor: `${colors.primary}24` }} />
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <View style={{ gap: 2 }}>
+              <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.5 }}>RAISED SO FAR</Text>
+              <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold" }}>Not tracked</Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 999, backgroundColor: colors.card, paddingHorizontal: 10, paddingVertical: 7 }}>
+              <Feather name="info" size={13} color={colors.mutedForeground} />
+              <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>Progress unavailable</Text>
+            </View>
           </View>
-          <View style={{ height: 8, borderRadius: 5, backgroundColor: colors.border }} />
           <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
-            Contributions go directly to the shared treasury; fundraising totals aren’t tracked here yet.
+            Contributions go directly to the shared treasury. Verified fundraising totals aren’t available here yet.
           </Text>
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
-          <Feather name="shield" size={15} color={colors.mutedForeground} />
-          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-            <Text style={{ color: colors.foreground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>Shared charity treasury</Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>Solana · {fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}</Text>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+          <View style={{ width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: `${colors.primary}14` }}>
+            <Feather name="shield" size={16} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>Shared charity treasury</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Solana · {fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}</Text>
             <Text selectable numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>{fund.walletAddress}</Text>
           </View>
         </View>
 
-        <View style={{ gap: 8 }}>
-          <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Make a contribution</Text>
+        <View style={{ gap: 10, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius + 2, padding: 14 }}>
+          <Text style={{ color: colors.foreground, fontSize: 17, fontFamily: "Inter_700Bold" }}>Make a contribution</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius - 4, padding: 5, minHeight: 54 }}>
             <TextInput
               accessibilityLabel={`Donation amount in SOL for ${fund.title}`}
