@@ -4511,13 +4511,13 @@ function FriendsOverviewScreen({
           style={styles.connectionsHeaderArt}
         >
           <View style={[styles.connectionsArtHalo, { backgroundColor: colors.primary + '12' }]} />
-          <View style={[styles.connectionsArtMainOrb, { backgroundColor: colors.violet }]}>
+          <View style={[styles.connectionsArtMainOrb, { backgroundColor: colors.primary }]}>
             <Feather name="users" size={22} color={colors.primaryForeground} />
           </View>
-          <View style={[styles.connectionsArtSmallOrb, { backgroundColor: colors.secondary }]}>
+          <View style={[styles.connectionsArtSmallOrb, { backgroundColor: colors.primary + 'D9' }]}>
             <Feather name="user" size={14} color={colors.secondaryForeground} />
           </View>
-          <Feather name="star" size={12} color={colors.violet} style={styles.connectionsArtSparkle} />
+          <Feather name="star" size={12} color={colors.primary} style={styles.connectionsArtSparkle} />
         </View>
         <View style={styles.connectionsHeaderCopy}>
           <View style={styles.connectionsTitleRow}>
