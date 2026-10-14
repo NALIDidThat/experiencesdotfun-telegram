@@ -1,12 +1,13 @@
 import { Feather } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  PanResponder,
+  Platform,
   Pressable,
+  ScrollView,
   Text,
   View,
-  type LayoutChangeEvent,
-  type PanResponderGestureState,
 } from 'react-native';
 import { useColors } from '../hooks/useColors';
 
@@ -46,107 +47,179 @@ export function formatExperienceDateUk(value: string) {
   return parts ? `${pad(parts.day)}/${pad(parts.month)}/${parts.year}` : value;
 }
 
-function DatePartSlider({
+const WHEEL_ROW_HEIGHT = 40;
+const WHEEL_HEIGHT = 164;
+const WHEEL_VERTICAL_PADDING = (WHEEL_HEIGHT - WHEEL_ROW_HEIGHT) / 2;
+
+function DatePartWheel({
   label,
   value,
   min,
   max,
-  valueText,
+  values,
   onChange,
 }: {
   label: string;
   value: number;
   min: number;
   max: number;
-  valueText: string;
+  values?: string[];
   onChange: (value: number) => void;
 }) {
   const colors = useColors();
-  const [trackWidth, setTrackWidth] = useState(0);
-  const dragStartX = useRef(0);
-  const changeRef = useRef(onChange);
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollOffset = useRef((value - min) * WHEEL_ROW_HEIGHT);
+  const lastCommittedValue = useRef(value);
+  const lastMin = useRef(min);
+  const hasInitialized = useRef(false);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasGlass = Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
 
   useEffect(() => {
-    changeRef.current = onChange;
-  }, [onChange]);
+    if (
+      hasInitialized.current
+      && lastCommittedValue.current === value
+      && lastMin.current === min
+    ) return;
+    hasInitialized.current = true;
+    lastCommittedValue.current = value;
+    lastMin.current = min;
+    scrollOffset.current = (value - min) * WHEEL_ROW_HEIGHT;
+    scrollRef.current?.scrollTo({ y: scrollOffset.current, animated: false });
+  }, [min, value]);
 
-  const valueAtX = (x: number) => {
-    if (trackWidth <= 0 || max <= min) return min;
-    const ratio = Math.max(0, Math.min(1, x / trackWidth));
-    return min + Math.round(ratio * (max - min));
+  useEffect(() => () => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+  }, []);
+
+  const settleAt = (offset: number) => {
+    const nextValue = Math.max(min, Math.min(max, min + Math.round(offset / WHEEL_ROW_HEIGHT)));
+    const nextOffset = (nextValue - min) * WHEEL_ROW_HEIGHT;
+    scrollOffset.current = nextOffset;
+    if (nextValue !== lastCommittedValue.current) {
+      lastCommittedValue.current = nextValue;
+      onChange(nextValue);
+      void Haptics.selectionAsync().catch(() => undefined);
+    }
+    scrollRef.current?.scrollTo({ y: nextOffset, animated: Math.abs(nextOffset - offset) > 1 });
   };
 
-  const responder = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (_event, gesture) => (
-      Math.abs(gesture.dx) > 4 && Math.abs(gesture.dx) > Math.abs(gesture.dy)
-    ),
-    onPanResponderGrant: (event, gesture) => {
-      const localX = event.nativeEvent.locationX ?? 0;
-      dragStartX.current = localX - gesture.dx;
-      changeRef.current(valueAtX(localX));
-    },
-    onPanResponderMove: (_event, gesture: PanResponderGestureState) => {
-      changeRef.current(valueAtX(dragStartX.current + gesture.dx));
-    },
-  }), [trackWidth, min, max]);
-
-  const onTrackLayout = (event: LayoutChangeEvent) => {
-    setTrackWidth(event.nativeEvent.layout.width);
+  const scheduleSettle = () => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => settleAt(scrollOffset.current), 120);
   };
-  const fraction = max === min ? 0 : (value - min) / (max - min);
-  const percentage = `${Math.max(0, Math.min(1, fraction)) * 100}%` as `${number}%`;
+
+  const scrollToValue = (nextValue: number) => {
+    scrollRef.current?.scrollTo({
+      y: (Math.max(min, Math.min(max, nextValue)) - min) * WHEEL_ROW_HEIGHT,
+      animated: true,
+    });
+  };
 
   return (
-    <View style={{ gap: 5 }}>
-      <View style={{ alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={{ color: colors.mutedForeground, fontSize: 11, fontWeight: '700', letterSpacing: 0.7 }}>
-          {label.toUpperCase()}
-        </Text>
-        <Text accessibilityLiveRegion="polite" style={{ color: colors.foreground, fontSize: 14, fontWeight: '700' }}>
-          {valueText}
-        </Text>
-      </View>
-      <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8 }}>
-        <Pressable
-          accessibilityLabel={`Decrease ${label.toLowerCase()}`}
-          accessibilityRole="button"
-          disabled={value <= min}
-          onPress={() => onChange(Math.max(min, value - 1))}
-          style={{ alignItems: 'center', borderColor: colors.border, borderRadius: 12, borderWidth: 1, height: 44, justifyContent: 'center', opacity: value <= min ? 0.4 : 1, width: 44 }}
-        >
-          <Feather name="minus" size={15} color={colors.foreground} />
-        </Pressable>
-        <View
-          {...responder.panHandlers}
-          accessibilityActions={[{ name: 'increment', label: `Increase ${label.toLowerCase()}` }, { name: 'decrement', label: `Decrease ${label.toLowerCase()}` }]}
-          accessibilityLabel={label}
+    <View style={{ flex: 1, minWidth: 0 }}>
+      <Text style={{ color: colors.mutedForeground, fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 5, textAlign: 'center' }}>
+        {label.toUpperCase()}
+      </Text>
+      <View style={{ height: WHEEL_HEIGHT, overflow: 'hidden', position: 'relative' }}>
+        <ScrollView
+          accessibilityActions={[
+            { name: 'increment', label: `Increase ${label.toLowerCase()}` },
+            { name: 'decrement', label: `Decrease ${label.toLowerCase()}` },
+          ]}
+          accessibilityLabel={`${label}, ${values?.[value - min] ?? value}`}
           accessibilityRole="adjustable"
-          accessibilityValue={{ min, max, now: value, text: valueText }}
+          accessibilityValue={{ min, max, now: value, text: values?.[value - min] ?? String(value) }}
+          contentContainerStyle={{ paddingVertical: WHEEL_VERTICAL_PADDING }}
+          decelerationRate="fast"
           onAccessibilityAction={(event) => {
-            const next = event.nativeEvent.actionName === 'increment' ? value + 1 : value - 1;
-            onChange(Math.max(min, Math.min(max, next)));
+            const delta = event.nativeEvent.actionName === 'increment' ? 1 : -1;
+            scrollToValue(value + delta);
           }}
-          onLayout={onTrackLayout}
-          style={{ height: 40, justifyContent: 'center', flex: 1 }}
-          testID={`date-slider-${label.toLowerCase()}`}
+          onMomentumScrollBegin={() => {
+            if (settleTimer.current) clearTimeout(settleTimer.current);
+          }}
+          onMomentumScrollEnd={(event) => {
+            if (settleTimer.current) clearTimeout(settleTimer.current);
+            settleAt(event.nativeEvent.contentOffset.y);
+          }}
+          onScroll={(event) => {
+            scrollOffset.current = event.nativeEvent.contentOffset.y;
+            const nextValue = Math.max(
+              min,
+              Math.min(max, min + Math.round(scrollOffset.current / WHEEL_ROW_HEIGHT)),
+            );
+            if (nextValue !== lastCommittedValue.current) {
+              lastCommittedValue.current = nextValue;
+              onChange(nextValue);
+              void Haptics.selectionAsync().catch(() => undefined);
+            }
+          }}
+          onScrollEndDrag={scheduleSettle}
+          ref={scrollRef}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          snapToAlignment="start"
+          snapToInterval={WHEEL_ROW_HEIGHT}
+          testID={`date-wheel-${label.toLowerCase()}`}
         >
-          <View style={{ backgroundColor: colors.border, borderRadius: 3, height: 6, overflow: 'visible' }}>
-            <View style={{ backgroundColor: colors.primary, borderRadius: 3, height: 6, width: percentage }} />
-              <View style={{ alignItems: 'center', backgroundColor: colors.card, borderColor: colors.primary, borderRadius: 12, borderWidth: 3, height: 20, justifyContent: 'center', left: percentage, marginLeft: -10, marginTop: -7, position: 'absolute', width: 20 }}>
-              <View style={{ backgroundColor: colors.primary, borderRadius: 3, height: 6, width: 6 }} />
-            </View>
-          </View>
+          {Array.from({ length: max - min + 1 }, (_, index) => {
+            const itemValue = min + index;
+            const selected = itemValue === value;
+            return (
+              <Pressable
+                key={itemValue}
+                accessibilityRole="button"
+                onPress={() => scrollToValue(itemValue)}
+                style={{ alignItems: 'center', height: WHEEL_ROW_HEIGHT, justifyContent: 'center' }}
+              >
+                <Text
+                  style={{
+                    color: selected ? colors.foreground : colors.mutedForeground,
+                    fontSize: selected ? 20 : 16,
+                    fontWeight: selected ? '700' : '500',
+                    opacity: selected ? 1 : 0.62,
+                    textAlign: 'center',
+                  }}
+                >
+                  {values?.[index] ?? itemValue}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+        <View
+          pointerEvents="none"
+          style={{
+            borderColor: colors.border,
+            borderRadius: 13,
+            borderWidth: hasGlass ? 0 : 1,
+            height: WHEEL_ROW_HEIGHT + 4,
+            left: 3,
+            position: 'absolute',
+            right: 3,
+            top: WHEEL_VERTICAL_PADDING - 2,
+          }}
+        >
+          {hasGlass ? (
+            <GlassView
+              glassEffectStyle="regular"
+              isInteractive
+              tintColor={`${colors.primary}18`}
+              style={{ borderRadius: 13, flex: 1 }}
+            />
+          ) : (
+            <View
+              style={{
+                backgroundColor: `${colors.card}B8`,
+                borderColor: colors.border,
+                borderRadius: 13,
+                borderWidth: 1,
+                flex: 1,
+              }}
+            />
+          )}
         </View>
-        <Pressable
-          accessibilityLabel={`Increase ${label.toLowerCase()}`}
-          accessibilityRole="button"
-          disabled={value >= max}
-          onPress={() => onChange(Math.min(max, value + 1))}
-          style={{ alignItems: 'center', borderColor: colors.border, borderRadius: 12, borderWidth: 1, height: 44, justifyContent: 'center', opacity: value >= max ? 0.4 : 1, width: 44 }}
-        >
-          <Feather name="plus" size={15} color={colors.foreground} />
-        </Pressable>
       </View>
     </View>
   );
@@ -202,30 +275,30 @@ export function DateSliderPicker({
         <Text style={{ color: colors.mutedForeground, fontSize: 9, fontWeight: '700', letterSpacing: 0.8 }}>EVENT DATE</Text>
         <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: '700' }}>{parts.day} {monthName} {parts.year}</Text>
       </View>
-      <DatePartSlider
-        label="Day"
-        min={1}
-        max={maxDay}
-        value={parts.day}
-        valueText={pad(parts.day)}
-        onChange={(next) => setPart('day', next)}
-      />
-      <DatePartSlider
-        label="Month"
-        min={1}
-        max={12}
-        value={parts.month}
-        valueText={`${pad(parts.month)} · ${monthName}`}
-        onChange={(next) => setPart('month', next)}
-      />
-      <DatePartSlider
-        label="Year"
-        min={minYear}
-        max={maxYear}
-        value={parts.year}
-        valueText={String(parts.year)}
-        onChange={(next) => setPart('year', next)}
-      />
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <DatePartWheel
+          label="Day"
+          min={1}
+          max={maxDay}
+          value={parts.day}
+          onChange={(next) => setPart('day', next)}
+        />
+        <DatePartWheel
+          label="Month"
+          min={1}
+          max={12}
+          value={parts.month}
+          values={['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']}
+          onChange={(next) => setPart('month', next)}
+        />
+        <DatePartWheel
+          label="Year"
+          min={minYear}
+          max={maxYear}
+          value={parts.year}
+          onChange={(next) => setPart('year', next)}
+        />
+      </View>
       <View style={{ alignItems: 'center', flexDirection: 'row', gap: 7, paddingHorizontal: 2 }}>
         <Feather name={dateIsSelected ? 'check-circle' : 'move'} size={14} color={dateIsSelected ? colors.primary : colors.mutedForeground} />
         <Text style={{ color: dateIsSelected ? colors.foreground : colors.mutedForeground, flex: 1, fontSize: 11, fontWeight: '600' }}>
