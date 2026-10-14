@@ -184,12 +184,23 @@ export function DateSliderPicker({
   const selectedDate = `${pad(parts.day)}/${pad(parts.month)}/${parts.year}`;
 
   return (
-    <View style={{ backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 8, borderWidth: 1, gap: 14, padding: 14 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={{ color: colors.mutedForeground, fontSize: 11, fontWeight: '700', letterSpacing: 0.7 }}>
-          DAY / MONTH / YEAR
-        </Text>
-        <Feather name="calendar" size={16} color={colors.primary} />
+    <View style={{ backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, borderWidth: 1, gap: 13, padding: 14 }}>
+      <View style={{ alignItems: 'center', flexDirection: 'row', gap: 10 }}>
+        <View style={{ alignItems: 'center', backgroundColor: colors.primary + '12', borderRadius: 12, height: 38, justifyContent: 'center', width: 38 }}>
+          <Feather name="calendar" size={17} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: '700' }}>Choose a date</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Set the day, month and year</Text>
+        </View>
+      </View>
+      <View
+        accessibilityLabel={`Date preview: ${parts.day} ${monthName} ${parts.year}`}
+        accessibilityLiveRegion="polite"
+        style={{ backgroundColor: colors.muted, borderRadius: 13, gap: 4, paddingHorizontal: 12, paddingVertical: 10 }}
+      >
+        <Text style={{ color: colors.mutedForeground, fontSize: 9, fontWeight: '700', letterSpacing: 0.8 }}>EVENT DATE</Text>
+        <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: '700' }}>{parts.day} {monthName} {parts.year}</Text>
       </View>
       <DatePartSlider
         label="Day"
@@ -215,20 +226,21 @@ export function DateSliderPicker({
         valueText={String(parts.year)}
         onChange={(next) => setPart('year', next)}
       />
-      <View style={{ alignItems: 'center', backgroundColor: colors.muted, borderRadius: 12, flexDirection: 'row', gap: 8, justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
-        <Feather name={dateIsSelected ? 'check-circle' : 'info'} size={16} color={dateIsSelected ? colors.primary : colors.mutedForeground} />
-        <Text style={{ color: dateIsSelected ? colors.foreground : colors.mutedForeground, fontSize: 13, fontWeight: '600' }}>
-          {dateIsSelected ? `Selected date: ${selectedDate}` : 'Move a slider or choose this date'}
+      <View style={{ alignItems: 'center', flexDirection: 'row', gap: 7, paddingHorizontal: 2 }}>
+        <Feather name={dateIsSelected ? 'check-circle' : 'move'} size={14} color={dateIsSelected ? colors.primary : colors.mutedForeground} />
+        <Text style={{ color: dateIsSelected ? colors.foreground : colors.mutedForeground, flex: 1, fontSize: 11, fontWeight: '600' }}>
+          {dateIsSelected ? `Date selected · ${selectedDate}` : 'Drag a slider or use + and − to adjust'}
         </Text>
       </View>
       {!dateIsSelected ? (
         <Pressable
+          accessibilityLabel={`Use ${selectedDate} as the experience date`}
           accessibilityRole="button"
           onPress={selectCurrentDate}
-          style={{ alignItems: 'center', backgroundColor: colors.primary, borderRadius: 12, justifyContent: 'center', minHeight: 44, paddingHorizontal: 14 }}
+          style={{ alignItems: 'center', backgroundColor: colors.primary, borderRadius: 12, justifyContent: 'center', minHeight: 48, paddingHorizontal: 14 }}
           testID="create-date-use-selected"
         >
-          <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '700' }}>Use {selectedDate}</Text>
+          <Text style={{ color: colors.primaryForeground, fontSize: 14, fontWeight: '700' }}>Use {selectedDate}</Text>
         </Pressable>
       ) : null}
     </View>
