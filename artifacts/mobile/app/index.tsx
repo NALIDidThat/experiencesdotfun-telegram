@@ -31,7 +31,7 @@ import {
   isLiquidGlassAvailable,
 } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '@/components/LinearGradient';
 import * as Haptics from 'expo-haptics';
 import {
   getGetAccountabilityDashboardQueryKey,

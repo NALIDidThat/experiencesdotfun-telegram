@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, PanResponder, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, Path, RadialGradient, Stop, Text as SvgText } from 'react-native-svg';
+import { Svg, Circle, ClipPath, Defs, Ellipse, G, Line, Path, RadialGradient, Stop, SvgText } from '@/components/SvgCompat';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { UserAvatar } from '@/components/UserAvatar';

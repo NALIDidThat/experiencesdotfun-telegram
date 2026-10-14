@@ -7,6 +7,7 @@ import { useColors } from '@/hooks/useColors';
 import type { ExploreMapCategory, ExploreMapHandle, ExploreMapProps } from '@/components/ExploreMap.types';
 
 type Point = { lat: number; lng: number };
+type GoogleMapEvent = Parameters<NonNullable<React.ComponentProps<typeof GoogleMap>['onIdle']>>[0];
 type MapController = {
   panTo: (position: Point) => void;
   setZoom: (zoom: number) => void;
@@ -82,10 +83,10 @@ function NearbyLayer({
       });
       const mapped = result.places.flatMap((place: {
         id?: string;
-        displayName?: string;
+        displayName?: string | null;
         location?: { lat: () => number; lng: () => number } | null;
-        formattedAddress?: string;
-        primaryType?: string;
+        formattedAddress?: string | null;
+        primaryType?: string | null;
       }) => {
         const location = place.location;
         if (!location) return [];
@@ -344,8 +345,8 @@ const ExploreMap = React.forwardRef<ExploreMapHandle, ExploreMapProps>(function 
           disableDefaultUI
           clickableIcons
           gestureHandling="greedy"
-          onIdle={(event) => handleMapIdle(event.map)}
-          onDrag={(event) => {
+          onIdle={(event: GoogleMapEvent) => handleMapIdle(event.map)}
+          onDrag={(event: GoogleMapEvent) => {
             mapRef.current = event.map;
             mapMoved.current = true;
              setHasExplicitMapCenter(true);

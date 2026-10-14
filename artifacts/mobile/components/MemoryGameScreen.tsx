@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '@/components/LinearGradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import {

@@ -26,3 +26,4 @@
 - [Fundraising treasury model](fundraising-wallet-custody.md) — one charity DAO treasury, multisig-approved payouts, wallet-only deposits, and visible contributions.
 - [Verification migration target](verification-migration-target.md) — the user designated Production — Experiences Dot Fun as the intended Supabase target; confirm authorization before applying schema changes.
 - [Experience location selection](experience-location-selection.md) — keep geocoded coordinates transient and bound to the existing city field unless the persisted experience model is explicitly changed.
+- [Expo JSX class typing bridge](expo-jsx-class-bridge.md) — adapt incompatible native library classes with their public prop types; do not suppress project-wide JSX checking.
