@@ -25,3 +25,4 @@
 - [Explore globe hit testing](explore-globe-hit-testing.md) — keep map markers and zoom controls clear of overlay controls, and assert selected-city state, not just result counts.
 - [Fundraising treasury model](fundraising-wallet-custody.md) — one charity DAO treasury, multisig-approved payouts, wallet-only deposits, and visible contributions.
 - [Verification migration target](verification-migration-target.md) — the user designated Production — Experiences Dot Fun as the intended Supabase target; confirm authorization before applying schema changes.
+- [Experience location selection](experience-location-selection.md) — keep geocoded coordinates transient and bound to the existing city field unless the persisted experience model is explicitly changed.

@@ -12,6 +12,7 @@
     "test:host": "node --test scripts/host-management-interaction.test.mjs",
     "test:solana-pay": "node --test scripts/solana-pay.test.mjs",
     "test:keyboard": "node --test scripts/keyboard-interaction.test.mjs",
+    "test:location-resolution": "node --experimental-strip-types --test scripts/location-resolution.test.mjs",
     "test:memory-game": "node --test scripts/memory-game-review.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

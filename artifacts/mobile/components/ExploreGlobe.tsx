@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { PanResponder, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, PanResponder, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, Path, RadialGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
@@ -49,6 +49,7 @@ type Props = {
   status: 'loading' | 'ready' | 'error';
   verifiedActivityStatus?: 'loading' | 'ready' | 'error';
   fullScreen?: boolean;
+  locationPicker?: boolean;
   showFriends?: boolean;
   onSelectCity: (city: string) => void;
   onSelectFriend?: (friendId: number) => void;
@@ -135,6 +136,7 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
   status,
   verifiedActivityStatus = 'loading',
   fullScreen = false,
+  locationPicker = false,
   showFriends = false,
   onSelectCity,
   onSelectFriend,
@@ -154,6 +156,9 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
   const [rotation, setRotation] = useState(0);
   const [tilt, setTilt] = useState(0);
   const [zoom, setZoom] = useState(1);
+  const [globeInteracting, setGlobeInteracting] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const markerPulse = useRef(new Animated.Value(1)).current;
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const dragOrigin = useRef({ rotation: 0, tilt: 0 });
   const touchOrigin = useRef({ x: 0, y: 0, active: false, distance: 0, zoom: 1 });
@@ -164,6 +169,14 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
   currentRotation.current = rotation;
   currentTilt.current = tilt;
   currentZoom.current = zoom;
+  React.useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => { if (mounted) setReduceMotion(enabled); })
+      .catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => { mounted = false; subscription.remove(); };
+  }, []);
   const panResponder = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (event, gesture) => (
       (event.nativeEvent.touches?.length ?? 0) > 1
@@ -194,6 +207,10 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
     },
   }), []);
   const selected = cities.find((item) => item.city === selectedCity) ?? null;
+  const locationTarget = selectedCityCoordinates
+    ? `${selectedCityCoordinates.latitude},${selectedCityCoordinates.longitude}`
+    : null;
+  const previousLocationTarget = useRef<string | null>(null);
   const focusOnCity = (latitude: number, longitude: number) => {
     const latitudeRadians = (latitude * Math.PI) / 180;
     setRotation(-longitude);
@@ -206,6 +223,57 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
     setZoom(1);
   };
   React.useImperativeHandle(ref, () => ({ focusOnCity, resetView }), []);
+  React.useEffect(() => {
+    if (!locationPicker || locationTarget === previousLocationTarget.current) return;
+    previousLocationTarget.current = locationTarget;
+    if (!locationTarget) {
+      setRotation(0);
+      setTilt(0);
+      setZoom(1);
+      return;
+    }
+    const [latitude, longitude] = locationTarget.split(',').map(Number);
+    if (reduceMotion) {
+      setRotation(-longitude);
+      setTilt(Math.max(-0.55, Math.min(0.55, -(latitude * Math.PI) / 180)));
+      setZoom(1.12);
+      return;
+    }
+    const startRotation = currentRotation.current;
+    const startTilt = currentTilt.current;
+    const targetRotation = -longitude;
+    const targetTilt = Math.max(-0.55, Math.min(0.55, -(latitude * Math.PI) / 180));
+    const rotationDelta = ((targetRotation - startRotation + 540) % 360) - 180;
+    const startedAt = Date.now();
+    let frame = 0;
+    const animate = () => {
+      const progress = Math.min(1, (Date.now() - startedAt) / 650);
+      const eased = 1 - (1 - progress) ** 3;
+      setRotation(startRotation + rotationDelta * eased);
+      setTilt(startTilt + (targetTilt - startTilt) * eased);
+      setZoom(1.12);
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [locationPicker, locationTarget, reduceMotion]);
+  React.useEffect(() => {
+    if (!locationPicker || locationTarget || globeInteracting || reduceMotion) return;
+    const timer = setInterval(() => setRotation((current) => current + 0.12), 40);
+    return () => clearInterval(timer);
+  }, [locationPicker, locationTarget, globeInteracting, reduceMotion]);
+  React.useEffect(() => {
+    if (!locationPicker || !locationTarget || reduceMotion) {
+      markerPulse.setValue(1);
+      return;
+    }
+    const pulse = Animated.loop(Animated.sequence([
+      Animated.timing(markerPulse, { toValue: 1.35, duration: 900, useNativeDriver: true }),
+      Animated.timing(markerPulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+    ]));
+    pulse.start();
+    return () => pulse.stop();
+  }, [locationPicker, locationTarget, reduceMotion, markerPulse]);
 
   const friendCountsByCity = useMemo(() => {
     const counts = new Map<string, number>();
@@ -269,12 +337,14 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
 
   return (
     <View
-      testID={fullScreen ? 'explore-globe-map' : 'explore-globe-card'}
-      style={fullScreen
+      testID={locationPicker ? 'create-location-globe' : fullScreen ? 'explore-globe-map' : 'explore-globe-card'}
+      style={locationPicker
+        ? [styles.locationPickerShell, { backgroundColor: space.background, borderColor: space.border }]
+        : fullScreen
         ? [styles.fullScreenRoot, { backgroundColor: space.background }]
         : [styles.shell, { backgroundColor: space.background, borderColor: space.border }]}
     >
-      {!fullScreen ? (
+      {!fullScreen && !locationPicker ? (
         <>
           <View style={styles.headingRow}>
             <View>
@@ -292,13 +362,14 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
 
       <View
         testID="explore-globe-stage"
-        style={fullScreen ? styles.fullScreenStage : styles.globeStage}
+        style={locationPicker ? styles.locationPickerStage : fullScreen ? styles.fullScreenStage : styles.globeStage}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
           setStageSize((current) => current.width === width && current.height === height ? current : { width, height });
         }}
         {...(Platform.OS === 'web' ? {} : panResponder.panHandlers)}
         onTouchStart={(event) => {
+          if (locationPicker) setGlobeInteracting(true);
           const touch = event.nativeEvent.touches[0];
           if (!touch) return;
           const secondTouch = event.nativeEvent.touches[1];
@@ -331,8 +402,8 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
           setRotation(dragOrigin.current.rotation + dx * 0.72);
           setTilt(Math.max(-0.55, Math.min(0.55, dragOrigin.current.tilt + dy / 360)));
         }}
-        onTouchEnd={() => { touchOrigin.current.active = false; touchOrigin.current.distance = 0; }}
-        onTouchCancel={() => { touchOrigin.current.active = false; touchOrigin.current.distance = 0; }}
+        onTouchEnd={() => { touchOrigin.current.active = false; touchOrigin.current.distance = 0; setGlobeInteracting(false); }}
+        onTouchCancel={() => { touchOrigin.current.active = false; touchOrigin.current.distance = 0; setGlobeInteracting(false); }}
       >
         <Svg width="100%" height="100%" viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
           <Defs>
@@ -417,14 +488,14 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
             })}
             {visibleSelectedSearchPoint ? (
               <G>
-                <Circle cx={visibleSelectedSearchPoint.x} cy={visibleSelectedSearchPoint.y} r="9" fill="none" stroke={colors.teal} strokeOpacity="0.8" strokeWidth="1.4" strokeDasharray="2 2" />
-                <Circle cx={visibleSelectedSearchPoint.x} cy={visibleSelectedSearchPoint.y} r="3" fill={colors.teal} />
+                <Circle cx={visibleSelectedSearchPoint.x} cy={visibleSelectedSearchPoint.y} r={locationPicker ? 12 : 9} fill="none" stroke={locationPicker ? colors.primary : colors.teal} strokeOpacity="0.8" strokeWidth="1.5" strokeDasharray="2 2" />
+                <Circle cx={visibleSelectedSearchPoint.x} cy={visibleSelectedSearchPoint.y} r={locationPicker ? 4 : 3} fill={locationPicker ? colors.primary : colors.teal} />
                 <SvgText x={visibleSelectedSearchPoint.x + 13} y={visibleSelectedSearchPoint.y - 9} fill={space.foreground} fontSize="10" fontWeight="600">{selectedCity}</SvgText>
               </G>
             ) : null}
           </G>
           <Circle cx={CENTER_X} cy={CENTER_Y} r={radius} fill="none" stroke={space.subdued} strokeOpacity="0.32" strokeWidth="0.8" />
-          {!fullScreen ? (
+          {!fullScreen && !locationPicker ? (
             <>
               <Line x1="18" y1="266" x2="58" y2="266" stroke={colors.primary} strokeOpacity="0.6" strokeWidth="1" />
               <SvgText x="65" y="269" fill={space.subdued} fontSize="8" letterSpacing="1.1">APPROX. CITY</SvgText>
@@ -433,6 +504,23 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
           <SvgText testID="explore-globe-rotation" x="322" y="269" fill={space.subdued} fontSize="8" textAnchor="end">{Math.round(rotation % 360)}°</SvgText>
         </Svg>
         <View style={[styles.markerLayer, { pointerEvents: 'box-none' }]}>
+          {locationPicker && visibleSelectedSearchPoint && globeScale > 0 && !reduceMotion ? (
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                width: 18,
+                height: 18,
+                borderWidth: 1.5,
+                borderColor: colors.primary,
+                borderRadius: 9,
+                left: globeOffsetX + visibleSelectedSearchPoint.x * globeScale - 9,
+                top: globeOffsetY + visibleSelectedSearchPoint.y * globeScale - 9,
+                opacity: markerPulse.interpolate({ inputRange: [1, 1.35], outputRange: [0.52, 0.08] }),
+                transform: [{ scale: markerPulse }],
+              }}
+            />
+          ) : null}
           {globeScale > 0 ? projectedCities.map(({ city, point }) => {
             const cityKey = city.city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
             const friendsNearby = friendCountsByCity.get(cityKey) ?? 0;
@@ -521,7 +609,7 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
           )) : null}
         </View>
         <View style={[styles.atmosphere, { pointerEvents: 'none', backgroundColor: colors.violet }]} />
-        <View style={[
+        {!locationPicker ? <View style={[
           styles.zoomControls,
           fullScreen && styles.fullScreenZoomControls,
           { backgroundColor: space.surface, borderColor: space.border },
@@ -537,9 +625,16 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
           <Pressable accessibilityRole="button" accessibilityLabel="Reset globe view" testID="explore-globe-reset" onPress={() => { resetView(); onResetCity(); }} style={[styles.zoomButton, fullScreen && styles.fullScreenZoomButton]}>
             <Feather name="rotate-ccw" size={14} color={space.muted} />
           </Pressable>
-        </View>
+        </View> : null}
       </View>
-      {!fullScreen ? (
+      {locationPicker ? (
+        <View style={styles.locationPickerCaption}>
+          <Feather name={selectedCity ? 'map-pin' : 'move'} size={13} color={selectedCity ? colors.primary : space.muted} />
+          <Text style={{ color: space.muted, fontSize: 11, fontFamily: 'Inter_500Medium' }}>
+            {selectedCity ? `Focused on ${selectedCity}` : 'Drag the globe to explore'}
+          </Text>
+        </View>
+      ) : !fullScreen ? (
         <>
           <View style={styles.globeFooter}>
             <View style={styles.legend}><View style={[styles.legendDot, { backgroundColor: colors.primary }]} /><Text style={[styles.legendCopy, { color: space.subdued }]}>Experiences happening</Text></View>
@@ -594,6 +689,9 @@ export const ExploreGlobe = React.forwardRef<ExploreGlobeHandle, Props>(function
 });
 
 const styles = StyleSheet.create({
+  locationPickerShell: { borderWidth: 1, borderRadius: 20, overflow: 'hidden', paddingHorizontal: 8, paddingTop: 3, paddingBottom: 9 },
+  locationPickerStage: { height: 206, position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  locationPickerCaption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 2 },
   fullScreenRoot: { flex: 1, position: 'relative' },
   fullScreenStage: { flex: 1, position: 'relative', alignItems: 'center', justifyContent: 'center', transform: [{ translateY: 70 }] },
   shell: { borderWidth: 1, borderRadius: 24, paddingHorizontal: 17, paddingTop: 18, paddingBottom: 14, marginBottom: 25, overflow: 'hidden' },

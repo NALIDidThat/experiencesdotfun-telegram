@@ -1,0 +1,160 @@
+# Implementation Task: Interactive 3D Globe for Experience Location Selection
+
+## Objective
+
+Upgrade the **“What city is it in?”** step in the Experiences.fun creation workflow by introducing an interactive, animated 3D globe that automatically rotates to and pinpoints a recognised location when the user enters a country or city.
+
+The experience should feel polished, playful and premium, consistent with the existing Experiences.fun brand.
+
+**This is an implementation task, not a design proposal. Inspect the existing codebase and implement the feature directly.**
+
+## 1. Audit the Existing Codebase First
+
+Before making changes:
+
+- Inspect the GitHub repository and locate the experience creation wizard.
+- Identify the component responsible for the location input and the current step indicator (e.g. 9/16).
+- Understand the existing form state, validation, navigation and data persistence.
+- Identify the existing UI framework, styling system and dependencies.
+- Check whether a globe, map, geocoding service or location autocomplete already exists.
+- Reuse existing components, conventions and dependencies wherever possible.
+
+Do not rebuild the entire creation flow or introduce unnecessary dependencies.
+
+## 2. Globe Design and Behaviour
+
+Create a reusable interactive globe component that appears beneath the location form.
+
+### Visual requirements
+
+- 3D globe with smooth rotation.
+- Experiences.fun brand colours:
+  - Primary pink: `#f20789`
+  - Purple: `#6805f2`
+  - Aqua: `#04adbf`
+- Soft lighting, subtle atmospheric glow and restrained visual effects.
+- A distinct pink location marker with a subtle pulsing animation.
+- Smooth camera transitions when a location is selected.
+- Responsive sizing for mobile screens.
+- Maintain the existing white background, clean typography, rounded input fields and pink primary CTA.
+- Keep the globe visually subordinate to the form so it does not compromise usability.
+
+Avoid excessive gradients, visual clutter, oversized illustrations or animations that make the interface feel slow.
+
+## 3. Location Recognition
+
+The current field asks for a city. Preserve that functionality while supporting recognised countries as well.
+
+Implement the following behaviour:
+
+**Country input**
+- Recognise country names, including common aliases where appropriate.
+- Resolve the country's approximate latitude and longitude.
+- Rotate the globe towards the country.
+- Highlight the country or place a marker at its approximate centre.
+- Show the selected country clearly.
+
+**City input**
+- Resolve the city to its actual geographic coordinates.
+- Rotate the globe towards the city.
+- Pinpoint the city with the animated marker.
+- Display the resolved city and country where appropriate.
+
+**Autocomplete**
+- Provide location suggestions when the user types.
+- Allow users to explicitly select a suggestion.
+- Prioritise accurate city-level results over ambiguous matches.
+- Handle cities with identical names in different countries.
+
+Do not rely solely on substring matching or a hardcoded list of popular cities.
+
+Use an existing location service if the repository already has one. Otherwise, choose a suitable geocoding solution compatible with the current stack. Handle API keys securely, respect service usage policies and avoid exposing secrets in frontend code.
+
+## 4. Animation Sequence
+
+When a location is recognised or selected:
+
+1. Validate and resolve the location.
+2. Stop or reduce the globe's idle rotation.
+3. Smoothly rotate the globe towards the target coordinates.
+4. Move the camera to an appropriate viewing angle and zoom level.
+5. Animate the location marker into position.
+6. Trigger a subtle pulse or ripple.
+7. Display a small confirmation label containing the selected location.
+
+Use easing and sensible animation durations. Avoid abrupt jumps, unnecessary rerenders or restarting the animation for every keystroke.
+
+The globe should rotate slowly when idle. If the input is cleared, remove the selection marker and return to the idle state.
+
+Do not automatically move the globe for every incomplete or invalid input. Debounce lookup requests and cancel or ignore stale responses when the user continues typing.
+
+## 5. Technical Implementation
+
+Evaluate whether `react-globe.gl`, `three.js` or another existing project dependency is the best fit. Prefer the smallest reliable implementation that supports the required interaction.
+
+Requirements:
+
+- Keep the globe isolated in a reusable component.
+- Separate location resolution from rendering and animation logic.
+- Use the resolved latitude and longitude as the source of truth.
+- Support loading, empty, invalid and failed-geocoding states.
+- Ensure selecting a location updates the existing creation form state.
+- Preserve the selected location when navigating backwards and forwards through the wizard.
+- Avoid duplicate network requests.
+- Clean up animation loops, event listeners and resources on unmount.
+- Prevent stale asynchronous responses from overwriting newer selections.
+- Respect `prefers-reduced-motion`.
+- Provide a lightweight fallback if WebGL is unavailable or the globe fails to load.
+- Avoid introducing large assets or dependencies without justification.
+
+The location must remain part of the existing experience creation data model. Do not store visual-only coordinates separately from the actual selected location.
+
+## 6. User Experience and Accessibility
+
+- Keep the existing progress indicator and back navigation intact.
+- Preserve the Continue button and current validation rules.
+- Ensure the location input remains the primary interaction.
+- Make autocomplete keyboard accessible.
+- Provide clear labels and accessible status announcements for resolved locations.
+- Ensure the layout works on narrow mobile screens without horizontal overflow.
+- Do not make the user wait for the globe animation before allowing valid form navigation.
+- If location recognition fails, let the user correct the input without losing progress.
+
+## 7. Performance Requirements
+
+- Lazy-load the globe where practical.
+- Avoid excessive frame rendering when the component is off-screen.
+- Optimise for modern mobile browsers and lower-powered devices.
+- Avoid unnecessary rerenders while the user types.
+- Use a sensible device pixel ratio and animation frame rate.
+- Keep the form functional even if the globe is unavailable.
+
+## 8. Acceptance Criteria
+
+The implementation is complete only when:
+
+1. The existing location step renders correctly.
+2. The globe rotates gently while idle.
+3. Entering and selecting “United Kingdom” rotates the globe towards the UK.
+4. Entering and selecting “Somalia” rotates the globe towards Somalia.
+5. Entering and selecting “London” pinpoints London rather than the UK's centre.
+6. Changing the location smoothly updates the globe and marker.
+7. Clearing the input resets the selected location state.
+8. Invalid input does not trigger arbitrary globe movement.
+9. Slow or out-of-order geocoding responses cannot override a newer selection.
+10. The existing wizard navigation, validation and persistence continue to work.
+11. The experience remains usable on mobile and when WebGL is unavailable.
+12. Existing tests pass, and appropriate tests are added for location resolution and state changes.
+
+## 9. Final Deliverables
+
+After implementation:
+
+- Summarise the files created and modified.
+- Explain the chosen globe and geocoding technologies.
+- Document any required environment variables.
+- Report which tests and build checks were run.
+- Identify any remaining limitations or external service dependencies.
+- Provide screenshots or a brief demonstration of the completed location step if supported by the development environment.
+
+**Important:** Inspect the repository before coding. Follow the existing architecture, implement the complete feature, test it, and fix any regressions introduced by your changes. Do not stop after producing a plan or mockup.

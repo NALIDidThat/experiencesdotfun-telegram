@@ -122,6 +122,7 @@ import { ExploreGlobe, type GlobeCity, type GlobeExperienceLocation, type GlobeF
 import ExploreMap from '@/components/ExploreMap';
 import type { ExploreMapHandle } from '@/components/ExploreMap.types';
 import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
+import { ExperienceLocationPicker, type ResolvedLocation } from '@/components/ExperienceLocationPicker';
 import { TimeWheelPicker } from '@/components/TimeWheelPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
@@ -6539,6 +6540,7 @@ function CreateExperienceForm({
     whatToBring: initialExperience?.whatToBring ?? null,
     whatYouWillDo: initialExperience?.whatYouWillDo ?? null,
   });
+  const [resolvedExperienceLocation, setResolvedExperienceLocation] = useState<ResolvedLocation | null>(null);
   const [milestoneDrafts, setMilestoneDrafts] = useState<MilestoneDraft[]>(() => initialMilestones.length
     ? initialMilestones.map((milestone) => ({
         title: milestone.title,
@@ -7023,6 +7025,16 @@ function CreateExperienceForm({
                       <DateSliderPicker
                         value={form.date ?? ''}
                         onChange={(value) => set('date', value)}
+                      />
+                    </View>
+                  ) : activeQuestion.key === 'city' ? (
+                    <View style={styles.createField}>
+                      <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>CITY</Text>
+                      <ExperienceLocationPicker
+                        value={String(form.city ?? '')}
+                        selectedLocation={resolvedExperienceLocation}
+                        onChange={(value) => set('city', value)}
+                        onSelectLocation={setResolvedExperienceLocation}
                       />
                     </View>
                   ) : activeQuestion.key === 'startTime' || activeQuestion.key === 'endTime' ? (
