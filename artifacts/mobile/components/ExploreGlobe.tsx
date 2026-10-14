@@ -236,7 +236,7 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
     if (reduceMotion) {
       setRotation(-longitude);
       setTilt(Math.max(-0.55, Math.min(0.55, -(latitude * Math.PI) / 180)));
-      setZoom(1.12);
+      setZoom(1.05);
       return;
     }
     const startRotation = currentRotation.current;
@@ -251,7 +251,7 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
       const eased = 1 - (1 - progress) ** 3;
       setRotation(startRotation + rotationDelta * eased);
       setTilt(startTilt + (targetTilt - startTilt) * eased);
-      setZoom(1.12);
+      setZoom(1.05);
       if (progress < 1) frame = requestAnimationFrame(animate);
     };
     frame = requestAnimationFrame(animate);
@@ -283,7 +283,7 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
     });
     return counts;
   }, [friends]);
-  const radius = (fullScreen ? FULLSCREEN_RADIUS : BASE_RADIUS) * zoom;
+  const radius = (locationPicker ? 154 : fullScreen ? FULLSCREEN_RADIUS : BASE_RADIUS) * zoom;
   const projectedCities = useMemo(
     () => cities
       .map((city) => ({ city, point: project(city.latitude, city.longitude, rotation, tilt, radius) }))
@@ -339,7 +339,7 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
     <View
       testID={locationPicker ? 'create-location-globe' : fullScreen ? 'explore-globe-map' : 'explore-globe-card'}
       style={locationPicker
-        ? [styles.locationPickerShell, { backgroundColor: space.background, borderColor: space.border }]
+        ? styles.locationPickerShell
         : fullScreen
         ? [styles.fullScreenRoot, { backgroundColor: space.background }]
         : [styles.shell, { backgroundColor: space.background, borderColor: space.border }]}
@@ -608,7 +608,11 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
             </Pressable>
           )) : null}
         </View>
-        <View style={[styles.atmosphere, { pointerEvents: 'none', backgroundColor: colors.violet }]} />
+        <View style={[
+          styles.atmosphere,
+          locationPicker && styles.locationPickerAtmosphere,
+          { pointerEvents: 'none', backgroundColor: colors.violet },
+        ]} />
         {!locationPicker ? <View style={[
           styles.zoomControls,
           fullScreen && styles.fullScreenZoomControls,
@@ -689,9 +693,10 @@ export const ExploreGlobe = React.forwardRef<ExploreGlobeHandle, Props>(function
 });
 
 const styles = StyleSheet.create({
-  locationPickerShell: { borderWidth: 1, borderRadius: 20, overflow: 'hidden', paddingHorizontal: 8, paddingTop: 3, paddingBottom: 9 },
-  locationPickerStage: { height: 206, position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  locationPickerCaption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 2 },
+  locationPickerShell: { width: '100%', borderWidth: 0, borderRadius: 0, overflow: 'visible', padding: 0, marginTop: -8, marginBottom: 0 },
+  locationPickerStage: { width: '100%', height: 326, position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  locationPickerAtmosphere: { width: '100%', height: 84, bottom: 32, opacity: 0.08 },
+  locationPickerCaption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 0, minHeight: 20 },
   fullScreenRoot: { flex: 1, position: 'relative' },
   fullScreenStage: { flex: 1, position: 'relative', alignItems: 'center', justifyContent: 'center', transform: [{ translateY: 70 }] },
   shell: { borderWidth: 1, borderRadius: 24, paddingHorizontal: 17, paddingTop: 18, paddingBottom: 14, marginBottom: 25, overflow: 'hidden' },
