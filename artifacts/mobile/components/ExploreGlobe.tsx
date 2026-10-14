@@ -4,6 +4,7 @@ import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, Path, RadialGradient, St
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { UserAvatar } from '@/components/UserAvatar';
+import naturalEarthLand from '@/assets/ne_110m_land.json';
 
 export type GlobeCity = {
   city: string;
@@ -71,16 +72,25 @@ const CENTER_X = WIDTH / 2;
 const CENTER_Y = 151;
 const BASE_RADIUS = 119;
 const FULLSCREEN_RADIUS = 140;
-const LAND_SHAPES: Array<Array<[number, number]>> = [
-  [[-168, 68], [-151, 60], [-141, 54], [-132, 49], [-126, 43], [-124, 35], [-117, 32], [-111, 25], [-105, 23], [-99, 18], [-92, 19], [-86, 12], [-81, 9], [-78, 1], [-82, -5], [-89, 8], [-97, 14], [-105, 16], [-112, 27], [-120, 34], [-127, 42], [-137, 51], [-151, 57], [-163, 62]],
-  [[-80, 12], [-74, 9], [-69, 10], [-64, 5], [-58, 4], [-51, -1], [-47, -9], [-49, -17], [-54, -23], [-58, -32], [-65, -42], [-69, -53], [-74, -48], [-77, -37], [-79, -24], [-80, -10]],
-  [[-11, 71], [-5, 67], [4, 61], [10, 58], [17, 55], [24, 56], [29, 52], [34, 47], [40, 44], [43, 37], [37, 33], [34, 28], [31, 23], [25, 20], [24, 13], [18, 8], [10, 4], [2, 6], [-5, 12], [-10, 20], [-17, 25], [-9, 35], [-13, 43], [-21, 52], [-16, 60], [-25, 65]],
-  [[-10, 36], [-3, 37], [3, 35], [7, 32], [10, 30], [13, 32], [17, 29], [20, 32], [24, 31], [28, 34], [33, 34], [36, 31], [40, 34], [45, 39], [49, 43], [47, 48], [42, 51], [35, 54], [28, 58], [20, 62], [11, 64], [4, 58], [-4, 56], [-8, 49], [-5, 44]],
-  [[35, 68], [43, 65], [51, 68], [61, 67], [69, 63], [79, 61], [88, 57], [98, 55], [108, 52], [118, 50], [127, 53], [137, 54], [148, 60], [158, 58], [169, 53], [177, 47], [169, 39], [159, 36], [151, 30], [143, 24], [135, 18], [127, 11], [120, 5], [113, 1], [107, -5], [101, 3], [94, 8], [85, 17], [78, 20], [69, 26], [61, 28], [56, 34], [50, 39], [45, 43], [42, 49], [38, 55]],
-  [[112, -10], [117, -8], [122, -11], [129, -12], [135, -17], [142, -19], [151, -25], [149, -33], [144, -39], [137, -42], [130, -45], [123, -42], [118, -35], [114, -26]],
-  [[-52, 82], [-42, 78], [-32, 76], [-22, 78], [-11, 76], [-2, 79], [8, 77], [18, 74], [25, 70], [20, 65], [12, 62], [4, 59], [-7, 59], [-18, 62], [-29, 61], [-39, 66], [-48, 72]],
-  [[-8, 58], [-5, 56], [-3, 54], [0, 53], [2, 55], [1, 58], [-2, 60]],
-];
+type LandGeometry =
+  | { type: 'Polygon'; coordinates: Array<Array<[number, number]>> }
+  | { type: 'MultiPolygon'; coordinates: Array<Array<Array<[number, number]>>> };
+// Bundled Natural Earth 1:110m public-domain land geometry keeps the globe detailed and offline.
+const LAND_POLYGONS: Array<Array<[number, number]>> = (
+  naturalEarthLand as unknown as { features: Array<{ geometry: LandGeometry }> }
+).features.flatMap(({ geometry }) => (
+  geometry.type === 'Polygon' ? geometry.coordinates : geometry.coordinates.flat()
+));
+const EARTH_PALETTE = {
+  oceanLight: '#438fa9',
+  oceanMid: '#126182',
+  oceanDeep: '#071f3d',
+  landGreen: '#7b9c62',
+  landWarm: '#b6a477',
+  landHigh: '#ded4b5',
+  coast: '#d8e8d0',
+  atmosphere: '#8ed4ef',
+};
 
 const CITY_LIGHTS: Array<[number, number, number]> = [
   [-74, 41, 1.5], [-0.1, 51.5, 1.4], [2.35, 48.86, 1.5], [13.4, 52.5, 1.1],
@@ -408,34 +418,50 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
         <Svg width="100%" height="100%" viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
           <Defs>
             <RadialGradient id="planet" cx="35%" cy="31%" rx="76%" ry="76%">
-              <Stop offset="0" stopColor={colors.muted} />
-              <Stop offset="0.68" stopColor={space.background} />
-              <Stop offset="0.9" stopColor={space.background} />
-              <Stop offset="1" stopColor={colors.violet} stopOpacity="0.18" />
+              <Stop offset="0" stopColor={locationPicker ? EARTH_PALETTE.oceanLight : colors.muted} />
+              <Stop offset="0.42" stopColor={locationPicker ? EARTH_PALETTE.oceanMid : space.background} />
+              <Stop offset="0.82" stopColor={locationPicker ? EARTH_PALETTE.oceanDeep : space.background} />
+              <Stop offset="1" stopColor={locationPicker ? EARTH_PALETTE.oceanDeep : colors.violet} stopOpacity={locationPicker ? 1 : 0.18} />
             </RadialGradient>
             <RadialGradient id="land" cx="40%" cy="30%" rx="80%" ry="82%">
-              <Stop offset="0" stopColor={colors.accent} stopOpacity="0.24" />
-              <Stop offset="0.62" stopColor={colors.muted} stopOpacity="0.9" />
-              <Stop offset="1" stopColor={space.background} stopOpacity="0.96" />
+              <Stop offset="0" stopColor={locationPicker ? EARTH_PALETTE.landGreen : colors.accent} stopOpacity={locationPicker ? 0.98 : 0.24} />
+              <Stop offset="0.62" stopColor={locationPicker ? EARTH_PALETTE.landWarm : colors.muted} stopOpacity="0.9" />
+              <Stop offset="1" stopColor={locationPicker ? EARTH_PALETTE.landHigh : space.background} stopOpacity={locationPicker ? 0.9 : 0.96} />
             </RadialGradient>
             <ClipPath id="globeClip"><Circle cx={CENTER_X} cy={CENTER_Y} r={radius} /></ClipPath>
           </Defs>
-          {STAR_FIELD.map(([x, y, size], index) => (
+          {!locationPicker ? STAR_FIELD.map(([x, y, size], index) => (
             <Circle key={`star-${index}`} cx={x} cy={y} r={size} fill={index % 4 === 0 ? colors.primary : colors.accent} fillOpacity={index % 3 === 0 ? 0.45 : 0.25} />
-          ))}
-          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 17} fill="none" stroke={colors.violet} strokeOpacity="0.13" strokeWidth="0.8" />
-          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 10} fill="none" stroke={colors.primary} strokeOpacity="0.22" strokeWidth="1.2" />
-          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 5} fill="none" stroke={colors.teal} strokeOpacity="0.18" strokeWidth="0.8" />
-          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius} fill="url(#planet)" stroke={colors.primary} strokeOpacity="0.68" strokeWidth="1.2" />
+          )) : null}
+          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 17} fill="none" stroke={locationPicker ? EARTH_PALETTE.atmosphere : colors.violet} strokeOpacity={locationPicker ? 0.12 : 0.13} strokeWidth="0.8" />
+          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 10} fill="none" stroke={locationPicker ? EARTH_PALETTE.atmosphere : colors.primary} strokeOpacity={locationPicker ? 0.23 : 0.22} strokeWidth="1.2" />
+          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 5} fill="none" stroke={locationPicker ? EARTH_PALETTE.atmosphere : colors.teal} strokeOpacity={locationPicker ? 0.14 : 0.18} strokeWidth="0.8" />
+          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius} fill="url(#planet)" stroke={locationPicker ? EARTH_PALETTE.atmosphere : colors.primary} strokeOpacity={locationPicker ? 0.58 : 0.68} strokeWidth="1.2" />
           <G clipPath="url(#globeClip)">
-            <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius * 0.42} ry={radius} fill="none" stroke={colors.accent} strokeOpacity="0.2" strokeWidth="0.65" />
-            <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius * 0.76} ry={radius} fill="none" stroke={colors.accent} strokeOpacity="0.16" strokeWidth="0.65" />
-            <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius} ry={radius * 0.36} fill="none" stroke={colors.accent} strokeOpacity="0.18" strokeWidth="0.65" />
-            <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius} ry={radius * 0.68} fill="none" stroke={colors.accent} strokeOpacity="0.14" strokeWidth="0.65" />
-            {LAND_SHAPES.map((points, index) => (
-              <Path key={index} d={polygonPath(points, rotation, tilt, radius)} fill="url(#land)" fillOpacity="0.86" stroke={colors.accent} strokeOpacity="0.52" strokeWidth="0.95" strokeLinejoin="round" />
-            ))}
-            {CITY_LIGHTS.map(([longitude, latitude, size], index) => {
+            {!locationPicker ? (
+              <>
+                <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius * 0.42} ry={radius} fill="none" stroke={colors.accent} strokeOpacity="0.2" strokeWidth="0.65" />
+                <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius * 0.76} ry={radius} fill="none" stroke={colors.accent} strokeOpacity="0.16" strokeWidth="0.65" />
+                <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius} ry={radius * 0.36} fill="none" stroke={colors.accent} strokeOpacity="0.18" strokeWidth="0.65" />
+                <Ellipse cx={CENTER_X} cy={CENTER_Y} rx={radius} ry={radius * 0.68} fill="none" stroke={colors.accent} strokeOpacity="0.14" strokeWidth="0.65" />
+              </>
+            ) : null}
+            {LAND_POLYGONS.map((points, index) => {
+              const path = polygonPath(points, rotation, tilt, radius);
+              return path ? (
+                <Path
+                  key={`land-${index}`}
+                  d={path}
+                  fill="url(#land)"
+                  fillOpacity={locationPicker ? 0.96 : 0.86}
+                  stroke={locationPicker ? EARTH_PALETTE.coast : colors.accent}
+                  strokeOpacity={locationPicker ? 0.36 : 0.52}
+                  strokeWidth={locationPicker ? 0.48 : 0.95}
+                  strokeLinejoin="round"
+                />
+              ) : null;
+            })}
+            {!locationPicker ? CITY_LIGHTS.map(([longitude, latitude, size], index) => {
               const point = project(latitude, longitude, rotation, tilt, radius);
               return point.z > 0.02 ? (
                 <G key={`light-${index}`}>
@@ -443,7 +469,7 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
                   <Circle cx={point.x} cy={point.y} r={size} fill={space.foreground} fillOpacity="0.88" />
                 </G>
               ) : null;
-            })}
+            }) : null}
             {projectedCities.map(({ city, point }) => {
               const active = selectedCity === city.city;
               const cityKey = city.city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
