@@ -974,9 +974,9 @@ test("publishing an experience opens its host-management detail screen", async (
   await continueTo("What day will it happen?");
   await tapTestId(client, "create-date-use-selected");
   await continueTo("What time does it start?");
-  await replaceInput(client, "create-field-startTime", "10:00");
+  await tapTestId(client, "create-field-startTime-hour-value-10");
   await continueTo("When will it finish?");
-  await replaceInput(client, "create-field-endTime", "12:00");
+  await tapTestId(client, "create-field-endTime-hour-value-12");
   await continueTo("What city is it in?");
   await continueTo("Where will everyone meet?");
   await replaceInput(client, "create-field-location", "Community Garden");

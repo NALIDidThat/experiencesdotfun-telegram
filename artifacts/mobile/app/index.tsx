@@ -122,6 +122,7 @@ import { ExploreGlobe, type GlobeCity, type GlobeExperienceLocation, type GlobeF
 import ExploreMap from '@/components/ExploreMap';
 import type { ExploreMapHandle } from '@/components/ExploreMap.types';
 import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
+import { TimeWheelPicker } from '@/components/TimeWheelPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
@@ -7022,6 +7023,22 @@ function CreateExperienceForm({
                       <DateSliderPicker
                         value={form.date ?? ''}
                         onChange={(value) => set('date', value)}
+                      />
+                    </View>
+                  ) : activeQuestion.key === 'startTime' || activeQuestion.key === 'endTime' ? (
+                    <View style={styles.createField}>
+                      <Text style={[styles.createFieldLabel, { color: colors.mutedForeground }]}>
+                        {activeQuestion.label.toUpperCase()}
+                      </Text>
+                      <TimeWheelPicker
+                        label={activeQuestion.label}
+                        value={String(form[activeQuestion.key] ?? '')}
+                        placeholder={activeQuestion.placeholder}
+                        testID={`create-field-${activeQuestion.key}`}
+                        onChange={(value) => set(
+                          activeQuestion.key as Exclude<keyof ExperienceCreateInput, 'milestones'>,
+                          value,
+                        )}
                       />
                     </View>
                   ) : field(activeQuestion.key as Exclude<keyof ExperienceCreateInput, 'milestones'>, activeQuestion.label, activeQuestion.placeholder, activeQuestion.multiline, activeQuestion.keyboardType)}

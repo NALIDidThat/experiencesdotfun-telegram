@@ -51,12 +51,14 @@ const WHEEL_ROW_HEIGHT = 40;
 const WHEEL_HEIGHT = 164;
 const WHEEL_VERTICAL_PADDING = (WHEEL_HEIGHT - WHEEL_ROW_HEIGHT) / 2;
 
-function DatePartWheel({
+export function GlassWheelColumn({
   label,
   value,
   min,
   max,
   values,
+  testID,
+  onItemPress,
   onChange,
 }: {
   label: string;
@@ -64,6 +66,8 @@ function DatePartWheel({
   min: number;
   max: number;
   values?: string[];
+  testID?: string;
+  onItemPress?: (value: number) => void;
   onChange: (value: number) => void;
 }) {
   const colors = useColors();
@@ -161,7 +165,7 @@ function DatePartWheel({
           showsVerticalScrollIndicator={false}
           snapToAlignment="start"
           snapToInterval={WHEEL_ROW_HEIGHT}
-          testID={`date-wheel-${label.toLowerCase()}`}
+          testID={testID ?? `date-wheel-${label.toLowerCase()}`}
         >
           {Array.from({ length: max - min + 1 }, (_, index) => {
             const itemValue = min + index;
@@ -170,7 +174,11 @@ function DatePartWheel({
               <Pressable
                 key={itemValue}
                 accessibilityRole="button"
-                onPress={() => scrollToValue(itemValue)}
+                onPress={() => {
+                  onItemPress?.(itemValue);
+                  scrollToValue(itemValue);
+                }}
+                testID={testID ? `${testID}-value-${itemValue}` : undefined}
                 style={{ alignItems: 'center', height: WHEEL_ROW_HEIGHT, justifyContent: 'center' }}
               >
                 <Text
@@ -276,14 +284,14 @@ export function DateSliderPicker({
         <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: '700' }}>{parts.day} {monthName} {parts.year}</Text>
       </View>
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        <DatePartWheel
+        <GlassWheelColumn
           label="Day"
           min={1}
           max={maxDay}
           value={parts.day}
           onChange={(next) => setPart('day', next)}
         />
-        <DatePartWheel
+        <GlassWheelColumn
           label="Month"
           min={1}
           max={12}
@@ -291,7 +299,7 @@ export function DateSliderPicker({
           values={['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']}
           onChange={(next) => setPart('month', next)}
         />
-        <DatePartWheel
+        <GlassWheelColumn
           label="Year"
           min={minYear}
           max={maxYear}
