@@ -77,13 +77,11 @@ export function OrganisationActivityDashboard({
   return (
     <View testID="organisation-activity-dashboard" style={styles.dashboard}>
       <View style={styles.heading}>
-        <View style={[styles.headingIcon, { backgroundColor: colors.primary + '12' }]}>
-          <Feather name="activity" size={17} color={colors.primary} />
-        </View>
         <View style={styles.headingCopy}>
+          <Text style={[styles.eyebrow, { color: colors.primary }]}>YOUR WORK IN MOTION</Text>
           <Text style={[styles.title, { color: colors.foreground }]}>Organisation activity</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Impact from the experiences your organisation runs.
+            Participation and experiences hosted by your organisation.
           </Text>
         </View>
       </View>
@@ -96,7 +94,7 @@ export function OrganisationActivityDashboard({
         onPress={() => router.push('/organisation-verification' as never)}
         style={({ pressed }) => [
           styles.verificationCard,
-          { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.76 : 1 },
+          { backgroundColor: colors.primary + '08', borderColor: colors.primary + '30', borderRadius: colors.radius, opacity: pressed ? 0.76 : 1 },
         ]}
       >
         <View style={[styles.verificationIcon, { backgroundColor: colors.primary + '12' }]}>
@@ -111,14 +109,18 @@ export function OrganisationActivityDashboard({
         <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
       </Pressable>
 
-      <View style={styles.statsGrid}>
-        {stats.map((stat) => (
+      <View style={[styles.statsGrid, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+        {stats.map((stat, index) => (
           <View
             key={stat.key}
             testID={`organisation-activity-stat-${stat.key}`}
             style={[
               styles.statCard,
-              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+              {
+                borderColor: colors.border,
+                borderRightWidth: index % 2 === 0 ? StyleSheet.hairlineWidth : 0,
+                borderBottomWidth: index < 2 ? StyleSheet.hairlineWidth : 0,
+              },
             ]}
           >
             <View style={styles.statTop}>
@@ -154,7 +156,7 @@ export function OrganisationActivityDashboard({
           <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading hosted experiences…</Text>
         </View>
       ) : recentExperiences.length ? (
-        <View style={styles.recentList}>
+        <View>
           {recentExperiences.map((experience) => {
             const statusColor = experience.status === 'completed'
               ? colors.success
@@ -173,9 +175,7 @@ export function OrganisationActivityDashboard({
                 style={({ pressed }) => [
                   styles.experienceCard,
                   {
-                    backgroundColor: colors.card,
                     borderColor: colors.border,
-                    borderRadius: colors.radius,
                     opacity: pressed ? 0.74 : 1,
                   },
                 ]}
@@ -235,38 +235,37 @@ export function OrganisationActivityDashboard({
 }
 
 const styles = StyleSheet.create({
-  dashboard: { gap: 13, marginBottom: 22 },
-  heading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headingIcon: { width: 37, height: 37, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  headingCopy: { flex: 1, gap: 2 },
-  verificationCard: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, paddingHorizontal: 12 },
-  verificationIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  verificationTitle: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  verificationSubtitle: { fontSize: 10, textTransform: 'capitalize', fontFamily: 'Inter_400Regular' },
-  title: { fontSize: 18, lineHeight: 24, fontFamily: 'Inter_700Bold' },
-  subtitle: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  statCard: { width: '48.5%', minHeight: 76, borderWidth: 1, padding: 11, justifyContent: 'space-between' },
+  dashboard: { gap: 16, marginTop: 4, marginBottom: 24 },
+  heading: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 2 },
+  headingCopy: { flex: 1, gap: 3 },
+  eyebrow: { fontSize: 9, lineHeight: 13, letterSpacing: 1.15, fontFamily: 'Inter_700Bold' },
+  verificationCard: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, paddingHorizontal: 13 },
+  verificationIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  verificationTitle: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_700Bold' },
+  verificationSubtitle: { fontSize: 11, lineHeight: 15, textTransform: 'capitalize', fontFamily: 'Inter_400Regular' },
+  title: { fontSize: 21, lineHeight: 27, letterSpacing: -0.45, fontFamily: 'Inter_700Bold' },
+  subtitle: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', borderWidth: 1, overflow: 'hidden' },
+  statCard: { width: '50%', minHeight: 82, borderWidth: 0, paddingHorizontal: 13, paddingVertical: 11, justifyContent: 'space-between' },
   statTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  statIcon: { width: 27, height: 27, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  statValue: { fontSize: 20, lineHeight: 24, fontFamily: 'Inter_700Bold' },
-  statLabel: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  statIcon: { width: 28, height: 28, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  statValue: { fontSize: 22, lineHeight: 27, fontFamily: 'Inter_700Bold' },
+  statLabel: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   retryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 4 },
   retryMessage: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium' },
   retryButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8 },
   retryText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
-  recentHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
-  recentTitle: { fontSize: 15, lineHeight: 20, fontFamily: 'Inter_700Bold' },
-  recentSubtitle: { fontSize: 10, lineHeight: 15, fontFamily: 'Inter_400Regular', marginTop: 2 },
-  recentList: { gap: 8 },
-  experienceCard: { minHeight: 83, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, padding: 11, overflow: 'hidden' },
-  experienceIcon: { width: 35, height: 35, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  recentHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 },
+  recentTitle: { fontSize: 17, lineHeight: 22, fontFamily: 'Inter_700Bold' },
+  recentSubtitle: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  experienceCard: { minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 9, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 12, paddingHorizontal: 2, overflow: 'hidden' },
+  experienceIcon: { width: 37, height: 37, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   experienceCopy: { flex: 1, minWidth: 0, gap: 2 },
-  experienceTitle: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_700Bold' },
-  experienceMeta: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_500Medium' },
-  experienceEngagement: { fontSize: 9, lineHeight: 13, fontFamily: 'Inter_400Regular' },
-  statusPill: { maxWidth: 75, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 4 },
-  statusText: { fontSize: 8, fontFamily: 'Inter_700Bold' },
+  experienceTitle: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_700Bold' },
+  experienceMeta: { fontSize: 11, lineHeight: 15, fontFamily: 'Inter_500Medium' },
+  experienceEngagement: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
+  statusPill: { maxWidth: 88, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 5 },
+  statusText: { fontSize: 9, fontFamily: 'Inter_700Bold' },
   loadingCard: { minHeight: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderWidth: 1, borderRadius: 14 },
   loadingText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   emptyCard: { alignItems: 'center', borderWidth: 1, padding: 17, gap: 8 },

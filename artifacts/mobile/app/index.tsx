@@ -3582,12 +3582,14 @@ function SocialProfileHeader({
   onMetricPress,
   isEditing,
   onEditPress,
+  onOrganisationToolsPress,
 }: {
   user: SocialProfileUser;
   friendsCount: number;
   onMetricPress?: (metric: ProfileMetricKey) => void;
   isEditing?: boolean;
   onEditPress?: () => void;
+  onOrganisationToolsPress?: () => void;
 }) {
   const colors = useColors();
   const interests = user.interests?.map((interest) => categoryLabel[interest]).join(' · ');
@@ -3607,7 +3609,7 @@ function SocialProfileHeader({
   });
 
   return (
-    <View style={styles.profileFeatureCard}>
+    <View style={[styles.profileFeatureCard, user.userType === 'organisation' && styles.organisationProfileFeatureCard]}>
       <View style={[styles.profileIdentityCard, { backgroundColor: colors.primary, borderRadius: colors.radius + 4 }]}>
         <View style={[styles.profileAvatarRing, { backgroundColor: colors.primaryForeground, borderColor: colors.primary + '75' }]}>
           <UserAvatar
@@ -3619,8 +3621,10 @@ function SocialProfileHeader({
         </View>
         <View style={styles.profileIdentity}>
           <View style={styles.profileNameRow}>
-            <Text numberOfLines={1} style={[styles.profileName, { color: colors.primaryForeground }]}>{user.name}</Text>
-            <Feather name="check-circle" size={16} color={colors.primaryForeground} />
+            <Text numberOfLines={user.userType === 'organisation' ? 2 : 1} style={[styles.profileName, { color: colors.primaryForeground }]}>{user.name}</Text>
+            {user.userType === 'participant' || user.organisation?.verified ? (
+              <Feather name="check-circle" size={16} color={colors.primaryForeground} />
+            ) : null}
           </View>
           <Text numberOfLines={1} style={[styles.profileHandle, { color: colors.primaryForeground }]}>
             {user.username ? `@${user.username}` : 'Telegram member'}
@@ -3765,14 +3769,62 @@ function SocialProfileHeader({
       </>
       ) : null}
 
-      {user.bio ? (
+      {user.userType === 'participant' && user.bio ? (
         <View style={[styles.profileBioTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <Text style={[styles.profileTileOverline, { color: colors.mutedForeground }]}>ABOUT</Text>
           <Text style={[styles.profileBio, { color: colors.foreground }]}>{user.bio}</Text>
         </View>
       ) : null}
 
-      {(user.city || interests) ? (
+      {user.userType === 'organisation' ? (
+        <View
+          testID="organisation-profile-mission"
+          style={[
+            styles.organisationMission,
+            { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+          ]}
+        >
+          <View style={[styles.organisationMissionAccent, { backgroundColor: colors.primary }]} />
+          <View style={styles.organisationMissionContent}>
+            <Text style={[styles.profileTileOverline, { color: colors.primary }]}>OUR MISSION</Text>
+            <Text style={[styles.organisationMissionText, { color: colors.foreground }]}>
+              {user.organisation?.description || 'Add a short introduction so participants can understand the work you do.'}
+            </Text>
+            <View style={styles.organisationMetaRow}>
+              <View style={[styles.organisationMetaItem, { backgroundColor: colors.muted }]}>
+                <Feather name="map-pin" size={13} color={colors.primary} />
+                <Text numberOfLines={2} style={[styles.organisationMetaText, { color: colors.foreground }]}>
+                  {user.organisation?.city || user.city || 'Location not set'}
+                </Text>
+              </View>
+              {interests ? (
+                <View style={[styles.organisationMetaItem, { backgroundColor: colors.muted }]}>
+                  <Feather name="heart" size={13} color={colors.primary} />
+                  <Text numberOfLines={2} style={[styles.organisationMetaText, { color: colors.foreground }]}>{interests}</Text>
+                </View>
+              ) : null}
+            </View>
+            {onOrganisationToolsPress ? (
+              <Pressable
+                testID="organisation-tools-open"
+                accessibilityRole="button"
+                accessibilityLabel="Open organisation tools"
+                accessibilityHint="Manage hosted experiences for your organisation."
+                onPress={() => { triggerHaptic(); onOrganisationToolsPress(); }}
+                style={({ pressed }) => [
+                  styles.organisationToolsLink,
+                  { borderColor: colors.border, opacity: pressed ? 0.68 : 1 },
+                ]}
+              >
+                <Feather name="briefcase" size={14} color={colors.primary} />
+                <Text style={[styles.organisationToolsText, { color: colors.foreground }]}>Open organisation tools</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+
+      {user.userType === 'participant' && (user.city || interests) ? (
         <View style={styles.profileBentoRow}>
           {user.city ? (
             <View style={[styles.profileDetailTile, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
@@ -5367,6 +5419,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         friendsCount={friends.data?.length ?? 0}
         isEditing={editing}
         onEditPress={toggleProfileEditor}
+        onOrganisationToolsPress={current.userType === 'organisation' ? openHostTools : undefined}
         onMetricPress={(metric) => {
           if (metric === 'friends') {
             go('friends');
@@ -5416,24 +5469,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
             onOpenExperience={(id) => go('host-detail', { id: String(id) })}
             onCreateExperience={() => go('create')}
           />
-          <View style={[styles.editPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>About your organisation</Text>
-            <Text
-              style={[
-                styles.mutedParagraph,
-                { color: colors.mutedForeground, marginTop: 0, marginBottom: 0, lineHeight: 21 },
-              ]}
-            >
-              {current.organisation?.description ?? 'Complete your organisation details to introduce your work to participants.'}
-            </Text>
-            <View style={styles.organisationLocation}>
-              <Feather name="map-pin" size={14} color={colors.mutedForeground} />
-              <Text numberOfLines={1} style={[styles.organisationLocationText, { color: colors.mutedForeground }]}>
-                {current.organisation?.city ?? current.city ?? 'Location not set'}
-              </Text>
-            </View>
-            <Button label="Open organisation tools" icon="briefcase" onPress={() => go('host')} />
-          </View>
         </>
       )}
 
@@ -8939,6 +8974,7 @@ const styles = StyleSheet.create({
   contributionLegendCell: { width: 11, height: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 2 },
 
   profileFeatureCard: { gap: 10, marginBottom: 28 },
+  organisationProfileFeatureCard: { gap: 12, marginBottom: 10 },
   friendProfileLoading: { minHeight: 260, alignItems: 'center', justifyContent: 'center', gap: 12 },
   profileIdentityCard: { flexDirection: 'row', alignItems: 'center', gap: 13, padding: 16, minHeight: 132, overflow: 'hidden' },
   profileAvatarRing: { width: 68, height: 68, borderRadius: 34, borderWidth: 2, alignItems: 'center', justifyContent: 'center', padding: 3 },
@@ -8977,6 +9013,15 @@ const styles = StyleSheet.create({
   profileDetailTile: { flex: 1, minWidth: 0, minHeight: 112, justifyContent: 'space-between', alignItems: 'flex-start', gap: 7, padding: 12, borderWidth: 1 },
   profileBio: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_500Medium' },
   profileDetailText: { alignSelf: 'stretch', fontSize: 12, lineHeight: 16, fontFamily: 'Inter_600SemiBold' },
+  organisationMission: { flexDirection: 'row', borderWidth: 1, overflow: 'hidden' },
+  organisationMissionAccent: { width: 4 },
+  organisationMissionContent: { flex: 1, minWidth: 0, padding: 14, gap: 9 },
+  organisationMissionText: { fontSize: 14, lineHeight: 21, fontFamily: 'Inter_500Medium' },
+  organisationMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  organisationMetaItem: { flexGrow: 1, flexBasis: '46%', minWidth: 105, minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 11 },
+  organisationMetaText: { flex: 1, minWidth: 0, fontSize: 11, lineHeight: 15, fontFamily: 'Inter_600SemiBold' },
+  organisationToolsLink: { alignSelf: 'flex-start', minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, marginTop: 2 },
+  organisationToolsText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   profileMetricOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(16,16,22,0.48)' },
   profileMetricSheet: { height: '84%', maxHeight: '90%', paddingTop: 12, paddingHorizontal: 20, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
   profileMetricHandle: { width: 38, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
