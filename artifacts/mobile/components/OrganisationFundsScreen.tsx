@@ -203,6 +203,8 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
   const [stage, setStage] = useState<"dashboard" | "create" | "success" | "detail">("dashboard");
   const [createdFund, setCreatedFund] = useState<OrganisationFund | null>(null);
   const [selectedFund, setSelectedFund] = useState<OrganisationFund | null>(null);
+  const [detailDonationAmount, setDetailDonationAmount] = useState("");
+  const [detailDonationError, setDetailDonationError] = useState<string | null>(null);
   const treasuryQuery = useGetOrganisationTreasury({ limit: 20, before }, {
     query: {
       queryKey: getGetOrganisationTreasuryQueryKey({ limit: 20, before }),
@@ -323,31 +325,219 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
   }
 
   if (stage === "detail" && selectedFund) {
-    const solscanUrl = `https://solscan.io/account/${selectedFund.walletAddress}${selectedFund.cluster === "mainnet-beta" ? "" : `?cluster=${selectedFund.cluster}`}`;
+    const fund = selectedFund;
+    const launchedDate = transactionDateLabel(fund.createdAt);
+    const sharedTreasury = treasuryQuery.data?.treasury.walletAddress === fund.walletAddress
+      && treasuryQuery.data.treasury.cluster === fund.cluster
+      ? treasuryQuery.data
+      : undefined;
+    const shareFund = () => Share.share({
+      message: `${fund.title}\n\n${fund.description}\n\nCampaign goal: ${fund.goalSol.toLocaleString()} SOL\n\nContributions are sent to ${fund.organisationName}'s shared charity treasury. On-chain transfers may not be attributable to this specific fund.\n\nTreasury: ${fund.walletAddress}`,
+    });
+    const contribute = async () => {
+      const rawAmount = detailDonationAmount.trim();
+      if (!/^\d+(?:\.\d{1,9})?$/.test(rawAmount)) {
+        setDetailDonationError("Enter a positive SOL amount with no more than 9 decimal places.");
+        return;
+      }
+      const amount = Number(rawAmount);
+      if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000_000) {
+        setDetailDonationError("Enter a positive amount of up to 1,000,000,000 SOL.");
+        return;
+      }
+      let uri: string;
+      try {
+        uri = buildDonationUri({
+          recipient: fund.walletAddress,
+          amount,
+          organisationName: fund.organisationName,
+          fundTitle: fund.title,
+          fundId: fund.id,
+          cluster: fund.cluster,
+        });
+      } catch (cause) {
+        Alert.alert(
+          "Unable to prepare contribution",
+          cause instanceof Error ? cause.message : "Check the amount and charity treasury address.",
+        );
+        return;
+      }
+      setDetailDonationError(null);
+      try {
+        await Linking.openURL(uri);
+      } catch {
+        const transferAmount = amount.toFixed(9).replace(/0+$/, "").replace(/\.$/, "");
+        try {
+          await Share.share({
+            message: `Send ${transferAmount} SOL to ${fund.walletAddress} for “${fund.title}” (${fund.organisationName}'s shared charity treasury). On-chain transfers may not be attributable to this specific fund.`,
+          });
+        } catch {
+          setDetailDonationError("A wallet app could not be opened. You can still share the fund details and treasury address.");
+        }
+      }
+    };
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-        {header("Fund details", "Campaign overview", () => setStage("dashboard"), "Back to funds dashboard")}
-        <KeyboardAwareScrollViewCompat style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 34, gap: 14 }}>
-          <View style={{ borderRadius: colors.radius, overflow: "hidden", backgroundColor: colors.primary + "14", minHeight: 132, padding: 18, justifyContent: "flex-end" }}>
-            <Feather name="heart" size={32} color={colors.primary} />
-            <Text style={{ color: colors.foreground, fontSize: 23, lineHeight: 28, fontFamily: "Inter_700Bold", marginTop: 12 }}>{selectedFund.title}</Text>
+        {header("Fund details", "Support community work", () => setStage("dashboard"), "Back to funds dashboard")}
+        <KeyboardAwareScrollViewCompat
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 36, gap: 16 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          bottomOffset={60}
+        >
+          <View style={{ borderRadius: colors.radius + 5, overflow: "hidden", backgroundColor: colors.primary + "12", borderWidth: 1, borderColor: colors.primary + "24", padding: 18, gap: 14 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: colors.card, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 }}>
+                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: fund.status.toLowerCase() === "active" ? colors.success : colors.mutedForeground }} />
+                <Text style={{ color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 0.6 }}>{fund.status.toUpperCase()}</Text>
+              </View>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Campaign #{fund.id}</Text>
+            </View>
+            <View style={{ gap: 7 }}>
+              <Text style={{ color: colors.foreground, fontSize: 25, lineHeight: 31, fontFamily: "Inter_700Bold" }}>{fund.title}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+                <Feather name="briefcase" size={14} color={colors.primary} />
+                <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_600SemiBold", fontSize: 13 }}>{fund.organisationName}</Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 9, backgroundColor: colors.card, paddingHorizontal: 9, paddingVertical: 7 }}>
+                <Feather name="target" size={12} color={colors.primary} />
+                <Text style={{ color: colors.foreground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>Goal · {fund.goalSol.toLocaleString()} SOL</Text>
+              </View>
+              {launchedDate ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 9, backgroundColor: colors.card, paddingHorizontal: 9, paddingVertical: 7 }}>
+                  <Feather name="calendar" size={12} color={colors.mutedForeground} />
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Started {launchedDate}</Text>
+                </View>
+              ) : null}
+            </View>
           </View>
-          <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius, padding: 16, gap: 12 }}>
-            <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.7 }}>CAMPAIGN GOAL</Text>
-            <Text style={{ color: colors.foreground, fontSize: 26, fontFamily: "Inter_700Bold" }}>{selectedFund.goalSol.toLocaleString()} SOL</Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>Donations are sent to the charity’s shared treasury. Per-campaign totals are not currently available.</Text>
+
+          <View style={{ gap: 8 }}>
+            <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>What this supports</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 14, lineHeight: 21 }}>{fund.description}</Text>
           </View>
-          <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>About this fund</Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 14, lineHeight: 21 }}>{selectedFund.description}</Text>
-          <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius, padding: 14, gap: 8 }}>
-            <Text style={{ color: colors.foreground, fontFamily: "Inter_700Bold" }}>Charity treasury</Text>
-            <Text selectable style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>{selectedFund.walletAddress}</Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Solana {selectedFund.cluster === "mainnet-beta" ? "Mainnet" : selectedFund.cluster}</Text>
+
+          <View style={{ borderWidth: 1, borderColor: colors.primary + "30", backgroundColor: colors.primary + "08", borderRadius: colors.radius + 3, padding: 15, gap: 10 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
+              <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.primary + "16", alignItems: "center", justifyContent: "center" }}>
+                <Feather name="shield" size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_700Bold" }}>One shared charity treasury</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Your transfer goes to the organisation, not a campaign-specific wallet.</Text>
+              </View>
+            </View>
+            <View style={{ borderTopWidth: 1, borderTopColor: colors.primary + "20", paddingTop: 10, gap: 6 }}>
+              <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.6 }}>TREASURY ADDRESS</Text>
+              <Text selectable style={{ color: colors.foreground, fontSize: 11, lineHeight: 17, fontFamily: "Inter_600SemiBold" }}>{fund.walletAddress}</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Solana · {fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}</Text>
+              {sharedTreasury ? (
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, borderTopWidth: 1, borderTopColor: colors.primary + "20", paddingTop: 9 }}>
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.4 }}>SHARED TREASURY BALANCE</Text>
+                    <Text style={{ color: colors.foreground, fontSize: 16, fontFamily: "Inter_700Bold" }}>{sharedTreasury.balanceSol} SOL</Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>Checked {transactionDateLabel(sharedTreasury.checkedAt) ?? "recently"}</Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={treasuryQuery.isFetching ? "Refreshing shared treasury balance" : "Refresh shared treasury balance"}
+                    testID={`fund-detail-refresh-treasury-${fund.id}`}
+                    disabled={treasuryQuery.isFetching}
+                    onPress={() => { void treasuryQuery.refetch(); }}
+                    style={{ minHeight: 40, minWidth: 40, alignItems: "center", justifyContent: "center", opacity: treasuryQuery.isFetching ? 0.55 : 1 }}
+                  >
+                    <Feather name="refresh-cw" size={15} color={colors.primary} />
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
+            <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>Campaign-specific totals are not tracked. Because funds share one treasury, on-chain transfers may not be attributable to this fund.</Text>
           </View>
-          {button("View treasury on Solscan", () => { void Linking.openURL(solscanUrl); }, true, false, "external-link")}
-          {button("Share this fund", () => {
-            void Share.share({ message: `${selectedFund.title}\n\n${selectedFund.description}\n\nGoal: ${selectedFund.goalSol.toLocaleString()} SOL\nDonate to the charity treasury: ${selectedFund.walletAddress}` });
-          }, false, false, "share-2")}
+
+          <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 3, padding: 15, gap: 12 }}>
+            <View style={{ gap: 3 }}>
+              <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Make a contribution</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 17 }}>Choose an amount in SOL. Your wallet will open for review.</Text>
+            </View>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {[0.1, 0.5, 1].map((quickAmount) => {
+                const selected = detailDonationAmount === String(quickAmount);
+                return (
+                  <Pressable
+                    key={quickAmount}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set contribution amount to ${quickAmount} SOL`}
+                    accessibilityState={{ selected }}
+                    testID={`fund-quick-amount-${fund.id}-${String(quickAmount).replace(".", "-")}`}
+                    onPress={() => { setDetailDonationAmount(String(quickAmount)); setDetailDonationError(null); }}
+                    style={{ flex: 1, minHeight: 40, alignItems: "center", justifyContent: "center", borderRadius: 10, borderWidth: 1, borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary + "12" : colors.background }}
+                  >
+                    <Text style={{ color: selected ? colors.primary : colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>{quickAmount} SOL</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: detailDonationError ? colors.destructive : colors.border, borderRadius: colors.radius - 5, padding: 5, minHeight: 54 }}>
+              <TextInput
+                accessibilityLabel={`Contribution amount in SOL for ${fund.title}`}
+                accessibilityHint="Enter a positive amount with up to nine decimal places"
+                testID={`fund-detail-amount-${fund.id}`}
+                keyboardType="decimal-pad"
+                value={detailDonationAmount}
+                onChangeText={(value) => { setDetailDonationAmount(value); setDetailDonationError(null); }}
+                placeholder="Other amount"
+                placeholderTextColor={colors.mutedForeground}
+                returnKeyType="done"
+                style={{ flex: 1, minWidth: 0, paddingHorizontal: 10, color: colors.foreground, fontSize: 15 }}
+              />
+              <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold", paddingHorizontal: 5 }}>SOL</Text>
+            </View>
+            {detailDonationError ? <Text accessibilityRole="alert" testID={`fund-detail-error-${fund.id}`} style={{ color: colors.destructive, fontSize: 12, lineHeight: 17 }}>{detailDonationError}</Text> : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Continue to wallet to contribute to ${fund.title}`}
+              testID={`fund-detail-contribute-${fund.id}`}
+              onPress={() => void contribute()}
+              style={{ minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: colors.radius - 5, backgroundColor: colors.primary, paddingHorizontal: 14 }}
+            >
+              <Feather name="arrow-up-right" size={16} color={colors.primaryForeground} />
+              <Text style={{ color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_700Bold" }}>Continue to wallet</Text>
+            </Pressable>
+            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+              <Feather name="alert-circle" size={14} color={colors.mutedForeground} style={{ marginTop: 1 }} />
+              <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>Review and approve the transfer in your wallet. Confirmed blockchain transfers cannot be reversed.</Text>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 9 }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open shared charity treasury on Solscan"
+              testID={`fund-detail-solscan-${fund.id}`}
+              onPress={() => {
+                void Linking.openURL(solscanUrl(`account/${fund.walletAddress}`, fund.cluster)).catch(() => {
+                  Alert.alert("Unable to open Solscan", "Check your connection and try again.");
+                });
+              }}
+              style={{ flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: colors.radius - 5, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, paddingHorizontal: 8 }}
+            >
+              <Feather name="external-link" size={15} color={colors.foreground} />
+              <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>Solscan</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Share ${fund.title}`}
+              testID={`fund-detail-share-${fund.id}`}
+              onPress={() => { void shareFund(); }}
+              style={{ flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: colors.radius - 5, backgroundColor: colors.primary, paddingHorizontal: 8 }}
+            >
+              <Feather name="share-2" size={15} color={colors.primaryForeground} />
+              <Text style={{ color: colors.primaryForeground, fontSize: 12, fontFamily: "Inter_700Bold" }}>Share fund</Text>
+            </Pressable>
+          </View>
         </KeyboardAwareScrollViewCompat>
       </View>
     );
