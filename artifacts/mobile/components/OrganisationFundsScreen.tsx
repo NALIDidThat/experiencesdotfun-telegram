@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Linking, Pressable, Share, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, Share, Text, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -34,10 +34,19 @@ function transactionDateLabel(value: string | null) {
 function FundCard({ fund }: { fund: OrganisationFund }) {
   const colors = useColors();
   const [amount, setAmount] = useState("");
+  const [amountError, setAmountError] = useState<string | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
-  const launchedDate = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(new Date(fund.createdAt));
   const donate = async () => {
-    const parsed = Number(amount);
+    const rawAmount = amount.trim();
+    if (!/^\d+(?:\.\d{1,9})?$/.test(rawAmount)) {
+      setAmountError("Enter a positive SOL amount with up to 9 decimal places.");
+      return;
+    }
+    const parsed = Number(rawAmount);
+    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1_000_000_000) {
+      setAmountError("Enter a positive amount of up to 1,000,000,000 SOL.");
+      return;
+    }
     let uri: string;
     try {
       uri = buildDonationUri({
@@ -55,105 +64,99 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
       );
       return;
     }
+    setAmountError(null);
     const transferAmount = parsed.toFixed(9).replace(/0+$/, "").replace(/\.$/, "");
     try {
       await Linking.openURL(uri);
     } catch {
-      await Share.share({ message: `Send ${transferAmount} SOL to ${fund.walletAddress} for “${fund.title}”.` });
+      try {
+        await Share.share({
+          message: `Send ${transferAmount} SOL to ${fund.walletAddress} for “${fund.title}” (${fund.organisationName}'s shared charity treasury, Solana ${fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}).`,
+        });
+      } catch {
+        setAmountError("A wallet or sharing app could not be opened. You can still use the treasury address below.");
+      }
     }
   };
   return (
-    <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 6, overflow: "hidden" }}>
-      <View style={{ padding: 18, gap: 16 }}>
-        <View style={{ gap: 10 }}>
-          <View style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 7, borderRadius: 999, backgroundColor: `${colors.primary}18`, paddingHorizontal: 10, paddingVertical: 6 }}>
-            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success }} />
-            <Text style={{ color: colors.primary, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.6 }}>ACTIVE FUNDRAISER</Text>
-          </View>
-          <Text style={{ color: colors.foreground, fontSize: 23, lineHeight: 29, fontFamily: "Inter_700Bold" }}>{fund.title}</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 7 }}>
+    <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 4, overflow: "hidden" }}>
+      <View style={{ padding: 15, gap: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
+            <Text style={{ color: colors.foreground, fontSize: 19, lineHeight: 25, fontFamily: "Inter_700Bold" }}>{fund.title}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Feather name="briefcase" size={13} color={colors.mutedForeground} />
-            <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{fund.organisationName}</Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>·</Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Launched {launchedDate}</Text>
+              <Text numberOfLines={1} style={{ flex: 1, color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{fund.organisationName}</Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 999, backgroundColor: `${colors.primary}12`, paddingHorizontal: 10, paddingVertical: 7 }}>
+            <Feather name="target" size={13} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_700Bold" }}>Goal · {fund.goalSol.toLocaleString()} SOL</Text>
           </View>
         </View>
 
-        <View style={{ gap: 4 }}>
+        <View style={{ gap: 3 }}>
           <Text numberOfLines={descriptionExpanded ? undefined : 3} style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>{fund.description}</Text>
           {fund.description.length > 150 ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={descriptionExpanded ? "Show less campaign information" : "Read full campaign information"}
+              accessibilityState={{ expanded: descriptionExpanded }}
               testID={`fund-description-toggle-${fund.id}`}
               onPress={() => setDescriptionExpanded((expanded) => !expanded)}
-              style={{ alignSelf: "flex-start", paddingVertical: 3 }}
+              style={{ minHeight: 44, alignSelf: "flex-start", justifyContent: "center" }}
             >
               <Text style={{ color: colors.primary, fontSize: 12, fontFamily: "Inter_700Bold" }}>{descriptionExpanded ? "Show less" : "Read more"}</Text>
             </Pressable>
           ) : null}
         </View>
 
-        <View
-          testID={`fund-progress-${fund.id}`}
-          accessible
-          accessibilityLabel={`Fundraising progress unavailable. Goal: ${fund.goalSol.toLocaleString()} SOL. Donations go directly to the shared treasury.`}
-          style={{ gap: 12, borderRadius: colors.radius + 2, backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}28`, borderWidth: 1, padding: 16 }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
-            <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: `${colors.primary}20` }}>
-              <Feather name="target" size={19} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-              <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.8 }}>FUND GOAL</Text>
-              <Text style={{ color: colors.foreground, fontSize: 27, lineHeight: 32, fontFamily: "Inter_700Bold" }}>{fund.goalSol.toLocaleString()} SOL</Text>
-            </View>
-          </View>
-          <View style={{ height: 1, backgroundColor: `${colors.primary}24` }} />
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-            <View style={{ gap: 2 }}>
-              <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.5 }}>RAISED SO FAR</Text>
-              <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold" }}>Not tracked</Text>
-            </View>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 999, backgroundColor: colors.card, paddingHorizontal: 10, paddingVertical: 7 }}>
-              <Feather name="info" size={13} color={colors.mutedForeground} />
-              <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>Progress unavailable</Text>
-            </View>
-          </View>
-          <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
-            Contributions go directly to the shared treasury. Verified fundraising totals aren’t available here yet.
-          </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <TextInput
+            accessibilityLabel={`Donation amount in SOL for ${fund.title}`}
+            accessibilityHint="Enter a positive amount with up to nine decimal places"
+            testID={`donation-amount-${fund.id}`}
+            keyboardType="decimal-pad"
+            value={amount}
+            onChangeText={(value) => { setAmount(value); setAmountError(null); }}
+            placeholder="Amount in SOL"
+            placeholderTextColor={colors.mutedForeground}
+            style={{ flex: 1, minWidth: 0, minHeight: 48, borderWidth: 1, borderColor: amountError ? colors.destructive : colors.border, borderRadius: colors.radius - 5, paddingHorizontal: 12, color: colors.foreground, backgroundColor: colors.background, fontSize: 14 }}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Donate to ${fund.title}`}
+            testID={`donate-${fund.id}`}
+            onPress={() => void donate()}
+            style={{ minHeight: 48, paddingHorizontal: 17, borderRadius: colors.radius - 5, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}
+          >
+            <Text style={{ color: colors.primaryForeground, fontFamily: "Inter_700Bold", fontSize: 13 }}>Donate</Text>
+          </Pressable>
         </View>
-
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
-          <View style={{ width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: `${colors.primary}14` }}>
-            <Feather name="shield" size={16} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>Shared charity treasury</Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Solana · {fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}</Text>
-            <Text selectable numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>{fund.walletAddress}</Text>
-          </View>
-        </View>
-
-        <View style={{ gap: 10, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius + 2, padding: 14 }}>
-          <Text style={{ color: colors.foreground, fontSize: 17, fontFamily: "Inter_700Bold" }}>Make a contribution</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius - 4, padding: 5, minHeight: 54 }}>
-            <TextInput
-              accessibilityLabel={`Donation amount in SOL for ${fund.title}`}
-              testID={`donation-amount-${fund.id}`}
-              keyboardType="decimal-pad"
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="Amount in SOL"
-              placeholderTextColor={colors.mutedForeground}
-              style={{ flex: 1, minWidth: 0, paddingHorizontal: 9, color: colors.foreground, fontSize: 14 }}
-            />
-            <Pressable accessibilityRole="button" accessibilityLabel={`Donate to ${fund.title}`} testID={`donate-${fund.id}`} onPress={() => void donate()} style={{ minHeight: 42, backgroundColor: colors.primary, borderRadius: colors.radius - 7, paddingHorizontal: 16, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ color: colors.primaryForeground, fontFamily: "Inter_700Bold", fontSize: 13 }}>Donate</Text>
+        {amountError ? <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 11, lineHeight: 16 }}>{amountError}</Text> : null}
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8, gap: 5 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Feather name="shield" size={13} color={colors.mutedForeground} />
+            <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>
+              Shared charity treasury · Solana {fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Share ${fund.organisationName} treasury address on Solana ${fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}`}
+              testID={`fund-treasury-share-${fund.id}`}
+              onPress={() => {
+                void Share.share({ message: `${fund.organisationName} shared charity treasury\nSolana ${fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}\n${fund.walletAddress}` })
+                  .catch(() => Alert.alert("Unable to share treasury address", "You can select and copy the address below."));
+              }}
+              style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
+            >
+              <Feather name="share" size={15} color={colors.primary} />
             </Pressable>
           </View>
-          <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 14 }}>Your wallet will ask you to approve the transfer. Transfers cannot be reversed.</Text>
+          <Text selectable style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15, fontFamily: "Inter_500Medium" }}>{fund.walletAddress}</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 14 }}>
+            Approve in your wallet. Campaign totals aren’t tracked; confirmed transfers can’t be reversed.
+          </Text>
         </View>
       </View>
     </View>
@@ -173,17 +176,63 @@ export function OrganisationFundraiserSection({
   const query = useListOrganisationFunds(organisationUserId, {
     query: { queryKey: getListOrganisationFundsQueryKey(organisationUserId), enabled: Number.isSafeInteger(organisationUserId) && organisationUserId > 0 },
   });
-  if (query.isLoading) return <Text style={{ color: colors.mutedForeground, marginVertical: 12 }}>Loading active funds…</Text>;
-  if (query.isError) return <Text style={{ color: colors.mutedForeground, marginVertical: 12 }}>Funds could not be loaded.</Text>;
-  if (!query.data?.length && !canLaunch) return null;
+  if (query.isLoading && !canLaunch) {
+    return (
+      <View accessibilityRole="progressbar" accessibilityLabel="Loading fundraisers" style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 12 }}>
+        <ActivityIndicator size="small" color={colors.primary} />
+        <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Loading fundraisers…</Text>
+      </View>
+    );
+  }
+  if (query.isError && !query.data?.length && !canLaunch) {
+    return (
+      <View style={{ marginVertical: 12, gap: 7 }}>
+        <Text accessibilityRole="alert" style={{ color: colors.mutedForeground, fontSize: 12 }}>Fundraisers could not be loaded.</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Retry loading fundraisers" onPress={() => { void query.refetch(); }} style={{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start" }}>
+          <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold", fontSize: 12 }}>Try again</Text>
+        </Pressable>
+      </View>
+    );
+  }
+  if (!query.isLoading && !query.isError && !query.data?.length && !canLaunch) return null;
   return (
     <View style={{ gap: 12, marginTop: 20 }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <Text style={{ color: colors.foreground, fontSize: 20, fontFamily: "Inter_700Bold" }}>Support our work</Text>
-        {canLaunch ? <Pressable accessibilityRole="button" onPress={onLaunch} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}><Feather name="plus" size={15} color={colors.primary} /><Text style={{ color: colors.primary, fontFamily: "Inter_700Bold", fontSize: 13 }}>Launch a fund</Text></Pressable> : null}
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={{ color: colors.foreground, fontSize: 20, fontFamily: "Inter_700Bold" }}>{canLaunch ? "Your fundraisers" : "Support their work"}</Text>
+          {query.data?.length ? <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{query.data.length} active {query.data.length === 1 ? "fund" : "funds"}</Text> : null}
+        </View>
+        {canLaunch ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Launch a charity fund"
+            testID="launch-charity-fund"
+            onPress={onLaunch}
+            style={{ minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 8 }}
+          >
+            <Feather name="plus" size={15} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold", fontSize: 12 }}>Launch fund</Text>
+          </Pressable>
+        ) : null}
       </View>
+      {query.isLoading ? (
+        <View accessibilityRole="progressbar" accessibilityLabel="Loading fundraisers" style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8 }}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Loading fundraisers…</Text>
+        </View>
+      ) : null}
+      {query.isError ? (
+        <View style={{ gap: 4 }}>
+          <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 12 }}>Fundraisers could not be loaded.</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Retry loading fundraisers" onPress={() => { void query.refetch(); }} style={{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start" }}>
+            <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold", fontSize: 12 }}>Try again</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {query.data?.map((fund) => <FundCard key={fund.id} fund={fund} />)}
-      {!query.data?.length && canLaunch ? <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>No active funds yet. Set up the charity treasury to invite SOL donations.</Text> : null}
+      {!query.isLoading && !query.isError && !query.data?.length && canLaunch ? (
+        <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>No active funds yet. Set up the charity treasury to invite SOL donations.</Text>
+      ) : null}
     </View>
   );
 }
