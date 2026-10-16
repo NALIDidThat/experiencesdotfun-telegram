@@ -3215,6 +3215,8 @@ components:
         organisationName: { type: string }
         title: { type: string }
         description: { type: string }
+        experienceId: { type: [integer, "null"] }
+        experienceTitle: { type: [string, "null"] }
         walletAddress: { type: string }
         cluster: { type: string, enum: [mainnet-beta, devnet, testnet] }
         goalSol: { type: number }
@@ -3222,13 +3224,14 @@ components:
         contributionCount: { type: integer }
         status: { type: string, enum: [active, closed] }
         createdAt: { type: string, format: date-time }
-      required: [id, organisationId, organisationUserId, organisationName, title, description, walletAddress, cluster, goalSol, raisedSol, contributionCount, status, createdAt]
+      required: [id, organisationId, organisationUserId, organisationName, title, description, experienceId, experienceTitle, walletAddress, cluster, goalSol, raisedSol, contributionCount, status, createdAt]
     OrganisationFundCreateInput:
       type: object
       properties:
         title: { type: string, minLength: 3, maxLength: 80 }
         description: { type: string, minLength: 10, maxLength: 600 }
         goalSol: { type: number, exclusiveMinimum: 0, maximum: 1000000000 }
+        experienceId: { type: integer, minimum: 1 }
       required: [title, description, goalSol]
     OrganisationTreasury:
       type: object
@@ -4509,7 +4512,9 @@ components:
           type: integer
         totalExperiences:
           type: integer
-      required: [organisation, upcomingExperiences, participantCount, waitlistCount, monthlyVerifiedCompletions, pendingCompletionReviews, pendingMilestoneReviews, pendingVerifications, totalExperiences]
+        rewardedUserCount:
+          type: integer
+      required: [organisation, upcomingExperiences, participantCount, waitlistCount, monthlyVerifiedCompletions, pendingCompletionReviews, pendingMilestoneReviews, pendingVerifications, totalExperiences, rewardedUserCount]
     HostExperience:
       allOf:
         - $ref: "#/components/schemas/Experience"

@@ -17,4 +17,5 @@ export interface HostOverview {
   pendingMilestoneReviews: number;
   pendingVerifications: number;
   totalExperiences: number;
+  rewardedUserCount: number;
 }

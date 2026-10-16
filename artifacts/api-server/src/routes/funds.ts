@@ -6,6 +6,7 @@ import {
   organisationFundsTable,
   organisationTreasuriesTable,
   organisationsTable,
+  experiencesTable,
   usersTable,
 } from "@workspace/db";
 import { currentUser, requireTelegramUser } from "../lib/auth";
@@ -28,6 +29,7 @@ const createFundSchema = z.object({
   title: z.string().trim().min(3).max(80),
   description: z.string().trim().min(10).max(600),
   goalSol: z.number().positive().max(1_000_000_000).refine((value) => Number.isFinite(value) && Number(value.toFixed(9)) === value),
+  experienceId: z.number().int().positive().optional(),
 });
 const treasuryActivityQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(25).default(20),
@@ -156,23 +158,26 @@ router.get("/:organisationUserId", async (req, res): Promise<void> => {
     res.status(404).json({ message: "Organisation profile not found." });
     return;
   }
-  const rows = await db.select({ fund: organisationFundsTable, organisation: organisationsTable, treasury: organisationTreasuriesTable })
+  const rows = await db.select({ fund: organisationFundsTable, organisation: organisationsTable, treasury: organisationTreasuriesTable, experience: experiencesTable })
     .from(organisationFundsTable)
     .innerJoin(organisationsTable, eq(organisationFundsTable.organisationId, organisationsTable.id))
     .innerJoin(organisationTreasuriesTable, eq(organisationFundsTable.organisationId, organisationTreasuriesTable.organisationId))
+    .leftJoin(experiencesTable, eq(organisationFundsTable.experienceId, experiencesTable.id))
     .where(and(
       eq(organisationsTable.ownerUserId, userId),
       eq(organisationsTable.organisationType, "charity"),
     ))
     .orderBy(desc(organisationFundsTable.createdAt), desc(organisationFundsTable.id));
   const totals = await campaignTotals(rows.map(({ fund }) => fund.id));
-  res.json(rows.map(({ fund, organisation, treasury }) => ({
+  res.json(rows.map(({ fund, organisation, treasury, experience }) => ({
     id: fund.id,
     organisationId: organisation.id,
     organisationUserId: userId,
     organisationName: organisation.name,
     title: fund.title,
     description: fund.description,
+    experienceId: fund.experienceId,
+    experienceTitle: experience?.title ?? null,
     walletAddress: treasury.walletAddress,
     cluster: treasury.cluster,
     goalSol: Number(fund.goalSol),
@@ -207,10 +212,24 @@ router.post("/", requireTelegramUser, async (req, res): Promise<void> => {
     res.status(409).json({ message: "Register a charity treasury before launching a fund." });
     return;
   }
+  let attachedExperience: typeof experiencesTable.$inferSelect | undefined;
+  if (parsed.data.experienceId !== undefined) {
+    [attachedExperience] = await db.select().from(experiencesTable)
+      .where(and(
+        eq(experiencesTable.id, parsed.data.experienceId),
+        eq(experiencesTable.organisationId, organisation.id),
+      ))
+      .limit(1);
+    if (!attachedExperience) {
+      res.status(400).json({ message: "Choose an experience hosted by your organisation." });
+      return;
+    }
+  }
   const [fund] = await db.insert(organisationFundsTable).values({
     organisationId: organisation.id,
     createdByUserId: user.id,
     ...parsed.data,
+    experienceId: attachedExperience?.id ?? null,
     walletAddress: treasury.walletAddress,
     goalSol: String(parsed.data.goalSol),
   }).returning();
@@ -221,6 +240,8 @@ router.post("/", requireTelegramUser, async (req, res): Promise<void> => {
     organisationName: organisation.name,
     title: fund.title,
     description: fund.description,
+    experienceId: fund.experienceId,
+    experienceTitle: attachedExperience?.title ?? null,
     walletAddress: fund.walletAddress,
     cluster: treasury.cluster,
     goalSol: Number(fund.goalSol),

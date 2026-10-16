@@ -340,6 +340,8 @@ export const UpdateOrganisationFundResponse = zod.object({
   "organisationName": zod.string(),
   "title": zod.string(),
   "description": zod.string(),
+  "experienceId": zod.number().int().nullable(),
+  "experienceTitle": zod.string().nullable(),
   "walletAddress": zod.string(),
   "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
   "goalSol": zod.number(),
@@ -660,10 +662,12 @@ export const createOrganisationFundBodyGoalSolMax = 1000000000;
 
 
 
+
 export const CreateOrganisationFundBody = zod.object({
   "title": zod.string().min(createOrganisationFundBodyTitleMin).max(createOrganisationFundBodyTitleMax),
   "description": zod.string().min(createOrganisationFundBodyDescriptionMin).max(createOrganisationFundBodyDescriptionMax),
-  "goalSol": zod.number().gt(createOrganisationFundBodyGoalSolExclusiveMin).max(createOrganisationFundBodyGoalSolMax)
+  "goalSol": zod.number().gt(createOrganisationFundBodyGoalSolExclusiveMin).max(createOrganisationFundBodyGoalSolMax),
+  "experienceId": zod.number().int().min(1).optional()
 })
 
 export const CreateOrganisationFundResponse = zod.object({
@@ -673,6 +677,8 @@ export const CreateOrganisationFundResponse = zod.object({
   "organisationName": zod.string(),
   "title": zod.string(),
   "description": zod.string(),
+  "experienceId": zod.number().int().nullable(),
+  "experienceTitle": zod.string().nullable(),
   "walletAddress": zod.string(),
   "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
   "goalSol": zod.number(),
@@ -700,6 +706,8 @@ export const ListOrganisationFundsResponseItem = zod.object({
   "organisationName": zod.string(),
   "title": zod.string(),
   "description": zod.string(),
+  "experienceId": zod.number().int().nullable(),
+  "experienceTitle": zod.string().nullable(),
   "walletAddress": zod.string(),
   "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
   "goalSol": zod.number(),
@@ -2781,7 +2789,8 @@ export const GetHostOverviewResponse = zod.object({
   "pendingCompletionReviews": zod.number().int(),
   "pendingMilestoneReviews": zod.number().int(),
   "pendingVerifications": zod.number().int(),
-  "totalExperiences": zod.number().int()
+  "totalExperiences": zod.number().int(),
+  "rewardedUserCount": zod.number().int()
 })
 
 

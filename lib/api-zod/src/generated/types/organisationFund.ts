@@ -15,6 +15,10 @@ export interface OrganisationFund {
   organisationName: string;
   title: string;
   description: string;
+  /** @nullable */
+  experienceId: number | null;
+  /** @nullable */
+  experienceTitle: string | null;
   walletAddress: string;
   cluster: OrganisationFundCluster;
   goalSol: number;

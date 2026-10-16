@@ -22,4 +22,6 @@ export interface OrganisationFundCreateInput {
      * @exclusiveMinimum 0
      */
   goalSol: number;
+  /** @minimum 1 */
+  experienceId?: number;
 }

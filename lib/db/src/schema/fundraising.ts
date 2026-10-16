@@ -1,10 +1,11 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, index, integer, numeric, pgTable, serial, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import { usersTable, organisationsTable } from "./experiences";
+import { usersTable, organisationsTable, experiencesTable } from "./experiences";
 
 export const organisationFundsTable = pgTable("organisation_funds", {
   id: serial("id").primaryKey(),
   organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id),
+  experienceId: integer("experience_id").references(() => experiencesTable.id, { onDelete: "set null" }),
   createdByUserId: integer("created_by_user_id").notNull().references(() => usersTable.id),
   title: text("title").notNull(),
   description: text("description").notNull(),

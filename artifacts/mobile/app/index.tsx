@@ -134,7 +134,7 @@ import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'contributions' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'contributions' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
 type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'assistant' | 'challenges' | 'accountability' | 'memory-game';
 type HostExperienceFilter = 'all' | Experience['status'];
@@ -145,7 +145,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'contributions', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'campaigns', 'contributions', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -6094,6 +6094,16 @@ function HostExperienceDetail({
               />
             </View>
           ) : null}
+          {user?.userType === 'organisation' && user.organisation?.type === 'charity' ? (
+            <Button
+              testID="host-experience-start-fundraiser"
+              label="Raise funds for this Experience"
+              icon="heart"
+              variant="secondary"
+              style={{ marginBottom: 14 }}
+              onPress={() => go('funds', { experienceId: String(experience.id), experienceTitle: experience.title })}
+            />
+          ) : null}
 
           {confirmingCancellation && ['published', 'full'].includes(experience.status) ? (
             <View
@@ -8078,7 +8088,7 @@ function BottomNavInteractionHarness({ userType = 'participant' }: { userType?: 
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; category?: string; step?: string; keyboardTest?: string; navTest?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; category?: string; step?: string; experienceId?: string; experienceTitle?: string; keyboardTest?: string; navTest?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -8124,7 +8134,7 @@ export default function App() {
     const platform = Platform.OS === "ios" || Platform.OS === "android"
       ? Platform.OS
       : "web";
-    const analyticsScreen = screen === 'accounts' || screen === 'contributions' || screen === 'accountability'
+    const analyticsScreen = screen === 'accounts' || screen === 'contributions' || screen === 'accountability' || screen === 'campaigns'
       ? 'profile'
       : screen === 'host-detail'
         ? 'host'
@@ -8144,13 +8154,15 @@ export default function App() {
     setScreen(next);
     const screenUsesExperienceId = next === 'experience' || next === 'host-detail' || (next === 'create' && Boolean(nextParams?.id));
     setExperienceId(screenUsesExperienceId ? nextParams?.id : undefined);
-    const routeId = screenUsesExperienceId || next === 'direct-message' ? nextParams?.id : undefined;
+    const routeId = screenUsesExperienceId || next === 'direct-message' || next === 'campaigns' ? nextParams?.id : undefined;
     router.setParams({
       screen: next,
       id: routeId,
       friendId: next === 'friend-profile' ? nextParams?.friendId : undefined,
       category: next === 'explore' ? nextParams?.category : undefined,
       step: next === 'create' ? nextParams?.step : undefined,
+      experienceId: next === 'funds' ? nextParams?.experienceId : undefined,
+      experienceTitle: next === 'funds' ? nextParams?.experienceTitle : undefined,
     });
   };
   const requestFeedComposer = () => {
@@ -8419,7 +8431,7 @@ export default function App() {
     );
   }
 
-  if (user.userType !== 'organisation' && (screen === 'host' || screen === 'host-detail' || screen === 'create' || screen === 'funds')) {
+  if (user.userType !== 'organisation' && (screen === 'host' || screen === 'host-detail' || screen === 'create' || screen === 'funds' || screen === 'campaigns')) {
     return (
       <AppShell>
         <EmptyState
@@ -8545,8 +8557,17 @@ export default function App() {
     if (screen === 'host') return <Host go={go} />;
     if (screen === 'create') return <Create go={go} initialStep={Number(params.step) || 1} editExperienceId={experienceId ? Number(experienceId) : undefined} />;
     if (screen === 'funds') return user.userType === 'organisation' && user.organisation?.type === 'charity'
-      ? <OrganisationFundsScreen organisationUserId={user.id} onBack={() => go('profile')} />
+      ? <OrganisationFundsScreen
+          organisationUserId={user.id}
+          initialExperienceId={Number(params.experienceId) > 0 ? Number(params.experienceId) : undefined}
+          initialExperienceTitle={params.experienceTitle}
+          onBack={() => params.experienceId ? go('host-detail', { id: params.experienceId }) : go('profile')}
+          onOpenCampaign={(fundId) => go('campaigns', fundId ? { id: String(fundId) } : undefined)}
+        />
       : <EmptyState title="Charity account required" body="Only charity organisation profiles can launch funds." actionLabel="Back to profile" onAction={() => go('profile')} />;
+    if (screen === 'campaigns') return user.userType === 'organisation' && user.organisation?.type === 'charity'
+      ? <OrganisationFundsScreen organisationUserId={user.id} initialView="campaigns" initialFundId={Number(params.id) > 0 ? Number(params.id) : undefined} onBack={() => go('funds')} />
+      : <EmptyState title="Charity account required" body="Only charity organisation profiles can track fundraising campaigns." actionLabel="Back to profile" onAction={() => go('profile')} />;
     if (screen === 'contributions') return <ContributionHistoryScreen onBack={() => go('profile')} />;
     return user.userType === 'organisation'
       ? <OrganisationHomeScreen user={user} go={go} />
@@ -8563,7 +8584,7 @@ export default function App() {
   })();
 
   const noNav = ['experience', 'host-detail', 'create', 'direct-message', 'memory-game'].includes(screen);
-  const navActive = screen === 'funds'
+  const navActive = screen === 'funds' || screen === 'campaigns'
     ? user.userType === 'organisation' && user.organisation?.type === 'charity' ? 'funds' : 'profile'
     : user.userType === 'organisation' && screen === 'experiences'
     ? 'host'

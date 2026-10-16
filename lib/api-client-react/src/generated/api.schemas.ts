@@ -513,6 +513,10 @@ export interface OrganisationFund {
   organisationName: string;
   title: string;
   description: string;
+  /** @nullable */
+  experienceId: number | null;
+  /** @nullable */
+  experienceTitle: string | null;
   walletAddress: string;
   cluster: OrganisationFundCluster;
   goalSol: number;
@@ -538,6 +542,8 @@ export interface OrganisationFundCreateInput {
      * @exclusiveMinimum 0
      */
   goalSol: number;
+  /** @minimum 1 */
+  experienceId?: number;
 }
 
 export type OrganisationTreasuryCluster = typeof OrganisationTreasuryCluster[keyof typeof OrganisationTreasuryCluster];
@@ -1561,6 +1567,7 @@ export interface HostOverview {
   pendingMilestoneReviews: number;
   pendingVerifications: number;
   totalExperiences: number;
+  rewardedUserCount: number;
 }
 
 export type HostExperience = Experience & {

@@ -42,6 +42,8 @@ import {
   organisationsTable,
   organisationVerificationApplicationsTable,
   organisationVerificationEventsTable,
+  organisationTreasuriesTable,
+  treasuryPayoutsTable,
   participationReviewEventsTable,
   participationsTable,
   usersTable,
@@ -1892,6 +1894,7 @@ router.get("/host/overview", async (req, res) => {
       pendingMilestoneReviews: 0,
       pendingVerifications: 0,
       totalExperiences: 0,
+      rewardedUserCount: 0,
     });
     return;
   }
@@ -1937,6 +1940,14 @@ router.get("/host/overview", async (req, res) => {
       item.verifiedAt >= monthStart,
   ).length;
   const pendingMilestoneReviews = Number(pendingMilestoneSubmissions?.value ?? 0);
+  const [paidRecipients] = await db
+    .select({ value: sql<number>`count(distinct ${treasuryPayoutsTable.recipientUserId})` })
+    .from(treasuryPayoutsTable)
+    .innerJoin(organisationTreasuriesTable, eq(treasuryPayoutsTable.treasuryId, organisationTreasuriesTable.id))
+    .where(and(
+      eq(organisationTreasuriesTable.organisationId, organisation.id),
+      eq(treasuryPayoutsTable.status, "paid"),
+    ));
   res.json({
     organisation: organisationResponse(organisation),
     upcomingExperiences: experiences.filter((item) => ["published", "full"].includes(item.status)).length,
@@ -1949,6 +1960,7 @@ router.get("/host/overview", async (req, res) => {
     pendingMilestoneReviews,
     pendingVerifications: pendingCompletionReviews + pendingMilestoneReviews,
     totalExperiences: experiences.length,
+    rewardedUserCount: Number(paidRecipients?.value ?? 0),
   });
 });
 
