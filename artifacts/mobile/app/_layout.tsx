@@ -31,6 +31,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="organisation-verification" />
+      <Stack.Screen name="map-3d-bridge" />
     </Stack>
   );
 }

@@ -63,6 +63,7 @@
   },
   "dependencies": {
     "@types/google.maps": "^3.66.5",
-    "@vis.gl/react-google-maps": "^1.10.1"
+    "@vis.gl/react-google-maps": "^1.10.1",
+    "react-native-webview": "13.16.1"
   }
 }

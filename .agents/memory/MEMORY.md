@@ -28,3 +28,4 @@
 - [Experience location selection](experience-location-selection.md) — keep geocoded coordinates transient and bound to the existing city field unless the persisted experience model is explicitly changed.
 - [Expo JSX class typing bridge](expo-jsx-class-bridge.md) — adapt incompatible native library classes with their public prop types; do not suppress project-wide JSX checking.
 - [Google Maps project setup](google-maps-project-setup.md) — Maps JavaScript API and Places API (New) are already enabled in Google Cloud.
+- [Expo Router platform routes](expo-router-platform-routes.md) — platform-suffixed route files need an unsuffixed sibling route in this Expo Router version.
