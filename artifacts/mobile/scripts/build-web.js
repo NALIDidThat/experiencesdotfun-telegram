@@ -25,6 +25,8 @@ const result = spawnSync(
     cwd: projectRoot,
     env: {
       ...process.env,
+      EXPO_PUBLIC_GOOGLE_MAPS_API_KEY:
+        process.env.Google_Maps_API || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
       EXPO_PUBLIC_DOMAIN: stripProtocol(domain),
       EXPO_PUBLIC_REPL_ID: process.env.REPL_ID || '',
     },

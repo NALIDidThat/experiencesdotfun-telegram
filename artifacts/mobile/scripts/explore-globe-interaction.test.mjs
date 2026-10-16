@@ -423,7 +423,7 @@ const friends = [
 test("Explore map fallback preserves activity and friend pins, city filtering, zoom controls, and categories", async (t) => {
   const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
   assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the Explore map fallback test.");
-  if (process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY) {
+  if (process.env.Google_Maps_API || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY) {
     t.skip("This fixture uses the globe fallback; a configured browser key would make a live, billable Places request.");
     return;
   }
