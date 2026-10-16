@@ -157,8 +157,16 @@ export function OrganisationHomeScreen({ user, go }: Props) {
       <View style={[styles.impactCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={[styles.workspaceIcon, { backgroundColor: `${colors.secondary}18` }]}><Feather name="activity" size={19} color={colors.secondary} /></View>
         <View style={styles.workspaceCopy}>
-          <Text style={[styles.workspaceTitle, { color: colors.foreground }]}>Monthly impact metrics unavailable</Text>
-          <Text style={[styles.workspaceDetail, { color: colors.mutedForeground }]}>Verified contribution hours and monthly completion totals aren’t currently provided by the organisation data.</Text>
+          {overview.isLoading ? (
+            <ActivityIndicator color={colors.secondary} />
+          ) : overview.isError ? (
+            <Text style={[styles.workspaceDetail, { color: colors.mutedForeground }]}>Impact metrics couldn’t load. Pull to refresh and try again.</Text>
+          ) : (
+            <>
+              <Text style={[styles.impactMetric, { color: colors.foreground }]}>{overview.data?.monthlyVerifiedCompletions ?? 0}</Text>
+              <Text style={[styles.workspaceDetail, { color: colors.mutedForeground }]}>Host-verified completions this month · UTC</Text>
+            </>
+          )}
         </View>
       </View>
 
@@ -228,6 +236,7 @@ const styles = StyleSheet.create({
   noticeText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium' },
   attentionCard: { minHeight: 78, borderWidth: 1, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
   impactCard: { minHeight: 78, borderWidth: 1, borderRadius: 16, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  impactMetric: { fontSize: 24, lineHeight: 29, fontFamily: 'Inter_700Bold' },
   experienceCard: { minHeight: 80, borderWidth: 1, borderRadius: 16, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   experienceArtwork: { width: 62, height: 58, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 });

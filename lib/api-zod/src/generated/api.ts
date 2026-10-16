@@ -2262,6 +2262,19 @@ export const ListMyParticipationsResponse = zod.array(ListMyParticipationsRespon
 
 
 /**
+ * @summary Withdraw the current user's waitlist entry
+ */
+
+
+
+export const LeaveWaitlistParams = zod.object({
+  "participationId": zod.coerce.number().int().min(1)
+})
+
+export const LeaveWaitlistResponse = zod.void()
+
+
+/**
  * @summary Submit a completed experience for host verification
  */
 export const SubmitCompletionParams = zod.object({
@@ -2417,6 +2430,7 @@ export const GetHostOverviewResponse = zod.object({
   "upcomingExperiences": zod.number().int(),
   "participantCount": zod.number().int(),
   "waitlistCount": zod.number().int(),
+  "monthlyVerifiedCompletions": zod.number().int(),
   "pendingCompletionReviews": zod.number().int(),
   "pendingMilestoneReviews": zod.number().int(),
   "pendingVerifications": zod.number().int(),

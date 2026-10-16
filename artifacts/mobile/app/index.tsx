@@ -54,6 +54,7 @@ import {
   useGetMe,
   useGetMyXpAwards,
   useJoinExperience,
+  useLeaveWaitlist,
   useListExploreActivity,
   useListExperienceParticipants,
   useListExperiences,
@@ -2566,7 +2567,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           verifiedActivityStatus={verifiedActivityQuery.isLoading ? 'loading' : verifiedActivityQuery.isError ? 'error' : 'ready'}
           showFriends={showFriends}
           onSelectCity={selectCity}
-          onSelectFriend={(friendId) => go('friend-profile', { id: String(friendId) })}
+          onSelectFriend={(friendId) => go('friend-profile', { friendId: String(friendId) })}
           onSelectExperience={(experienceId) => go('experience', { id: String(experienceId) })}
           onExploreCity={selectCity}
           onResetCity={clearSelectedCity}
@@ -2794,9 +2795,11 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
   });
   const query = useGetExperience(id, { query: { queryKey: getGetExperienceQueryKey(id), enabled: Number.isSafeInteger(id) && id > 0 } });
   const join = useJoinExperience({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const leaveWaitlist = useLeaveWaitlist({ mutation: { onSuccess: () => { setConfirmWaitlistLeave(false); invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const submit = useSubmitCompletion({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const submitMilestone = useSubmitExperienceMilestone({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmWaitlistLeave, setConfirmWaitlistLeave] = useState(false);
   const [completionStatement, setCompletionStatement] = useState('');
   const [completionEvidenceKeys, setCompletionEvidenceKeys] = useState<string[]>([]);
   const [milestoneEvidenceKeys, setMilestoneEvidenceKeys] = useState<Record<number, string[]>>({});
@@ -2810,6 +2813,15 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
       await join.mutateAsync({ experienceId: id });
     } catch (error) {
       setActionError(requestErrorMessage(error, 'We couldn’t join this experience. Please try again.'));
+    }
+  };
+  const withdrawFromWaitlist = async (participationId: number) => {
+    setActionError(null);
+    try {
+      await leaveWaitlist.mutateAsync({ participationId });
+      setConfirmWaitlistLeave(false);
+    } catch (error) {
+      setActionError(requestErrorMessage(error, 'You couldn’t leave the waitlist. Please try again.'));
     }
   };
   const submitCompletion = async (participationId: number) => {
@@ -3329,11 +3341,41 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
               </View>
             </View>
             {participation.status === 'waitlisted' ? (
-              <Button
-                label={query.isRefetching ? 'Checking…' : 'Check waitlist status'}
-                disabled={query.isRefetching}
-                onPress={() => void query.refetch()}
-              />
+              <View style={{ gap: 8 }}>
+                <Button
+                  label={query.isRefetching ? 'Checking…' : 'Check waitlist status'}
+                  disabled={query.isRefetching}
+                  onPress={() => void query.refetch()}
+                />
+                {confirmWaitlistLeave ? (
+                  <View style={{ gap: 6 }}>
+                    <Text style={[styles.joinedSub, { color: colors.mutedForeground }]}>Leave the waitlist? You can join again while registration is open.</Text>
+                    <View style={styles.detailActionRow}>
+                      <Button
+                        label="Keep my place"
+                        variant="secondary"
+                        disabled={leaveWaitlist.isPending}
+                        onPress={() => setConfirmWaitlistLeave(false)}
+                      />
+                      <Button
+                        label={leaveWaitlist.isPending ? 'Leaving…' : 'Confirm leave'}
+                        disabled={leaveWaitlist.isPending}
+                        color={colors.destructive}
+                        onPress={() => void withdrawFromWaitlist(participation.id)}
+                        testID="leave-waitlist-confirm"
+                      />
+                    </View>
+                  </View>
+                ) : (
+                  <Button
+                    label="Leave waitlist"
+                    variant="secondary"
+                    disabled={leaveWaitlist.isPending}
+                    onPress={() => setConfirmWaitlistLeave(true)}
+                    testID="leave-waitlist"
+                  />
+                )}
+              </View>
             ) : hasConfiguredMilestones && ['joined', 'attended'].includes(participation.status) ? (
               <Text style={[styles.joinedSub, { color: colors.mutedForeground, marginTop: 10 }]}>
                 Submit milestones from the timeline above. Each verified step releases its XP award.

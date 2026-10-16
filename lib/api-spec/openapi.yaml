@@ -1307,6 +1307,32 @@ paths:
                   $ref: "#/components/schemas/Participation"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /participations/{participationId}:
+    delete:
+      operationId: leaveWaitlist
+      tags: [experiences]
+      summary: Withdraw the current user's waitlist entry
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: participationId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Waitlist entry withdrawn
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Participation is no longer waitlisted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /participations/{participationId}/submit:
     post:
       operationId: submitCompletion
@@ -4126,6 +4152,8 @@ components:
           type: integer
         waitlistCount:
           type: integer
+        monthlyVerifiedCompletions:
+          type: integer
         pendingCompletionReviews:
           type: integer
         pendingMilestoneReviews:
@@ -4134,7 +4162,7 @@ components:
           type: integer
         totalExperiences:
           type: integer
-      required: [organisation, upcomingExperiences, participantCount, waitlistCount, pendingCompletionReviews, pendingMilestoneReviews, pendingVerifications, totalExperiences]
+      required: [organisation, upcomingExperiences, participantCount, waitlistCount, monthlyVerifiedCompletions, pendingCompletionReviews, pendingMilestoneReviews, pendingVerifications, totalExperiences]
     HostExperience:
       allOf:
         - $ref: "#/components/schemas/Experience"

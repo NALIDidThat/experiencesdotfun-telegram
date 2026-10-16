@@ -4645,6 +4645,80 @@ export function useListMyParticipations<TData = Awaited<ReturnType<typeof listMy
 
 
 
+export const getLeaveWaitlistUrl = (participationId: number,) => {
+
+
+
+
+  return `/api/participations/${participationId}`
+}
+
+/**
+ * @summary Withdraw the current user's waitlist entry
+ */
+export const leaveWaitlist = async (participationId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getLeaveWaitlistUrl(participationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getLeaveWaitlistMutationKey = () => ['leaveWaitlist'] as const;
+
+export const getLeaveWaitlistMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveWaitlist>>, TError,LeaveWaitlistMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof leaveWaitlist>>, TError,LeaveWaitlistMutationVariables, TContext> => {
+
+const mutationKey = getLeaveWaitlistMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof leaveWaitlist>>, LeaveWaitlistMutationVariables> = (props) => {
+          const {participationId} = props ?? {};
+
+          return  leaveWaitlist(participationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LeaveWaitlistMutationResult = NonNullable<Awaited<ReturnType<typeof leaveWaitlist>>>
+
+    export type LeaveWaitlistMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | Error>
+    export type LeaveWaitlistMutationVariables = {participationId: number}
+
+    /**
+ * @summary Withdraw the current user's waitlist entry
+ */
+export const useLeaveWaitlist = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveWaitlist>>, TError,LeaveWaitlistMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof leaveWaitlist>>,
+        TError,
+        LeaveWaitlistMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLeaveWaitlistMutationOptions(options));
+    }
+
 export const getSubmitCompletionUrl = (participationId: number,) => {
 
 

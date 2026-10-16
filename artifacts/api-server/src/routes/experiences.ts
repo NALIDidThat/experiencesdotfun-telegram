@@ -1569,6 +1569,67 @@ router.get("/participations", async (req, res) => {
   );
 });
 
+router.delete("/participations/:participationId", async (req, res) => {
+  if (!enforceAccountType(req, res, "participant")) return;
+  const parsed = SubmitCompletionParams.safeParse({
+    participationId: Number(req.params.participationId),
+  });
+  if (!parsed.success) {
+    error(res, 400, "Invalid participation.");
+    return;
+  }
+
+  const user = currentUser(req);
+  const outcome = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(participationsTable)
+      .where(
+        and(
+          eq(participationsTable.id, parsed.data.participationId),
+          eq(participationsTable.userId, user.id),
+        ),
+      )
+      .limit(1);
+    if (!existing) return { kind: "not-found" as const };
+
+    // Match the host promotion lock order so a concurrent promotion cannot
+    // turn a waitlist withdrawal into deletion of a confirmed place.
+    await tx
+      .select({ id: experiencesTable.id })
+      .from(experiencesTable)
+      .where(eq(experiencesTable.id, existing.experienceId))
+      .for("update");
+    const [waitlisted] = await tx
+      .select()
+      .from(participationsTable)
+      .where(
+        and(
+          eq(participationsTable.id, existing.id),
+          eq(participationsTable.userId, user.id),
+          eq(participationsTable.status, "waitlisted"),
+        ),
+      )
+      .for("update");
+    if (!waitlisted) return { kind: "not-waitlisted" as const };
+
+    await tx
+      .delete(participationsTable)
+      .where(eq(participationsTable.id, waitlisted.id));
+    return { kind: "withdrawn" as const };
+  });
+
+  if (outcome.kind === "not-found") {
+    error(res, 404, "Waitlist entry not found.");
+    return;
+  }
+  if (outcome.kind === "not-waitlisted") {
+    error(res, 409, "Only a waitlisted place can be withdrawn from here.");
+    return;
+  }
+  res.status(204).end();
+});
+
 router.post("/participations/:participationId/submit", async (req, res) => {
   if (!enforceAccountType(req, res, "participant")) return;
   const parsed = SubmitCompletionParams.safeParse({
@@ -1826,6 +1887,7 @@ router.get("/host/overview", async (req, res) => {
       upcomingExperiences: 0,
       participantCount: 0,
       waitlistCount: 0,
+      monthlyVerifiedCompletions: 0,
       pendingCompletionReviews: 0,
       pendingMilestoneReviews: 0,
       pendingVerifications: 0,
@@ -1865,6 +1927,15 @@ router.get("/host/overview", async (req, res) => {
   const pendingCompletionReviews = participations.filter(
     (item) => item.status === "submitted",
   ).length;
+  const monthStart = new Date();
+  monthStart.setUTCDate(1);
+  monthStart.setUTCHours(0, 0, 0, 0);
+  const monthlyVerifiedCompletions = participations.filter(
+    (item) =>
+      item.status === "verified" &&
+      item.verifiedAt !== null &&
+      item.verifiedAt >= monthStart,
+  ).length;
   const pendingMilestoneReviews = Number(pendingMilestoneSubmissions?.value ?? 0);
   res.json({
     organisation: organisationResponse(organisation),
@@ -1873,6 +1944,7 @@ router.get("/host/overview", async (req, res) => {
       ["joined", "attended", "submitted", "verified"].includes(item.status),
     ).length,
     waitlistCount: participations.filter((item) => item.status === "waitlisted").length,
+    monthlyVerifiedCompletions,
     pendingCompletionReviews,
     pendingMilestoneReviews,
     pendingVerifications: pendingCompletionReviews + pendingMilestoneReviews,

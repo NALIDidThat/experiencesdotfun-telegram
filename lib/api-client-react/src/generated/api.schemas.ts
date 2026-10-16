@@ -1373,6 +1373,7 @@ export interface HostOverview {
   upcomingExperiences: number;
   participantCount: number;
   waitlistCount: number;
+  monthlyVerifiedCompletions: number;
   pendingCompletionReviews: number;
   pendingMilestoneReviews: number;
   pendingVerifications: number;
