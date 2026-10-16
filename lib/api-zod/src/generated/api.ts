@@ -270,6 +270,7 @@ export const GetOrganisationTreasuryResponse = zod.object({
   "signature": zod.string(),
   "status": zod.enum(['confirmed', 'failed', 'unavailable']),
   "sender": zod.string().nullable(),
+  "campaignId": zod.number().int().nullable(),
   "amountSol": zod.string().nullable(),
   "blockTime": zod.coerce.date().nullable(),
   "error": zod.string().nullable()

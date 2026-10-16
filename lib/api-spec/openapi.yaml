@@ -2906,10 +2906,11 @@ components:
         signature: { type: string }
         status: { type: string, enum: [confirmed, failed, unavailable] }
         sender: { type: [string, "null"] }
+        campaignId: { type: [integer, "null"] }
         amountSol: { type: [string, "null"] }
         blockTime: { type: [string, "null"], format: date-time }
         error: { type: [string, "null"] }
-      required: [signature, status, sender, amountSol, blockTime, error]
+      required: [signature, status, sender, campaignId, amountSol, blockTime, error]
     OrganisationTreasuryDashboard:
       type: object
       properties:

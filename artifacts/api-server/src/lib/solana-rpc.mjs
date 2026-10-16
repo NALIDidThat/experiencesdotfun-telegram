@@ -31,9 +31,18 @@ function collectInstructions(transaction) {
   return [...instructions, ...inner];
 }
 
+function getSolanaPayMemo(instruction) {
+  const parsed = instruction?.parsed;
+  if (!parsed || (instruction.program !== "spl-memo" && parsed.type !== "memo")) return null;
+  const info = parsed.info;
+  return typeof info === "string" ? info : typeof info?.memo === "string" ? info.memo : null;
+}
+
 function getIncomingLamports(transaction, address) {
   let total = 0n;
   const sources = new Set();
+  let campaignId = null;
+  const topLevelInstructions = transaction?.transaction?.message?.instructions ?? [];
   for (const instruction of collectInstructions(transaction)) {
     const parsed = instruction?.parsed;
     const info = parsed?.info;
@@ -47,7 +56,28 @@ function getIncomingLamports(transaction, address) {
       if (typeof info.source === "string") sources.add(info.source);
     }
   }
-  return { lamports: total, sender: sources.size ? [...sources].join(", ") : null };
+  for (let index = 1; index < topLevelInstructions.length; index += 1) {
+    const instruction = topLevelInstructions[index];
+    const parsed = instruction?.parsed;
+    const info = parsed?.info;
+    if (
+      instruction?.program === "system" &&
+      parsed?.type?.startsWith("transfer") &&
+      info?.destination === address
+    ) {
+      const memo = getSolanaPayMemo(topLevelInstructions[index - 1]);
+      const campaignMatch = memo?.match(/^Experiences\.fun fund ([1-9]\d*)$/);
+      if (campaignMatch) {
+        const parsedCampaignId = Number(campaignMatch[1]);
+        if (Number.isSafeInteger(parsedCampaignId)) campaignId = parsedCampaignId;
+      }
+    }
+  }
+  return {
+    lamports: total,
+    sender: sources.size ? [...sources].join(", ") : null,
+    campaignId,
+  };
 }
 
 async function rpcCall(url, method, params, fetchImpl) {
@@ -99,6 +129,7 @@ export async function getSolanaTreasuryActivity({
           signature: entry.signature,
           status: "failed",
           sender: null,
+          campaignId: null,
           amountSol: null,
           blockTime: entry.blockTime ? new Date(entry.blockTime * 1000).toISOString() : null,
           error: "Transaction failed on-chain.",
@@ -116,6 +147,7 @@ export async function getSolanaTreasuryActivity({
             signature: entry.signature,
             status: "unavailable",
             sender: null,
+            campaignId: null,
             amountSol: null,
             blockTime: entry.blockTime ? new Date(entry.blockTime * 1000).toISOString() : null,
             error: "Transaction details are not available from the RPC.",
@@ -127,6 +159,7 @@ export async function getSolanaTreasuryActivity({
           signature: entry.signature,
           status: "confirmed",
           sender: incoming.sender,
+          campaignId: incoming.campaignId,
           amountSol: lamportsToSol(incoming.lamports),
           blockTime: entry.blockTime ? new Date(entry.blockTime * 1000).toISOString() : null,
           error: null,
@@ -136,6 +169,7 @@ export async function getSolanaTreasuryActivity({
           signature: entry.signature,
           status: "unavailable",
           sender: null,
+          campaignId: null,
           amountSol: null,
           blockTime: entry.blockTime ? new Date(entry.blockTime * 1000).toISOString() : null,
           error: "Transaction details are not available from the RPC.",

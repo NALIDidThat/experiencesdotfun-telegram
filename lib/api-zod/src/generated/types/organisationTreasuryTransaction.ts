@@ -13,6 +13,8 @@ export interface OrganisationTreasuryTransaction {
   /** @nullable */
   sender: string | null;
   /** @nullable */
+  campaignId: number | null;
+  /** @nullable */
   amountSol: string | null;
   /** @nullable */
   blockTime: Date | null;

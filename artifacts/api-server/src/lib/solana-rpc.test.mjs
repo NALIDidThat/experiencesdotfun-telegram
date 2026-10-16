@@ -25,9 +25,10 @@ test("reads finalized balance from the selected cluster", async () => {
   assert.equal(request.body.method, "getBalance");
 });
 
-test("returns only confirmed incoming SOL transfers and separates failed entries", async () => {
+test("returns only finalized incoming SOL transfers and attributes a Solana Pay campaign memo", async () => {
   const signature = "2".repeat(64);
   const failedSignature = "3".repeat(64);
+  let campaignMemoAdjacent = true;
   const fetchImpl = async (_url, options) => {
     const request = JSON.parse(options.body);
     if (request.method === "getSignaturesForAddress") {
@@ -44,10 +45,14 @@ test("returns only confirmed incoming SOL transfers and separates failed entries
       json: async () => ({
         result: {
           meta: { err: null, innerInstructions: [] },
-          transaction: { message: { instructions: [{
-            program: "system",
-            parsed: { type: "transfer", info: { source: "4".repeat(32), destination: address, lamports: 2500000000 } },
-          }] } },
+          transaction: { message: { instructions: [
+            { program: "spl-memo", parsed: { type: "memo", info: "Experiences.fun fund 42" } },
+            ...(campaignMemoAdjacent ? [] : [{ program: "compute-budget", parsed: { type: "setComputeUnitLimit", info: {} } }]),
+            {
+              program: "system",
+              parsed: { type: "transfer", info: { source: "4".repeat(32), destination: address, lamports: 2500000000 } },
+            },
+          ] } },
         },
       }),
     };
@@ -57,8 +62,14 @@ test("returns only confirmed incoming SOL transfers and separates failed entries
   assert.equal(result.transactions[0].status, "confirmed");
   assert.equal(result.transactions[0].amountSol, "2.500000000");
   assert.equal(result.transactions[0].sender, "4".repeat(32));
+  assert.equal(result.transactions[0].campaignId, 42);
   assert.equal(result.transactions[1].status, "failed");
+  assert.equal(result.transactions[1].campaignId, null);
   assert.equal(result.transactions[1].amountSol, null);
+
+  campaignMemoAdjacent = false;
+  const unlinkedMemoResult = await getSolanaTreasuryActivity({ address, cluster: "mainnet-beta", fetchImpl });
+  assert.equal(unlinkedMemoResult.transactions[0].campaignId, null);
 });
 
 test("rejects invalid cluster and transaction cursors", async () => {

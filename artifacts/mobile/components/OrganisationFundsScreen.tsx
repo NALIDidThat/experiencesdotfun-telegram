@@ -673,7 +673,7 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
             <View style={{ flexDirection: "row", gap: 9 }}>
               {[
                 { label: "ACTIVE FUNDS", value: fundsQuery.data?.length ?? 0, icon: "heart" as const },
-                { label: "RECENT TRANSFERS", value: treasuryQuery.data.transactions.length, icon: "activity" as const },
+                { label: "RECENT ACTIVITY", value: treasuryQuery.data.transactions.length, icon: "activity" as const },
               ].map((metric) => (
                 <View key={metric.label} style={{ flex: 1, minHeight: 74, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 2, padding: 13, flexDirection: "row", alignItems: "center", gap: 11 }}>
                   <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.primary + "12", alignItems: "center", justifyContent: "center" }}>
@@ -725,8 +725,8 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
             <View style={{ gap: 12 }}>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                 <View style={{ gap: 3 }}>
-                  <Text style={{ color: colors.foreground, fontSize: 19, fontFamily: "Inter_700Bold" }}>Recent activity</Text>
-                  <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Finalized transfers to this treasury</Text>
+                  <Text style={{ color: colors.foreground, fontSize: 19, fontFamily: "Inter_700Bold" }}>Treasury activity</Text>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Only confirmed incoming SOL is shown as a contribution</Text>
                 </View>
                 {allTransactions.length ? (
                   <View style={{ borderRadius: 20, backgroundColor: colors.muted, paddingHorizontal: 9, paddingVertical: 5 }}>
@@ -740,6 +740,9 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
                 const failed = transaction.status === "failed";
                 const statusColor = confirmed ? colors.success : failed ? colors.destructive : colors.mutedForeground;
                 const timestamp = transactionDateLabel(transaction.blockTime);
+                const attributedFund = confirmed && transaction.campaignId
+                  ? fundsQuery.data?.find((fund) => fund.id === transaction.campaignId)
+                  : undefined;
                 return (
                   <View key={transaction.signature} style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 2, padding: 13, gap: 10 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -748,17 +751,22 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
                       </View>
                       <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
                         <Text numberOfLines={1} style={{ color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 14 }}>
-                          {confirmed && transaction.amountSol ? `+${transaction.amountSol} SOL` : failed ? "Failed transfer" : "Details unavailable"}
+                          {confirmed && transaction.amountSol ? `+${transaction.amountSol} SOL` : failed ? "Failed transaction" : "Details unavailable"}
                         </Text>
                         <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
                           {timestamp ?? (transaction.sender ? `From ${shortAddress(transaction.sender)}` : "On-chain transaction")}
+                        </Text>
+                        <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>
+                          {confirmed && transaction.campaignId
+                            ? `Campaign: ${attributedFund?.title ?? `#${transaction.campaignId}`}`
+                            : confirmed ? "Unattributed treasury transfer" : "Not verified as an incoming contribution"}
                         </Text>
                       </View>
                       <View style={{ borderRadius: 18, backgroundColor: statusColor + "14", paddingHorizontal: 8, paddingVertical: 5 }}>
                         <Text style={{ color: statusColor, fontFamily: "Inter_700Bold", fontSize: 9, textTransform: "uppercase" }}>{transaction.status}</Text>
                       </View>
                     </View>
-                    {transaction.error && !confirmed && !failed ? null : transaction.error ? (
+                    {transaction.error ? (
                       <Text numberOfLines={2} style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 15 }}>{transaction.error}</Text>
                     ) : null}
                     <Pressable
