@@ -25,7 +25,7 @@ A development-mode API workflow can still inherit production-scoped Supabase and
 
 **Why:** Restarting it can start Telegram long polling and write against production Supabase.
 
-**How to apply:** Before starting the API workflow, check runtime/backend/secret scopes. If they resolve to production, use read-only checks or a production-safe path rather than launching development polling.
+**How to apply:** Before starting the API workflow, check runtime/backend/secret scopes. If they resolve to production, use read-only checks or a production-safe path rather than launching development polling or startup maintenance that mutates Supabase.
 
 The API test suite selects its live integration database from `DATABASE_BACKEND`; `supabase` runs an XP redemption integration test that inserts temporary production rows.
 
