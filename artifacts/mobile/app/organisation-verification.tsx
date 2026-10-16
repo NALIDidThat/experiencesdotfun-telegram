@@ -214,7 +214,10 @@ export default function OrganisationVerificationScreen() {
 
   const status = statusQuery.data?.status ?? 'unsubmitted';
   const isBusy = saveDraft.isPending || submitApplication.isPending;
-  const canSubmit = ['unsubmitted', 'rejected', 'expired'].includes(status);
+  const canSubmit =
+    ['unsubmitted', 'rejected', 'expired'].includes(status) ||
+    statusQuery.data?.application?.status === 'draft' ||
+    statusQuery.data?.application?.status === 'needs_information';
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
