@@ -29,3 +29,4 @@ packages = ["freetype", "gumbo", "harfbuzz", "jbig2dec", "libjpeg_turbo", "mupdf
 [userenv.shared]
 DATABASE_BACKEND = "supabase"
 VERIFICATION_REVIEWER_TELEGRAM_ID = "1248154114"
+"Google Maps API" = "AIzaSyCu3xwAMYEMCdwr160rXJKMic0jQr4xiiU"

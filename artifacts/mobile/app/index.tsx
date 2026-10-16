@@ -107,6 +107,7 @@ import { OrganisationFundsScreen, OrganisationFundraiserSection } from '@/compon
 import { SocialFeed } from '@/components/SocialFeed';
 import { PersonalActivityScreen } from '@/components/PersonalActivityScreen';
 import { OrganisationActivityDashboard } from '@/components/OrganisationActivityDashboard';
+import { OrganisationHomeScreen } from '@/components/OrganisationHomeScreen';
 import { AccountsCenterScreen } from '@/components/AccountsCenterScreen';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
@@ -7219,9 +7220,11 @@ function BottomNav({
   const items: Array<{ key: Screen; label: string; icon: IconName }> = userType === 'organisation'
     ? [
         { key: 'home', label: 'Home', icon: 'home' },
-        { key: 'explore', label: 'Explore', icon: 'compass' },
-        { key: 'host', label: 'Host', icon: 'briefcase' },
-        { key: 'profile', label: 'Organisation', icon: 'user' },
+        { key: 'host', label: 'Experiences', icon: 'calendar' },
+        canLaunchFunds
+          ? { key: 'funds', label: 'Treasury', icon: 'credit-card' }
+          : { key: 'explore', label: 'Explore', icon: 'compass' },
+        { key: 'profile', label: 'Profile', icon: 'user' },
       ]
     : [
         { key: 'home', label: 'Home', icon: 'home' },
@@ -8398,21 +8401,23 @@ export default function App() {
     if (screen === 'funds') return user.userType === 'organisation' && user.organisation?.type === 'charity'
       ? <OrganisationFundsScreen organisationUserId={user.id} onBack={() => go('profile')} />
       : <EmptyState title="Charity account required" body="Only charity organisation profiles can launch funds." actionLabel="Back to profile" onAction={() => go('profile')} />;
-    return (
-      <Home
-        user={user}
-        go={go}
-        composerRequest={feedComposerRequest}
-        onComposerRequestHandled={(signal) => {
-          setFeedComposerRequest((current) => current === signal ? null : current);
-        }}
-      />
-    );
+    return user.userType === 'organisation'
+      ? <OrganisationHomeScreen user={user} go={go} />
+      : (
+        <Home
+          user={user}
+          go={go}
+          composerRequest={feedComposerRequest}
+          onComposerRequestHandled={(signal) => {
+            setFeedComposerRequest((current) => current === signal ? null : current);
+          }}
+        />
+      );
   })();
 
   const noNav = ['experience', 'host-detail', 'create', 'direct-message', 'memory-game'].includes(screen);
   const navActive = screen === 'funds'
-    ? 'profile'
+    ? user.userType === 'organisation' && user.organisation?.type === 'charity' ? 'funds' : 'profile'
     : user.userType === 'organisation' && screen === 'experiences'
     ? 'host'
     : screen === 'experiences'

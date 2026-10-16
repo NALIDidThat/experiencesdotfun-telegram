@@ -1,0 +1,212 @@
+16. Organisation Profile Page
+
+Objective
+
+Implement a complete Organisation Profile page within Experiences.fun, integrated with the existing Organisation account system.
+
+The profile should serve two purposes:
+
+1. Public profile: A discoverable page where participants, volunteers, donors and other organisations can learn about the organisation, its mission and its activities.
+2. Private profile management: An authenticated workspace where authorised organisation members can manage their information, verification, team access and account settings.
+
+Do not combine the public profile with the private management interface into one cluttered screen.
+
+Inspect the existing routing, organisation schema, profile components and permissions before implementation. Reuse existing functionality wherever possible.
+
+A. Organisation Profile Header
+
+Display:
+
+* Organisation logo or avatar.
+* Cover image, if supported.
+* Organisation name.
+* Verification status.
+* Organisation category.
+* Location.
+* Short description.
+* Website and supported social links.
+* Edit Profile button for authorised organisation members.
+
+Provide a clean, mobile-first layout consistent with Experiences.fun’s existing design system.
+
+Verification badges must reflect the actual backend verification state.
+
+B. Organisation Overview
+
+Create a dedicated overview section containing:
+
+* Mission and description.
+* Areas of focus, such as education, employment or environmental initiatives.
+* Location and operating area.
+* Website and contact information, where appropriate.
+* Organisation registration details, where relevant and supported.
+
+Allow organisations to explain what they do, whom they serve and what kinds of initiatives they organise.
+
+Do not expose private contact details, personal information or sensitive registration documents on the public profile.
+
+C. Impact and Activity
+
+Display meaningful, evidence-based indicators of the organisation’s activity.
+
+Potential metrics:
+
+* Experiences completed.
+* Volunteers who have participated.
+* Verified contribution hours.
+* Communities reached, if reliably measured.
+* Funds raised through Experiences.fun, if the organisation’s financial data supports public disclosure.
+
+Use actual records and clearly defined calculations.
+
+Do not expose private treasury balances, pending volunteer applications, internal approvals or restricted financial information.
+
+Where appropriate, allow visitors to explore completed and active experiences.
+
+D. Experiences and Fundraising
+
+Organise the organisation’s public activities into appropriate sections:
+
+Experiences
+
+* Published experiences.
+* Experience descriptions.
+* Locations and dates.
+* Participation status.
+* Links to experience detail pages.
+
+Fundraising
+
+* Public fundraising campaigns.
+* Campaign objectives.
+* Fundraising progress.
+* Relevant contribution actions.
+
+Only display campaigns and experiences that are intended to be publicly visible.
+
+Respect existing publication states, permissions and financial disclosure rules.
+
+Do not expose unpublished drafts or private fundraising records.
+
+E. Edit Profile Workflow
+
+When an authorised organisation member clicks Edit Profile, open a dedicated editing interface.
+
+Organise the form into logical groups:
+
+Identity
+
+* Organisation name.
+* Logo.
+* Cover image.
+* Organisation category.
+
+About
+
+* Short description.
+* Full mission statement.
+* Areas of focus.
+
+Location
+
+* Country.
+* City or locality.
+* Operating area.
+
+Links
+
+* Website.
+* Supported social media links.
+* Public contact information.
+
+Verification
+
+* Current verification status.
+* Outstanding requirements.
+* Link to the existing verification process.
+
+Only implement fields supported by the current schema or necessary, explicitly planned additions.
+
+Requirements:
+
+* Prefill the form with existing organisation data.
+* Validate fields on both client and server.
+* Provide save and cancel actions.
+* Show loading, success and error states.
+* Warn users about unsaved changes.
+* Ensure updates persist after refreshing the page.
+* Restrict editing to authorised organisation members.
+* Do not allow profile edits to modify verification status or financial permissions directly.
+
+If a verification workflow already exists, integrate it rather than creating a competing system.
+
+F. Organisation Settings
+
+Provide a private settings area for:
+
+* Organisation account details.
+* Team members and access permissions, if supported.
+* Notification preferences, if supported.
+* Verification and compliance status.
+* Account security.
+* Sign-out.
+
+Do not introduce team management or permission controls that bypass the existing authorisation model.
+
+G. Navigation and Routes
+
+Inspect the current routing structure before deciding on route names.
+
+The intended navigation relationship is:
+
+* Home → Organisation dashboard.
+* Experiences → Experience management.
+* Treasury → Treasury management.
+* Profile → Organisation profile.
+
+From the profile page, authorised users should be able to access Edit Profile and relevant account settings.
+
+Public visitors should see the public profile without receiving access to organisation management tools.
+
+Use the application’s existing navigation patterns rather than introducing unnecessary duplicate navigation bars.
+
+H. Profile States
+
+Support:
+
+* Complete and verified profiles.
+* Incomplete profiles.
+* Pending verification.
+* Rejected verification, if supported by the existing workflow.
+* Organisations without a logo or cover image.
+* Organisations without published experiences.
+* Organisations without fundraising campaigns.
+* Loading and API error states.
+
+For incomplete profiles, show a useful completion indicator and identify the fields that need attention.
+
+Do not imply that profile completion automatically guarantees verification.
+
+I. Security and Data Integrity
+
+* Enforce permissions on the server.
+* Separate public organisation data from private management data.
+* Validate uploaded assets and file types.
+* Prevent unauthorised changes to verification status.
+* Avoid exposing internal financial or volunteer records.
+* Preserve existing authentication and organisation ownership relationships.
+
+J. Definition of Done
+
+The profile implementation is complete when:
+
+1. Public visitors can view an organisation’s public profile.
+2. Authorised members can edit supported profile fields.
+3. Profile changes persist correctly.
+4. Public and private information are properly separated.
+5. Verification status reflects authoritative backend data.
+6. Published experiences and fundraising campaigns display correctly.
+7. Profile links integrate with the existing application.
+8. Mobile layouts work correctly.
+9. Loading, error and empty states are implemented.
+10. Existing organisation and participant workflows remain functional.

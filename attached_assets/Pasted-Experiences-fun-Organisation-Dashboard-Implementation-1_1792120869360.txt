@@ -1,0 +1,699 @@
+Experiences.fun: Organisation Dashboard Implementation
+
+1. Objective
+
+Implement a polished, mobile-first Organisation Dashboard for Experiences.fun.
+
+Repository: https://github.com/NALIDidThat/experiencesdotfun-telegram
+
+The dashboard should serve as the central operating interface for organisations, charities and community organisations using Experiences.fun to manage their profiles, fundraising campaigns, treasuries, experiences, volunteers and social impact.
+
+Important: Before writing any code, inspect the existing repository and understand the current architecture, UI components, authentication, database schema, routing, organisation account flow, fundraising system and treasury implementation.
+
+Do not build a disconnected dashboard or replace existing functionality unnecessarily.
+
+Your responsibility is to integrate the dashboard into the existing application, reuse working components and services, identify missing dependencies, and implement the necessary improvements.
+
+The attached design reference is the intended visual direction. Reproduce its layout and design language while adapting it to the actual application architecture and available data.
+
+⸻
+
+2. First: Audit the Existing Application
+
+Before implementation, investigate the following.
+
+Frontend
+
+* Existing application entry points and routing.
+* Current mobile navigation and responsive layouts.
+* Existing Participant and Organisation account types.
+* Existing profile pages and organisation management screens.
+* Current design tokens, typography, colours, spacing and reusable components.
+* Existing icon library and image assets.
+* Loading, error, empty and success states.
+
+Backend
+
+* Authentication and session management.
+* Organisation records and ownership relationships.
+* Organisation verification status.
+* Fundraising campaigns and launched funds.
+* Treasury balances and transactions.
+* Experience creation and management.
+* Volunteer applications, selection and participation records.
+* Approvals, payouts and payment status.
+* Existing API routes, database tables and server-side authorisation.
+
+Database
+
+Identify which dashboard metrics can be derived from existing records.
+
+Determine whether the current schema already supports:
+
+* Organisation profiles.
+* Active and draft experiences.
+* Fundraising totals and campaign targets.
+* Treasury balances and reserved funds.
+* Pending approvals.
+* Volunteer applications and selected volunteers.
+* Completed experiences.
+* Verified contribution hours.
+* Organisation verification.
+
+Do not create duplicate tables or fields when equivalent data structures already exist.
+
+If a required capability is missing, document the gap and implement the smallest appropriate schema or service change.
+
+After the audit, proceed with implementation. Do not stop at producing an analysis or implementation plan.
+
+⸻
+
+3. Dashboard Layout
+
+Build the dashboard as a responsive mobile-first screen.
+
+Use the existing application shell, routing conventions and design system.
+
+Section A: Organisation Header
+
+Display:
+
+* Organisation logo or avatar.
+* Organisation name.
+* Verification badge, when verified.
+* Organisation category.
+* Location.
+* Edit Profile button.
+* Notifications indicator, if notifications already exist.
+
+Example:
+
+Green Futures ✓
+
+Community Organisation · London, UK
+
+The profile header must use the authenticated organisation’s actual data.
+
+Requirements:
+
+* Allow organisations to edit the fields currently supported by their profile.
+* Do not display a verification badge unless the backend confirms verification.
+* Make the edit action navigate to the existing profile editor or implement one consistent with existing profile management.
+* Ensure the layout works on narrow mobile screens.
+
+Do not hardcode Green Futures or any other sample organisation into the production interface.
+
+Section B: Community Treasury Card
+
+Create a visually prominent treasury summary card using the Experiences.fun brand.
+
+Design direction:
+
+* Dark navy background.
+* Purple and magenta gradient accents.
+* High-contrast typography.
+* Rounded corners.
+* Subtle decorative graphics, if suitable existing assets are available.
+* Clear separation between financial figures and navigation actions.
+
+Display:
+
+Community Treasury
+
+Available to allocate: £X
+
+Supporting metrics:
+
+* Committed to experiences.
+* Awaiting approval.
+
+Primary action:
+
+* View Treasury.
+
+Financial calculations must use actual backend data.
+
+Financial integrity requirements
+
+Never treat these balances as interchangeable:
+
+1. Total treasury assets.
+2. Available funds.
+3. Funds committed to experiences.
+4. Funds reserved for approved but unsettled payments.
+5. Payments awaiting approval.
+6. Completed payouts.
+
+Define and document the existing application’s financial accounting rules before calculating the dashboard figures.
+
+Where the underlying data supports the distinction, use the following conceptual calculation:
+
+Available funds = recognised treasury assets - outstanding reservations and commitments.
+
+Do not subtract a liability twice if it is already excluded from the recognised asset balance.
+
+Use the actual financial model implemented in the repository rather than imposing a conflicting accounting model.
+
+Additional requirements:
+
+* Never calculate balances from client-side estimates.
+* Do not treat fundraising pledges as received funds.
+* Do not treat pending transactions as settled transactions.
+* Do not expose another organisation’s financial records.
+* Format monetary values using the appropriate currency and locale.
+* If balances cannot be calculated reliably, display an explicit unavailable state rather than a misleading figure.
+* Use the existing treasury service or transaction ledger as the source of truth.
+
+The View Treasury button must open the existing treasury management experience.
+
+⸻
+
+4. Section C: Organisation Workspace
+
+Display four navigation cards in a responsive two-column grid on mobile.
+
+On particularly narrow screens, adapt the grid without horizontal overflow.
+
+Card 1: Experiences
+
+Display:
+
+* Total active experiences.
+* Number of draft experiences.
+
+Primary action:
+Open Experiences.
+
+The destination must support the existing experience management workflow.
+
+Card 2: Fundraising
+
+Display:
+
+* Total funds raised across the organisation’s relevant campaigns.
+* A secondary indicator for active campaigns, if supported.
+
+Primary action:
+Open Fundraising.
+
+Ensure the displayed fundraising total follows a clearly defined rule.
+
+For example, distinguish between:
+
+* Money successfully received.
+* Pending contributions.
+* Campaign target.
+
+Do not add pledges and completed contributions together as if they were all settled funds.
+
+Card 3: Volunteers
+
+Display:
+
+* Pending volunteer applications or reviews.
+* Selected volunteers, where appropriate.
+
+Primary action:
+Manage Volunteers.
+
+The pending count must reflect the actual workflow state. Do not count all volunteers as awaiting review.
+
+Card 4: Treasury
+
+Display:
+
+* Pending financial approvals.
+* Relevant treasury status.
+
+Primary action:
+Open Treasury.
+
+Avoid duplicating the treasury balance already presented in the prominent summary card.
+
+Use the existing icon library and consistent card styles.
+
+Each card must be fully clickable, keyboard accessible and connected to a real application destination.
+
+⸻
+
+5. Section D: Needs Your Attention
+
+Create a prioritised task queue showing outstanding actions requiring organisation staff intervention.
+
+Examples:
+
+* Volunteer applications awaiting review.
+* Volunteer payouts awaiting approval.
+* Incomplete organisation verification.
+* Experiences requiring completion review.
+* Fundraising campaigns requiring attention.
+
+Each task should include:
+
+* Action title.
+* Related experience or campaign, when applicable.
+* Relevant amount or count.
+* Current status.
+* Clear navigation to the appropriate review screen.
+
+Example:
+
+Approve Volunteer Payout
+
+Community Garden Revival · 3 volunteers
+
+£180.00 · Awaiting approval
+
+The task queue must be generated from actual application state.
+
+Prioritisation
+
+Use a consistent ordering strategy:
+
+1. Financial or operational tasks that are overdue.
+2. Tasks blocking an experience or payout.
+3. Pending volunteer reviews.
+4. Other incomplete administrative actions.
+
+Only display categories supported by the application.
+
+If no tasks require attention, display a positive empty state with a useful next action instead of an empty card.
+
+Include a View All action when there are more tasks than the dashboard displays.
+
+Approval safety
+
+A dashboard card must never directly execute a financial transfer.
+
+Clicking an approval task should open a detailed review screen.
+
+That screen must show the relevant evidence, recipient, amount, associated experience and current transaction status before the user can authorise an action.
+
+⸻
+
+6. Section E: Monthly Impact
+
+Create a section titled:
+
+Impact This Month
+
+Include a month selector if supported by the application.
+
+Display three compact metric cards:
+
+Experiences
+
+Number of experiences completed during the selected period.
+
+Volunteers
+
+Number of volunteers who participated during the selected period.
+
+Contribution Hours
+
+Verified contribution hours recorded during the selected period.
+
+Each metric should support comparison with the previous equivalent period when the data is available.
+
+Example:
+
+* 8 completed experiences.
+* 34 participating volunteers.
+* 126 verified contribution hours.
+
+These numbers are illustrative only. Never hardcode them.
+
+Metric integrity
+
+Define each metric precisely.
+
+For example:
+
+* Distinguish completed experiences from merely active or published experiences.
+* Distinguish selected volunteers from volunteers who actually participated.
+* Calculate contribution hours from verified participation records where possible.
+* Avoid counting the same volunteer multiple times if the metric represents unique volunteers.
+* Apply the selected date range consistently.
+* Use the organisation’s relevant timezone when determining reporting periods.
+
+If reliable data is unavailable, show a suitable empty state or omit the unsupported metric.
+
+Do not fabricate impact statistics to make the dashboard appear populated.
+
+⸻
+
+7. Section F: Active Experiences
+
+Display a horizontally compact card or vertically stacked cards for current experiences.
+
+Each card should contain:
+
+* Experience cover image, where available.
+* Experience title.
+* Location.
+* Lifecycle status.
+* Volunteer participation progress, if supported.
+* Relevant deadline or remaining time.
+* Navigation to the experience detail page.
+
+Example:
+
+Community Garden Revival
+
+Enfield, London
+
+24 / 30 volunteers
+
+2 weeks left
+
+The example is illustrative.
+
+Use actual experience data and existing media assets.
+
+Requirements:
+
+* Show only experiences that meet the existing definition of active.
+* Do not infer remaining time from an invalid or missing deadline.
+* Calculate volunteer progress from the appropriate application and participation states.
+* Handle experiences without images gracefully.
+* Provide a View All action linking to the existing experience management screen.
+
+If the organisation has no active experiences, display an empty state with a Create Experience action.
+
+⸻
+
+8. Mobile Navigation
+
+Use the application’s existing navigation framework where possible.
+
+The intended navigation contains four destinations:
+
+1. Home
+2. Experiences
+3. Treasury
+4. Profile
+
+Requirements:
+
+* Persistent bottom navigation on mobile.
+* Active-tab indicator.
+* Clear icons and accessible labels.
+* Safe-area spacing for devices with a home indicator.
+* No overlap with scrollable content.
+* Appropriate desktop behaviour without forcing a mobile navigation layout onto larger screens.
+
+The Organisation dashboard must remain separate from the Participant dashboard while reusing shared components where appropriate.
+
+Do not create a new account type merely to support this dashboard.
+
+Preserve the existing account selection:
+
+Participant | Organisation
+
+Organisation-specific capabilities must be authorised through the existing account and organisation permission model.
+
+⸻
+
+9. Design System and Visual Quality
+
+Use the established Experiences.fun visual identity.
+
+Primary colours:
+
+* Pink: #F20789
+* Purple: #6805F2
+* Aqua: #04ADBF
+
+Additional accent:
+
+* Blue: #1A98E5
+
+Visual direction
+
+The interface should feel:
+
+* Modern.
+* Friendly.
+* Professional.
+* Community-oriented.
+* Financially trustworthy.
+* Consistent with the existing Experiences.fun product.
+
+Use:
+
+* Light backgrounds.
+* Dark, high-contrast headings.
+* Rounded cards.
+* Restrained gradients.
+* Subtle borders and shadows.
+* Consistent spacing.
+* Clear information hierarchy.
+* Simple, recognisable icons.
+
+Use gradients primarily for important areas such as the treasury card and selected actions.
+
+Avoid:
+
+* Excessive gradients.
+* Excessive glassmorphism.
+* Oversized decorative graphics.
+* Too many competing accent colours.
+* Unnecessary charts.
+* Dense financial tables on the home dashboard.
+* Excessive nested cards.
+* Arbitrary animations.
+* Placeholder buttons that do nothing.
+
+The dashboard must remain visually coherent with the rest of the existing application.
+
+Do not introduce an entirely separate design language.
+
+Responsive behaviour
+
+Prioritise mobile screens first, then adapt to tablet and desktop.
+
+Test:
+
+* 320px viewport width.
+* 375px viewport width.
+* 390px viewport width.
+* 430px viewport width.
+* A typical desktop viewport.
+
+Prevent horizontal overflow, clipped text and overlapping navigation.
+
+⸻
+
+10. Backend Integration and Data Architecture
+
+Connect the dashboard to existing backend services and database records.
+
+Before implementing new endpoints, check whether existing APIs already provide the required information.
+
+Where practical, aggregate dashboard data through an existing service layer or a dedicated organisation-dashboard endpoint.
+
+Avoid making a large number of unrelated requests when a well-designed aggregate query can provide the same information efficiently.
+
+However, do not create an unnecessarily complex analytics subsystem just to populate a few cards.
+
+Requirements
+
+* Authenticate every dashboard request.
+* Verify organisation membership and permissions server-side.
+* Scope queries to the current organisation.
+* Prevent insecure direct object reference vulnerabilities.
+* Use server-side validation.
+* Preserve existing database conventions.
+* Avoid N+1 database queries.
+* Use database transactions where appropriate for financial state changes.
+* Do not expose private volunteer information in public profile data.
+* Handle failed requests and partial data safely.
+
+Do not trust organisation IDs, treasury balances, approval permissions or transaction statuses supplied by the client.
+
+The authenticated session and authoritative backend records must determine access and financial state.
+
+⸻
+
+11. Loading, Error and Empty States
+
+Implement complete states for each dashboard section.
+
+Loading
+
+Use skeletons that match the final card layout.
+
+Avoid replacing the entire dashboard with a blank screen if one section is still loading.
+
+Error
+
+Show a useful error message and a retry action.
+
+If treasury data fails to load, do not substitute zero and imply that the organisation has no funds.
+
+Empty
+
+Examples:
+
+* No active experiences.
+* No fundraising campaigns.
+* No volunteers awaiting review.
+* No outstanding approvals.
+* No verified impact data yet.
+
+Provide a relevant next action wherever appropriate.
+
+Partial failure
+
+Where safe, allow independently loaded sections to render even if another section fails.
+
+Never display stale financial values as current without clearly indicating their status.
+
+⸻
+
+12. Performance and Accessibility
+
+Ensure:
+
+* Fast initial mobile rendering.
+* Efficient data fetching.
+* Appropriate image optimisation.
+* Minimal unnecessary rerenders.
+* Semantic HTML.
+* Keyboard navigation.
+* Accessible button labels.
+* Sufficient colour contrast.
+* Visible focus states.
+* Reduced-motion support where animations are introduced.
+
+Do not add unnecessary libraries if the existing stack already supports the required functionality.
+
+⸻
+
+13. Testing Requirements
+
+Write or update tests using the repository’s existing testing framework.
+
+At minimum, validate:
+
+Authentication and permissions
+
+* Unauthenticated users cannot access the organisation dashboard.
+* Participants cannot access organisation-only management actions.
+* Users cannot access another organisation’s data.
+* Unverified organisations are not incorrectly shown as verified.
+
+Treasury
+
+* Available and committed balances are calculated according to the application’s financial model.
+* Pending contributions are not treated as settled funds.
+* Pending payouts are not treated as completed transfers.
+* Missing treasury data does not produce misleading financial figures.
+* Users without approval permissions cannot authorise payouts.
+
+Dashboard metrics
+
+* Experience counts reflect the correct lifecycle states.
+* Volunteer counts reflect the intended definition.
+* Impact metrics respect the selected reporting period.
+* Empty datasets render correctly.
+
+Navigation and UI
+
+* Every dashboard card navigates to the correct destination.
+* The layout works at mobile viewport widths.
+* Loading and error states render correctly.
+* Long organisation names do not break the layout.
+
+Run the existing test suite and relevant type checks, linting and production build commands.
+
+Fix regressions introduced by the implementation.
+
+⸻
+
+14. Implementation Boundaries
+
+Do not:
+
+* Rewrite the entire application.
+* Replace existing authentication.
+* Create duplicate organisation records.
+* Rebuild working treasury functionality unnecessarily.
+* Change tokenomics or introduce a new token.
+* Invent financial balances.
+* Hardcode sample organisation metrics.
+* Create decorative actions without functional destinations.
+* Allow dashboard actions to bypass existing authorisation.
+* Introduce new account types without a demonstrated requirement.
+* Remove existing routes or features to simplify implementation.
+
+Preserve all working functionality unless a specific defect requires a documented change.
+
+If an existing workflow is broken, fix the underlying issue rather than hiding it behind the new dashboard.
+
+⸻
+
+15. Execution Plan
+
+Follow this sequence:
+
+Phase 1: Audit
+
+Inspect the repository and map the current architecture, routes, data models and relevant workflows.
+
+Phase 2: Define the integration
+
+Identify the components to reuse, the components to create, the backend data required and any schema changes needed.
+
+Phase 3: Implement the dashboard
+
+Build the organisation header, treasury card, workspace grid, attention queue, impact metrics, active experiences and mobile navigation.
+
+Phase 4: Connect the data
+
+Integrate the dashboard with existing APIs and database records.
+
+Implement any missing backend aggregation or data structures that are genuinely necessary.
+
+Phase 5: Integrate existing workflows
+
+Connect all actions to the correct profile, experience, fundraising, volunteer and treasury destinations.
+
+Phase 6: Validate
+
+Run tests, type checks, linting and a production build. Fix any regressions.
+
+Phase 7: Report
+
+Summarise what changed and provide:
+
+* Files created.
+* Files modified.
+* Components reused.
+* Backend changes.
+* Database migrations.
+* API changes.
+* Tests performed and their results.
+* Any incomplete functionality or unresolved architectural issues.
+
+Do not claim a test passed unless you actually ran it.
+
+⸻
+
+Definition of Done
+
+The implementation is complete when:
+
+1. The organisation dashboard renders correctly on mobile and desktop.
+2. The dashboard uses the existing Experiences.fun design system.
+3. Organisation details are loaded from real application data.
+4. Treasury figures follow the authoritative financial model.
+5. Experiences, fundraising, volunteers and treasury cards link to functional destinations.
+6. Outstanding actions reflect actual workflow state.
+7. Impact metrics are derived from reliable records.
+8. Permissions are enforced server-side.
+9. Loading, error and empty states are implemented.
+10. Existing participant and organisation workflows continue working.
+11. Tests and the production build pass, or any pre-existing failures are clearly documented.
+
+Final instruction: Prioritise correctness, integration and usability over adding more features. The goal is not simply to recreate a pretty dashboard. It is to give organisations a trustworthy operational interface for managing community initiatives and the money supporting them.
