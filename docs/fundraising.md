@@ -8,9 +8,11 @@ finalized deposits, payout proposals and treasury sync metadata. It preserves
 existing rows. New financial tables have row-level security enabled without
 client-facing policies; access is through the authenticated backend.
 
-Do not run broad schema pushes or run this migration on app startup. After the
-user explicitly approves the configured **Production — Experiences Dot Fun**
-Supabase target, run:
+Do not run broad schema pushes or run this migration on app startup. The
+additive migration has been applied to **Production — Experiences Dot Fun**
+after user approval; its transaction confirmed that existing users,
+organisations, campaigns and treasuries were preserved. Any separate Supabase
+target requires its own explicit approval. If approved, run:
 
 ```sh
 pnpm --filter @workspace/db run migrate:fundraising --approve-production-experiences-dot-fun
