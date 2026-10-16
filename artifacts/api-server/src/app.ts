@@ -32,7 +32,9 @@ app.use(cors());
 app.use(express.json({ limit: "6mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-startAnalyticsRetentionCleanup();
+if (process.env.NODE_ENV !== "test") {
+  startAnalyticsRetentionCleanup();
+}
 app.use("/api", router);
 if (shouldStartTelegramPolling(process.env.NODE_ENV, process.env.TELEGRAM_POLLING_ENABLED)) {
   void startTelegramBot();
