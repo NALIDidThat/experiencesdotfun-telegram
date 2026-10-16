@@ -83,6 +83,7 @@ import type {
   GetFeedParams,
   GetMemoryGameLeaderboardParams,
   GetOrganisationTreasuryParams,
+  GetPrivateEvidenceAccess200,
   HealthStatus,
   HostExperience,
   HostExperienceMilestonesResponse,
@@ -96,6 +97,7 @@ import type {
   MemoryGameStartInput,
   MemoryGameStatsResponse,
   MemoryGameSubmitInput,
+  MilestoneEvidenceInput,
   MyCommunitiesResponse,
   NotFoundResponse,
   OrganisationFund,
@@ -116,6 +118,9 @@ import type {
   OrganisationVerificationSubmission,
   Participation,
   ParticipationReviewReasonInput,
+  PrivateEvidenceAccessInput,
+  PrivateEvidenceUploadInput,
+  PrivateEvidenceUploadResult,
   ProfilePostsResponse,
   ProfileUpdateInput,
   RedeemXpAwardsResponse,
@@ -156,6 +161,182 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getUploadPrivateEvidenceUrl = () => {
+
+
+
+
+  return `/api/evidence/upload`
+}
+
+/**
+ * @summary Upload a private verification evidence image
+ */
+export const uploadPrivateEvidence = async (privateEvidenceUploadInput: PrivateEvidenceUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<PrivateEvidenceUploadResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PrivateEvidenceUploadResult>(getUploadPrivateEvidenceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(privateEvidenceUploadInput)
+  }
+);}
+
+
+
+
+
+export const getUploadPrivateEvidenceMutationKey = () => ['uploadPrivateEvidence'] as const;
+
+export const getUploadPrivateEvidenceMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadPrivateEvidence>>, TError,UploadPrivateEvidenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadPrivateEvidence>>, TError,UploadPrivateEvidenceMutationVariables, TContext> => {
+
+const mutationKey = getUploadPrivateEvidenceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadPrivateEvidence>>, UploadPrivateEvidenceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadPrivateEvidence(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadPrivateEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof uploadPrivateEvidence>>>
+    export type UploadPrivateEvidenceMutationBody = BodyType<PrivateEvidenceUploadInput>
+    export type UploadPrivateEvidenceMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse>
+    export type UploadPrivateEvidenceMutationVariables = {data: BodyType<PrivateEvidenceUploadInput>}
+
+    /**
+ * @summary Upload a private verification evidence image
+ */
+export const useUploadPrivateEvidence = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadPrivateEvidence>>, TError,UploadPrivateEvidenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadPrivateEvidence>>,
+        TError,
+        UploadPrivateEvidenceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadPrivateEvidenceMutationOptions(options));
+    }
+
+export const getGetPrivateEvidenceAccessUrl = () => {
+
+
+
+
+  return `/api/evidence/access`
+}
+
+/**
+ * @summary Get a short-lived private evidence URL after access checks
+ */
+export const getPrivateEvidenceAccess = async (privateEvidenceAccessInput: PrivateEvidenceAccessInput, options?: Parameters<typeof customFetch>[1]): Promise<GetPrivateEvidenceAccess200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<GetPrivateEvidenceAccess200>(getGetPrivateEvidenceAccessUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(privateEvidenceAccessInput)
+  }
+);}
+
+
+
+
+
+export const getGetPrivateEvidenceAccessMutationKey = () => ['getPrivateEvidenceAccess'] as const;
+
+export const getGetPrivateEvidenceAccessMutationOptions = <TError = ErrorType<UnauthorizedResponse | Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getPrivateEvidenceAccess>>, TError,GetPrivateEvidenceAccessMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof getPrivateEvidenceAccess>>, TError,GetPrivateEvidenceAccessMutationVariables, TContext> => {
+
+const mutationKey = getGetPrivateEvidenceAccessMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof getPrivateEvidenceAccess>>, GetPrivateEvidenceAccessMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  getPrivateEvidenceAccess(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GetPrivateEvidenceAccessMutationResult = NonNullable<Awaited<ReturnType<typeof getPrivateEvidenceAccess>>>
+    export type GetPrivateEvidenceAccessMutationBody = BodyType<PrivateEvidenceAccessInput>
+    export type GetPrivateEvidenceAccessMutationError = ErrorType<UnauthorizedResponse | Error | NotFoundResponse>
+    export type GetPrivateEvidenceAccessMutationVariables = {data: BodyType<PrivateEvidenceAccessInput>}
+
+    /**
+ * @summary Get a short-lived private evidence URL after access checks
+ */
+export const useGetPrivateEvidenceAccess = <TError = ErrorType<UnauthorizedResponse | Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getPrivateEvidenceAccess>>, TError,GetPrivateEvidenceAccessMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof getPrivateEvidenceAccess>>,
+        TError,
+        GetPrivateEvidenceAccessMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGetPrivateEvidenceAccessMutationOptions(options));
+    }
 
 export const getSearchCompaniesHouseForOrganisationVerificationUrl = () => {
 
@@ -4566,14 +4747,29 @@ export const getSubmitExperienceMilestoneUrl = (participationId: number,
  * @summary Submit one completed experience milestone for host verification
  */
 export const submitExperienceMilestone = async (participationId: number,
-    milestoneId: number, options?: Parameters<typeof customFetch>[1]): Promise<ExperienceMilestoneProgress> => {
+    milestoneId: number,
+    milestoneEvidenceInput: MilestoneEvidenceInput, options?: Parameters<typeof customFetch>[1]): Promise<ExperienceMilestoneProgress> => {
 
-  return customFetch<ExperienceMilestoneProgress>(getSubmitExperienceMilestoneUrl(participationId,milestoneId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ExperienceMilestoneProgress>(getSubmitExperienceMilestoneUrl(participationId,milestoneId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(milestoneEvidenceInput)
   }
 );}
 
@@ -4598,9 +4794,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitExperienceMilestone>>, SubmitExperienceMilestoneMutationVariables> = (props) => {
-          const {participationId,milestoneId} = props ?? {};
+          const {participationId,milestoneId,data} = props ?? {};
 
-          return  submitExperienceMilestone(participationId,milestoneId,requestOptions)
+          return  submitExperienceMilestone(participationId,milestoneId,data,requestOptions)
         }
 
 
@@ -4611,9 +4807,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type SubmitExperienceMilestoneMutationResult = NonNullable<Awaited<ReturnType<typeof submitExperienceMilestone>>>
-
+    export type SubmitExperienceMilestoneMutationBody = BodyType<MilestoneEvidenceInput>
     export type SubmitExperienceMilestoneMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
-    export type SubmitExperienceMilestoneMutationVariables = {participationId: number;milestoneId: number}
+    export type SubmitExperienceMilestoneMutationVariables = {participationId: number;milestoneId: number;data: BodyType<MilestoneEvidenceInput>}
 
     /**
  * @summary Submit one completed experience milestone for host verification

@@ -20,4 +20,8 @@ export interface ExperienceMilestoneSubmission {
   submittedAt: Date;
   /** @nullable */
   verifiedAt: Date | null;
+  evidenceObjectKeys: string[];
+  /** @nullable */
+  reviewReason: string | null;
+  submissionVersion: number;
 }

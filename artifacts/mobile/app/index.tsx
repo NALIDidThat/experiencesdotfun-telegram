@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import {
   GlassView,
   isGlassEffectAPIAvailable,
@@ -75,6 +76,8 @@ import {
   useUpdateMe,
   useVerifyParticipation,
   useReviewExperienceMilestoneSubmission,
+  useUploadPrivateEvidence,
+  useGetPrivateEvidenceAccess,
   getGetExperienceQueryKey,
   getGetFriendProfileQueryKey,
   getGetMyXpAwardsQueryKey,
@@ -2795,6 +2798,10 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
   const submitMilestone = useSubmitExperienceMilestone({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const [actionError, setActionError] = useState<string | null>(null);
   const [completionStatement, setCompletionStatement] = useState('');
+  const [completionEvidenceKeys, setCompletionEvidenceKeys] = useState<string[]>([]);
+  const [milestoneEvidenceKeys, setMilestoneEvidenceKeys] = useState<Record<number, string[]>>({});
+  const uploadEvidence = useUploadPrivateEvidence();
+  const getEvidenceAccess = useGetPrivateEvidenceAccess();
   const item = query.data as ExperienceDetail | undefined;
 
   const joinExperience = async () => {
@@ -2812,8 +2819,9 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
       return;
     }
     try {
-      await submit.mutateAsync({ participationId, data: { statement: completionStatement.trim() } });
+      await submit.mutateAsync({ participationId, data: { statement: completionStatement.trim(), evidenceObjectKeys: completionEvidenceKeys } });
       setCompletionStatement('');
+      setCompletionEvidenceKeys([]);
     } catch (error) {
       setActionError(requestErrorMessage(error, 'Your completion wasn’t submitted. Please try again.'));
     }
@@ -2821,9 +2829,33 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
   const submitMilestoneCompletion = async (participationId: number, milestoneId: number) => {
     setActionError(null);
     try {
-      await submitMilestone.mutateAsync({ participationId, milestoneId });
+      await submitMilestone.mutateAsync({ participationId, milestoneId, data: { evidenceObjectKeys: milestoneEvidenceKeys[milestoneId] ?? [] } });
+      setMilestoneEvidenceKeys((previous) => ({ ...previous, [milestoneId]: [] }));
     } catch (error) {
       setActionError(requestErrorMessage(error, 'This milestone wasn’t submitted. Please try again.'));
+    }
+  };
+  const addContributionEvidence = async (milestoneId?: number) => {
+    setActionError(null);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.8 });
+      const image = result.canceled ? null : result.assets[0];
+      if (!image?.base64) return;
+      const contentType = image.mimeType ?? 'image/jpeg';
+      if (image.fileSize && image.fileSize > 4 * 1024 * 1024) throw new Error('Choose an image no larger than 4 MB.');
+      const uploaded = await uploadEvidence.mutateAsync({ data: { contentType: contentType as 'image/jpeg' | 'image/png' | 'image/webp', data: image.base64 } });
+      if (milestoneId === undefined) setCompletionEvidenceKeys((items) => [...items, uploaded.objectKey].slice(0, 5));
+      else setMilestoneEvidenceKeys((items) => ({ ...items, [milestoneId]: [...(items[milestoneId] ?? []), uploaded.objectKey].slice(0, 5) }));
+    } catch (error) {
+      setActionError(requestErrorMessage(error, 'We couldn’t upload that evidence image.'));
+    }
+  };
+  const openContributionEvidence = async (objectKey: string) => {
+    try {
+      const { url } = await getEvidenceAccess.mutateAsync({ data: { objectKey } });
+      await Linking.openURL(url);
+    } catch (error) {
+      setActionError(requestErrorMessage(error, 'You do not have access to this evidence file.'));
     }
   };
 
@@ -3158,14 +3190,31 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
                           {activityTime ? ` · ${new Date(activityTime).toLocaleDateString()}` : ''}
                         </Text>
                       </View>
+                      {'reviewHistory' in milestone ? milestone.reviewHistory.map((event, index) => (
+                        <Text key={`${event.createdAt}-${index}`} style={{ color: colors.mutedForeground, fontSize: 11 }}>
+                          Version {event.submissionVersion} · {event.decision === 'rejected' ? 'Update requested' : 'Verified'}
+                          {event.reviewerName ? ` by ${event.reviewerName}` : ''}
+                          {event.reason ? ` — ${event.reason}` : ''}
+                        </Text>
+                      )) : null}
                       {canSubmitMilestone ? (
-                        <Button
-                          testID={`submit-milestone-${milestone.id}`}
-                          label={submitMilestone.isPending ? 'Submitting…' : rejected ? 'Resubmit milestone' : 'Submit milestone'}
-                          icon="send"
-                          disabled={submitMilestone.isPending}
-                          onPress={() => void submitMilestoneCompletion(participation!.id, milestone.id)}
-                        />
+                        <>
+                          {(milestoneEvidenceKeys[milestone.id] ?? []).map((key, index) => (
+                            <Pressable key={key} accessibilityRole="button" onPress={() => void openContributionEvidence(key)}>
+                              <Text style={{ color: colors.primary, fontSize: 12 }}>Open attached evidence {index + 1}</Text>
+                            </Pressable>
+                          ))}
+                          {(milestoneEvidenceKeys[milestone.id] ?? []).length < 5 ? (
+                            <Button label="Add photo evidence" icon="image" disabled={uploadEvidence.isPending} onPress={() => void addContributionEvidence(milestone.id)} />
+                          ) : null}
+                          <Button
+                            testID={`submit-milestone-${milestone.id}`}
+                            label={submitMilestone.isPending ? 'Submitting…' : rejected ? 'Resubmit milestone' : 'Submit milestone'}
+                            icon="send"
+                            disabled={submitMilestone.isPending}
+                            onPress={() => void submitMilestoneCompletion(participation!.id, milestone.id)}
+                          />
+                        </>
                       ) : null}
                     </View>
                   </View>
@@ -3292,16 +3341,26 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
             ) : ['joined', 'attended', 'rejected'].includes(participation.status) ? (
               <>
               {participation.status === 'attended' || participation.status === 'rejected' ? (
-                <TextInput
-                  value={completionStatement}
-                  onChangeText={setCompletionStatement}
-                  placeholder="Describe what you completed (at least 20 characters)"
-                  placeholderTextColor={colors.mutedForeground}
-                  maxLength={1500}
-                  multiline
-                  accessibilityLabel="Completion statement"
-                  style={{ minHeight: 84, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius, padding: 12, color: colors.foreground, backgroundColor: colors.card, marginBottom: 10, textAlignVertical: 'top' }}
-                />
+                <>
+                  <TextInput
+                    value={completionStatement}
+                    onChangeText={setCompletionStatement}
+                    placeholder="Describe what you completed (at least 20 characters)"
+                    placeholderTextColor={colors.mutedForeground}
+                    maxLength={1500}
+                    multiline
+                    accessibilityLabel="Completion statement"
+                    style={{ minHeight: 84, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius, padding: 12, color: colors.foreground, backgroundColor: colors.card, marginBottom: 10, textAlignVertical: 'top' }}
+                  />
+                {completionEvidenceKeys.map((key, index) => (
+                  <Pressable key={key} accessibilityRole="button" onPress={() => void openContributionEvidence(key)}>
+                    <Text style={{ color: colors.primary, fontSize: 12, marginBottom: 8 }}>Open attached evidence {index + 1}</Text>
+                  </Pressable>
+                ))}
+                {completionEvidenceKeys.length < 5 ? (
+                  <Button label="Add photo evidence" icon="image" disabled={uploadEvidence.isPending} onPress={() => void addContributionEvidence()} />
+                ) : null}
+                </>
               ) : null}
               <Button
                 label={participation.status === 'attended' || participation.status === 'rejected'
@@ -5743,12 +5802,14 @@ function HostExperienceDetail({
   const [participantSearch, setParticipantSearch] = useState('');
   const [participantFilter, setParticipantFilter] = useState<HostParticipantFilter>('all');
   const [rejectReasons, setRejectReasons] = useState<Record<number, string>>({});
+  const [milestoneRejectReasons, setMilestoneRejectReasons] = useState<Record<number, string>>({});
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmingCancellation, setConfirmingCancellation] = useState(false);
   const attend = useMarkAttendance({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const verify = useVerifyParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const reject = useRejectParticipation({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const reviewMilestone = useReviewExperienceMilestoneSubmission({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const reviewEvidenceAccess = useGetPrivateEvidenceAccess();
   const promoteNext = usePromoteNextWaitlistedParticipant({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const cancelExperience = useCancelHostExperience({
     mutation: {
@@ -5815,9 +5876,25 @@ function HostExperienceDetail({
       setActionError(requestErrorMessage(error, 'That host action could not be completed. Please try again.'));
     }
   };
-  const reviewMilestoneSubmission = (submissionId: number, action: 'verify' | 'reject') => runHostAction(
-    () => reviewMilestone.mutateAsync({ submissionId, data: { action } }),
-  );
+  const reviewMilestoneSubmission = (submissionId: number, action: 'verify' | 'reject') => {
+    const reason = (milestoneRejectReasons[submissionId] ?? '').trim();
+    if (action === 'reject' && reason.length < 5) {
+      setActionError('Add a rejection reason of at least 5 characters.');
+      return;
+    }
+    void runHostAction(() => reviewMilestone.mutateAsync({
+      submissionId,
+      data: { action, reason: reason || undefined },
+    }));
+  };
+  const openReviewEvidence = async (objectKey: string) => {
+    try {
+      const { url } = await reviewEvidenceAccess.mutateAsync({ data: { objectKey } });
+      await Linking.openURL(url);
+    } catch (error) {
+      setActionError(requestErrorMessage(error, 'You do not have access to this evidence file.'));
+    }
+  };
   const rejectParticipation = (participationId: number) => {
     const reason = (rejectReasons[participationId] ?? '').trim();
     if (reason.length < 10) {
@@ -6076,6 +6153,21 @@ function HostExperienceDetail({
                         {hostTimestampLabel(submission.submittedAt) ?? 'Submitted'}
                       </Text>
                     </View>
+                    {(submission.evidenceObjectKeys ?? []).map((key, index) => (
+                      <Pressable key={key} accessibilityRole="button" onPress={() => void openReviewEvidence(key)}>
+                        <Text style={{ color: colors.primary, fontSize: 12 }}>Open participant evidence {index + 1}</Text>
+                      </Pressable>
+                    ))}
+                    <TextInput
+                      value={milestoneRejectReasons[submission.id] ?? ''}
+                      onChangeText={(value) => setMilestoneRejectReasons((current) => ({ ...current, [submission.id]: value.slice(0, 500) }))}
+                      placeholder="Reason for requesting an update (at least 5 characters)"
+                      placeholderTextColor={colors.mutedForeground}
+                      maxLength={500}
+                      multiline
+                      accessibilityLabel={`Rejection reason for ${submission.participant.name}`}
+                      style={{ minHeight: 58, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius, padding: 10, color: colors.foreground, backgroundColor: colors.card, textAlignVertical: 'top' }}
+                    />
                     <View style={{ flexDirection: 'row', gap: 8 }}>
                       <Button
                         testID={`host-verify-milestone-${submission.id}`}
@@ -6290,6 +6382,11 @@ function HostExperienceDetail({
                         </Text>
                       </View>
                     ) : null}
+                    {(item.evidenceObjectKeys ?? []).map((key, index) => (
+                      <Pressable key={key} accessibilityRole="button" onPress={() => void openReviewEvidence(key)}>
+                        <Text style={[styles.hostReviewText, { color: colors.primary }]}>Open participant evidence {index + 1}</Text>
+                      </Pressable>
+                    ))}
                     <View style={[styles.hostReviewNote, { backgroundColor: colors.primary + '0C' }]}>
                       <Feather name="award" size={16} color={colors.primary} />
                       <Text style={[styles.hostReviewText, { color: colors.foreground }]}>

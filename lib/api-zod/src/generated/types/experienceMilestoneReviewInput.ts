@@ -9,4 +9,9 @@ import type { ExperienceMilestoneReviewInputAction } from './experienceMilestone
 
 export interface ExperienceMilestoneReviewInput {
   action: ExperienceMilestoneReviewInputAction;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  reason?: string | null;
 }

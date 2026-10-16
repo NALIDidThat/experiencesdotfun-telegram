@@ -31,6 +31,7 @@ import { db, pool } from "@workspace/db";
 import {
   emailAccountsTable,
   experienceMilestoneSubmissionsTable,
+  experienceMilestoneReviewEventsTable,
   experienceMilestonesTable,
   feedActivityEventsTable,
   feedPreferencesTable,
@@ -114,6 +115,17 @@ import {
 
 const router: IRouter = Router();
 const EXPLORE_ACTIVITY_WINDOW_DAYS = 30;
+const evidenceKeysForUser = (value: unknown, userId: number): string[] | undefined => {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 5) return undefined;
+  if (value.some((key) =>
+    typeof key !== "string" ||
+    key.length > 200 ||
+    !key.startsWith(`${userId}/`) ||
+    key.includes("..")
+  )) return undefined;
+  return [...new Set(value as string[])];
+};
 
 router.get("/explore/activity", async (_req, res): Promise<void> => {
   const windowEnd = new Date();
@@ -170,7 +182,11 @@ async function listExperienceMilestoneProgress(
       title: experienceMilestonesTable.title,
       description: experienceMilestonesTable.description,
       xpReward: experienceMilestonesTable.xpReward,
+      submissionId: experienceMilestoneSubmissionsTable.id,
+      submissionVersion: experienceMilestoneSubmissionsTable.submissionVersion,
       status: experienceMilestoneSubmissionsTable.status,
+      evidenceObjectKeys: experienceMilestoneSubmissionsTable.evidenceObjectKeys,
+      reviewReason: experienceMilestoneSubmissionsTable.reviewReason,
       submittedAt: experienceMilestoneSubmissionsTable.submittedAt,
       verifiedAt: experienceMilestoneSubmissionsTable.verifiedAt,
     })
@@ -191,12 +207,32 @@ async function listExperienceMilestoneProgress(
     .where(eq(experienceMilestonesTable.experienceId, experienceId))
     .orderBy(asc(experienceMilestonesTable.position));
 
-  return rows.map((row) => ({
+  return Promise.all(rows.map(async (row) => ({
     ...row,
     status: row.status ?? "not_started",
+    evidenceObjectKeys: row.evidenceObjectKeys ?? [],
+    reviewReason: row.reviewReason ?? null,
     submittedAt: row.submittedAt ?? null,
     verifiedAt: row.verifiedAt ?? null,
-  }));
+    reviewHistory: row.submissionId
+      ? await db
+          .select({
+            decision: experienceMilestoneReviewEventsTable.decision,
+            reason: experienceMilestoneReviewEventsTable.reason,
+                    submissionVersion: experienceMilestoneReviewEventsTable.submissionVersion,
+            reviewerName: usersTable.name,
+            createdAt: experienceMilestoneReviewEventsTable.createdAt,
+          })
+          .from(experienceMilestoneReviewEventsTable)
+          .innerJoin(usersTable, eq(usersTable.id, experienceMilestoneReviewEventsTable.reviewerUserId))
+          .where(eq(experienceMilestoneReviewEventsTable.submissionId, row.submissionId))
+          .orderBy(asc(experienceMilestoneReviewEventsTable.createdAt))
+          .then((history) => history.map((event) => ({
+            ...event,
+            createdAt: event.createdAt.toISOString(),
+          })))
+      : [],
+  })));
 }
 
 function isAllowedSocialLink(platform: string, value: string): boolean {
@@ -507,6 +543,7 @@ router.get("/organisations/verification", async (req, res) => {
           contactEmail: application.contactEmail,
           status: application.status,
           reviewerNotes: application.reviewerNotes,
+          evidenceObjectKeys: application.evidenceObjectKeys,
           submittedAt: application.submittedAt?.toISOString() ?? null,
           reviewedAt: application.reviewedAt?.toISOString() ?? null,
         }
@@ -522,6 +559,11 @@ router.put("/organisations/verification/draft", async (req, res) => {
     return;
   }
   const body = req.body ?? {};
+  const evidenceObjectKeys = evidenceKeysForUser(body.evidenceObjectKeys, currentUser(req).id);
+  if (!evidenceObjectKeys) {
+    error(res, 400, "Evidence must be uploaded by this profile, with at most five files.");
+    return;
+  }
   const limits = {
     legalName: 180,
     organisationType: 48,
@@ -609,6 +651,7 @@ router.put("/organisations/verification/draft", async (req, res) => {
       ...values,
       registrationNumber,
       website,
+      evidenceObjectKeys,
     } as const;
     if (latest?.status === "draft") {
       const [draft] = await transaction
@@ -655,6 +698,11 @@ router.post("/organisations/verification/applications", async (req, res) => {
     return;
   }
   const body = req.body ?? {};
+  const evidenceObjectKeys = evidenceKeysForUser(body.evidenceObjectKeys, currentUser(req).id);
+  if (!evidenceObjectKeys) {
+    error(res, 400, "Evidence must be uploaded by this profile, with at most five files.");
+    return;
+  }
   const fields = [
     "legalName",
     "organisationType",
@@ -726,6 +774,7 @@ router.post("/organisations/verification/applications", async (req, res) => {
             ...values,
             registrationNumber,
             website,
+            evidenceObjectKeys,
           })
           .where(eq(organisationVerificationApplicationsTable.id, latestApplication.id))
           .returning()
@@ -739,6 +788,7 @@ router.post("/organisations/verification/applications", async (req, res) => {
             ...values,
             registrationNumber,
             website,
+            evidenceObjectKeys,
           })
           .returning();
     if (!application) throw new Error("Unable to submit verification application.");
@@ -805,6 +855,7 @@ router.get("/admin/organisation-verification/applications", async (req, res) => 
       contactEmail: organisationVerificationApplicationsTable.contactEmail,
       status: organisationVerificationApplicationsTable.status,
       reviewerNotes: organisationVerificationApplicationsTable.reviewerNotes,
+      evidenceObjectKeys: organisationVerificationApplicationsTable.evidenceObjectKeys,
       submittedAt: organisationVerificationApplicationsTable.submittedAt,
       createdAt: organisationVerificationApplicationsTable.createdAt,
     })
@@ -1529,6 +1580,14 @@ router.post("/participations/:participationId/submit", async (req, res) => {
   }
   const user = currentUser(req);
   const statement = typeof req.body?.statement === "string" ? req.body.statement.trim() : "";
+  const evidenceObjectKeys = evidenceKeysForUser(
+    req.body?.evidenceObjectKeys,
+    user.id,
+  );
+  if (!evidenceObjectKeys) {
+    error(res, 400, "Evidence must be uploaded by this profile, with at most five files.");
+    return;
+  }
   if (statement.length < 20 || statement.length > 1500) {
     error(res, 400, "Add a completion statement between 20 and 1,500 characters.");
     return;
@@ -1562,6 +1621,7 @@ router.post("/participations/:participationId/submit", async (req, res) => {
       status: "submitted",
       submittedAt: new Date(),
       completionStatement: statement,
+      evidenceObjectKeys,
       submissionVersion: sql`${participationsTable.submissionVersion} + 1`,
       reviewedByUserId: null,
       reviewedAt: null,
@@ -1613,6 +1673,14 @@ router.post(
     }
 
     const user = currentUser(req);
+    const evidenceObjectKeys = evidenceKeysForUser(
+      req.body?.evidenceObjectKeys,
+      user.id,
+    );
+    if (!evidenceObjectKeys) {
+      error(res, 400, "Evidence must be uploaded by this profile, with at most five files.");
+      return;
+    }
     const outcome = await db.transaction(async (transaction) => {
       const [participation] = await transaction
         .select()
@@ -1665,7 +1733,14 @@ router.post(
       const [submission] = existingSubmission
         ? await transaction
             .update(experienceMilestoneSubmissionsTable)
-            .set({ status: "submitted", submittedAt, verifiedAt: null })
+            .set({
+              status: "submitted",
+              submittedAt,
+              verifiedAt: null,
+              reviewReason: null,
+              evidenceObjectKeys,
+              submissionVersion: sql`${experienceMilestoneSubmissionsTable.submissionVersion} + 1`,
+            })
             .where(
               and(
                 eq(experienceMilestoneSubmissionsTable.id, existingSubmission.id),
@@ -1680,6 +1755,7 @@ router.post(
               participationId: participation.id,
               status: "submitted",
               submittedAt,
+              evidenceObjectKeys,
             })
             .onConflictDoNothing()
             .returning();
@@ -2188,6 +2264,9 @@ router.get("/host/experiences/:experienceId/milestones", async (req, res) => {
         status: experienceMilestoneSubmissionsTable.status,
         submittedAt: experienceMilestoneSubmissionsTable.submittedAt,
         verifiedAt: experienceMilestoneSubmissionsTable.verifiedAt,
+        evidenceObjectKeys: experienceMilestoneSubmissionsTable.evidenceObjectKeys,
+        reviewReason: experienceMilestoneSubmissionsTable.reviewReason,
+        submissionVersion: experienceMilestoneSubmissionsTable.submissionVersion,
       })
       .from(experienceMilestoneSubmissionsTable)
       .innerJoin(
@@ -2530,6 +2609,11 @@ router.post(
     }
 
     const reviewer = currentUser(req);
+    const reviewReason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+    if (body.data.action === "reject" && reviewReason.length < 5) {
+      error(res, 400, "Add a rejection reason of at least 5 characters.");
+      return;
+    }
     const organisation = await currentOrganisation(reviewer.id);
     if (!organisation) {
       error(res, 404, "Hosted milestone submission not found.");
@@ -2603,7 +2687,7 @@ router.post(
       if (body.data.action === "reject") {
         const [rejected] = await transaction
           .update(experienceMilestoneSubmissionsTable)
-          .set({ status: "rejected", verifiedAt: null })
+          .set({ status: "rejected", verifiedAt: null, reviewReason })
           .where(
             and(
               eq(experienceMilestoneSubmissionsTable.id, submission.id),
@@ -2612,12 +2696,20 @@ router.post(
           )
           .returning();
         if (!rejected) return { kind: "conflict" as const };
+        await transaction.insert(experienceMilestoneReviewEventsTable).values({
+          submissionId: rejected.id,
+          reviewerUserId: reviewer.id,
+          submissionVersion: rejected.submissionVersion,
+          decision: "rejected",
+          reason: reviewReason,
+        });
         return {
           kind: "reviewed" as const,
           complete: false,
           action: "reject" as const,
           result: {
             id: rejected.id,
+            submissionVersion: rejected.submissionVersion,
             participationId: rejected.participationId,
             milestoneId: context.milestoneId,
             participant: {
@@ -2630,6 +2722,8 @@ router.post(
             milestonePosition: context.milestonePosition,
             xpReward: context.xpReward,
             status: rejected.status,
+            evidenceObjectKeys: rejected.evidenceObjectKeys,
+            reviewReason: rejected.reviewReason,
             submittedAt: rejected.submittedAt,
             verifiedAt: rejected.verifiedAt,
           },
@@ -2648,6 +2742,12 @@ router.post(
         )
         .returning();
       if (!verified) return { kind: "conflict" as const };
+      await transaction.insert(experienceMilestoneReviewEventsTable).values({
+        submissionId: verified.id,
+        reviewerUserId: reviewer.id,
+        submissionVersion: verified.submissionVersion,
+        decision: "verified",
+      });
 
       if (context.xpReward > 0) {
         await transaction
@@ -2729,6 +2829,7 @@ router.post(
         participantTelegramId: participant.telegramId,
         result: {
           id: verified.id,
+          submissionVersion: verified.submissionVersion,
           participationId: verified.participationId,
           milestoneId: context.milestoneId,
           participant: {
@@ -2741,6 +2842,8 @@ router.post(
           milestonePosition: context.milestonePosition,
           xpReward: context.xpReward,
           status: verified.status,
+          evidenceObjectKeys: verified.evidenceObjectKeys,
+          reviewReason: verified.reviewReason,
           submittedAt: verified.submittedAt,
           verifiedAt: verified.verifiedAt,
         },

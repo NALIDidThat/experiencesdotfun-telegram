@@ -29,6 +29,7 @@ export interface OrganisationVerificationReviewQueueItem {
   status: string;
   /** @nullable */
   reviewerNotes: string | null;
+  evidenceObjectKeys: string[];
   /** @nullable */
   submittedAt: Date | null;
   createdAt: Date;

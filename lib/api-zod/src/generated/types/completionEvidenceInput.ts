@@ -12,4 +12,9 @@ export interface CompletionEvidenceInput {
      * @maxLength 1500
      */
   statement: string;
+  /**
+     * @maxItems 5
+     * @items.maxLength 200
+     */
+  evidenceObjectKeys?: string[];
 }

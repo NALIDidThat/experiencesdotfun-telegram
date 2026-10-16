@@ -23,6 +23,7 @@ export interface Participation {
   submittedAt: Date | null;
   /** @nullable */
   completionStatement: string | null;
+  evidenceObjectKeys: string[];
   submissionVersion: number;
   /** @nullable */
   reviewReason: string | null;

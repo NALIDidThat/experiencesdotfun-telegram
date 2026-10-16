@@ -245,6 +245,7 @@ export async function participationResponse(
     attendedAt: participation.attendedAt?.toISOString() ?? null,
     submittedAt: participation.submittedAt?.toISOString() ?? null,
     completionStatement: participation.completionStatement ?? null,
+    evidenceObjectKeys: participation.evidenceObjectKeys ?? [],
     submissionVersion: participation.submissionVersion,
     reviewReason: participation.reviewReason ?? null,
     reviewedAt: participation.reviewedAt?.toISOString() ?? null,

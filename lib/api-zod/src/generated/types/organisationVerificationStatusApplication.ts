@@ -27,6 +27,7 @@ export type OrganisationVerificationStatusApplication = {
   representativeRole: string | null;
   /** @nullable */
   contactEmail: string | null;
+  evidenceObjectKeys: string[];
   status: string;
   /** @nullable */
   reviewerNotes: string | null;

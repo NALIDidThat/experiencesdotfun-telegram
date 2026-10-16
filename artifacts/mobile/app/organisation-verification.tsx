@@ -9,6 +9,8 @@ import {
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -21,6 +23,8 @@ import {
   useGetOrganisationVerificationReviewAccess,
   useListOrganisationVerificationReviewQueue,
   useReviewOrganisationVerificationApplication,
+  useUploadPrivateEvidence,
+  useGetPrivateEvidenceAccess,
   type CompaniesHouseSearchResult,
   type OrganisationVerificationApplicationInput,
   type OrganisationVerificationDraftInput,
@@ -32,7 +36,7 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 
 type DraftFields = OrganisationVerificationDraftInput;
 type CompanyResult = CompaniesHouseSearchResult['results'][number];
-type FieldKey = keyof DraftFields;
+type FieldKey = Exclude<keyof DraftFields, 'evidenceObjectKeys'>;
 
 const textFields: Array<{ key: FieldKey; label: string; hint: string; keyboard?: 'email-address' | 'url' | 'default' }> = [
   { key: 'legalName', label: 'Legal organisation name', hint: 'As shown on your official registration' },
@@ -84,6 +88,8 @@ export default function OrganisationVerificationScreen() {
     },
   });
   const reviewApplication = useReviewOrganisationVerificationApplication();
+  const uploadEvidence = useUploadPrivateEvidence();
+  const getEvidenceAccess = useGetPrivateEvidenceAccess();
   const hydrated = useRef(false);
   const [fields, setFields] = useState<DraftFields>({
     legalName: null,
@@ -94,6 +100,7 @@ export default function OrganisationVerificationScreen() {
     representativeName: null,
     representativeRole: null,
     contactEmail: null,
+    evidenceObjectKeys: [],
   });
   const [searchText, setSearchText] = useState('');
   const [companies, setCompanies] = useState<CompanyResult[]>([]);
@@ -112,6 +119,7 @@ export default function OrganisationVerificationScreen() {
         representativeName: application.representativeName,
         representativeRole: application.representativeRole,
         contactEmail: application.contactEmail,
+        evidenceObjectKeys: application.evidenceObjectKeys ?? [],
       });
       hydrated.current = true;
     } else if (statusQuery.data && !hydrated.current) {
@@ -160,11 +168,53 @@ export default function OrganisationVerificationScreen() {
       contactEmail: String(fields.contactEmail).trim(),
       registrationNumber: fields.registrationNumber?.trim() || null,
       website: fields.website?.trim() || null,
+      evidenceObjectKeys: fields.evidenceObjectKeys ?? [],
     };
     try {
       await submitApplication.mutateAsync({ data: input });
       await refreshStatus();
       setNotice('Application submitted. We’ll show updates here.');
+    } catch (cause) {
+      setError(messageFromError(cause));
+    }
+  };
+
+  const addEvidence = async () => {
+    setError('');
+    try {
+      const picker = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        base64: true,
+        quality: 0.8,
+      });
+      const image = picker.canceled ? null : picker.assets[0];
+      if (!image?.base64) return;
+      if (image.fileSize && image.fileSize > 4 * 1024 * 1024) {
+        setError('Choose an image no larger than 4 MB.');
+        return;
+      }
+      const contentType = image.mimeType ?? 'image/jpeg';
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
+        setError('Evidence must be a JPEG, PNG, or WebP image.');
+        return;
+      }
+      const uploaded = await uploadEvidence.mutateAsync({
+        data: { contentType: contentType as 'image/jpeg' | 'image/png' | 'image/webp', data: image.base64 },
+      });
+      setFields((previous) => ({
+        ...previous,
+        evidenceObjectKeys: [...(previous.evidenceObjectKeys ?? []), uploaded.objectKey],
+      }));
+      setNotice('Private evidence added. It will be visible only to your organisation profile and the reviewer.');
+    } catch (cause) {
+      setError(messageFromError(cause));
+    }
+  };
+
+  const openEvidence = async (objectKey: string) => {
+    try {
+      const { url } = await getEvidenceAccess.mutateAsync({ data: { objectKey } });
+      await Linking.openURL(url);
     } catch (cause) {
       setError(messageFromError(cause));
     }
@@ -292,6 +342,11 @@ export default function OrganisationVerificationScreen() {
                           {application.registrationNumber ?? 'No registration number'} · {application.website ?? 'No website'}
                         </Text>
                         <Text style={[styles.statusDescription, { color: colors.mutedForeground }]}>{application.contactEmail ?? 'No contact email'}</Text>
+                        {(application.evidenceObjectKeys ?? []).map((key, index) => (
+                          <Pressable key={key} accessibilityRole="button" onPress={() => void openEvidence(key)}>
+                            <Text style={[styles.statusDescription, { color: colors.primary }]}>Open private evidence {index + 1}</Text>
+                          </Pressable>
+                        ))}
                         <TextInput
                           value={reviewNotes[application.id] ?? ''}
                           onChangeText={(value) => setReviewNotes((previous) => ({ ...previous, [application.id]: value }))}
@@ -384,6 +439,28 @@ export default function OrganisationVerificationScreen() {
                     />
                   </View>
                 ))}
+                <View style={styles.field}>
+                  <Text style={[styles.label, { color: colors.foreground }]}>Supporting evidence (optional)</Text>
+                  <Text style={[styles.privacyNote, { color: colors.mutedForeground }]}>
+                    Upload up to five JPEG, PNG, or WebP images, 4 MB each. Do not upload identity documents.
+                  </Text>
+                  {(fields.evidenceObjectKeys ?? []).map((key, index) => (
+                    <View key={key} style={styles.historyRow}>
+                      <Text style={[styles.statusDescription, { color: colors.mutedForeground, flex: 1 }]}>Evidence image {index + 1}</Text>
+                      <Pressable accessibilityRole="button" onPress={() => setFields((current) => ({
+                        ...current,
+                        evidenceObjectKeys: (current.evidenceObjectKeys ?? []).filter((item) => item !== key),
+                      }))}>
+                        <Text style={[styles.statusDescription, { color: colors.destructive }]}>Remove</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                  {(fields.evidenceObjectKeys ?? []).length < 5 ? (
+                    <Pressable accessibilityRole="button" disabled={uploadEvidence.isPending} onPress={() => void addEvidence()} style={[styles.secondaryButton, { borderColor: colors.border }]}>
+                      {uploadEvidence.isPending ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.secondaryText, { color: colors.foreground }]}>Choose evidence image</Text>}
+                    </Pressable>
+                  ) : null}
+                </View>
                 <Text style={[styles.privacyNote, { color: colors.mutedForeground }]}>
                   Your organisation account and the verification reviewer can access these details. Company registry data is not a substitute for representative evidence.
                 </Text>

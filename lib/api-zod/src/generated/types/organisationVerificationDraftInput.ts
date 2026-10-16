@@ -44,4 +44,9 @@ export interface OrganisationVerificationDraftInput {
      * @nullable
      */
   contactEmail: string | null;
+  /**
+     * @maxItems 5
+     * @items.maxLength 200
+     */
+  evidenceObjectKeys?: string[];
 }

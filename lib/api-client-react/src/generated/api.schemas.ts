@@ -75,6 +75,38 @@ export interface OrganisationVerificationApplicationInput {
   representativeRole: string;
   /** @maxLength 254 */
   contactEmail: string;
+  /**
+     * @maxItems 5
+     * @items.maxLength 200
+     */
+  evidenceObjectKeys?: string[];
+}
+
+export type PrivateEvidenceUploadInputContentType = typeof PrivateEvidenceUploadInputContentType[keyof typeof PrivateEvidenceUploadInputContentType];
+
+
+export const PrivateEvidenceUploadInputContentType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
+export interface PrivateEvidenceUploadInput {
+  contentType: PrivateEvidenceUploadInputContentType;
+  /**
+     * Base64-encoded image, at most 4 MB decoded
+     * @maxLength 5592406
+     */
+  data: string;
+}
+
+export interface PrivateEvidenceUploadResult {
+  objectKey: string;
+}
+
+export interface PrivateEvidenceAccessInput {
+  /** @maxLength 200 */
+  objectKey: string;
 }
 
 export interface OrganisationVerificationDraftInput {
@@ -115,6 +147,11 @@ export interface OrganisationVerificationDraftInput {
      * @nullable
      */
   contactEmail: string | null;
+  /**
+     * @maxItems 5
+     * @items.maxLength 200
+     */
+  evidenceObjectKeys?: string[];
 }
 
 export type OrganisationVerificationDraftStatus = typeof OrganisationVerificationDraftStatus[keyof typeof OrganisationVerificationDraftStatus];
@@ -201,6 +238,7 @@ export interface OrganisationVerificationReviewQueueItem {
   status: string;
   /** @nullable */
   reviewerNotes: string | null;
+  evidenceObjectKeys: string[];
   /** @nullable */
   submittedAt: string | null;
   createdAt: string;
@@ -251,6 +289,7 @@ export type OrganisationVerificationStatusApplication = {
   representativeRole: string | null;
   /** @nullable */
   contactEmail: string | null;
+  evidenceObjectKeys: string[];
   status: string;
   /** @nullable */
   reviewerNotes: string | null;
@@ -1038,12 +1077,34 @@ export const ExperienceMilestoneProgressStatus = {
   rejected: 'rejected',
 } as const;
 
+export type ExperienceMilestoneProgressReviewHistoryItemDecision = typeof ExperienceMilestoneProgressReviewHistoryItemDecision[keyof typeof ExperienceMilestoneProgressReviewHistoryItemDecision];
+
+
+export const ExperienceMilestoneProgressReviewHistoryItemDecision = {
+  verified: 'verified',
+  rejected: 'rejected',
+} as const;
+
+export type ExperienceMilestoneProgressReviewHistoryItem = {
+  decision: ExperienceMilestoneProgressReviewHistoryItemDecision;
+  /** @nullable */
+  reason: string | null;
+  submissionVersion: number;
+  reviewerName: string;
+  createdAt: string;
+};
+
 export type ExperienceMilestoneProgress = ExperienceMilestone & ({
   status: ExperienceMilestoneProgressStatus;
   /** @nullable */
   submittedAt: string | null;
   /** @nullable */
   verifiedAt: string | null;
+  evidenceObjectKeys: string[];
+  /** @nullable */
+  reviewReason: string | null;
+  submissionVersion: number;
+  reviewHistory: ExperienceMilestoneProgressReviewHistoryItem[];
 });
 
 export type ExperienceMilestoneSubmissionStatus = typeof ExperienceMilestoneSubmissionStatus[keyof typeof ExperienceMilestoneSubmissionStatus];
@@ -1076,6 +1137,10 @@ export interface ExperienceMilestoneSubmission {
   submittedAt: string;
   /** @nullable */
   verifiedAt: string | null;
+  evidenceObjectKeys: string[];
+  /** @nullable */
+  reviewReason: string | null;
+  submissionVersion: number;
 }
 
 export interface HostExperienceMilestonesResponse {
@@ -1095,6 +1160,11 @@ export const ExperienceMilestoneReviewInputAction = {
 
 export interface ExperienceMilestoneReviewInput {
   action: ExperienceMilestoneReviewInputAction;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  reason?: string | null;
 }
 
 export type VerifiedExperienceLocationPrecision = typeof VerifiedExperienceLocationPrecision[keyof typeof VerifiedExperienceLocationPrecision];
@@ -1209,6 +1279,7 @@ export interface Participation {
   submittedAt: string | null;
   /** @nullable */
   completionStatement: string | null;
+  evidenceObjectKeys: string[];
   submissionVersion: number;
   /** @nullable */
   reviewReason: string | null;
@@ -1274,6 +1345,19 @@ export interface CompletionEvidenceInput {
      * @maxLength 1500
      */
   statement: string;
+  /**
+     * @maxItems 5
+     * @items.maxLength 200
+     */
+  evidenceObjectKeys?: string[];
+}
+
+export interface MilestoneEvidenceInput {
+  /**
+     * @maxItems 5
+     * @items.maxLength 200
+     */
+  evidenceObjectKeys?: string[];
 }
 
 export interface ParticipationReviewReasonInput {
@@ -1952,6 +2036,11 @@ export type CategoryParameter = ExperienceCategory;
 export type SearchParameter = string;
 
 export type AvailableOnlyParameter = boolean;
+
+export type GetPrivateEvidenceAccess200 = {
+  url: string;
+  expiresIn: number;
+};
 
 export type GetOrganisationTreasuryParams = {
 /**

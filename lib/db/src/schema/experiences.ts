@@ -188,6 +188,7 @@ export const participationsTable = pgTable(
     attendedAt: timestamp("attended_at", { withTimezone: true }),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     completionStatement: text("completion_statement"),
+    evidenceObjectKeys: jsonb("evidence_object_keys").$type<string[]>().notNull().default([]),
     submissionVersion: integer("submission_version").notNull().default(0),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     reviewReason: text("review_reason"),

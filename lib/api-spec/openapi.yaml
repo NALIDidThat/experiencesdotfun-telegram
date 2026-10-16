@@ -35,6 +35,58 @@ tags:
   - name: ai-assistant
     description: Persistent AI experience discovery conversations
 paths:
+  /evidence/upload:
+    post:
+      operationId: uploadPrivateEvidence
+      tags: [host]
+      summary: Upload a private verification evidence image
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrivateEvidenceUploadInput"
+      responses:
+        "201":
+          description: Uploaded private evidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateEvidenceUploadResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "413": { $ref: "#/components/responses/BadRequest" }
+  /evidence/access:
+    post:
+      operationId: getPrivateEvidenceAccess
+      tags: [host]
+      summary: Get a short-lived private evidence URL after access checks
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrivateEvidenceAccessInput"
+      responses:
+        "200":
+          description: Short-lived evidence URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string, format: uri }
+                  expiresIn: { type: integer }
+                required: [url, expiresIn]
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Evidence is not attached to a record this profile may review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /organisations/verification/companies-house:
     post:
       operationId: searchCompaniesHouseForOrganisationVerification
@@ -1294,6 +1346,12 @@ paths:
           schema:
             type: integer
             minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MilestoneEvidenceInput"
       responses:
         "200":
           description: Updated milestone progress
@@ -2648,7 +2706,30 @@ components:
         representativeName: { type: string, minLength: 1, maxLength: 120 }
         representativeRole: { type: string, minLength: 1, maxLength: 120 }
         contactEmail: { type: string, format: email, maxLength: 254 }
+        evidenceObjectKeys:
+          type: array
+          maxItems: 5
+          items: { type: string, maxLength: 200 }
       required: [legalName, organisationType, jurisdiction, representativeName, representativeRole, contactEmail]
+    PrivateEvidenceUploadInput:
+      type: object
+      properties:
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        data:
+          type: string
+          description: Base64-encoded image, at most 4 MB decoded
+          maxLength: 5592406
+      required: [contentType, data]
+    PrivateEvidenceUploadResult:
+      type: object
+      properties:
+        objectKey: { type: string }
+      required: [objectKey]
+    PrivateEvidenceAccessInput:
+      type: object
+      properties:
+        objectKey: { type: string, maxLength: 200 }
+      required: [objectKey]
     OrganisationVerificationDraftInput:
       type: object
       properties:
@@ -2660,6 +2741,10 @@ components:
         representativeName: { type: [string, "null"], maxLength: 120 }
         representativeRole: { type: [string, "null"], maxLength: 120 }
         contactEmail: { type: [string, "null"], format: email, maxLength: 254 }
+        evidenceObjectKeys:
+          type: array
+          maxItems: 5
+          items: { type: string, maxLength: 200 }
       required: [legalName, organisationType, jurisdiction, registrationNumber, website, representativeName, representativeRole, contactEmail]
     OrganisationVerificationDraft:
       type: object
@@ -2704,9 +2789,12 @@ components:
         contactEmail: { type: [string, "null"] }
         status: { type: string }
         reviewerNotes: { type: [string, "null"] }
+        evidenceObjectKeys:
+          type: array
+          items: { type: string }
         submittedAt: { type: [string, "null"], format: date-time }
         createdAt: { type: string, format: date-time }
-      required: [id, organisationId, organisationName, legalName, organisationType, jurisdiction, registrationNumber, website, representativeName, representativeRole, contactEmail, status, reviewerNotes, submittedAt, createdAt]
+      required: [id, organisationId, organisationName, legalName, organisationType, jurisdiction, registrationNumber, website, representativeName, representativeRole, contactEmail, status, reviewerNotes, evidenceObjectKeys, submittedAt, createdAt]
     OrganisationVerificationReviewAccess:
       type: object
       properties:
@@ -2739,11 +2827,14 @@ components:
             representativeName: { type: [string, "null"] }
             representativeRole: { type: [string, "null"] }
             contactEmail: { type: [string, "null"] }
+            evidenceObjectKeys:
+              type: array
+              items: { type: string }
             status: { type: string }
             reviewerNotes: { type: [string, "null"] }
             submittedAt: { type: [string, "null"], format: date-time }
             reviewedAt: { type: [string, "null"], format: date-time }
-          required: [id, legalName, organisationType, jurisdiction, registrationNumber, website, representativeName, representativeRole, contactEmail, status, reviewerNotes, submittedAt, reviewedAt]
+          required: [id, legalName, organisationType, jurisdiction, registrationNumber, website, representativeName, representativeRole, contactEmail, evidenceObjectKeys, status, reviewerNotes, submittedAt, reviewedAt]
       required: [status, submittedAt, reviewedAt, history, application]
     OrganisationFund:
       type: object
@@ -3663,7 +3754,25 @@ components:
             verifiedAt:
               type: [string, "null"]
               format: date-time
-          required: [status, submittedAt, verifiedAt]
+            evidenceObjectKeys:
+              type: array
+              items: { type: string }
+            reviewReason:
+              type: [string, "null"]
+            submissionVersion:
+              type: integer
+            reviewHistory:
+              type: array
+              items:
+                type: object
+                properties:
+                  decision: { type: string, enum: [verified, rejected] }
+                  reason: { type: [string, "null"] }
+                  submissionVersion: { type: integer }
+                  reviewerName: { type: string }
+                  createdAt: { type: string, format: date-time }
+                required: [decision, reason, submissionVersion, reviewerName, createdAt]
+          required: [status, submittedAt, verifiedAt, evidenceObjectKeys, reviewReason, submissionVersion, reviewHistory]
     ExperienceMilestoneSubmission:
       type: object
       properties:
@@ -3690,7 +3799,14 @@ components:
         verifiedAt:
           type: [string, "null"]
           format: date-time
-      required: [id, participationId, milestoneId, participant, milestoneTitle, milestonePosition, xpReward, status, submittedAt, verifiedAt]
+        evidenceObjectKeys:
+          type: array
+          items: { type: string }
+        reviewReason:
+          type: [string, "null"]
+        submissionVersion:
+          type: integer
+      required: [id, participationId, milestoneId, participant, milestoneTitle, milestonePosition, xpReward, status, submittedAt, verifiedAt, evidenceObjectKeys, reviewReason, submissionVersion]
     HostExperienceMilestonesResponse:
       type: object
       properties:
@@ -3712,6 +3828,9 @@ components:
         action:
           type: string
           enum: [verify, reject]
+        reason:
+          type: [string, "null"]
+          maxLength: 500
       required: [action]
       additionalProperties: false
     Experience:
@@ -3929,6 +4048,9 @@ components:
           format: date-time
         completionStatement:
           type: [string, "null"]
+        evidenceObjectKeys:
+          type: array
+          items: { type: string }
         submissionVersion:
           type: integer
         reviewReason:
@@ -3945,7 +4067,7 @@ components:
           format: date-time
         rewardStatus:
           $ref: "#/components/schemas/RewardStatus"
-      required: [id, experience, participant, status, joinedAt, attendedAt, submittedAt, completionStatement, submissionVersion, reviewReason, reviewedAt, reviewHistory, verifiedAt, rewardStatus]
+      required: [id, experience, participant, status, joinedAt, attendedAt, submittedAt, completionStatement, evidenceObjectKeys, submissionVersion, reviewReason, reviewedAt, reviewHistory, verifiedAt, rewardStatus]
     ParticipationReviewHistoryItem:
       type: object
       properties:
@@ -3961,7 +4083,18 @@ components:
           type: string
           minLength: 20
           maxLength: 1500
+        evidenceObjectKeys:
+          type: array
+          maxItems: 5
+          items: { type: string, maxLength: 200 }
       required: [statement]
+    MilestoneEvidenceInput:
+      type: object
+      properties:
+        evidenceObjectKeys:
+          type: array
+          maxItems: 5
+          items: { type: string, maxLength: 200 }
     ParticipationReviewReasonInput:
       type: object
       properties:

@@ -9,6 +9,40 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Upload a private verification evidence image
+ */
+export const uploadPrivateEvidenceBodyDataMax = 5592406;
+
+
+
+export const UploadPrivateEvidenceBody = zod.object({
+  "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp']),
+  "data": zod.string().max(uploadPrivateEvidenceBodyDataMax).describe('Base64-encoded image, at most 4 MB decoded')
+})
+
+export const UploadPrivateEvidenceResponse = zod.object({
+  "objectKey": zod.string()
+})
+
+
+/**
+ * @summary Get a short-lived private evidence URL after access checks
+ */
+export const getPrivateEvidenceAccessBodyObjectKeyMax = 200;
+
+
+
+export const GetPrivateEvidenceAccessBody = zod.object({
+  "objectKey": zod.string().max(getPrivateEvidenceAccessBodyObjectKeyMax)
+})
+
+export const GetPrivateEvidenceAccessResponse = zod.object({
+  "url": zod.string().url(),
+  "expiresIn": zod.number().int()
+})
+
+
+/**
  * @summary Search Companies House records for an organisation verification application
  */
 export const searchCompaniesHouseForOrganisationVerificationBodyQueryMin = 2;
@@ -58,6 +92,7 @@ export const GetOrganisationVerificationResponse = zod.object({
   "representativeName": zod.string().nullable(),
   "representativeRole": zod.string().nullable(),
   "contactEmail": zod.string().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
   "status": zod.string(),
   "reviewerNotes": zod.string().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -83,6 +118,10 @@ export const saveOrganisationVerificationDraftBodyRepresentativeRoleMax = 120;
 
 export const saveOrganisationVerificationDraftBodyContactEmailMax = 254;
 
+export const saveOrganisationVerificationDraftBodyEvidenceObjectKeysItemMax = 200;
+
+export const saveOrganisationVerificationDraftBodyEvidenceObjectKeysMax = 5;
+
 
 
 export const SaveOrganisationVerificationDraftBody = zod.object({
@@ -93,7 +132,8 @@ export const SaveOrganisationVerificationDraftBody = zod.object({
   "website": zod.string().url().nullable(),
   "representativeName": zod.string().max(saveOrganisationVerificationDraftBodyRepresentativeNameMax).nullable(),
   "representativeRole": zod.string().max(saveOrganisationVerificationDraftBodyRepresentativeRoleMax).nullable(),
-  "contactEmail": zod.string().email().max(saveOrganisationVerificationDraftBodyContactEmailMax).nullable()
+  "contactEmail": zod.string().email().max(saveOrganisationVerificationDraftBodyContactEmailMax).nullable(),
+  "evidenceObjectKeys": zod.array(zod.string().max(saveOrganisationVerificationDraftBodyEvidenceObjectKeysItemMax)).max(saveOrganisationVerificationDraftBodyEvidenceObjectKeysMax).optional()
 })
 
 export const SaveOrganisationVerificationDraftResponse = zod.object({
@@ -120,6 +160,10 @@ export const submitOrganisationVerificationApplicationBodyRepresentativeRoleMax 
 
 export const submitOrganisationVerificationApplicationBodyContactEmailMax = 254;
 
+export const submitOrganisationVerificationApplicationBodyEvidenceObjectKeysItemMax = 200;
+
+export const submitOrganisationVerificationApplicationBodyEvidenceObjectKeysMax = 5;
+
 
 
 export const SubmitOrganisationVerificationApplicationBody = zod.object({
@@ -130,7 +174,8 @@ export const SubmitOrganisationVerificationApplicationBody = zod.object({
   "website": zod.string().url().nullish(),
   "representativeName": zod.string().min(1).max(submitOrganisationVerificationApplicationBodyRepresentativeNameMax),
   "representativeRole": zod.string().min(1).max(submitOrganisationVerificationApplicationBodyRepresentativeRoleMax),
-  "contactEmail": zod.string().email().max(submitOrganisationVerificationApplicationBodyContactEmailMax)
+  "contactEmail": zod.string().email().max(submitOrganisationVerificationApplicationBodyContactEmailMax),
+  "evidenceObjectKeys": zod.array(zod.string().max(submitOrganisationVerificationApplicationBodyEvidenceObjectKeysItemMax)).max(submitOrganisationVerificationApplicationBodyEvidenceObjectKeysMax).optional()
 })
 
 export const SubmitOrganisationVerificationApplicationResponse = zod.object({
@@ -183,6 +228,7 @@ export const ListOrganisationVerificationReviewQueueResponseItem = zod.object({
   "contactEmail": zod.string().nullable(),
   "status": zod.string(),
   "reviewerNotes": zod.string().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
   "submittedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
 })
@@ -2015,6 +2061,7 @@ export const GetExperienceResponse = zod.object({
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
   "completionStatement": zod.string().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
@@ -2036,7 +2083,17 @@ export const GetExperienceResponse = zod.object({
 }).and(zod.object({
   "status": zod.enum(['not_started', 'submitted', 'verified', 'rejected']),
   "submittedAt": zod.coerce.date().nullable(),
-  "verifiedAt": zod.coerce.date().nullable()
+  "verifiedAt": zod.coerce.date().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
+  "reviewReason": zod.string().nullable(),
+  "submissionVersion": zod.number().int(),
+  "reviewHistory": zod.array(zod.object({
+  "decision": zod.enum(['verified', 'rejected']),
+  "reason": zod.string().nullable(),
+  "submissionVersion": zod.number().int(),
+  "reviewerName": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
 })))
 }))
 
@@ -2107,6 +2164,7 @@ export const JoinExperienceResponse = zod.object({
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
   "completionStatement": zod.string().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
@@ -2187,6 +2245,7 @@ export const ListMyParticipationsResponseItem = zod.object({
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
   "completionStatement": zod.string().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
@@ -2212,10 +2271,15 @@ export const SubmitCompletionParams = zod.object({
 export const submitCompletionBodyStatementMin = 20;
 export const submitCompletionBodyStatementMax = 1500;
 
+export const submitCompletionBodyEvidenceObjectKeysItemMax = 200;
+
+export const submitCompletionBodyEvidenceObjectKeysMax = 5;
+
 
 
 export const SubmitCompletionBody = zod.object({
-  "statement": zod.string().min(submitCompletionBodyStatementMin).max(submitCompletionBodyStatementMax)
+  "statement": zod.string().min(submitCompletionBodyStatementMin).max(submitCompletionBodyStatementMax),
+  "evidenceObjectKeys": zod.array(zod.string().max(submitCompletionBodyEvidenceObjectKeysItemMax)).max(submitCompletionBodyEvidenceObjectKeysMax).optional()
 })
 
 export const submitCompletionResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
@@ -2277,6 +2341,7 @@ export const SubmitCompletionResponse = zod.object({
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
   "completionStatement": zod.string().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
@@ -2302,6 +2367,16 @@ export const SubmitExperienceMilestoneParams = zod.object({
   "milestoneId": zod.coerce.number().int().min(1)
 })
 
+export const submitExperienceMilestoneBodyEvidenceObjectKeysItemMax = 200;
+
+export const submitExperienceMilestoneBodyEvidenceObjectKeysMax = 5;
+
+
+
+export const SubmitExperienceMilestoneBody = zod.object({
+  "evidenceObjectKeys": zod.array(zod.string().max(submitExperienceMilestoneBodyEvidenceObjectKeysItemMax)).max(submitExperienceMilestoneBodyEvidenceObjectKeysMax).optional()
+})
+
 export const SubmitExperienceMilestoneResponse = zod.object({
   "id": zod.number().int(),
   "position": zod.number().int(),
@@ -2311,7 +2386,17 @@ export const SubmitExperienceMilestoneResponse = zod.object({
 }).and(zod.object({
   "status": zod.enum(['not_started', 'submitted', 'verified', 'rejected']),
   "submittedAt": zod.coerce.date().nullable(),
-  "verifiedAt": zod.coerce.date().nullable()
+  "verifiedAt": zod.coerce.date().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
+  "reviewReason": zod.string().nullable(),
+  "submissionVersion": zod.number().int(),
+  "reviewHistory": zod.array(zod.object({
+  "decision": zod.enum(['verified', 'rejected']),
+  "reason": zod.string().nullable(),
+  "submissionVersion": zod.number().int(),
+  "reviewerName": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
 }))
 
 
@@ -2577,7 +2662,10 @@ export const GetHostExperienceMilestonesResponse = zod.object({
   "xpReward": zod.number().int(),
   "status": zod.enum(['submitted', 'verified', 'rejected']),
   "submittedAt": zod.coerce.date(),
-  "verifiedAt": zod.coerce.date().nullable()
+  "verifiedAt": zod.coerce.date().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
+  "reviewReason": zod.string().nullable(),
+  "submissionVersion": zod.number().int()
 })),
   "milestonesEditable": zod.boolean().describe('False once any participant has submitted a milestone, so existing history cannot be changed.')
 })
@@ -2593,8 +2681,13 @@ export const ReviewExperienceMilestoneSubmissionParams = zod.object({
   "submissionId": zod.coerce.number().int().min(1)
 })
 
+export const reviewExperienceMilestoneSubmissionBodyReasonMax = 500;
+
+
+
 export const ReviewExperienceMilestoneSubmissionBody = zod.object({
-  "action": zod.enum(['verify', 'reject'])
+  "action": zod.enum(['verify', 'reject']),
+  "reason": zod.string().max(reviewExperienceMilestoneSubmissionBodyReasonMax).nullish()
 })
 
 export const ReviewExperienceMilestoneSubmissionResponse = zod.object({
@@ -2612,7 +2705,10 @@ export const ReviewExperienceMilestoneSubmissionResponse = zod.object({
   "xpReward": zod.number().int(),
   "status": zod.enum(['submitted', 'verified', 'rejected']),
   "submittedAt": zod.coerce.date(),
-  "verifiedAt": zod.coerce.date().nullable()
+  "verifiedAt": zod.coerce.date().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
+  "reviewReason": zod.string().nullable(),
+  "submissionVersion": zod.number().int()
 })
 
 
@@ -2682,6 +2778,7 @@ export const ListExperienceParticipantsResponseItem = zod.object({
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
   "completionStatement": zod.string().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
@@ -2763,6 +2860,7 @@ export const PromoteNextWaitlistedParticipantResponse = zod.object({
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
   "completionStatement": zod.string().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
@@ -2843,6 +2941,7 @@ export const MarkAttendanceResponse = zod.object({
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
   "completionStatement": zod.string().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
@@ -2923,6 +3022,7 @@ export const VerifyParticipationResponse = zod.object({
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
   "completionStatement": zod.string().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
@@ -3012,6 +3112,7 @@ export const RejectParticipationResponse = zod.object({
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
   "completionStatement": zod.string().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
   "submissionVersion": zod.number().int(),
   "reviewReason": zod.string().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),

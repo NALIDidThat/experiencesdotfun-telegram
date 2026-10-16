@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ExperienceMilestone } from './experienceMilestone';
+import type { ExperienceMilestoneProgressReviewHistoryItem } from './experienceMilestoneProgressReviewHistoryItem';
 import type { ExperienceMilestoneProgressStatus } from './experienceMilestoneProgressStatus';
 
 export type ExperienceMilestoneProgress = ExperienceMilestone & ({
@@ -14,4 +15,9 @@ export type ExperienceMilestoneProgress = ExperienceMilestone & ({
   submittedAt: Date | null;
   /** @nullable */
   verifiedAt: Date | null;
+  evidenceObjectKeys: string[];
+  /** @nullable */
+  reviewReason: string | null;
+  submissionVersion: number;
+  reviewHistory: ExperienceMilestoneProgressReviewHistoryItem[];
 });

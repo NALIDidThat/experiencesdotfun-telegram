@@ -41,4 +41,9 @@ export interface OrganisationVerificationApplicationInput {
   representativeRole: string;
   /** @maxLength 254 */
   contactEmail: string;
+  /**
+     * @maxItems 5
+     * @items.maxLength 200
+     */
+  evidenceObjectKeys?: string[];
 }

@@ -1,13 +1,14 @@
 import {
   index,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { experiencesTable, participationsTable } from "./experiences";
+import { experiencesTable, participationsTable, usersTable } from "./experiences";
 
 export const experienceMilestonesTable = pgTable(
   "experience_milestones",
@@ -47,6 +48,9 @@ export const experienceMilestoneSubmissionsTable = pgTable(
     })
       .notNull()
       .default("submitted"),
+    evidenceObjectKeys: jsonb("evidence_object_keys").$type<string[]>().notNull().default([]),
+    reviewReason: text("review_reason"),
+    submissionVersion: integer("submission_version").notNull().default(1),
     submittedAt: timestamp("submitted_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -68,3 +72,27 @@ export const experienceMilestoneSubmissionsTable = pgTable(
 export type ExperienceMilestone = typeof experienceMilestonesTable.$inferSelect;
 export type ExperienceMilestoneSubmission =
   typeof experienceMilestoneSubmissionsTable.$inferSelect;
+
+export const experienceMilestoneReviewEventsTable = pgTable(
+  "experience_milestone_review_events",
+  {
+    id: serial("id").primaryKey(),
+    submissionId: integer("submission_id").notNull().references(
+      () => experienceMilestoneSubmissionsTable.id,
+      { onDelete: "cascade" },
+    ),
+    reviewerUserId: integer("reviewer_user_id")
+      .notNull()
+      .references(() => usersTable.id),
+    submissionVersion: integer("submission_version").notNull(),
+    decision: text("decision").notNull(),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    submissionIndex: index("experience_milestone_review_events_submission_idx").on(
+      table.submissionId,
+      table.createdAt,
+    ),
+  }),
+);
