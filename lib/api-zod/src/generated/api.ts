@@ -9,6 +9,348 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Find participant profiles who have joined this charity's experiences
+ */
+export const ListCharityPayoutCandidatesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable()
+})
+export const ListCharityPayoutCandidatesResponse = zod.array(ListCharityPayoutCandidatesResponseItem)
+
+
+/**
+ * @summary List owned charity payout proposals or payouts addressed to the signed-in participant
+ */
+export const ListFundPayoutsQueryParams = zod.object({
+  "before": zod.coerce.string().uuid().optional()
+})
+
+export const ListFundPayoutsResponseItem = zod.object({
+  "id": zod.string(),
+  "recipientUserId": zod.number().int(),
+  "recipientName": zod.string(),
+  "organisationName": zod.string(),
+  "walletAddress": zod.string(),
+  "treasuryAddress": zod.string(),
+  "amountSol": zod.string(),
+  "reason": zod.string(),
+  "fundId": zod.number().int().nullable(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
+  "memo": zod.string(),
+  "status": zod.enum(['proposed', 'cancelled', 'paid']),
+  "signature": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "paidAt": zod.string().nullable(),
+  "verificationMessage": zod.string().nullable()
+})
+export const ListFundPayoutsResponse = zod.array(ListFundPayoutsResponseItem)
+
+
+/**
+ * @summary Record a volunteer payout proposal for external multisig approval; does not move funds
+ */
+
+export const createFundPayoutBodyReasonMin = 5;
+export const createFundPayoutBodyReasonMax = 300;
+
+
+
+
+export const CreateFundPayoutBody = zod.object({
+  "recipientUserId": zod.number().int().min(1),
+  "walletAddress": zod.string(),
+  "amountSol": zod.string(),
+  "reason": zod.string().min(createFundPayoutBodyReasonMin).max(createFundPayoutBodyReasonMax),
+  "fundId": zod.number().int().min(1).optional()
+})
+
+export const CreateFundPayoutResponse = zod.object({
+  "id": zod.string(),
+  "recipientUserId": zod.number().int(),
+  "recipientName": zod.string(),
+  "organisationName": zod.string(),
+  "walletAddress": zod.string(),
+  "treasuryAddress": zod.string(),
+  "amountSol": zod.string(),
+  "reason": zod.string(),
+  "fundId": zod.number().int().nullable(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
+  "memo": zod.string(),
+  "status": zod.enum(['proposed', 'cancelled', 'paid']),
+  "signature": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "paidAt": zod.string().nullable(),
+  "verificationMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary Verify a finalized treasury-to-recipient transfer with this proposal's memo
+ */
+export const VerifyFundPayoutParams = zod.object({
+  "payoutId": zod.coerce.string().uuid()
+})
+
+export const VerifyFundPayoutBody = zod.object({
+  "signature": zod.string()
+})
+
+export const VerifyFundPayoutResponse = zod.object({
+  "id": zod.string(),
+  "recipientUserId": zod.number().int(),
+  "recipientName": zod.string(),
+  "organisationName": zod.string(),
+  "walletAddress": zod.string(),
+  "treasuryAddress": zod.string(),
+  "amountSol": zod.string(),
+  "reason": zod.string(),
+  "fundId": zod.number().int().nullable(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
+  "memo": zod.string(),
+  "status": zod.enum(['proposed', 'cancelled', 'paid']),
+  "signature": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "paidAt": zod.string().nullable(),
+  "verificationMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary Dismiss an owned unpaid proposal; does not cancel an external multisig transaction
+ */
+export const CancelFundPayoutParams = zod.object({
+  "payoutId": zod.coerce.string().uuid()
+})
+
+export const CancelFundPayoutResponse = zod.object({
+  "id": zod.string(),
+  "recipientUserId": zod.number().int(),
+  "recipientName": zod.string(),
+  "organisationName": zod.string(),
+  "walletAddress": zod.string(),
+  "treasuryAddress": zod.string(),
+  "amountSol": zod.string(),
+  "reason": zod.string(),
+  "fundId": zod.number().int().nullable(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
+  "memo": zod.string(),
+  "status": zod.enum(['proposed', 'cancelled', 'paid']),
+  "signature": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "paidAt": zod.string().nullable(),
+  "verificationMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary List payment requests and verified contributions for the signed-in profile
+ */
+export const ListMyContributionsQueryParams = zod.object({
+  "before": zod.coerce.string().uuid().optional()
+})
+
+export const ListMyContributionsResponseItem = zod.object({
+  "id": zod.string(),
+  "fundId": zod.number().int(),
+  "fundTitle": zod.string(),
+  "organisationName": zod.string(),
+  "amountSol": zod.string(),
+  "walletAddress": zod.string(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
+  "reference": zod.string(),
+  "paymentUri": zod.string(),
+  "status": zod.enum(['pending', 'cancelled', 'confirmed']),
+  "signature": zod.string().nullable(),
+  "sender": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "confirmedAt": zod.string().nullable(),
+  "lastCheckedAt": zod.string().nullable(),
+  "verificationMessage": zod.string().nullable()
+})
+export const ListMyContributionsResponse = zod.array(ListMyContributionsResponseItem)
+
+
+/**
+ * @summary Create or resume a profile-bound SOL payment request
+ */
+
+
+
+export const CreateFundContributionParams = zod.object({
+  "fundId": zod.coerce.number().int().min(1)
+})
+
+export const createFundContributionBodyAmountSolRegExp = new RegExp('^[0-9]+(\\.[0-9]{1,9})?$');
+
+
+export const CreateFundContributionBody = zod.object({
+  "amountSol": zod.string().regex(createFundContributionBodyAmountSolRegExp)
+})
+
+export const CreateFundContributionResponse = zod.object({
+  "id": zod.string(),
+  "fundId": zod.number().int(),
+  "fundTitle": zod.string(),
+  "organisationName": zod.string(),
+  "amountSol": zod.string(),
+  "walletAddress": zod.string(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
+  "reference": zod.string(),
+  "paymentUri": zod.string(),
+  "status": zod.enum(['pending', 'cancelled', 'confirmed']),
+  "signature": zod.string().nullable(),
+  "sender": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "confirmedAt": zod.string().nullable(),
+  "lastCheckedAt": zod.string().nullable(),
+  "verificationMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary Find and verify a finalized payment using its unique reference
+ */
+export const VerifyFundContributionParams = zod.object({
+  "contributionId": zod.coerce.string().uuid()
+})
+
+export const VerifyFundContributionResponse = zod.object({
+  "id": zod.string(),
+  "fundId": zod.number().int(),
+  "fundTitle": zod.string(),
+  "organisationName": zod.string(),
+  "amountSol": zod.string(),
+  "walletAddress": zod.string(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
+  "reference": zod.string(),
+  "paymentUri": zod.string(),
+  "status": zod.enum(['pending', 'cancelled', 'confirmed']),
+  "signature": zod.string().nullable(),
+  "sender": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "confirmedAt": zod.string().nullable(),
+  "lastCheckedAt": zod.string().nullable(),
+  "verificationMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary Dismiss an unpaid request; this cannot cancel a blockchain transaction
+ */
+export const CancelFundContributionParams = zod.object({
+  "contributionId": zod.coerce.string().uuid()
+})
+
+export const CancelFundContributionResponse = zod.object({
+  "id": zod.string(),
+  "fundId": zod.number().int(),
+  "fundTitle": zod.string(),
+  "organisationName": zod.string(),
+  "amountSol": zod.string(),
+  "walletAddress": zod.string(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
+  "reference": zod.string(),
+  "paymentUri": zod.string(),
+  "status": zod.enum(['pending', 'cancelled', 'confirmed']),
+  "signature": zod.string().nullable(),
+  "sender": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "confirmedAt": zod.string().nullable(),
+  "lastCheckedAt": zod.string().nullable(),
+  "verificationMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary Paginated persistent incoming SOL ledger for the signed-in charity
+ */
+
+
+
+export const GetCharityContributionLedgerQueryParams = zod.object({
+  "before": zod.coerce.number().int().min(1).optional()
+})
+
+export const GetCharityContributionLedgerResponse = zod.object({
+  "entries": zod.array(zod.object({
+  "id": zod.number().int(),
+  "fundId": zod.number().int().nullable(),
+  "fundTitle": zod.string().nullable(),
+  "amountSol": zod.string(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
+  "signature": zod.string(),
+  "sender": zod.string(),
+  "attribution": zod.enum(['reference', 'memo', 'unattributed']),
+  "blockTime": zod.string().nullable(),
+  "recordedAt": zod.string()
+})),
+  "nextCursor": zod.number().int().nullable(),
+  "totalSol": zod.string(),
+  "unattributedSol": zod.string(),
+  "lastSyncedAt": zod.string().nullable(),
+  "historyComplete": zod.boolean(),
+  "historyCursor": zod.string().nullable()
+})
+
+
+/**
+ * @summary Import one page of finalized incoming treasury transfers, including unattributed deposits
+ */
+export const SyncCharityContributionLedgerBody = zod.object({
+  "before": zod.string().optional()
+})
+
+export const SyncCharityContributionLedgerResponse = zod.object({
+  "imported": zod.number().int(),
+  "nextCursor": zod.string().nullable(),
+  "hasMore": zod.boolean(),
+  "checkedAt": zod.string()
+})
+
+
+/**
+ * @summary Edit or close an owned campaign without removing its ledger
+ */
+
+
+
+export const UpdateOrganisationFundParams = zod.object({
+  "fundId": zod.coerce.number().int().min(1)
+})
+
+export const updateOrganisationFundBodyTitleMin = 3;
+export const updateOrganisationFundBodyTitleMax = 80;
+
+export const updateOrganisationFundBodyDescriptionMin = 10;
+export const updateOrganisationFundBodyDescriptionMax = 600;
+
+
+
+export const UpdateOrganisationFundBody = zod.object({
+  "title": zod.string().min(updateOrganisationFundBodyTitleMin).max(updateOrganisationFundBodyTitleMax).optional(),
+  "description": zod.string().min(updateOrganisationFundBodyDescriptionMin).max(updateOrganisationFundBodyDescriptionMax).optional(),
+  "status": zod.enum(['active', 'closed']).optional()
+})
+
+export const UpdateOrganisationFundResponse = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationUserId": zod.number().int(),
+  "organisationName": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "walletAddress": zod.string(),
+  "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
+  "goalSol": zod.number(),
+  "raisedSol": zod.string(),
+  "contributionCount": zod.number().int(),
+  "status": zod.enum(['active', 'closed']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Upload a private verification evidence image
  */
 export const uploadPrivateEvidenceBodyDataMax = 5592406;
@@ -334,13 +676,15 @@ export const CreateOrganisationFundResponse = zod.object({
   "walletAddress": zod.string(),
   "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
   "goalSol": zod.number(),
+  "raisedSol": zod.string(),
+  "contributionCount": zod.number().int(),
   "status": zod.enum(['active', 'closed']),
   "createdAt": zod.coerce.date()
 })
 
 
 /**
- * @summary List active funds for a public organisation profile
+ * @summary List active and closed campaigns with recorded finalized contribution totals
  */
 
 
@@ -359,6 +703,8 @@ export const ListOrganisationFundsResponseItem = zod.object({
   "walletAddress": zod.string(),
   "cluster": zod.enum(['mainnet-beta', 'devnet', 'testnet']),
   "goalSol": zod.number(),
+  "raisedSol": zod.string(),
+  "contributionCount": zod.number().int(),
   "status": zod.enum(['active', 'closed']),
   "createdAt": zod.coerce.date()
 })

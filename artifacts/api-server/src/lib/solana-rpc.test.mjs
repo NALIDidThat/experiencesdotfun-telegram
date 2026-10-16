@@ -76,3 +76,22 @@ test("rejects invalid cluster and transaction cursors", async () => {
   await assert.rejects(() => getSolanaBalance({ address, cluster: "localnet", fetchImpl: fetch }), /cluster/);
   await assert.rejects(() => getSolanaTreasuryActivity({ address, cluster: "devnet", before: "bad", fetchImpl: fetch }), /cursor/);
 });
+
+test("actual parsed memo strings and mixed transfers do not misattribute the aggregate amount", async () => {
+  const instructions = [
+    { program: "spl-memo", parsed: "Experiences.fun fund 42" },
+    { program: "system", parsed: { type: "transfer", info: { source: "4".repeat(32), destination: address, lamports: 1 } } },
+  ];
+  const fetchImpl = async (_url, options) => {
+    const { method } = JSON.parse(options.body);
+    return { ok: true, json: async () => ({ result: method === "getSignaturesForAddress"
+      ? [{ signature: "2".repeat(64), err: null }]
+      : { meta: { err: null, innerInstructions: [] }, transaction: { message: { instructions } } } }) };
+  };
+  const linked = await getSolanaTreasuryActivity({ address, cluster: "devnet", fetchImpl });
+  assert.equal(linked.transactions[0].campaignId, 42);
+  instructions.push({ program: "system", parsed: { type: "transfer", info: { source: "5".repeat(32), destination: address, lamports: 2 } } });
+  const mixed = await getSolanaTreasuryActivity({ address, cluster: "devnet", fetchImpl });
+  assert.equal(mixed.transactions[0].amountSol, "0.000000003");
+  assert.equal(mixed.transactions[0].campaignId, null);
+});

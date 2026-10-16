@@ -16,6 +16,7 @@ export function getSolanaTreasuryActivity(input: {
     signature: string;
     status: "confirmed" | "failed" | "unavailable";
     sender: string | null;
+    campaignId: number | null;
     amountSol: string | null;
     blockTime: string | null;
     error: string | null;

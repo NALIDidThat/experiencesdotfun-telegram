@@ -12,8 +12,12 @@ import {
 } from "@workspace/api-client-react";
 import type { OrganisationFund, OrganisationTreasuryDashboard, OrganisationTreasuryInput } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { ContributeToFund } from "@/components/fundraising/ContributionCheckout";
+import { CharityLedgerSection } from "@/components/fundraising/CharityLedger";
+import { CharityPayoutsSection } from "@/components/fundraising/Payouts";
+import { FundOwnerControls, FundStats } from "@/components/fundraising/FundOwnerControls";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
-import { buildDonationUri, isValidSolanaAddress } from "@/lib/solana-pay.mjs";
+import { isValidSolanaAddress } from "@/lib/solana-pay.mjs";
 
 function shortAddress(address: string) {
   return address.length > 18 ? `${address.slice(0, 8)}…${address.slice(-6)}` : address;
@@ -33,51 +37,7 @@ function transactionDateLabel(value: string | null) {
 
 function FundCard({ fund }: { fund: OrganisationFund }) {
   const colors = useColors();
-  const [amount, setAmount] = useState("");
-  const [amountError, setAmountError] = useState<string | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
-  const donate = async () => {
-    const rawAmount = amount.trim();
-    if (!/^\d+(?:\.\d{1,9})?$/.test(rawAmount)) {
-      setAmountError("Enter a positive SOL amount with up to 9 decimal places.");
-      return;
-    }
-    const parsed = Number(rawAmount);
-    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1_000_000_000) {
-      setAmountError("Enter a positive amount of up to 1,000,000,000 SOL.");
-      return;
-    }
-    let uri: string;
-    try {
-      uri = buildDonationUri({
-        recipient: fund.walletAddress,
-        amount: parsed,
-        organisationName: fund.organisationName,
-        fundTitle: fund.title,
-        fundId: fund.id,
-        cluster: fund.cluster,
-      });
-    } catch (cause) {
-      Alert.alert(
-        "Unable to prepare donation",
-        cause instanceof Error ? cause.message : "Check the amount and charity treasury address.",
-      );
-      return;
-    }
-    setAmountError(null);
-    const transferAmount = parsed.toFixed(9).replace(/0+$/, "").replace(/\.$/, "");
-    try {
-      await Linking.openURL(uri);
-    } catch {
-      try {
-        await Share.share({
-          message: `Send ${transferAmount} SOL to ${fund.walletAddress} for “${fund.title}” (${fund.organisationName}'s shared charity treasury, Solana ${fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}).`,
-        });
-      } catch {
-        setAmountError("A wallet or sharing app could not be opened. You can still use the treasury address below.");
-      }
-    }
-  };
   return (
     <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 4, overflow: "hidden" }}>
       <View style={{ padding: 15, gap: 12 }}>
@@ -111,29 +71,8 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
           ) : null}
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <TextInput
-            accessibilityLabel={`Donation amount in SOL for ${fund.title}`}
-            accessibilityHint="Enter a positive amount with up to nine decimal places"
-            testID={`donation-amount-${fund.id}`}
-            keyboardType="decimal-pad"
-            value={amount}
-            onChangeText={(value) => { setAmount(value); setAmountError(null); }}
-            placeholder="Amount in SOL"
-            placeholderTextColor={colors.mutedForeground}
-            style={{ flex: 1, minWidth: 0, minHeight: 48, borderWidth: 1, borderColor: amountError ? colors.destructive : colors.border, borderRadius: colors.radius - 5, paddingHorizontal: 12, color: colors.foreground, backgroundColor: colors.background, fontSize: 14 }}
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Donate to ${fund.title}`}
-            testID={`donate-${fund.id}`}
-            onPress={() => void donate()}
-            style={{ minHeight: 48, paddingHorizontal: 17, borderRadius: colors.radius - 5, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}
-          >
-            <Text style={{ color: colors.primaryForeground, fontFamily: "Inter_700Bold", fontSize: 13 }}>Donate</Text>
-          </Pressable>
-        </View>
-        {amountError ? <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 11, lineHeight: 16 }}>{amountError}</Text> : null}
+        <FundStats fund={fund} />
+        <ContributeToFund fund={fund} />
         <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8, gap: 5 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Feather name="shield" size={13} color={colors.mutedForeground} />
@@ -155,7 +94,7 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
           </View>
           <Text selectable style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15, fontFamily: "Inter_500Medium" }}>{fund.walletAddress}</Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 14 }}>
-            Approve in your wallet. Campaign totals aren’t tracked; confirmed transfers can’t be reversed.
+            Approve in your wallet. Contributions are verified on chain before they count; confirmed transfers can’t be reversed.
           </Text>
         </View>
       </View>
@@ -200,7 +139,7 @@ export function OrganisationFundraiserSection({
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={{ color: colors.foreground, fontSize: 20, fontFamily: "Inter_700Bold" }}>{canLaunch ? "Your fundraisers" : "Support their work"}</Text>
-          {query.data?.length ? <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{query.data.length} active {query.data.length === 1 ? "fund" : "funds"}</Text> : null}
+          {query.data?.length ? <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{query.data.length} {query.data.length === 1 ? "campaign" : "campaigns"}</Text> : null}
         </View>
         {canLaunch ? (
           <Pressable
@@ -252,8 +191,6 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
   const [stage, setStage] = useState<"dashboard" | "create" | "success" | "detail">("dashboard");
   const [createdFund, setCreatedFund] = useState<OrganisationFund | null>(null);
   const [selectedFund, setSelectedFund] = useState<OrganisationFund | null>(null);
-  const [detailDonationAmount, setDetailDonationAmount] = useState("");
-  const [detailDonationError, setDetailDonationError] = useState<string | null>(null);
   const treasuryQuery = useGetOrganisationTreasury({ limit: 20, before }, {
     query: {
       queryKey: getGetOrganisationTreasuryQueryKey({ limit: 20, before }),
@@ -374,7 +311,7 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
   }
 
   if (stage === "detail" && selectedFund) {
-    const fund = selectedFund;
+    const fund = fundsQuery.data?.find((row) => row.id === selectedFund.id) ?? selectedFund;
     const launchedDate = transactionDateLabel(fund.createdAt);
     const sharedTreasury = treasuryQuery.data?.treasury.walletAddress === fund.walletAddress
       && treasuryQuery.data.treasury.cluster === fund.cluster
@@ -383,48 +320,6 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
     const shareFund = () => Share.share({
       message: `${fund.title}\n\n${fund.description}\n\nCampaign goal: ${fund.goalSol.toLocaleString()} SOL\n\nContributions are sent to ${fund.organisationName}'s shared charity treasury. On-chain transfers may not be attributable to this specific fund.\n\nTreasury: ${fund.walletAddress}`,
     });
-    const contribute = async () => {
-      const rawAmount = detailDonationAmount.trim();
-      if (!/^\d+(?:\.\d{1,9})?$/.test(rawAmount)) {
-        setDetailDonationError("Enter a positive SOL amount with no more than 9 decimal places.");
-        return;
-      }
-      const amount = Number(rawAmount);
-      if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000_000) {
-        setDetailDonationError("Enter a positive amount of up to 1,000,000,000 SOL.");
-        return;
-      }
-      let uri: string;
-      try {
-        uri = buildDonationUri({
-          recipient: fund.walletAddress,
-          amount,
-          organisationName: fund.organisationName,
-          fundTitle: fund.title,
-          fundId: fund.id,
-          cluster: fund.cluster,
-        });
-      } catch (cause) {
-        Alert.alert(
-          "Unable to prepare contribution",
-          cause instanceof Error ? cause.message : "Check the amount and charity treasury address.",
-        );
-        return;
-      }
-      setDetailDonationError(null);
-      try {
-        await Linking.openURL(uri);
-      } catch {
-        const transferAmount = amount.toFixed(9).replace(/0+$/, "").replace(/\.$/, "");
-        try {
-          await Share.share({
-            message: `Send ${transferAmount} SOL to ${fund.walletAddress} for “${fund.title}” (${fund.organisationName}'s shared charity treasury). On-chain transfers may not be attributable to this specific fund.`,
-          });
-        } catch {
-          setDetailDonationError("A wallet app could not be opened. You can still share the fund details and treasury address.");
-        }
-      }
-    };
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         {header("Fund details", "Support community work", () => setStage("dashboard"), "Back to funds dashboard")}
@@ -503,63 +398,19 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
                 </View>
               ) : null}
             </View>
-            <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>Campaign-specific totals are not tracked. Because funds share one treasury, on-chain transfers may not be attributable to this fund.</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>Raised totals count only verified payment requests and recorded deposits. Funds share one treasury, so other transfers may not be attributable to this fund.</Text>
           </View>
 
           <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 3, padding: 15, gap: 12 }}>
-            <View style={{ gap: 3 }}>
-              <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Make a contribution</Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 17 }}>Choose an amount in SOL. Your wallet will open for review.</Text>
-            </View>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {[0.1, 0.5, 1].map((quickAmount) => {
-                const selected = detailDonationAmount === String(quickAmount);
-                return (
-                  <Pressable
-                    key={quickAmount}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Set contribution amount to ${quickAmount} SOL`}
-                    accessibilityState={{ selected }}
-                    testID={`fund-quick-amount-${fund.id}-${String(quickAmount).replace(".", "-")}`}
-                    onPress={() => { setDetailDonationAmount(String(quickAmount)); setDetailDonationError(null); }}
-                    style={{ flex: 1, minHeight: 40, alignItems: "center", justifyContent: "center", borderRadius: 10, borderWidth: 1, borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary + "12" : colors.background }}
-                  >
-                    <Text style={{ color: selected ? colors.primary : colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>{quickAmount} SOL</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: detailDonationError ? colors.destructive : colors.border, borderRadius: colors.radius - 5, padding: 5, minHeight: 54 }}>
-              <TextInput
-                accessibilityLabel={`Contribution amount in SOL for ${fund.title}`}
-                accessibilityHint="Enter a positive amount with up to nine decimal places"
-                testID={`fund-detail-amount-${fund.id}`}
-                keyboardType="decimal-pad"
-                value={detailDonationAmount}
-                onChangeText={(value) => { setDetailDonationAmount(value); setDetailDonationError(null); }}
-                placeholder="Other amount"
-                placeholderTextColor={colors.mutedForeground}
-                returnKeyType="done"
-                style={{ flex: 1, minWidth: 0, paddingHorizontal: 10, color: colors.foreground, fontSize: 15 }}
-              />
-              <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold", paddingHorizontal: 5 }}>SOL</Text>
-            </View>
-            {detailDonationError ? <Text accessibilityRole="alert" testID={`fund-detail-error-${fund.id}`} style={{ color: colors.destructive, fontSize: 12, lineHeight: 17 }}>{detailDonationError}</Text> : null}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Continue to wallet to contribute to ${fund.title}`}
-              testID={`fund-detail-contribute-${fund.id}`}
-              onPress={() => void contribute()}
-              style={{ minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: colors.radius - 5, backgroundColor: colors.primary, paddingHorizontal: 14 }}
-            >
-              <Feather name="arrow-up-right" size={16} color={colors.primaryForeground} />
-              <Text style={{ color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_700Bold" }}>Continue to wallet</Text>
-            </Pressable>
-            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
-              <Feather name="alert-circle" size={14} color={colors.mutedForeground} style={{ marginTop: 1 }} />
-              <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>Review and approve the transfer in your wallet. Confirmed blockchain transfers cannot be reversed.</Text>
-            </View>
+            <Text accessibilityRole="header" style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Make a contribution</Text>
+            <FundStats fund={fund} />
+            <ContributeToFund fund={fund} />
           </View>
+          <FundOwnerControls fund={fund} onUpdated={(updated) => {
+            setSelectedFund(updated);
+            queryClient.setQueryData<OrganisationFund[]>(getListOrganisationFundsQueryKey(organisationUserId), (current) =>
+              current?.map((row) => row.id === updated.id ? updated : row));
+          }} />
 
           <View style={{ flexDirection: "row", gap: 9 }}>
             <Pressable
@@ -672,7 +523,7 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
             </View>
             <View style={{ flexDirection: "row", gap: 9 }}>
               {[
-                { label: "ACTIVE FUNDS", value: fundsQuery.data?.length ?? 0, icon: "heart" as const },
+                { label: "ACTIVE FUNDS", value: fundsQuery.data?.filter((fund) => fund.status === "active").length ?? 0, icon: "heart" as const },
                 { label: "RECENT ACTIVITY", value: treasuryQuery.data.transactions.length, icon: "activity" as const },
               ].map((metric) => (
                 <View key={metric.label} style={{ flex: 1, minHeight: 74, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 2, padding: 13, flexDirection: "row", alignItems: "center", gap: 11 }}>
@@ -689,7 +540,7 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
             <View style={{ gap: 10 }}>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                 <Text style={{ color: colors.foreground, fontSize: 19, fontFamily: "Inter_700Bold" }}>Your funds</Text>
-                {fundsQuery.data?.length ? <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{fundsQuery.data.length} active</Text> : null}
+                {fundsQuery.data?.length ? <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{fundsQuery.data.length} {fundsQuery.data.length === 1 ? "campaign" : "campaigns"}</Text> : null}
               </View>
               {button("Launch a fund", () => { setError(null); setStage("create"); }, false, false, "plus")}
               {fundsQuery.isLoading ? <Text style={{ color: colors.mutedForeground, fontSize: 13, paddingVertical: 10 }}>Loading your campaigns…</Text> :
@@ -759,7 +610,7 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
                         <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>
                           {confirmed && transaction.campaignId
                             ? `Campaign: ${attributedFund?.title ?? `#${transaction.campaignId}`}`
-                            : confirmed ? "Unattributed treasury transfer" : "Not verified as an incoming contribution"}
+                            : confirmed ? "Unattributed or mixed-campaign transfers" : "Not verified as an incoming contribution"}
                         </Text>
                       </View>
                       <View style={{ borderRadius: 18, backgroundColor: statusColor + "14", paddingHorizontal: 8, paddingVertical: 5 }}>
@@ -842,6 +693,8 @@ export function OrganisationFundsScreen({ organisationUserId, onBack }: { organi
             }, false, register.isPending, "arrow-right")}
           </View>
         )}
+        <CharityLedgerSection />
+        <CharityPayoutsSection funds={fundsQuery.data ?? []} />
       </KeyboardAwareScrollViewCompat>
     </View>
   );

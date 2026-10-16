@@ -38,6 +38,8 @@ import type {
   AuthResponse,
   BadRequestResponse,
   BotInfo,
+  CharityContributionLedger,
+  CharityLedgerSyncInput,
   CommunityDetails,
   CommunitySummary,
   CompaniesHouseSearchInput,
@@ -74,12 +76,19 @@ import type {
   FeedReactionInput,
   FeedReactionState,
   FeedResponse,
+  ForbiddenResponse,
   Friend,
   FriendNotificationReadResponse,
   FriendNotificationsResponse,
   FriendProfile,
   FriendRequest,
   FriendRequestCreateInput,
+  FundContribution,
+  FundContributionInput,
+  FundPayout,
+  FundPayoutInput,
+  FundPayoutVerificationInput,
+  GetCharityContributionLedgerParams,
   GetFeedParams,
   GetMemoryGameLeaderboardParams,
   GetOrganisationTreasuryParams,
@@ -88,8 +97,11 @@ import type {
   HostExperience,
   HostExperienceMilestonesResponse,
   HostOverview,
+  ListCharityPayoutCandidates200Item,
   ListDirectMessagesParams,
   ListExperiencesParams,
+  ListFundPayoutsParams,
+  ListMyContributionsParams,
   ListMyParticipationsParams,
   MemoryGameAttempt,
   MemoryGameAttemptResult,
@@ -102,6 +114,7 @@ import type {
   NotFoundResponse,
   OrganisationFund,
   OrganisationFundCreateInput,
+  OrganisationFundUpdateInput,
   OrganisationPartnership,
   OrganisationPartnershipCreateInput,
   OrganisationTreasury,
@@ -125,8 +138,10 @@ import type {
   ProfileUpdateInput,
   RedeemXpAwardsResponse,
   SearchDirectMessageProfilesParams,
+  ServiceUnavailableResponse,
   SocialInvite,
   SocialInviteCreateInput,
+  SyncCharityContributionLedger200,
   TelegramAuthInput,
   TopFriendsInput,
   UnauthorizedResponse,
@@ -161,6 +176,1000 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListCharityPayoutCandidatesUrl = () => {
+
+
+
+
+  return `/api/funds/payout-candidates`
+}
+
+/**
+ * @summary Find participant profiles who have joined this charity's experiences
+ */
+export const listCharityPayoutCandidates = async ( options?: Parameters<typeof customFetch>[1]): Promise<ListCharityPayoutCandidates200Item[]> => {
+
+  return customFetch<ListCharityPayoutCandidates200Item[]>(getListCharityPayoutCandidatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCharityPayoutCandidatesQueryKey = () => {
+    return [
+    `/api/funds/payout-candidates`
+    ] as const;
+    }
+
+
+export const getListCharityPayoutCandidatesQueryOptions = <TData = Awaited<ReturnType<typeof listCharityPayoutCandidates>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCharityPayoutCandidates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCharityPayoutCandidatesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCharityPayoutCandidates>>> = ({ signal }) => listCharityPayoutCandidates({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCharityPayoutCandidates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCharityPayoutCandidatesQueryResult = NonNullable<Awaited<ReturnType<typeof listCharityPayoutCandidates>>>
+export type ListCharityPayoutCandidatesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Find participant profiles who have joined this charity's experiences
+ */
+
+export function useListCharityPayoutCandidates<TData = Awaited<ReturnType<typeof listCharityPayoutCandidates>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCharityPayoutCandidates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCharityPayoutCandidatesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListFundPayoutsUrl = (params?: ListFundPayoutsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/funds/payouts?${stringifiedParams}` : `/api/funds/payouts`
+}
+
+/**
+ * @summary List owned charity payout proposals or payouts addressed to the signed-in participant
+ */
+export const listFundPayouts = async (params?: ListFundPayoutsParams, options?: Parameters<typeof customFetch>[1]): Promise<FundPayout[]> => {
+
+  return customFetch<FundPayout[]>(getListFundPayoutsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFundPayoutsQueryKey = (params?: ListFundPayoutsParams,) => {
+    return [
+    `/api/funds/payouts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListFundPayoutsQueryOptions = <TData = Awaited<ReturnType<typeof listFundPayouts>>, TError = ErrorType<UnauthorizedResponse>>(params?: ListFundPayoutsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFundPayouts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFundPayoutsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFundPayouts>>> = ({ signal }) => listFundPayouts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFundPayouts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFundPayoutsQueryResult = NonNullable<Awaited<ReturnType<typeof listFundPayouts>>>
+export type ListFundPayoutsQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary List owned charity payout proposals or payouts addressed to the signed-in participant
+ */
+
+export function useListFundPayouts<TData = Awaited<ReturnType<typeof listFundPayouts>>, TError = ErrorType<UnauthorizedResponse>>(
+ params?: ListFundPayoutsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFundPayouts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFundPayoutsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateFundPayoutUrl = () => {
+
+
+
+
+  return `/api/funds/payouts`
+}
+
+/**
+ * @summary Record a volunteer payout proposal for external multisig approval; does not move funds
+ */
+export const createFundPayout = async (fundPayoutInput: FundPayoutInput, options?: Parameters<typeof customFetch>[1]): Promise<FundPayout> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FundPayout>(getCreateFundPayoutUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fundPayoutInput)
+  }
+);}
+
+
+
+
+
+export const getCreateFundPayoutMutationKey = () => ['createFundPayout'] as const;
+
+export const getCreateFundPayoutMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFundPayout>>, TError,CreateFundPayoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createFundPayout>>, TError,CreateFundPayoutMutationVariables, TContext> => {
+
+const mutationKey = getCreateFundPayoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFundPayout>>, CreateFundPayoutMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createFundPayout(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateFundPayoutMutationResult = NonNullable<Awaited<ReturnType<typeof createFundPayout>>>
+    export type CreateFundPayoutMutationBody = BodyType<FundPayoutInput>
+    export type CreateFundPayoutMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+    export type CreateFundPayoutMutationVariables = {data: BodyType<FundPayoutInput>}
+
+    /**
+ * @summary Record a volunteer payout proposal for external multisig approval; does not move funds
+ */
+export const useCreateFundPayout = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFundPayout>>, TError,CreateFundPayoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createFundPayout>>,
+        TError,
+        CreateFundPayoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateFundPayoutMutationOptions(options));
+    }
+
+export const getVerifyFundPayoutUrl = (payoutId: string,) => {
+
+
+
+
+  return `/api/funds/payouts/${payoutId}/verify`
+}
+
+/**
+ * @summary Verify a finalized treasury-to-recipient transfer with this proposal's memo
+ */
+export const verifyFundPayout = async (payoutId: string,
+    fundPayoutVerificationInput: FundPayoutVerificationInput, options?: Parameters<typeof customFetch>[1]): Promise<FundPayout> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FundPayout>(getVerifyFundPayoutUrl(payoutId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fundPayoutVerificationInput)
+  }
+);}
+
+
+
+
+
+export const getVerifyFundPayoutMutationKey = () => ['verifyFundPayout'] as const;
+
+export const getVerifyFundPayoutMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyFundPayout>>, TError,VerifyFundPayoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyFundPayout>>, TError,VerifyFundPayoutMutationVariables, TContext> => {
+
+const mutationKey = getVerifyFundPayoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyFundPayout>>, VerifyFundPayoutMutationVariables> = (props) => {
+          const {payoutId,data} = props ?? {};
+
+          return  verifyFundPayout(payoutId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyFundPayoutMutationResult = NonNullable<Awaited<ReturnType<typeof verifyFundPayout>>>
+    export type VerifyFundPayoutMutationBody = BodyType<FundPayoutVerificationInput>
+    export type VerifyFundPayoutMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>
+    export type VerifyFundPayoutMutationVariables = {payoutId: string;data: BodyType<FundPayoutVerificationInput>}
+
+    /**
+ * @summary Verify a finalized treasury-to-recipient transfer with this proposal's memo
+ */
+export const useVerifyFundPayout = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyFundPayout>>, TError,VerifyFundPayoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyFundPayout>>,
+        TError,
+        VerifyFundPayoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getVerifyFundPayoutMutationOptions(options));
+    }
+
+export const getCancelFundPayoutUrl = (payoutId: string,) => {
+
+
+
+
+  return `/api/funds/payouts/${payoutId}/cancel`
+}
+
+/**
+ * @summary Dismiss an owned unpaid proposal; does not cancel an external multisig transaction
+ */
+export const cancelFundPayout = async (payoutId: string, options?: Parameters<typeof customFetch>[1]): Promise<FundPayout> => {
+
+  return customFetch<FundPayout>(getCancelFundPayoutUrl(payoutId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelFundPayoutMutationKey = () => ['cancelFundPayout'] as const;
+
+export const getCancelFundPayoutMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelFundPayout>>, TError,CancelFundPayoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelFundPayout>>, TError,CancelFundPayoutMutationVariables, TContext> => {
+
+const mutationKey = getCancelFundPayoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelFundPayout>>, CancelFundPayoutMutationVariables> = (props) => {
+          const {payoutId} = props ?? {};
+
+          return  cancelFundPayout(payoutId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelFundPayoutMutationResult = NonNullable<Awaited<ReturnType<typeof cancelFundPayout>>>
+
+    export type CancelFundPayoutMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+    export type CancelFundPayoutMutationVariables = {payoutId: string}
+
+    /**
+ * @summary Dismiss an owned unpaid proposal; does not cancel an external multisig transaction
+ */
+export const useCancelFundPayout = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelFundPayout>>, TError,CancelFundPayoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelFundPayout>>,
+        TError,
+        CancelFundPayoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelFundPayoutMutationOptions(options));
+    }
+
+export const getListMyContributionsUrl = (params?: ListMyContributionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/funds/contributions?${stringifiedParams}` : `/api/funds/contributions`
+}
+
+/**
+ * @summary List payment requests and verified contributions for the signed-in profile
+ */
+export const listMyContributions = async (params?: ListMyContributionsParams, options?: Parameters<typeof customFetch>[1]): Promise<FundContribution[]> => {
+
+  return customFetch<FundContribution[]>(getListMyContributionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyContributionsQueryKey = (params?: ListMyContributionsParams,) => {
+    return [
+    `/api/funds/contributions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMyContributionsQueryOptions = <TData = Awaited<ReturnType<typeof listMyContributions>>, TError = ErrorType<UnauthorizedResponse>>(params?: ListMyContributionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyContributions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyContributionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyContributions>>> = ({ signal }) => listMyContributions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyContributions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyContributionsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyContributions>>>
+export type ListMyContributionsQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary List payment requests and verified contributions for the signed-in profile
+ */
+
+export function useListMyContributions<TData = Awaited<ReturnType<typeof listMyContributions>>, TError = ErrorType<UnauthorizedResponse>>(
+ params?: ListMyContributionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyContributions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyContributionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateFundContributionUrl = (fundId: number,) => {
+
+
+
+
+  return `/api/funds/campaigns/${fundId}/contributions`
+}
+
+/**
+ * @summary Create or resume a profile-bound SOL payment request
+ */
+export const createFundContribution = async (fundId: number,
+    fundContributionInput: FundContributionInput, options?: Parameters<typeof customFetch>[1]): Promise<FundContribution> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FundContribution>(getCreateFundContributionUrl(fundId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fundContributionInput)
+  }
+);}
+
+
+
+
+
+export const getCreateFundContributionMutationKey = () => ['createFundContribution'] as const;
+
+export const getCreateFundContributionMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFundContribution>>, TError,CreateFundContributionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createFundContribution>>, TError,CreateFundContributionMutationVariables, TContext> => {
+
+const mutationKey = getCreateFundContributionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFundContribution>>, CreateFundContributionMutationVariables> = (props) => {
+          const {fundId,data} = props ?? {};
+
+          return  createFundContribution(fundId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateFundContributionMutationResult = NonNullable<Awaited<ReturnType<typeof createFundContribution>>>
+    export type CreateFundContributionMutationBody = BodyType<FundContributionInput>
+    export type CreateFundContributionMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+    export type CreateFundContributionMutationVariables = {fundId: number;data: BodyType<FundContributionInput>}
+
+    /**
+ * @summary Create or resume a profile-bound SOL payment request
+ */
+export const useCreateFundContribution = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFundContribution>>, TError,CreateFundContributionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createFundContribution>>,
+        TError,
+        CreateFundContributionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateFundContributionMutationOptions(options));
+    }
+
+export const getVerifyFundContributionUrl = (contributionId: string,) => {
+
+
+
+
+  return `/api/funds/contributions/${contributionId}/verify`
+}
+
+/**
+ * @summary Find and verify a finalized payment using its unique reference
+ */
+export const verifyFundContribution = async (contributionId: string, options?: Parameters<typeof customFetch>[1]): Promise<FundContribution> => {
+
+  return customFetch<FundContribution>(getVerifyFundContributionUrl(contributionId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getVerifyFundContributionMutationKey = () => ['verifyFundContribution'] as const;
+
+export const getVerifyFundContributionMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyFundContribution>>, TError,VerifyFundContributionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyFundContribution>>, TError,VerifyFundContributionMutationVariables, TContext> => {
+
+const mutationKey = getVerifyFundContributionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyFundContribution>>, VerifyFundContributionMutationVariables> = (props) => {
+          const {contributionId} = props ?? {};
+
+          return  verifyFundContribution(contributionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyFundContributionMutationResult = NonNullable<Awaited<ReturnType<typeof verifyFundContribution>>>
+
+    export type VerifyFundContributionMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>
+    export type VerifyFundContributionMutationVariables = {contributionId: string}
+
+    /**
+ * @summary Find and verify a finalized payment using its unique reference
+ */
+export const useVerifyFundContribution = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyFundContribution>>, TError,VerifyFundContributionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyFundContribution>>,
+        TError,
+        VerifyFundContributionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getVerifyFundContributionMutationOptions(options));
+    }
+
+export const getCancelFundContributionUrl = (contributionId: string,) => {
+
+
+
+
+  return `/api/funds/contributions/${contributionId}/cancel`
+}
+
+/**
+ * @summary Dismiss an unpaid request; this cannot cancel a blockchain transaction
+ */
+export const cancelFundContribution = async (contributionId: string, options?: Parameters<typeof customFetch>[1]): Promise<FundContribution> => {
+
+  return customFetch<FundContribution>(getCancelFundContributionUrl(contributionId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelFundContributionMutationKey = () => ['cancelFundContribution'] as const;
+
+export const getCancelFundContributionMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelFundContribution>>, TError,CancelFundContributionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelFundContribution>>, TError,CancelFundContributionMutationVariables, TContext> => {
+
+const mutationKey = getCancelFundContributionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelFundContribution>>, CancelFundContributionMutationVariables> = (props) => {
+          const {contributionId} = props ?? {};
+
+          return  cancelFundContribution(contributionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelFundContributionMutationResult = NonNullable<Awaited<ReturnType<typeof cancelFundContribution>>>
+
+    export type CancelFundContributionMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+    export type CancelFundContributionMutationVariables = {contributionId: string}
+
+    /**
+ * @summary Dismiss an unpaid request; this cannot cancel a blockchain transaction
+ */
+export const useCancelFundContribution = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelFundContribution>>, TError,CancelFundContributionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelFundContribution>>,
+        TError,
+        CancelFundContributionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelFundContributionMutationOptions(options));
+    }
+
+export const getGetCharityContributionLedgerUrl = (params?: GetCharityContributionLedgerParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/funds/ledger?${stringifiedParams}` : `/api/funds/ledger`
+}
+
+/**
+ * @summary Paginated persistent incoming SOL ledger for the signed-in charity
+ */
+export const getCharityContributionLedger = async (params?: GetCharityContributionLedgerParams, options?: Parameters<typeof customFetch>[1]): Promise<CharityContributionLedger> => {
+
+  return customFetch<CharityContributionLedger>(getGetCharityContributionLedgerUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCharityContributionLedgerQueryKey = (params?: GetCharityContributionLedgerParams,) => {
+    return [
+    `/api/funds/ledger`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCharityContributionLedgerQueryOptions = <TData = Awaited<ReturnType<typeof getCharityContributionLedger>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(params?: GetCharityContributionLedgerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCharityContributionLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCharityContributionLedgerQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCharityContributionLedger>>> = ({ signal }) => getCharityContributionLedger(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCharityContributionLedger>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCharityContributionLedgerQueryResult = NonNullable<Awaited<ReturnType<typeof getCharityContributionLedger>>>
+export type GetCharityContributionLedgerQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Paginated persistent incoming SOL ledger for the signed-in charity
+ */
+
+export function useGetCharityContributionLedger<TData = Awaited<ReturnType<typeof getCharityContributionLedger>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+ params?: GetCharityContributionLedgerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCharityContributionLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCharityContributionLedgerQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSyncCharityContributionLedgerUrl = () => {
+
+
+
+
+  return `/api/funds/ledger/sync`
+}
+
+/**
+ * @summary Import one page of finalized incoming treasury transfers, including unattributed deposits
+ */
+export const syncCharityContributionLedger = async (charityLedgerSyncInput: CharityLedgerSyncInput, options?: Parameters<typeof customFetch>[1]): Promise<SyncCharityContributionLedger200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SyncCharityContributionLedger200>(getSyncCharityContributionLedgerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(charityLedgerSyncInput)
+  }
+);}
+
+
+
+
+
+export const getSyncCharityContributionLedgerMutationKey = () => ['syncCharityContributionLedger'] as const;
+
+export const getSyncCharityContributionLedgerMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncCharityContributionLedger>>, TError,SyncCharityContributionLedgerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncCharityContributionLedger>>, TError,SyncCharityContributionLedgerMutationVariables, TContext> => {
+
+const mutationKey = getSyncCharityContributionLedgerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncCharityContributionLedger>>, SyncCharityContributionLedgerMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  syncCharityContributionLedger(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncCharityContributionLedgerMutationResult = NonNullable<Awaited<ReturnType<typeof syncCharityContributionLedger>>>
+    export type SyncCharityContributionLedgerMutationBody = BodyType<CharityLedgerSyncInput>
+    export type SyncCharityContributionLedgerMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+    export type SyncCharityContributionLedgerMutationVariables = {data: BodyType<CharityLedgerSyncInput>}
+
+    /**
+ * @summary Import one page of finalized incoming treasury transfers, including unattributed deposits
+ */
+export const useSyncCharityContributionLedger = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncCharityContributionLedger>>, TError,SyncCharityContributionLedgerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof syncCharityContributionLedger>>,
+        TError,
+        SyncCharityContributionLedgerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSyncCharityContributionLedgerMutationOptions(options));
+    }
+
+export const getUpdateOrganisationFundUrl = (fundId: number,) => {
+
+
+
+
+  return `/api/funds/campaigns/${fundId}`
+}
+
+/**
+ * @summary Edit or close an owned campaign without removing its ledger
+ */
+export const updateOrganisationFund = async (fundId: number,
+    organisationFundUpdateInput: OrganisationFundUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationFund> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrganisationFund>(getUpdateOrganisationFundUrl(fundId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(organisationFundUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateOrganisationFundMutationKey = () => ['updateOrganisationFund'] as const;
+
+export const getUpdateOrganisationFundMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganisationFund>>, TError,UpdateOrganisationFundMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOrganisationFund>>, TError,UpdateOrganisationFundMutationVariables, TContext> => {
+
+const mutationKey = getUpdateOrganisationFundMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOrganisationFund>>, UpdateOrganisationFundMutationVariables> = (props) => {
+          const {fundId,data} = props ?? {};
+
+          return  updateOrganisationFund(fundId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOrganisationFundMutationResult = NonNullable<Awaited<ReturnType<typeof updateOrganisationFund>>>
+    export type UpdateOrganisationFundMutationBody = BodyType<OrganisationFundUpdateInput>
+    export type UpdateOrganisationFundMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>
+    export type UpdateOrganisationFundMutationVariables = {fundId: number;data: BodyType<OrganisationFundUpdateInput>}
+
+    /**
+ * @summary Edit or close an owned campaign without removing its ledger
+ */
+export const useUpdateOrganisationFund = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganisationFund>>, TError,UpdateOrganisationFundMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateOrganisationFund>>,
+        TError,
+        UpdateOrganisationFundMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateOrganisationFundMutationOptions(options));
+    }
 
 export const getUploadPrivateEvidenceUrl = () => {
 
@@ -1191,7 +2200,7 @@ export const getListOrganisationFundsUrl = (organisationUserId: number,) => {
 }
 
 /**
- * @summary List active funds for a public organisation profile
+ * @summary List active and closed campaigns with recorded finalized contribution totals
  */
 export const listOrganisationFunds = async (organisationUserId: number, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationFund[]> => {
 
@@ -1238,7 +2247,7 @@ export type ListOrganisationFundsQueryError = ErrorType<BadRequestResponse | Not
 
 
 /**
- * @summary List active funds for a public organisation profile
+ * @summary List active and closed campaigns with recorded finalized contribution totals
  */
 
 export function useListOrganisationFunds<TData = Awaited<ReturnType<typeof listOrganisationFunds>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(

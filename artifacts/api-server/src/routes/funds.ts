@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type ErrorRequestHandler } from "express";
 import { z } from "zod/v4";
 import {
   db,
@@ -11,8 +11,13 @@ import {
 import { currentUser, requireTelegramUser } from "../lib/auth";
 import { canLaunchCharityFund } from "../lib/fund-rules.mjs";
 import { getSolanaBalance, getSolanaTreasuryActivity, isValidSolanaAddress, lamportsToSol } from "../lib/solana-rpc.mjs";
+import contributionRouter from "./fund-contributions";
+import payoutsRouter from "./fund-payouts";
+import { campaignTotals } from "../lib/fund-ledger";
 
 const router: IRouter = Router();
+router.use(contributionRouter);
+router.use(payoutsRouter);
 const walletAddressSchema = z.string().refine(isValidSolanaAddress, "Enter a valid Solana wallet address.");
 const clusterSchema = z.enum(["mainnet-beta", "devnet", "testnet"]);
 const registerTreasurySchema = z.object({
@@ -62,13 +67,15 @@ router.get("/treasury", requireTelegramUser, async (req, res): Promise<void> => 
     return;
   }
   try {
+    const query = treasuryActivityQuerySchema.safeParse(req.query);
+    if (!query.success) { res.status(400).json({ message: "Invalid treasury activity cursor or limit." }); return; }
     const [balanceLamports, activity] = await Promise.all([
       getSolanaBalance({ address: treasury.walletAddress, cluster: treasury.cluster }),
       getSolanaTreasuryActivity({
         address: treasury.walletAddress,
         cluster: treasury.cluster,
-        limit: Number(req.query.limit ?? 20),
-        before: typeof req.query.before === "string" ? req.query.before : undefined,
+        limit: query.data.limit,
+        before: query.data.before,
       }),
     ]);
     res.json({
@@ -156,9 +163,9 @@ router.get("/:organisationUserId", async (req, res): Promise<void> => {
     .where(and(
       eq(organisationsTable.ownerUserId, userId),
       eq(organisationsTable.organisationType, "charity"),
-      eq(organisationFundsTable.status, "active"),
     ))
     .orderBy(desc(organisationFundsTable.createdAt), desc(organisationFundsTable.id));
+  const totals = await campaignTotals(rows.map(({ fund }) => fund.id));
   res.json(rows.map(({ fund, organisation, treasury }) => ({
     id: fund.id,
     organisationId: organisation.id,
@@ -169,6 +176,7 @@ router.get("/:organisationUserId", async (req, res): Promise<void> => {
     walletAddress: treasury.walletAddress,
     cluster: treasury.cluster,
     goalSol: Number(fund.goalSol),
+    ...(totals.get(fund.id) ?? { raisedSol: "0.000000000", contributionCount: 0 }),
     status: fund.status,
     createdAt: fund.createdAt.toISOString(),
   })));
@@ -216,9 +224,20 @@ router.post("/", requireTelegramUser, async (req, res): Promise<void> => {
     walletAddress: fund.walletAddress,
     cluster: treasury.cluster,
     goalSol: Number(fund.goalSol),
+    raisedSol: "0.000000000",
+    contributionCount: 0,
     status: fund.status,
     createdAt: fund.createdAt.toISOString(),
   });
 });
 
+const fundraisingErrorHandler: ErrorRequestHandler = (error, _req, res, next) => {
+  const cause = error?.cause ?? error;
+  if (cause?.code === "42P01" || cause?.code === "42703") {
+    res.status(503).json({ message: "Fundraising ledger setup is pending. The database migration must be approved and applied before donations can be recorded." });
+    return;
+  }
+  next(error);
+};
+router.use(fundraisingErrorHandler);
 export default router;

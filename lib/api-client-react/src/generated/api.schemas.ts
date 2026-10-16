@@ -5,6 +5,185 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface FundPayoutInput {
+  /** @minimum 1 */
+  recipientUserId: number;
+  walletAddress: string;
+  amountSol: string;
+  /**
+     * @minLength 5
+     * @maxLength 300
+     */
+  reason: string;
+  /** @minimum 1 */
+  fundId?: number;
+}
+
+export interface FundPayoutVerificationInput {
+  signature: string;
+}
+
+export type FundPayoutCluster = typeof FundPayoutCluster[keyof typeof FundPayoutCluster];
+
+
+export const FundPayoutCluster = {
+  'mainnet-beta': 'mainnet-beta',
+  devnet: 'devnet',
+  testnet: 'testnet',
+} as const;
+
+export type FundPayoutStatus = typeof FundPayoutStatus[keyof typeof FundPayoutStatus];
+
+
+export const FundPayoutStatus = {
+  proposed: 'proposed',
+  cancelled: 'cancelled',
+  paid: 'paid',
+} as const;
+
+export interface FundPayout {
+  id: string;
+  recipientUserId: number;
+  recipientName: string;
+  organisationName: string;
+  walletAddress: string;
+  treasuryAddress: string;
+  amountSol: string;
+  reason: string;
+  /** @nullable */
+  fundId: number | null;
+  cluster: FundPayoutCluster;
+  memo: string;
+  status: FundPayoutStatus;
+  /** @nullable */
+  signature: string | null;
+  createdAt: string;
+  /** @nullable */
+  paidAt: string | null;
+  /** @nullable */
+  verificationMessage: string | null;
+}
+
+export interface FundContributionInput {
+  /** @pattern ^[0-9]+(\.[0-9]{1,9})?$ */
+  amountSol: string;
+}
+
+export interface CharityLedgerSyncInput {
+  before?: string;
+}
+
+export type OrganisationFundUpdateInputStatus = typeof OrganisationFundUpdateInputStatus[keyof typeof OrganisationFundUpdateInputStatus];
+
+
+export const OrganisationFundUpdateInputStatus = {
+  active: 'active',
+  closed: 'closed',
+} as const;
+
+export interface OrganisationFundUpdateInput {
+  /**
+     * @minLength 3
+     * @maxLength 80
+     */
+  title?: string;
+  /**
+     * @minLength 10
+     * @maxLength 600
+     */
+  description?: string;
+  status?: OrganisationFundUpdateInputStatus;
+}
+
+export type FundContributionCluster = typeof FundContributionCluster[keyof typeof FundContributionCluster];
+
+
+export const FundContributionCluster = {
+  'mainnet-beta': 'mainnet-beta',
+  devnet: 'devnet',
+  testnet: 'testnet',
+} as const;
+
+export type FundContributionStatus = typeof FundContributionStatus[keyof typeof FundContributionStatus];
+
+
+export const FundContributionStatus = {
+  pending: 'pending',
+  cancelled: 'cancelled',
+  confirmed: 'confirmed',
+} as const;
+
+export interface FundContribution {
+  id: string;
+  fundId: number;
+  fundTitle: string;
+  organisationName: string;
+  amountSol: string;
+  walletAddress: string;
+  cluster: FundContributionCluster;
+  reference: string;
+  paymentUri: string;
+  status: FundContributionStatus;
+  /** @nullable */
+  signature: string | null;
+  /** @nullable */
+  sender: string | null;
+  createdAt: string;
+  /** @nullable */
+  confirmedAt: string | null;
+  /** @nullable */
+  lastCheckedAt: string | null;
+  /** @nullable */
+  verificationMessage: string | null;
+}
+
+export type CharityContributionLedgerEntryCluster = typeof CharityContributionLedgerEntryCluster[keyof typeof CharityContributionLedgerEntryCluster];
+
+
+export const CharityContributionLedgerEntryCluster = {
+  'mainnet-beta': 'mainnet-beta',
+  devnet: 'devnet',
+  testnet: 'testnet',
+} as const;
+
+export type CharityContributionLedgerEntryAttribution = typeof CharityContributionLedgerEntryAttribution[keyof typeof CharityContributionLedgerEntryAttribution];
+
+
+export const CharityContributionLedgerEntryAttribution = {
+  reference: 'reference',
+  memo: 'memo',
+  unattributed: 'unattributed',
+} as const;
+
+export interface CharityContributionLedgerEntry {
+  id: number;
+  /** @nullable */
+  fundId: number | null;
+  /** @nullable */
+  fundTitle: string | null;
+  amountSol: string;
+  cluster: CharityContributionLedgerEntryCluster;
+  signature: string;
+  sender: string;
+  attribution: CharityContributionLedgerEntryAttribution;
+  /** @nullable */
+  blockTime: string | null;
+  recordedAt: string;
+}
+
+export interface CharityContributionLedger {
+  entries: CharityContributionLedgerEntry[];
+  /** @nullable */
+  nextCursor: number | null;
+  totalSol: string;
+  unattributedSol: string;
+  /** @nullable */
+  lastSyncedAt: string | null;
+  historyComplete: boolean;
+  /** @nullable */
+  historyCursor: string | null;
+}
+
 export interface CompaniesHouseSearchInput {
   /**
      * @minLength 2
@@ -337,6 +516,8 @@ export interface OrganisationFund {
   walletAddress: string;
   cluster: OrganisationFundCluster;
   goalSol: number;
+  raisedSol: string;
+  contributionCount: number;
   status: OrganisationFundStatus;
   createdAt: string;
 }
@@ -2015,6 +2196,16 @@ export interface FeedDeleteResponse {
 }
 
 /**
+ * This profile cannot access this resource
+ */
+export type ForbiddenResponse = Error;
+
+/**
+ * Fundraising storage or Solana is temporarily unavailable
+ */
+export type ServiceUnavailableResponse = Error;
+
+/**
  * Request validation failed
  */
 export type BadRequestResponse = Error;
@@ -2039,6 +2230,36 @@ export type CategoryParameter = ExperienceCategory;
 export type SearchParameter = string;
 
 export type AvailableOnlyParameter = boolean;
+
+export type ListCharityPayoutCandidates200Item = {
+  id: number;
+  name: string;
+  /** @nullable */
+  username: string | null;
+};
+
+export type ListFundPayoutsParams = {
+before?: string;
+};
+
+export type ListMyContributionsParams = {
+before?: string;
+};
+
+export type GetCharityContributionLedgerParams = {
+/**
+ * @minimum 1
+ */
+before?: number;
+};
+
+export type SyncCharityContributionLedger200 = {
+  imported: number;
+  /** @nullable */
+  nextCursor: string | null;
+  hasMore: boolean;
+  checkedAt: string;
+};
 
 export type GetPrivateEvidenceAccess200 = {
   url: string;

@@ -35,6 +35,244 @@ tags:
   - name: ai-assistant
     description: Persistent AI experience discovery conversations
 paths:
+  /funds/payout-candidates:
+    get:
+      operationId: listCharityPayoutCandidates
+      tags: [host]
+      summary: Find participant profiles who have joined this charity's experiences
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Charity-scoped volunteer choices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, name, username]
+                  properties:
+                    id: { type: integer }
+                    name: { type: string }
+                    username: { type: [string, "null"] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /funds/payouts:
+    get:
+      operationId: listFundPayouts
+      tags: [host]
+      summary: List owned charity payout proposals or payouts addressed to the signed-in participant
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - { name: before, in: query, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Profile-scoped payout records
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FundPayout" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: createFundPayout
+      tags: [host]
+      summary: Record a volunteer payout proposal for external multisig approval; does not move funds
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FundPayoutInput" }
+      responses:
+        "201":
+          description: Proposal saved, not paid or approved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FundPayout" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /funds/payouts/{payoutId}/verify:
+    post:
+      operationId: verifyFundPayout
+      tags: [host]
+      summary: Verify a finalized treasury-to-recipient transfer with this proposal's memo
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - { name: payoutId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FundPayoutVerificationInput" }
+      responses:
+        "200":
+          description: Verified paid payout or unchanged proposal with verification feedback
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FundPayout" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /funds/payouts/{payoutId}/cancel:
+    post:
+      operationId: cancelFundPayout
+      tags: [host]
+      summary: Dismiss an owned unpaid proposal; does not cancel an external multisig transaction
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - { name: payoutId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Current proposal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FundPayout" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /funds/contributions:
+    get:
+      operationId: listMyContributions
+      tags: [host]
+      summary: List payment requests and verified contributions for the signed-in profile
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - { name: before, in: query, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Private profile contribution history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FundContribution" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /funds/campaigns/{fundId}/contributions:
+    post:
+      operationId: createFundContribution
+      tags: [host]
+      summary: Create or resume a profile-bound SOL payment request
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - { name: fundId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FundContributionInput"
+      responses:
+        "201":
+          description: Payment request; not evidence of payment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FundContribution" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /funds/contributions/{contributionId}/verify:
+    post:
+      operationId: verifyFundContribution
+      tags: [host]
+      summary: Find and verify a finalized payment using its unique reference
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - { name: contributionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Current contribution state; pending is not a confirmed payment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FundContribution" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /funds/contributions/{contributionId}/cancel:
+    post:
+      operationId: cancelFundContribution
+      tags: [host]
+      summary: Dismiss an unpaid request; this cannot cancel a blockchain transaction
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - { name: contributionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Current contribution state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FundContribution" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /funds/ledger:
+    get:
+      operationId: getCharityContributionLedger
+      tags: [host]
+      summary: Paginated persistent incoming SOL ledger for the signed-in charity
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - { name: before, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: Persisted finalized transfers only
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CharityContributionLedger" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /funds/ledger/sync:
+    post:
+      operationId: syncCharityContributionLedger
+      tags: [host]
+      summary: Import one page of finalized incoming treasury transfers, including unattributed deposits
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharityLedgerSyncInput"
+      responses:
+        "200":
+          description: Import result; cursor allows older history to be imported
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [imported, nextCursor, hasMore, checkedAt]
+                properties:
+                  imported: { type: integer }
+                  nextCursor: { type: [string, "null"] }
+                  hasMore: { type: boolean }
+                  checkedAt: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /funds/campaigns/{fundId}:
+    patch:
+      operationId: updateOrganisationFund
+      tags: [host]
+      summary: Edit or close an owned campaign without removing its ledger
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - { name: fundId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganisationFundUpdateInput"
+      responses:
+        "200":
+          description: Campaign saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganisationFund" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /evidence/upload:
     post:
       operationId: uploadPrivateEvidence
@@ -373,7 +611,7 @@ paths:
     get:
       operationId: listOrganisationFunds
       tags: [host]
-      summary: List active funds for a public organisation profile
+      summary: List active and closed campaigns with recorded finalized contribution totals
       parameters:
         - name: organisationUserId
           in: path
@@ -2670,6 +2908,16 @@ components:
       schema:
         type: boolean
   responses:
+    Forbidden:
+      description: This profile cannot access this resource
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ServiceUnavailable:
+      description: Fundraising storage or Solana is temporarily unavailable
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
     BadRequest:
       description: Request validation failed
       content:
@@ -2695,6 +2943,102 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
   schemas:
+    FundPayoutInput:
+      type: object
+      required: [recipientUserId, walletAddress, amountSol, reason]
+      properties:
+        recipientUserId: { type: integer, minimum: 1 }
+        walletAddress: { type: string }
+        amountSol: { type: string }
+        reason: { type: string, minLength: 5, maxLength: 300 }
+        fundId: { type: integer, minimum: 1 }
+    FundPayoutVerificationInput:
+      type: object
+      required: [signature]
+      properties:
+        signature: { type: string }
+    FundPayout:
+      type: object
+      required: [id, recipientUserId, recipientName, organisationName, walletAddress, treasuryAddress, amountSol, reason, fundId, cluster, memo, status, signature, createdAt, paidAt, verificationMessage]
+      properties:
+        id: { type: string }
+        recipientUserId: { type: integer }
+        recipientName: { type: string }
+        organisationName: { type: string }
+        walletAddress: { type: string }
+        treasuryAddress: { type: string }
+        amountSol: { type: string }
+        reason: { type: string }
+        fundId: { type: [integer, "null"] }
+        cluster: { type: string, enum: [mainnet-beta, devnet, testnet] }
+        memo: { type: string }
+        status: { type: string, enum: [proposed, cancelled, paid] }
+        signature: { type: [string, "null"] }
+        createdAt: { type: string }
+        paidAt: { type: [string, "null"] }
+        verificationMessage: { type: [string, "null"] }
+    FundContributionInput:
+      type: object
+      required: [amountSol]
+      properties:
+        amountSol: { type: string, pattern: '^[0-9]+(\.[0-9]{1,9})?$' }
+    CharityLedgerSyncInput:
+      type: object
+      properties:
+        before: { type: string }
+    OrganisationFundUpdateInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 3, maxLength: 80 }
+        description: { type: string, minLength: 10, maxLength: 600 }
+        status: { type: string, enum: [active, closed] }
+    FundContribution:
+      type: object
+      required: [id, fundId, fundTitle, organisationName, amountSol, walletAddress, cluster, reference, paymentUri, status, signature, sender, createdAt, confirmedAt, lastCheckedAt, verificationMessage]
+      properties:
+        id: { type: string }
+        fundId: { type: integer }
+        fundTitle: { type: string }
+        organisationName: { type: string }
+        amountSol: { type: string }
+        walletAddress: { type: string }
+        cluster: { type: string, enum: [mainnet-beta, devnet, testnet] }
+        reference: { type: string }
+        paymentUri: { type: string }
+        status: { type: string, enum: [pending, cancelled, confirmed] }
+        signature: { type: [string, "null"] }
+        sender: { type: [string, "null"] }
+        createdAt: { type: string }
+        confirmedAt: { type: [string, "null"] }
+        lastCheckedAt: { type: [string, "null"] }
+        verificationMessage: { type: [string, "null"] }
+    CharityContributionLedgerEntry:
+      type: object
+      required: [id, fundId, fundTitle, amountSol, cluster, signature, sender, attribution, blockTime, recordedAt]
+      properties:
+        id: { type: integer }
+        fundId: { type: [integer, "null"] }
+        fundTitle: { type: [string, "null"] }
+        amountSol: { type: string }
+        cluster: { type: string, enum: [mainnet-beta, devnet, testnet] }
+        signature: { type: string }
+        sender: { type: string }
+        attribution: { type: string, enum: [reference, memo, unattributed] }
+        blockTime: { type: [string, "null"] }
+        recordedAt: { type: string }
+    CharityContributionLedger:
+      type: object
+      required: [entries, nextCursor, totalSol, unattributedSol, lastSyncedAt, historyComplete, historyCursor]
+      properties:
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/CharityContributionLedgerEntry" }
+        nextCursor: { type: [integer, "null"] }
+        totalSol: { type: string }
+        unattributedSol: { type: string }
+        lastSyncedAt: { type: [string, "null"] }
+        historyComplete: { type: boolean }
+        historyCursor: { type: [string, "null"] }
     CompaniesHouseSearchInput:
       type: object
       properties:
@@ -2874,9 +3218,11 @@ components:
         walletAddress: { type: string }
         cluster: { type: string, enum: [mainnet-beta, devnet, testnet] }
         goalSol: { type: number }
+        raisedSol: { type: string }
+        contributionCount: { type: integer }
         status: { type: string, enum: [active, closed] }
         createdAt: { type: string, format: date-time }
-      required: [id, organisationId, organisationUserId, organisationName, title, description, walletAddress, cluster, goalSol, status, createdAt]
+      required: [id, organisationId, organisationUserId, organisationName, title, description, walletAddress, cluster, goalSol, raisedSol, contributionCount, status, createdAt]
     OrganisationFundCreateInput:
       type: object
       properties:

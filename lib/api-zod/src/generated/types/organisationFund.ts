@@ -18,6 +18,8 @@ export interface OrganisationFund {
   walletAddress: string;
   cluster: OrganisationFundCluster;
   goalSol: number;
+  raisedSol: string;
+  contributionCount: number;
   status: OrganisationFundStatus;
   createdAt: Date;
 }

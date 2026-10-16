@@ -25,15 +25,10 @@ export function lamportsToSol(lamports) {
   return `${whole}.${fractional}`;
 }
 
-function collectInstructions(transaction) {
-  const instructions = transaction?.transaction?.message?.instructions ?? [];
-  const inner = transaction?.meta?.innerInstructions?.flatMap((entry) => entry.instructions ?? []) ?? [];
-  return [...instructions, ...inner];
-}
-
 function getSolanaPayMemo(instruction) {
   const parsed = instruction?.parsed;
   if (!parsed || (instruction.program !== "spl-memo" && parsed.type !== "memo")) return null;
+  if (typeof parsed === "string") return parsed;
   const info = parsed.info;
   return typeof info === "string" ? info : typeof info?.memo === "string" ? info.memo : null;
 }
@@ -41,42 +36,33 @@ function getSolanaPayMemo(instruction) {
 function getIncomingLamports(transaction, address) {
   let total = 0n;
   const sources = new Set();
-  let campaignId = null;
-  const topLevelInstructions = transaction?.transaction?.message?.instructions ?? [];
-  for (const instruction of collectInstructions(transaction)) {
-    const parsed = instruction?.parsed;
-    const info = parsed?.info;
-    if (
-      instruction?.program === "system" &&
-      parsed?.type?.startsWith("transfer") &&
-      info?.destination === address &&
-      (typeof info?.lamports === "number" || typeof info?.lamports === "string")
-    ) {
-      total += BigInt(info.lamports);
+  const campaigns = new Set();
+  const groups = [transaction?.transaction?.message?.instructions ?? [],
+    ...(transaction?.meta?.innerInstructions ?? []).map((entry) => entry.instructions ?? [])];
+  for (const instructions of groups) {
+    for (let index = 0; index < instructions.length; index += 1) {
+      const instruction = instructions[index];
+      const parsed = instruction?.parsed;
+      const info = parsed?.info;
+      if (instruction?.program !== "system" || !["transfer", "transferWithSeed"].includes(parsed?.type)
+        || info?.destination !== address || info.source === address) continue;
+      if ((typeof info.lamports === "number" && !Number.isSafeInteger(info.lamports))
+        || !/^\d+$/.test(String(info.lamports))) throw new Error("Parsed SOL amount is not exact.");
+      const amount = BigInt(info.lamports);
+      if (amount <= 0n) continue;
+      total += amount;
       if (typeof info.source === "string") sources.add(info.source);
-    }
-  }
-  for (let index = 1; index < topLevelInstructions.length; index += 1) {
-    const instruction = topLevelInstructions[index];
-    const parsed = instruction?.parsed;
-    const info = parsed?.info;
-    if (
-      instruction?.program === "system" &&
-      parsed?.type?.startsWith("transfer") &&
-      info?.destination === address
-    ) {
-      const memo = getSolanaPayMemo(topLevelInstructions[index - 1]);
-      const campaignMatch = memo?.match(/^Experiences\.fun fund ([1-9]\d*)$/);
-      if (campaignMatch) {
-        const parsedCampaignId = Number(campaignMatch[1]);
-        if (Number.isSafeInteger(parsedCampaignId)) campaignId = parsedCampaignId;
-      }
+      const campaignMatch = getSolanaPayMemo(instructions[index - 1])?.match(/^Experiences\.fun fund ([1-9]\d*)$/);
+      const campaign = campaignMatch ? Number(campaignMatch[1]) : null;
+      campaigns.add(Number.isSafeInteger(campaign) ? campaign : null);
     }
   }
   return {
     lamports: total,
     sender: sources.size ? [...sources].join(", ") : null,
-    campaignId,
+    // An aggregate activity row cannot attribute the sum to one campaign if
+    // only some of its incoming instructions carry that campaign's memo.
+    campaignId: campaigns.size === 1 ? [...campaigns][0] : null,
   };
 }
 

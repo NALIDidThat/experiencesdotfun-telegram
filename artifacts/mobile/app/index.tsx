@@ -107,6 +107,7 @@ import { useMotionPreferences } from '@/context/MotionContext';
 import { useColors } from '@/hooks/useColors';
 import { AccountabilityPartnerScreen } from '@/components/AccountabilitySection';
 import { OrganisationPartnershipsSection } from '@/components/OrganisationPartnershipsSection';
+import { ContributionHistoryScreen } from '@/components/fundraising/ContributionHistoryScreen';
 import { OrganisationFundsScreen, OrganisationFundraiserSection } from '@/components/OrganisationFundsScreen';
 import { SocialFeed } from '@/components/SocialFeed';
 import { PersonalActivityScreen } from '@/components/PersonalActivityScreen';
@@ -133,7 +134,7 @@ import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot } from '@/lib/telegram';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'contributions' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
 type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'assistant' | 'challenges' | 'accountability' | 'memory-game';
 type HostExperienceFilter = 'all' | Experience['status'];
@@ -144,7 +145,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'contributions', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -5374,6 +5375,12 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
               }]
             : []),
           {
+            key: 'contributions',
+            label: 'My contributions',
+            icon: 'heart',
+            onPress: () => go('contributions'),
+          },
+          {
             key: 'accounts-center',
             label: 'Accounts Centre',
             icon: 'users',
@@ -8117,7 +8124,7 @@ export default function App() {
     const platform = Platform.OS === "ios" || Platform.OS === "android"
       ? Platform.OS
       : "web";
-    const analyticsScreen = screen === 'accounts' || screen === 'accountability'
+    const analyticsScreen = screen === 'accounts' || screen === 'contributions' || screen === 'accountability'
       ? 'profile'
       : screen === 'host-detail'
         ? 'host'
@@ -8540,6 +8547,7 @@ export default function App() {
     if (screen === 'funds') return user.userType === 'organisation' && user.organisation?.type === 'charity'
       ? <OrganisationFundsScreen organisationUserId={user.id} onBack={() => go('profile')} />
       : <EmptyState title="Charity account required" body="Only charity organisation profiles can launch funds." actionLabel="Back to profile" onAction={() => go('profile')} />;
+    if (screen === 'contributions') return <ContributionHistoryScreen onBack={() => go('profile')} />;
     return user.userType === 'organisation'
       ? <OrganisationHomeScreen user={user} go={go} />
       : (
@@ -8561,7 +8569,7 @@ export default function App() {
     ? 'host'
     : screen === 'experiences'
       ? 'home'
-    : screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts' || screen === 'accountability'
+    : screen === 'contributions' || screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts' || screen === 'accountability'
       ? 'profile'
       : screen === 'messages' || screen === 'direct-message'
         ? 'home'
