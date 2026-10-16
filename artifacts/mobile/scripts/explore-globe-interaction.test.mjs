@@ -1014,3 +1014,135 @@ Object.defineProperty(navigator, 'geolocation', {
   assert.equal(interceptionError, undefined, "API request interception should complete without errors.");
   assert.deepEqual(unexpectedApiRequests, [], "The Explore screen should make no unexpected API requests.");
 });
+
+test("Google Maps and nearby Places work with the configured browser key", {
+  skip: process.env.RUN_LIVE_GOOGLE_MAPS_TEST !== "1"
+    || !(process.env.Google_Maps_API || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY)
+    ? "Set RUN_LIVE_GOOGLE_MAPS_TEST=1 to make live Google Maps and Places requests."
+    : false,
+}, async (t) => {
+  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the live Google Maps test.");
+
+  const client = await launchBrowser(t);
+  const browserErrors = [];
+  let mapsApiRequested = false;
+  let placesApiRequested = false;
+  let interceptionError;
+  client.on("Runtime.exceptionThrown", ({ params }) => {
+    browserErrors.push(params.exceptionDetails.exception?.description ?? params.exceptionDetails.text ?? "Browser exception");
+  });
+  client.on("Runtime.consoleAPICalled", ({ params }) => {
+    if (params.type === "error") {
+      browserErrors.push(params.args.map((arg) => arg.value ?? arg.description ?? "").join(" "));
+    }
+  });
+  client.on("Fetch.requestPaused", ({ params }) => {
+    void (async () => {
+      try {
+        const url = new URL(params.request.url);
+        if (url.hostname === "maps.googleapis.com") mapsApiRequested = true;
+        if (url.hostname === "places.googleapis.com") placesApiRequested = true;
+        if (!url.pathname.startsWith("/api/")) {
+          await client.send("Fetch.continueRequest", { requestId: params.requestId });
+          return;
+        }
+        if (params.request.method === "OPTIONS") {
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 204,
+            responseHeaders: [
+              ...apiResponseHeaders(params.request, domain),
+              { name: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
+              {
+                name: "Access-Control-Allow-Headers",
+                value: params.request.headers["Access-Control-Request-Headers"]
+                  ?? params.request.headers["access-control-request-headers"]
+                  ?? "authorization,content-type",
+              },
+            ],
+            body: "",
+          });
+          return;
+        }
+
+        const path = url.pathname;
+        const authorization = params.request.headers.Authorization ?? params.request.headers.authorization;
+        let status = 200;
+        let response;
+        if (path === "/api/me" && params.request.method === "GET") {
+          if (authorization !== `Bearer ${sessionToken}`) {
+            status = 401;
+            response = { message: "The test session was not restored." };
+          } else {
+            response = user;
+          }
+        } else if (path === "/api/friends" && params.request.method === "GET") {
+          response = friends;
+        } else if (path === "/api/explore/activity" && params.request.method === "GET") {
+          response = { windowDays: 30, cities: [{ city: "London", verifiedCompletions: 3 }] };
+        } else if (path === "/api/experiences" && params.request.method === "GET") {
+          response = experiences;
+        } else if (path.endsWith("/analytics/events") && params.request.method === "POST") {
+          status = 202;
+          response = { accepted: true };
+        } else {
+          status = 404;
+          response = { message: "Unexpected API request in live Google Maps test." };
+        }
+        await client.send("Fetch.fulfillRequest", {
+          requestId: params.requestId,
+          responseCode: status,
+          responseHeaders: apiResponseHeaders(params.request, domain),
+          body: Buffer.from(JSON.stringify(response)).toString("base64"),
+        });
+      } catch (error) {
+        interceptionError ??= error;
+        await client.send("Fetch.failRequest", { requestId: params.requestId, errorReason: "Failed" }).catch(() => {});
+      }
+    })();
+  });
+
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
+  await client.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `localStorage.setItem('@experiences/auth-token', '${sessionToken}');`,
+  });
+  await client.send("Emulation.setDeviceMetricsOverride", { ...viewport, deviceScaleFactor: 1, mobile: true });
+  await client.send("Page.navigate", { url: `https://${domain}/?screen=explore` });
+
+  try {
+    await waitForValue(
+      client,
+      `Boolean(document.querySelector('[data-testid="explore-map"]') && document.querySelector('.gm-style'))`,
+      Boolean,
+      "the rendered Google map",
+      45_000,
+    );
+    await waitForValue(
+      client,
+      `Boolean(document.querySelector('[data-testid="explore-map-nearby-ready"]'))`,
+      Boolean,
+      "successful nearby Places results",
+      45_000,
+    );
+  } catch (error) {
+    const diagnostics = await client.evaluate(`JSON.stringify({
+      title: document.title,
+      map: Boolean(document.querySelector('[data-testid="explore-map"]')),
+      mapCanvas: Boolean(document.querySelector('.gm-style')),
+      fallback: document.querySelector('[data-testid="explore-map-error"]')?.innerText
+        ?? document.querySelector('[data-testid="explore-map-configuration-notice"]')?.innerText
+        ?? null,
+      nearby: [...document.querySelectorAll('[data-testid^="explore-map-nearby-"]')].map((item) => item.innerText),
+    })`).catch((diagnosticError) => diagnosticError.message);
+    throw new Error(`${error.message}\nMap diagnostics: ${diagnostics}\nBrowser console error count: ${browserErrors.length}`);
+  }
+
+  assert.equal(mapsApiRequested, true, "The browser should request the Maps JavaScript API.");
+  assert.equal(placesApiRequested, true, "The browser should request Places API (New).");
+  assert.equal(interceptionError, undefined, "Application API interception should complete without errors.");
+  assert.ok(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-nearby-category-list"]'))`),
+    "Nearby category controls should render with the Google map.",
+  );
+});
