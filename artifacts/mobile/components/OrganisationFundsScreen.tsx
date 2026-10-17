@@ -29,6 +29,93 @@ function solscanUrl(path: string, cluster: string) {
   return `https://solscan.io/${path}${cluster === "mainnet-beta" ? "" : `?cluster=${cluster}`}`;
 }
 
+function TreasuryActivityEntry({
+  transaction,
+  cluster,
+  campaignLabel,
+}: {
+  transaction: OrganisationTreasuryDashboard["transactions"][number];
+  cluster: string;
+  campaignLabel: string | null;
+}) {
+  const colors = useColors();
+  const [expanded, setExpanded] = useState(false);
+  const confirmed = transaction.status === "confirmed";
+  const failed = transaction.status === "failed";
+  const statusColor = confirmed ? colors.success : failed ? colors.destructive : colors.mutedForeground;
+  const amountLabel = confirmed && transaction.amountSol
+    ? `+${transaction.amountSol} SOL`
+    : failed ? "Failed transaction" : "Details unavailable";
+  const attributionLabel = confirmed && transaction.campaignId
+    ? `Verified campaign · ${campaignLabel ?? `#${transaction.campaignId}`}`
+    : confirmed ? "No verified campaign link" : "Not a confirmed incoming contribution";
+  const date = transactionDateLabel(transaction.blockTime) ?? "Date unavailable";
+
+  const detail = (label: string, value: string) => (
+    <View style={{ gap: 3 }}>
+      <Text style={{ color: colors.mutedForeground, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.4 }}>{label}</Text>
+      <Text selectable style={{ color: colors.foreground, fontSize: 11, lineHeight: 16, fontFamily: "Inter_500Medium" }}>{value}</Text>
+    </View>
+  );
+
+  return (
+    <View style={{ borderWidth: 1, borderColor: expanded ? colors.primary + "45" : colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 3, overflow: "hidden" }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${amountLabel}, ${date}, ${transaction.status}, ${attributionLabel}`}
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        style={{ minHeight: 76, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 12, paddingVertical: 10 }}
+      >
+        <View style={{ width: 31, height: 31, borderRadius: 11, backgroundColor: statusColor + "14", alignItems: "center", justifyContent: "center" }}>
+          <Feather name={confirmed ? "arrow-down-left" : failed ? "x" : "clock"} size={15} color={statusColor} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+          <Text numberOfLines={1} style={{ color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 14 }}>{amountLabel}</Text>
+          <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>{date}</Text>
+          <Text numberOfLines={1} style={{ color: confirmed && transaction.campaignId ? colors.primary : colors.mutedForeground, fontSize: 10 }}>{attributionLabel}</Text>
+        </View>
+        <View style={{ alignItems: "flex-end", gap: 5 }}>
+          <View style={{ borderRadius: 999, backgroundColor: statusColor + "12", paddingHorizontal: 8, paddingVertical: 5 }}>
+            <Text style={{ color: statusColor, fontFamily: "Inter_700Bold", fontSize: 9, textTransform: "uppercase" }}>{transaction.status}</Text>
+          </View>
+          <Feather name={expanded ? "chevron-up" : "chevron-down"} size={14} color={colors.mutedForeground} />
+        </View>
+      </Pressable>
+      {expanded ? (
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, padding: 12, gap: 10 }}>
+          {transaction.sender ? detail("SENDER ADDRESS", transaction.sender) : detail("SENDER ADDRESS", "Unavailable")}
+          {detail("SIGNATURE", transaction.signature)}
+          {detail("NETWORK", cluster === "mainnet-beta" ? "Solana Mainnet" : `Solana ${cluster}`)}
+          {detail(
+            "CAMPAIGN LINK",
+            confirmed && transaction.campaignId
+              ? `${campaignLabel ?? "Campaign"} · ID ${transaction.campaignId}`
+              : transaction.campaignId
+                ? `ID ${transaction.campaignId} present · not attributed because this transaction is not confirmed`
+                : "None recorded",
+          )}
+          {transaction.error ? (
+            <View style={{ gap: 3 }}>
+              <Text style={{ color: colors.mutedForeground, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.4 }}>TRANSACTION DETAIL</Text>
+              <Text selectable style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>{transaction.error}</Text>
+            </View>
+          ) : null}
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={`View transaction ${shortAddress(transaction.signature)} on Solscan`}
+            onPress={() => { void Linking.openURL(solscanUrl(`tx/${transaction.signature}`, cluster)); }}
+            style={{ minHeight: 44, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+          >
+            <Text style={{ color: colors.primary, fontSize: 12, fontFamily: "Inter_700Bold" }}>View on Solscan</Text>
+            <Feather name="external-link" size={14} color={colors.primary} />
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function transactionDateLabel(value: string | null) {
   if (!value) return null;
   const date = new Date(value);
@@ -783,9 +870,9 @@ export function OrganisationFundsScreen({
             </View>
             <View style={{ gap: 12 }}>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <View style={{ gap: 3 }}>
+                <View style={{ flex: 1, gap: 3 }}>
                   <Text style={{ color: colors.foreground, fontSize: 19, fontFamily: "Inter_700Bold" }}>Treasury activity</Text>
-                  <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Only confirmed incoming SOL is shown as a contribution</Text>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Public on-chain activity · shared treasury</Text>
                 </View>
                 {allTransactions.length ? (
                   <View style={{ borderRadius: 20, backgroundColor: colors.muted, paddingHorizontal: 9, paddingVertical: 5 }}>
@@ -795,58 +882,18 @@ export function OrganisationFundsScreen({
               </View>
               {treasuryQuery.isError ? <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 12 }}>Treasury activity could not be refreshed. Check your connection and try again.</Text> : null}
               {visibleTransactions.map((transaction) => {
-                const confirmed = transaction.status === "confirmed";
-                const failed = transaction.status === "failed";
-                const statusColor = confirmed ? colors.success : failed ? colors.destructive : colors.mutedForeground;
-                const timestamp = transactionDateLabel(transaction.blockTime);
-                const attributedFund = confirmed && transaction.campaignId
+                const attributedFund = transaction.status === "confirmed" && transaction.campaignId
                   ? fundsQuery.data?.find((fund) => fund.id === transaction.campaignId)
                   : undefined;
-                return (
-                  <View key={transaction.signature} style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 2, padding: 13, gap: 10 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                      <View style={{ width: 36, height: 36, borderRadius: 13, backgroundColor: statusColor + "16", alignItems: "center", justifyContent: "center" }}>
-                        <Feather name={confirmed ? "arrow-down-left" : failed ? "x" : "clock"} size={17} color={statusColor} />
-                      </View>
-                      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-                        <Text numberOfLines={1} style={{ color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 14 }}>
-                          {confirmed && transaction.amountSol ? `+${transaction.amountSol} SOL` : failed ? "Failed transaction" : "Details unavailable"}
-                        </Text>
-                        <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
-                          {timestamp ?? (transaction.sender ? `From ${shortAddress(transaction.sender)}` : "On-chain transaction")}
-                        </Text>
-                        <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>
-                          {confirmed && transaction.campaignId
-                            ? `Campaign: ${attributedFund?.title ?? `#${transaction.campaignId}`}`
-                            : confirmed ? "Unattributed or mixed-campaign transfers" : "Not verified as an incoming contribution"}
-                        </Text>
-                      </View>
-                      <View style={{ borderRadius: 18, backgroundColor: statusColor + "14", paddingHorizontal: 8, paddingVertical: 5 }}>
-                        <Text style={{ color: statusColor, fontFamily: "Inter_700Bold", fontSize: 9, textTransform: "uppercase" }}>{transaction.status}</Text>
-                      </View>
-                    </View>
-                    {transaction.error ? (
-                      <Text numberOfLines={2} style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 15 }}>{transaction.error}</Text>
-                    ) : null}
-                    <Pressable
-                      accessibilityRole="link"
-                      accessibilityLabel={`View transaction ${shortAddress(transaction.signature)} on Solscan`}
-                      onPress={() => { void Linking.openURL(solscanUrl(`tx/${transaction.signature}`, treasuryQuery.data!.treasury.cluster)); }}
-                      style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 9 }}
-                    >
-                      <Text selectable numberOfLines={1} style={{ flex: 1, color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>
-                        {shortAddress(transaction.signature)}
-                      </Text>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                        <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_700Bold" }}>View</Text>
-                        <Feather name="external-link" size={12} color={colors.primary} />
-                      </View>
-                    </Pressable>
-                  </View>
-                );
+                const campaignLabel = attributedFund?.title ?? (transaction.campaignId ? `#${transaction.campaignId}` : null);
+                return <TreasuryActivityEntry key={transaction.signature} transaction={transaction} cluster={treasuryQuery.data!.treasury.cluster} campaignLabel={campaignLabel} />;
               })}
               {!treasuryQuery.data.transactions.length && !loadedTransactions.length && !treasuryQuery.isError
-                ? <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>No finalized treasury activity found yet.</Text>
+                ? <View style={{ alignItems: "center", borderWidth: 1, borderStyle: "dashed", borderColor: colors.border, borderRadius: colors.radius + 2, paddingVertical: 19, paddingHorizontal: 15, gap: 6 }}>
+                    <Feather name="inbox" size={19} color={colors.mutedForeground} />
+                    <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>No activity to show yet</Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 10, textAlign: "center" }}>Incoming transfers appear here when visible on-chain.</Text>
+                  </View>
                 : null}
               {!activityExpanded && allTransactions.length > 5 ? (
                 <Pressable accessibilityRole="button" onPress={() => setActivityExpanded(true)} style={{ minHeight: 44, justifyContent: "center", alignItems: "center", flexDirection: "row", gap: 7 }}>
@@ -864,7 +911,10 @@ export function OrganisationFundsScreen({
                 setLoadedTransactions((previous) => [...previous, ...treasuryQuery.data!.transactions]);
                 setBefore(treasuryQuery.data.nextCursor);
               }} style={{ minHeight: 44, justifyContent: "center", alignItems: "center" }}><Text style={{ color: colors.primary, fontFamily: "Inter_700Bold" }}>{treasuryQuery.isFetching ? "Loading…" : "Load older activity"}</Text></Pressable> : null}
-              <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>All fund donations go to this shared treasury. Experiences.fun only reads public on-chain activity and never controls the funds.</Text>
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 7, paddingHorizontal: 2 }}>
+                <Feather name="shield" size={13} color={colors.mutedForeground} style={{ marginTop: 1 }} />
+                <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 10, lineHeight: 15 }}>Campaign totals are separate from this shared wallet. Experiences.fun reads public activity only; it does not hold funds or control wallet keys.</Text>
+              </View>
             </View>
           </>
         ) : (
