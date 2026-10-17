@@ -50,6 +50,8 @@ type Props = {
   status: 'loading' | 'ready' | 'error';
   verifiedActivityStatus?: 'loading' | 'ready' | 'error';
   fullScreen?: boolean;
+  sheetOverlayHeight?: number;
+  sheetExpanded?: boolean;
   locationPicker?: boolean;
   showFriends?: boolean;
   onSelectCity: (city: string) => void;
@@ -146,6 +148,8 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
   status,
   verifiedActivityStatus = 'loading',
   fullScreen = false,
+  sheetOverlayHeight = 0,
+  sheetExpanded = false,
   locationPicker = false,
   showFriends = false,
   onSelectCity,
@@ -639,9 +643,11 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
           locationPicker && styles.locationPickerAtmosphere,
           { pointerEvents: 'none', backgroundColor: colors.violet },
         ]} />
-        {!locationPicker ? <View style={[
+        {!locationPicker && !sheetExpanded ? <View style={[
           styles.zoomControls,
           fullScreen && styles.fullScreenZoomControls,
+          !fullScreen && { top: 18 },
+          fullScreen && { bottom: Math.max(16, sheetOverlayHeight + 16) },
           { backgroundColor: space.surface, borderColor: space.border },
         ]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Zoom in on globe" testID="explore-globe-zoom-in" onPress={() => setZoom((value) => Math.min(1.2, value + 0.1))} style={[styles.zoomButton, fullScreen && styles.fullScreenZoomButton]}>
@@ -743,11 +749,11 @@ const styles = StyleSheet.create({
   friendPinHead: { width: 46, height: 46, borderRadius: 23, borderWidth: 3, padding: 2, alignItems: 'center', justifyContent: 'center' },
   friendPinAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   atmosphere: { position: 'absolute', width: 248, height: 62, borderRadius: 100, opacity: 0.09, bottom: 18, transform: [{ scaleX: 1.2 }] },
-  zoomControls: { position: 'absolute', right: 0, top: 18, borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
-  fullScreenZoomControls: { right: 18, top: 282, flexDirection: 'row', alignItems: 'center' },
+  zoomControls: { position: 'absolute', right: 0, borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
+  fullScreenZoomControls: { right: 14, bottom: 16, flexDirection: 'row', alignItems: 'center', zIndex: 3 },
   zoomButton: { width: 36, height: 35, alignItems: 'center', justifyContent: 'center' },
   zoomDivider: { height: 1, marginHorizontal: 7 },
-  fullScreenZoomButton: { width: 32, height: 34 },
+  fullScreenZoomButton: { width: 42, height: 44 },
   fullScreenZoomDivider: { width: 1, height: 18, marginHorizontal: 0 },
   globeFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4, marginTop: -4, marginBottom: 12 },
   legend: { flexDirection: 'row', alignItems: 'center', gap: 6 },

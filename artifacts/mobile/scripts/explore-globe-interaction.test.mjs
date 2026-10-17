@@ -711,6 +711,16 @@ Object.defineProperty(navigator, 'geolocation', {
   );
 
   await tapElement(client, '[aria-label="London: 2 experiences"]', "the London globe marker", 16);
+  const focusedGlobeRadius = await waitForValue(
+    client,
+    `document.querySelector('svg defs circle')?.getAttribute('r') ?? ''`,
+    (radius) => Number(radius) > Number(defaultGlobeRadius),
+    "the fallback globe camera zoom after focusing a city",
+  );
+  assert.ok(
+    Number(focusedGlobeRadius) > Number(defaultGlobeRadius),
+    "Focusing a city should zoom the fallback globe in.",
+  );
   await waitForValue(
     client,
     `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
@@ -793,6 +803,11 @@ Object.defineProperty(navigator, 'geolocation', {
     "the sheet expanding on an upward swipe",
   );
   await waitForSheetPosition(client, true, "the sheet reopening to its expanded position");
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-globe-zoom-in"]'))`),
+    false,
+    "Globe controls should hide while the expanded experience sheet leaves no clear map-control area.",
+  );
   await tapTestId(client, "explore-sheet-toggle");
   await waitForValue(
     client,
@@ -801,6 +816,23 @@ Object.defineProperty(navigator, 'geolocation', {
     "the sheet collapsing before globe controls are used",
   );
   await waitForSheetPosition(client, false, "the sheet making room for the globe controls");
+
+  const globeControlsGeometry = await client.evaluate(`(() => {
+    const controls = document.querySelector('[data-testid="explore-globe-zoom-in"]')?.parentElement?.getBoundingClientRect();
+    const sheet = document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect();
+    return {
+      controlsTop: controls?.top ?? 0,
+      controlsBottom: controls?.bottom ?? 0,
+      controlsHeight: controls?.height ?? 0,
+      sheetTop: sheet?.top ?? 0,
+    };
+  })()`);
+  assert.ok(
+    globeControlsGeometry.controlsTop > 0
+      && globeControlsGeometry.controlsHeight <= 60
+      && globeControlsGeometry.controlsBottom <= globeControlsGeometry.sheetTop,
+    `Globe controls should stay compact and above the collapsed experience sheet. Geometry: ${JSON.stringify(globeControlsGeometry)}`,
+  );
 
   const globeRadius = () => client.evaluate(
     `document.querySelector('svg circle[clip-path]')?.getAttribute('r') ?? document.querySelector('svg defs circle')?.getAttribute('r') ?? ''`,
@@ -1028,6 +1060,7 @@ test("Google Maps and nearby Places work with the configured browser key", {
   const browserErrors = [];
   let mapsApiRequested = false;
   let placesApiRequested = false;
+  let placesApiRequestCount = 0;
   let interceptionError;
   client.on("Runtime.exceptionThrown", ({ params }) => {
     browserErrors.push(params.exceptionDetails.exception?.description ?? params.exceptionDetails.text ?? "Browser exception");
@@ -1042,7 +1075,10 @@ test("Google Maps and nearby Places work with the configured browser key", {
       try {
         const url = new URL(params.request.url);
         if (url.hostname === "maps.googleapis.com") mapsApiRequested = true;
-        if (url.hostname === "places.googleapis.com") placesApiRequested = true;
+        if (url.hostname === "places.googleapis.com") {
+          placesApiRequested = true;
+          placesApiRequestCount += 1;
+        }
         if (!url.pathname.startsWith("/api/")) {
           await client.send("Fetch.continueRequest", { requestId: params.requestId });
           return;
@@ -1120,9 +1156,9 @@ test("Google Maps and nearby Places work with the configured browser key", {
     );
     await waitForValue(
       client,
-      `Boolean(document.querySelector('[data-testid="explore-map-nearby-ready"]'))`,
+      `Boolean(document.querySelector('[data-testid="explore-map-tools-toggle"]'))`,
       Boolean,
-      "successful nearby Places results",
+      "the compact map tools control",
       45_000,
     );
   } catch (error) {
@@ -1139,10 +1175,46 @@ test("Google Maps and nearby Places work with the configured browser key", {
   }
 
   assert.equal(mapsApiRequested, true, "The browser should request the Maps JavaScript API.");
-  assert.equal(placesApiRequested, true, "The browser should request Places API (New).");
-  assert.equal(interceptionError, undefined, "Application API interception should complete without errors.");
-  assert.ok(
-    await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-nearby-category-list"]'))`),
-    "Nearby category controls should render with the Google map.",
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="explore-map-tools-toggle"]')?.getAttribute('aria-expanded') ?? ''`),
+    "false",
+    "The nearby map controls should stay collapsed until requested.",
   );
+  await tapTestId(client, "explore-map-tools-toggle");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="explore-nearby-category-list"]'))`,
+    Boolean,
+    "the nearby category controls after opening map tools",
+  );
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="explore-map-nearby-ready"]'))`,
+    Boolean,
+    "successful nearby Places results",
+    45_000,
+  );
+  assert.equal(placesApiRequested, true, "The browser should request Places API (New).");
+  const requestsBeforeCameraMove = placesApiRequestCount;
+  const cameraCanMove = await client.evaluate(`(() => {
+    const map = document.querySelector('gmp-map-3d');
+    if (!map?.center) return false;
+    const center = map.center;
+    map.center = { lat: center.lat + 0.15, lng: center.lng + 0.15, altitude: center.altitude ?? 0 };
+    return true;
+  })()`);
+  assert.equal(cameraCanMove, true, "The 3D map should expose a camera for the panning regression check.");
+  await new Promise((resolve) => setTimeout(resolve, 1_500));
+  assert.equal(
+    placesApiRequestCount,
+    requestsBeforeCameraMove,
+    "Moving the map should not automatically issue another paid nearby Places search.",
+  );
+  await tapTestId(client, "explore-map-search-area");
+  await new Promise((resolve) => setTimeout(resolve, 1_500));
+  assert.ok(
+    placesApiRequestCount > requestsBeforeCameraMove,
+    "The Search nearby action should issue a fresh Places search at the new map centre.",
+  );
+  assert.equal(interceptionError, undefined, "Application API interception should complete without errors.");
 });

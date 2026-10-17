@@ -12,6 +12,7 @@ export type ExploreMapProps = {
   selectedCityCoordinates?: { latitude: number; longitude: number };
   profileCityCenter?: { latitude: number; longitude: number } | null;
   sheetOverlayHeight?: number;
+  sheetExpanded?: boolean;
   status: 'loading' | 'ready' | 'error';
   verifiedActivityStatus?: 'loading' | 'ready' | 'error';
   fullScreen?: boolean;

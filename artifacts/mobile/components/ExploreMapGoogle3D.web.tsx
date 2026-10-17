@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import {
   APIProvider,
   AltitudeMode,
@@ -88,16 +89,27 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
   const [nearbyStatus, setNearbyStatus] = useState<'idle' | 'loading' | 'ready' | 'empty' | 'error'>('idle');
   const [searchToken, setSearchToken] = useState(0);
   const [locationMessage, setLocationMessage] = useState('');
-  const initialCenter = point(props.profileCityCenter) ?? point(props.selectedCityCoordinates) ?? { lat: 20, lng: 0 };
-  const initialSearchCenter = point(props.profileCityCenter) ?? point(props.selectedCityCoordinates);
-  const [mapCenter, setMapCenter] = useState<Point>(initialCenter);
+  const [mapToolsOpen, setMapToolsOpen] = useState(false);
+  const resetCenter = point(props.profileCityCenter) ?? { lat: 20, lng: 0 };
+  const initialCenter = point(props.profileCityCenter) ?? point(props.selectedCityCoordinates) ?? resetCenter;
+  const initialSearchCenter = point(props.profileCityCenter);
+  const mapCenter = useRef<Point>(initialCenter);
+  const [searchCenter, setSearchCenter] = useState<Point>(initialSearchCenter ?? initialCenter);
   const initialSearchStarted = useRef(false);
 
   useEffect(() => {
-    setMapCenter(initialCenter);
-  }, [initialCenter.lat, initialCenter.lng]);
+    if (props.sheetExpanded) setMapToolsOpen(false);
+  }, [props.sheetExpanded]);
+
+  useEffect(() => {
+    mapCenter.current = initialCenter;
+  }, [
+    initialCenter.lat,
+    initialCenter.lng,
+  ]);
 
   const focusOnCity = useCallback((latitude: number, longitude: number) => {
+    mapCenter.current = { lat: latitude, lng: longitude };
     const map = mapRef.current?.map3d;
     if (map) {
       map.center = { lat: latitude, lng: longitude, altitude: 0 };
@@ -105,29 +117,42 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
       map.tilt = 55;
     }
   }, []);
-  const resetView = useCallback(() => {
-    const map = mapRef.current?.map3d;
-    if (map) {
-      map.center = { ...initialCenter, altitude: 0 };
-      map.range = WORLD_RANGE;
-      map.tilt = 0;
+  const resetMapView = useCallback(() => {
+    if (!props.apiKey || failed) {
+      fallbackRef.current?.resetView();
+    } else {
+      const map = mapRef.current?.map3d;
+      if (map) {
+        map.center = { ...resetCenter, altitude: 0 };
+        map.range = WORLD_RANGE;
+        map.tilt = 0;
+      }
     }
-    setMapCenter(initialCenter);
+    mapCenter.current = resetCenter;
     setNearby([]);
     setNearbyStatus('idle');
-    props.onResetCity();
-  }, [initialCenter.lat, initialCenter.lng, props.onResetCity]);
+    setLocationMessage('');
+  }, [failed, props.apiKey, resetCenter.lat, resetCenter.lng]);
 
   React.useImperativeHandle(ref, () => ({
-    focusOnCity,
-    resetView,
-  }), [focusOnCity, resetView]);
+    focusOnCity: (latitude, longitude) => {
+      if (!props.apiKey || failed) {
+        fallbackRef.current?.focusOnCity(latitude, longitude);
+        return;
+      }
+      focusOnCity(latitude, longitude);
+    },
+    resetView: resetMapView,
+  }), [failed, focusOnCity, props.apiKey, resetMapView]);
 
+  // Keep camera movement in a ref; a Places request captures this centre only when the user searches.
   const searchArea = useCallback(() => {
     setNearby([]);
     setNearbyStatus('loading');
+    setLocationMessage('');
+    setSearchCenter(mapCenter.current);
     setSearchToken((value) => value + 1);
-  }, []);
+  }, [mapCenter]);
   const findMyLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setLocationMessage('Location is not available in this browser.');
@@ -137,7 +162,9 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         const next = { lat: coords.latitude, lng: coords.longitude };
-        setMapCenter(next);
+        mapCenter.current = next;
+        setNearby([]);
+        setNearbyStatus('idle');
         const map = mapRef.current?.map3d;
         if (map) {
           map.center = { ...next, altitude: 0 };
@@ -150,6 +177,22 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
       { enableHighAccuracy: false, timeout: 10_000 },
     );
   }, []);
+
+  const nearbyStatusMessage = nearbyStatus === 'loading'
+    ? 'Searching nearby…'
+    : nearbyStatus === 'ready'
+      ? `${nearby.length} nearby places`
+      : nearbyStatus === 'empty'
+        ? 'No nearby places found'
+        : nearbyStatus === 'error'
+          ? 'Nearby places could not load'
+          : '';
+  const mapStatusMessage = locationMessage || nearbyStatusMessage || (!mapReady ? 'Loading Google 3D Earth…' : '');
+  const mapStatusTestID = locationMessage
+    ? 'explore-map-location-status'
+    : nearbyStatus !== 'idle'
+      ? `explore-map-nearby-${nearbyStatus}`
+      : 'explore-map-loading';
 
   if (!props.apiKey || failed) {
     return (
@@ -165,6 +208,8 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
           status={props.status}
           verifiedActivityStatus={props.verifiedActivityStatus}
           fullScreen={props.fullScreen}
+          sheetOverlayHeight={props.sheetOverlayHeight}
+          sheetExpanded={props.sheetExpanded}
           showFriends={props.showFriends}
           onSelectCity={props.onSelectCity}
           onSelectFriend={props.onSelectFriend}
@@ -172,18 +217,20 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
           onExploreCity={props.onExploreCity}
           onResetCity={props.onResetCity}
         />
-        <View
-          testID="explore-map-configuration-notice"
-          style={[
-            styles.notice,
-            { backgroundColor: colors.card, borderColor: colors.border },
-            { bottom: Math.max(12, (props.sheetOverlayHeight ?? 0) + 12) },
-          ]}
-        >
-          <Text style={{ color: colors.foreground }}>
-            {props.apiKey ? 'Google 3D Maps unavailable' : 'Google Maps key not configured'}
-          </Text>
-        </View>
+        {!props.sheetExpanded ? (
+          <View
+            testID="explore-map-configuration-notice"
+            style={[
+              styles.notice,
+              { backgroundColor: colors.card, borderColor: colors.border },
+              { bottom: Math.max(12, (props.sheetOverlayHeight ?? 0) + 12) },
+            ]}
+          >
+            <Text style={{ color: colors.foreground }}>
+              {props.apiKey ? 'Google 3D Maps unavailable' : 'Google Maps key not configured'}
+            </Text>
+          </View>
+        ) : null}
       </View>
     );
   }
@@ -200,11 +247,14 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
           defaultTilt={0}
           defaultHeading={0}
           defaultRoll={0}
-          onCameraChanged={(event: Map3DCameraChangedEvent) => setMapCenter({ lat: event.detail.center.lat, lng: event.detail.center.lng })}
+          onCameraChanged={(event: Map3DCameraChangedEvent) => {
+            mapCenter.current = { lat: event.detail.center.lat, lng: event.detail.center.lng };
+          }}
           onSteadyChange={(event: Map3DSteadyChangeEvent) => {
             setMapReady(event.detail.isSteady);
             if (event.detail.isSteady && initialSearchCenter && !initialSearchStarted.current) {
               initialSearchStarted.current = true;
+              setSearchCenter(initialSearchCenter);
               setSearchToken(1);
             }
           }}
@@ -275,50 +325,126 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
             </Marker3D>
           ))}
         </Map3D>
-        {initialSearchCenter ? (
+        {searchToken > 0 ? (
           <NearbySearch
-            center={mapCenter}
+            center={searchCenter}
             category={category}
             token={searchToken}
             onStatus={setNearbyStatus}
             onResults={setNearby}
           />
         ) : null}
-        <View pointerEvents="box-none" style={[styles.controls, { paddingBottom: Math.max(16, (props.sheetOverlayHeight ?? 0) + 12) }]}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories}>
-            {CATEGORIES.map((item) => (
-              <Pressable
-                key={item.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected: item.id === category }}
-                testID={`explore-nearby-category-${item.id}`}
-                onPress={() => { setCategory(item.id); searchArea(); }}
-                style={[styles.category, { backgroundColor: category === item.id ? colors.primary : colors.card }]}
+        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+          {mapToolsOpen && !props.sheetExpanded ? (
+            <View
+              testID="explore-map-tools-panel"
+              style={[
+                styles.toolsPanel,
+                {
+                  bottom: Math.max(16, (props.sheetOverlayHeight ?? 0) + 16),
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <View style={styles.toolsHeading}>
+                <View style={styles.toolsHeadingCopy}>
+                  <Text style={[styles.toolsTitle, { color: colors.foreground }]}>Nearby places</Text>
+                  <Text style={[styles.toolsSubtitle, { color: colors.mutedForeground }]}>Search around the map centre</Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Close map tools"
+                  testID="explore-map-tools-close"
+                  onPress={() => setMapToolsOpen(false)}
+                  style={styles.closeToolsButton}
+                >
+                  <Feather name="x" size={17} color={colors.mutedForeground} />
+                </Pressable>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categories}
+                testID="explore-nearby-category-list"
               >
-                <Text style={{ color: category === item.id ? colors.primaryForeground : colors.foreground }}>{item.label}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-          <View style={styles.actions}>
-            <Pressable accessibilityRole="button" testID="explore-map-my-location" onPress={findMyLocation} style={[styles.action, { backgroundColor: colors.card }]}>
-              <Text style={{ color: colors.foreground }}>My location</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" testID="explore-map-search-area" onPress={searchArea} style={[styles.action, { backgroundColor: colors.card }]}>
-              <Text style={{ color: colors.foreground }}>{nearbyStatus === 'loading' ? 'Searching…' : 'Search nearby'}</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" testID="explore-map-reset" onPress={resetView} style={[styles.action, { backgroundColor: colors.card }]}>
-              <Text style={{ color: colors.foreground }}>Reset Earth</Text>
-            </Pressable>
-          </View>
-          {locationMessage ? <View style={[styles.status, { backgroundColor: colors.card }]}><Text style={{ color: colors.foreground }}>{locationMessage}</Text></View> : null}
-          {nearbyStatus === 'ready' || nearbyStatus === 'empty' || nearbyStatus === 'error' ? (
-            <View style={[styles.status, { backgroundColor: colors.card }]}>
-              <Text style={{ color: colors.foreground }}>
-                {nearbyStatus === 'ready' ? `${nearby.length} nearby places` : nearbyStatus === 'empty' ? 'No nearby places found' : 'Nearby places could not load'}
-              </Text>
+                {CATEGORIES.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Search nearby ${item.label.toLowerCase()} places`}
+                    accessibilityState={{ selected: item.id === category }}
+                    testID={`explore-nearby-category-${item.id}`}
+                    onPress={() => { setCategory(item.id); searchArea(); }}
+                    style={[
+                      styles.category,
+                      {
+                        backgroundColor: item.id === category ? colors.primary : colors.muted,
+                        borderColor: item.id === category ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: item.id === category ? colors.primaryForeground : colors.foreground }}>{item.label}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <View style={styles.actions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Show my location"
+                  testID="explore-map-my-location"
+                  onPress={findMyLocation}
+                  style={[styles.action, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                >
+                  <Feather name="crosshair" size={14} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground }}>Locate</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={nearbyStatus === 'loading' ? 'Searching nearby places' : 'Search nearby places'}
+                  testID="explore-map-search-area"
+                  onPress={searchArea}
+                  style={[styles.action, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                >
+                  <Feather name="search" size={14} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground }}>{nearbyStatus === 'loading' ? 'Searching' : 'Search'}</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Reset map view"
+                  testID="explore-map-reset"
+                  onPress={props.onResetCity}
+                  style={[styles.action, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                >
+                  <Feather name="rotate-ccw" size={14} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground }}>Reset</Text>
+                </Pressable>
+              </View>
+              {mapStatusMessage ? (
+                <View testID={mapStatusTestID} style={[styles.status, { backgroundColor: colors.muted }]}>
+                  <Text style={{ color: colors.foreground }}>{mapStatusMessage}</Text>
+                </View>
+              ) : null}
             </View>
           ) : null}
-          {!mapReady ? <View style={[styles.status, { backgroundColor: colors.card }]}><Text style={{ color: colors.foreground }}>Loading Google 3D Earth…</Text></View> : null}
+          {!props.sheetExpanded && !mapToolsOpen ? <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={mapToolsOpen ? 'Close map tools' : 'Open map tools'}
+            accessibilityHint="Nearby search, location, and map reset controls"
+            accessibilityState={{ expanded: mapToolsOpen }}
+            testID="explore-map-tools-toggle"
+            onPress={() => setMapToolsOpen((open) => !open)}
+            style={[
+              styles.toolsToggle,
+              {
+                bottom: Math.max(16, (props.sheetOverlayHeight ?? 0) + 16),
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Feather name={mapToolsOpen ? 'x' : 'sliders'} size={19} color={colors.foreground} />
+          </Pressable> : null}
         </View>
       </View>
     </APIProvider>
@@ -328,12 +454,18 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
 const styles = StyleSheet.create({
   root: { flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#071f3d' },
   map: { width: '100%', height: '100%' },
-  controls: { ...StyleSheet.absoluteFill, justifyContent: 'flex-end', paddingBottom: 16, gap: 8 },
-  categories: { flexDirection: 'row', gap: 6, paddingHorizontal: 10 },
-  category: { borderRadius: 18, paddingHorizontal: 10, paddingVertical: 8 },
-  actions: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10, gap: 8 },
-  action: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
-  status: { alignSelf: 'flex-start', marginLeft: 10, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
+  toolsToggle: { position: 'absolute', right: 14, width: 48, height: 48, borderWidth: 1, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  toolsPanel: { position: 'absolute', left: 12, right: 12, borderWidth: 1, borderRadius: 18, padding: 12, gap: 11 },
+  toolsHeading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  toolsHeadingCopy: { flex: 1, minWidth: 0 },
+  toolsTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  toolsSubtitle: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  closeToolsButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  categories: { flexDirection: 'row', gap: 6, paddingRight: 2 },
+  category: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 7 },
+  actions: { flexDirection: 'row', gap: 7 },
+  action: { flex: 1, minWidth: 0, height: 40, borderWidth: 1, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 4 },
+  status: { alignSelf: 'stretch', borderRadius: 11, paddingHorizontal: 10, paddingVertical: 8 },
   notice: { position: 'absolute', left: 12, bottom: 12, borderWidth: 1, padding: 12, borderRadius: 10 },
 });
 

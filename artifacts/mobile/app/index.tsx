@@ -2566,6 +2566,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           selectedCityCoordinates={selectedCity ? exploreCityCoordinates[normalizeExploreCityName(selectedCity)] : undefined}
           profileCityCenter={profileCityCenter}
           sheetOverlayHeight={sheetExpanded ? expandedSheetHeight : collapsedSheetHeight}
+          sheetExpanded={sheetExpanded}
           status={query.isLoading ? 'loading' : query.isError ? 'error' : 'ready'}
           verifiedActivityStatus={verifiedActivityQuery.isLoading ? 'loading' : verifiedActivityQuery.isError ? 'error' : 'ready'}
           showFriends={showFriends}
@@ -2640,7 +2641,13 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           ) : null}
         </View>
 
-        <View style={styles.exploreModeRow} accessibilityLabel="Map layers">
+        <View
+          style={[
+            styles.exploreModeRow,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+          accessibilityLabel="Map layers"
+        >
           {exploreModes.map((option) => {
             const selected = mode === option.key;
             return (
@@ -2655,7 +2662,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
                   styles.exploreModeTab,
                   {
                     backgroundColor: selected ? colors.primary : colors.card,
-                    borderColor: selected ? colors.primary : colors.border,
+                    borderColor: selected ? colors.primary : 'transparent',
                     opacity: pressed ? 0.78 : 1,
                   },
                 ]}
@@ -9239,14 +9246,14 @@ const styles = StyleSheet.create({
   // Explore
   exploreScreen: { flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' },
   exploreTopOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, paddingHorizontal: 18, paddingTop: 9 },
-  exploreFullscreenTopBar: { marginBottom: 14, justifyContent: 'space-between', alignItems: 'center' },
+  exploreFullscreenTopBar: { marginBottom: 8, justifyContent: 'space-between', alignItems: 'center' },
   exploreHeading: { flex: 1, minWidth: 0 },
   exploreFullscreenTitle: { fontSize: 25, lineHeight: 29, letterSpacing: -0.65, fontFamily: 'Inter_700Bold' },
   exploreFullscreenSubtitle: { fontSize: 11, lineHeight: 15, marginTop: 1, fontFamily: 'Inter_400Regular' },
   exploreFullscreenSearchBox: { width: '100%', alignSelf: 'stretch', marginBottom: 9, height: 50 },
   exploreFullscreenFilterRow: { paddingBottom: 0, gap: 7 },
-  exploreModeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 9 },
-  exploreModeTab: { flex: 1, minWidth: 0, height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 6, borderWidth: 1, borderRadius: 14 },
+  exploreModeRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 8, borderWidth: 1, borderRadius: 15, padding: 3 },
+  exploreModeTab: { flex: 1, minWidth: 0, height: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 4, borderWidth: 1, borderRadius: 11 },
   exploreModeTabText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
   exploreSheet: {
     position: 'absolute',

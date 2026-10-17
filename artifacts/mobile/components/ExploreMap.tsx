@@ -24,6 +24,7 @@ const ExploreMap = React.forwardRef<ExploreMapHandle, ExploreMapProps>(function 
     selectedCityCoordinates: props.selectedCityCoordinates,
     profileCityCenter: props.profileCityCenter,
     sheetOverlayHeight: props.sheetOverlayHeight,
+    sheetExpanded: props.sheetExpanded,
     status: props.status,
     verifiedActivityStatus: props.verifiedActivityStatus,
     fullScreen: props.fullScreen,
@@ -71,6 +72,8 @@ const ExploreMap = React.forwardRef<ExploreMapHandle, ExploreMapProps>(function 
           status={props.status}
           verifiedActivityStatus={props.verifiedActivityStatus}
           fullScreen={props.fullScreen}
+          sheetOverlayHeight={props.sheetOverlayHeight}
+          sheetExpanded={props.sheetExpanded}
           showFriends={props.showFriends}
           onSelectCity={props.onSelectCity}
           onSelectFriend={props.onSelectFriend}
