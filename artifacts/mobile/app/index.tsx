@@ -5631,6 +5631,12 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
     triggerHaptic();
     void Promise.all([overview.refetch(), experiences.refetch()]);
   };
+  const organisationName = overview.data?.organisation?.name ?? user?.organisation?.name ?? 'Your organisation';
+  const experienceForPeople = allExperiences.find((item) => item.participantCount > 0) ?? allExperiences[0];
+  const openExperience = (item: Experience | undefined, focus?: 'review' | 'waitlisted') => {
+    if (!item) return;
+    go('host-detail', { id: String(item.id), ...(focus ? { focus } : {}) });
+  };
 
   if (user?.userType !== 'organisation') {
     return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Organisation tools" onBack={() => go('profile')} /><EmptyState title="Organisation account required" body="Participant accounts can explore and join experiences. Only Organisation accounts can create and manage experiences." actionLabel="Go home" onAction={() => go('home')} /></View>;
@@ -5644,42 +5650,66 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
       keyboardDismissMode="none"
       keyboardShouldPersistTaps="handled"
     >
-      <Header title="Host tools" subtitle={overview.data?.organisation?.name ?? 'Create your first opportunity'} onBack={() => go('home')} />
+      <Header title="Host tools" subtitle={organisationName} onBack={() => go('home')} />
 
-      <View style={[styles.hostHero, { backgroundColor: colors.secondary, borderRadius: colors.radius }]}>
+      <View style={[styles.hostHero, { borderRadius: colors.radius + 4 }]}>
+        <LinearGradient
+          colors={[colors.secondary, colors.secondary, colors.primary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <View pointerEvents="none" style={styles.hostHeroRingLarge} />
+        <View pointerEvents="none" style={styles.hostHeroRingSmall} />
         <View style={styles.hostHeroMark}>
           <Feather name="briefcase" size={17} color={colors.primaryForeground} />
           <Text style={[styles.hostHeroEyebrow, { color: colors.primaryForeground }]}>ORGANISATION SPACE</Text>
         </View>
-        <Text style={[styles.hostHeroTitle, { color: colors.primaryForeground }]}>Bring your next experience to life.</Text>
-        <Text style={[styles.hostHeroBody, { color: colors.primaryForeground }]}>Keep your listings moving and recognise the people who take part.</Text>
-        <Button
-          label="Create experience"
-          icon="plus"
-          color={colors.primaryForeground}
-          textColor={colors.secondary}
+        <Text style={[styles.hostHeroTitle, { color: colors.primaryForeground }]}>Create experiences, manage participation and track impact.</Text>
+        <Text style={[styles.hostHeroBody, { color: colors.primaryForeground }]}>Bring your community together and recognise the people who take part.</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Create experience"
           testID="host-create-experience"
           onPress={() => { triggerHaptic(); go('create'); }}
-        />
+          style={({ pressed }) => [styles.hostHeroButton, { backgroundColor: colors.primaryForeground, borderRadius: Math.max(13, colors.radius - 3), opacity: pressed ? 0.88 : 1 }]}
+        >
+          <Feather name="plus" size={19} color={colors.primary} />
+          <Text style={[styles.hostHeroButtonText, { color: colors.primary }]}>Create experience</Text>
+        </Pressable>
       </View>
 
       <View style={styles.hostStats}>
         {[
-          { label: 'Live', value: overview.data?.upcomingExperiences ?? 0, icon: 'calendar' as const },
-          { label: 'Participants', value: overview.data?.participantCount ?? 0, icon: 'users' as const },
-          { label: 'Waitlist', value: overview.data?.waitlistCount ?? 0, icon: 'clock' as const },
-          { label: 'Completion reviews', value: overview.data?.pendingCompletionReviews ?? 0, icon: 'check-circle' as const },
-          { label: 'Milestone reviews', value: overview.data?.pendingMilestoneReviews ?? 0, icon: 'award' as const },
-        ].map((item) => (
-          <View key={item.label} style={[styles.hostStat, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-            <View style={styles.hostStatTop}>
-              <Feather name={item.icon} size={15} color={colors.primary} />
+          { label: 'Live experiences', value: overview.data?.upcomingExperiences ?? 0, icon: 'calendar' as const, action: () => setExperienceFilter('published') },
+          { label: 'Participants', value: overview.data?.participantCount ?? 0, icon: 'users' as const, action: () => openExperience(experienceForPeople) },
+          { label: 'Waitlist', value: overview.data?.waitlistCount ?? 0, icon: 'clock' as const, action: () => openExperience(allExperiences.find((item) => item.waitlistCount > 0) ?? experienceForPeople, 'waitlisted') },
+          { label: 'Completion reviews', value: overview.data?.pendingCompletionReviews ?? 0, icon: 'check-circle' as const, action: () => openExperience(experienceForPeople, 'review') },
+          { label: 'Milestone reviews', value: overview.data?.pendingMilestoneReviews ?? 0, icon: 'award' as const, action: () => openExperience(allExperiences[0]) },
+        ].map((item, index) => (
+          <Pressable
+            key={item.label}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.label}: ${overview.isLoading ? 'loading' : overview.isError ? 'unavailable' : item.value}. Open related host tools.`}
+            testID={`host-stat-${item.label.toLowerCase().replaceAll(' ', '-')}`}
+            onPress={item.action}
+            style={({ pressed }) => [
+              styles.hostStat,
+              index === 4 ? styles.hostStatWide : null,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 2, opacity: pressed ? 0.78 : 1 },
+            ]}
+          >
+            <View style={[styles.hostStatIcon, { backgroundColor: colors.primary + '12' }]}>
+              <Feather name={item.icon} size={17} color={colors.primary} />
+            </View>
+            <View style={styles.hostStatCopy}>
               <Text style={[styles.hostStatValue, { color: colors.foreground }]}>
                 {overview.isLoading ? '…' : overview.isError ? '—' : item.value}
               </Text>
+              <Text style={[styles.hostStatLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
             </View>
-            <Text style={[styles.hostStatLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
-          </View>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+          </Pressable>
         ))}
       </View>
 
@@ -5694,34 +5724,46 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Refresh host tools"
-          testID="host-refresh"
-          onPress={refreshHostData}
-          style={[styles.hostRefreshButton, { borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius }]}
+          accessibilityLabel="Manage all experiences"
+          testID="host-manage-all"
+          onPress={() => { setExperienceSearch(''); setExperienceFilter('all'); }}
+          style={styles.hostManageAll}
         >
-          <Feather name="refresh-cw" size={17} color={colors.primary} />
+          <Text style={[styles.hostManageAllText, { color: colors.secondary }]}>Manage all</Text>
+          <Feather name="arrow-right" size={15} color={colors.secondary} />
         </Pressable>
       </View>
 
-      <View style={[styles.hostSearchBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-        <Feather name="search" size={17} color={colors.mutedForeground} />
-        <TextInput
-          accessibilityLabel="Search experiences"
-          testID="host-experience-search"
-          value={experienceSearch}
-          onChangeText={setExperienceSearch}
-          placeholder="Search title, place or category"
-          placeholderTextColor={colors.mutedForeground}
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-          style={[styles.hostSearchInput, { color: colors.foreground }]}
-        />
-        {experienceSearch ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Clear experience search" onPress={() => setExperienceSearch('')} hitSlop={8}>
-            <Feather name="x-circle" size={18} color={colors.mutedForeground} />
-          </Pressable>
-        ) : null}
+      <View style={styles.hostSearchRow}>
+        <View style={[styles.hostSearchBox, { backgroundColor: colors.muted, borderColor: colors.muted, borderRadius: colors.radius }]}>
+          <Feather name="search" size={17} color={colors.mutedForeground} />
+          <TextInput
+            accessibilityLabel="Search experiences"
+            testID="host-experience-search"
+            value={experienceSearch}
+            onChangeText={setExperienceSearch}
+            placeholder="Search title, place or category"
+            placeholderTextColor={colors.mutedForeground}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            style={[styles.hostSearchInput, { color: colors.foreground }]}
+          />
+          {experienceSearch ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Clear experience search" onPress={() => setExperienceSearch('')} hitSlop={8}>
+              <Feather name="x-circle" size={18} color={colors.mutedForeground} />
+            </Pressable>
+          ) : null}
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Refresh host tools"
+          testID="host-refresh"
+          onPress={refreshHostData}
+          style={({ pressed }) => [styles.hostRefreshButton, { borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius, opacity: pressed ? 0.72 : 1 }]}
+        >
+          <Feather name="refresh-cw" size={17} color={colors.primary} />
+        </Pressable>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hostFilterList}>
         {hostExperienceFilters.map((option) => {
@@ -5755,29 +5797,34 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
             accessibilityLabel={`Open management for ${item.title}. ${hostExperienceStatusLabels[item.status]}, ${item.participantCount} of ${item.capacity} places filled, ${item.waitlistCount} waitlisted.`}
             testID={`host-experience-${item.id}`}
             onPress={() => { triggerHaptic(); go('host-detail', { id: String(item.id) }); }}
-            style={[styles.hostExperienceCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
+            style={[styles.hostExperienceCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 2 }]}
           >
-            <View style={styles.hostExperienceTop}>
-              <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Feather name={categoryIcon[item.category]} size={22} color={colors.primary} />
-              </View>
-              <View style={styles.hostExperienceTitleBlock}>
-                <Text style={[styles.hostExperienceEyebrow, { color: colors.mutedForeground }]}>{categoryLabel[item.category]} · {dateLabel(item.date)}</Text>
-                <Text numberOfLines={2} style={[styles.hostExperienceTitle, { color: colors.foreground }]}>{item.title}</Text>
-              </View>
-              <View style={[styles.hostStatusPill, { backgroundColor: statusColor + '14' }]}>
-                <Text style={[styles.hostStatusText, { color: statusColor }]}>{hostExperienceStatusLabels[item.status]}</Text>
+            <View style={[styles.hostExperienceArtwork, { backgroundColor: colors.secondary + '12' }]}>
+              {item.category === 'environmental' || item.category === 'community' ? (
+                <ImageBackground source={require('../assets/images/community-cover.jpg')} resizeMode="cover" style={StyleSheet.absoluteFill} />
+              ) : (
+                <LinearGradient colors={categoryGradients[item.category]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+              )}
+              <View style={styles.hostArtworkIcon}>
+                <Feather name={categoryIcon[item.category]} size={21} color={colors.primaryForeground} />
               </View>
             </View>
 
-            <View style={styles.hostExperienceBody}>
+            <View style={styles.hostExperienceContent}>
+              <View style={styles.hostExperienceTop}>
+                <View style={[styles.hostStatusPill, { backgroundColor: statusColor + '14' }]}>
+                  <Text style={[styles.hostStatusText, { color: statusColor }]}>{hostExperienceStatusLabels[item.status]}</Text>
+                </View>
+                <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+              </View>
+              <Text numberOfLines={2} style={[styles.hostExperienceTitle, { color: colors.foreground }]}>{item.title}</Text>
               <View style={styles.hostMetaLine}>
-                <Feather name="map-pin" size={15} color={colors.mutedForeground} />
+                <Feather name="map-pin" size={13} color={colors.mutedForeground} />
                 <Text numberOfLines={1} style={[styles.hostMetaText, { color: colors.mutedForeground }]}>{item.location}, {item.city}</Text>
               </View>
               <View style={styles.hostMetaLine}>
-                <Feather name="clock" size={15} color={colors.mutedForeground} />
-                <Text style={[styles.hostMetaText, { color: colors.mutedForeground }]}>{item.startTime} – {item.endTime}</Text>
+                <Feather name="calendar" size={13} color={colors.mutedForeground} />
+                <Text numberOfLines={1} style={[styles.hostMetaText, { color: colors.mutedForeground }]}>{dateLabel(item.date)} · {item.startTime}</Text>
               </View>
               <View style={styles.hostCapacityHeader}>
                 <Text style={[styles.hostCapacityLabel, { color: colors.mutedForeground }]}>Places filled</Text>
@@ -5793,12 +5840,12 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
                   {item.monetaryRewardPence ? <Text style={[styles.hostRewardText, { color: colors.mutedForeground }]}>· {money(item.monetaryRewardPence)}</Text> : null}
                 </View>
                 <Text style={[styles.hostPlacesText, { color: item.availablePlaces === 0 ? colors.primary : colors.mutedForeground }]}>
-                  {item.availablePlaces === 0 ? 'No places left' : `${item.availablePlaces} places left`}
+                  {item.availablePlaces === 0 ? 'Full' : `${item.availablePlaces} left`}
                 </Text>
               </View>
-              <View style={styles.hostManageRow}>
+              <View style={[styles.hostManageRow, { borderTopColor: colors.border }]}>
                 <Text style={[styles.hostManageText, { color: colors.primary }]}>Manage experience</Text>
-                <Feather name="arrow-right" size={16} color={colors.primary} />
+                <Feather name="arrow-right" size={15} color={colors.primary} />
               </View>
             </View>
           </Pressable>
@@ -5813,6 +5860,37 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
         />
       )}
 
+      <View style={styles.hostQuickActionsSection}>
+        <View style={styles.hostQuickHeading}>
+          <Text style={[styles.hostQuickTitle, { color: colors.foreground }]}>Quick actions</Text>
+          <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>Common tasks to keep things moving.</Text>
+        </View>
+        <View style={styles.hostQuickActions}>
+          {[
+            { label: 'Review participants', icon: 'users' as const, color: colors.primary, onPress: () => openExperience(experienceForPeople, 'review'), disabled: !experienceForPeople },
+            { label: 'Review milestones', icon: 'list' as const, color: colors.secondary, onPress: () => openExperience(allExperiences[0]), disabled: !allExperiences.length },
+            ...(user.organisation?.type === 'charity' ? [{ label: 'Fundraising', icon: 'bar-chart-2' as const, color: colors.teal, onPress: () => go('funds'), disabled: false }] : []),
+          ].map((action) => (
+            <Pressable
+              key={action.label}
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
+              accessibilityState={{ disabled: action.disabled }}
+              disabled={action.disabled}
+              testID={`host-quick-action-${action.label.toLowerCase().replaceAll(' ', '-')}`}
+              onPress={() => { triggerHaptic(); action.onPress(); }}
+              style={({ pressed }) => [styles.hostQuickAction, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: action.disabled ? 0.45 : pressed ? 0.78 : 1 }]}
+            >
+              <View style={[styles.hostQuickIcon, { backgroundColor: action.color + '14' }]}>
+                <Feather name={action.icon} size={17} color={action.color} />
+              </View>
+              <Text numberOfLines={2} style={[styles.hostQuickLabel, { color: colors.foreground }]}>{action.label}</Text>
+              <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
       <View style={{ height: 120 }} />
     </KeyboardAwareScrollViewCompat>
   );
@@ -5821,9 +5899,11 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
 function HostExperienceDetail({
   experienceId,
   go,
+  initialFocus,
 }: {
   experienceId: number;
   go: (screen: Screen, params?: Record<string, string>) => void;
+  initialFocus?: 'review' | 'waitlisted';
 }) {
   const colors = useColors();
   const queryClient = useQueryClient();
@@ -5849,7 +5929,7 @@ function HostExperienceDetail({
     },
   });
   const [participantSearch, setParticipantSearch] = useState('');
-  const [participantFilter, setParticipantFilter] = useState<HostParticipantFilter>('all');
+  const [participantFilter, setParticipantFilter] = useState<HostParticipantFilter>(initialFocus ?? 'all');
   const [rejectReasons, setRejectReasons] = useState<Record<number, string>>({});
   const [milestoneRejectReasons, setMilestoneRejectReasons] = useState<Record<number, string>>({});
   const [actionError, setActionError] = useState<string | null>(null);
@@ -8088,7 +8168,7 @@ function BottomNavInteractionHarness({ userType = 'participant' }: { userType?: 
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; category?: string; step?: string; experienceId?: string; experienceTitle?: string; keyboardTest?: string; navTest?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; category?: string; step?: string; focus?: string; experienceId?: string; experienceTitle?: string; keyboardTest?: string; navTest?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -8161,6 +8241,7 @@ export default function App() {
       friendId: next === 'friend-profile' ? nextParams?.friendId : undefined,
       category: next === 'explore' ? nextParams?.category : undefined,
       step: next === 'create' ? nextParams?.step : undefined,
+      focus: next === 'host-detail' ? nextParams?.focus : undefined,
       experienceId: next === 'funds' ? nextParams?.experienceId : undefined,
       experienceTitle: next === 'funds' ? nextParams?.experienceTitle : undefined,
     });
@@ -8458,7 +8539,7 @@ export default function App() {
 
   const content = (() => {
     if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
-    if (screen === 'host-detail') return <HostExperienceDetail experienceId={Number(experienceId)} go={go} />;
+    if (screen === 'host-detail') return <HostExperienceDetail experienceId={Number(experienceId)} go={go} initialFocus={params.focus === 'review' || params.focus === 'waitlisted' ? params.focus : undefined} />;
     if (screen === 'messages') {
       return (
         <DirectMessagesScreen
@@ -9358,46 +9439,62 @@ const styles = StyleSheet.create({
   friendSectionHint: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular', paddingHorizontal: 2 },
   
   // Host
-  hostHero: { padding: 20, gap: 10, marginBottom: 16 },
+  hostHero: { position: 'relative', overflow: 'hidden', padding: 20, gap: 9, marginBottom: 14 },
+  hostHeroRingLarge: { position: 'absolute', right: -46, top: 38, width: 176, height: 92, borderWidth: 13, borderColor: 'rgba(255,255,255,0.16)', borderRadius: 70, transform: [{ rotate: '-32deg' }] },
+  hostHeroRingSmall: { position: 'absolute', right: -67, top: 104, width: 136, height: 70, borderWidth: 10, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 52, transform: [{ rotate: '-32deg' }] },
   hostHeroMark: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
   hostHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2 },
-  hostHeroTitle: { fontSize: 23, lineHeight: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
-  hostHeroBody: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', marginBottom: 4, opacity: 0.9 },
+  hostHeroTitle: { maxWidth: 340, fontSize: 23, lineHeight: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
+  hostHeroBody: { maxWidth: 300, fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular', marginBottom: 3, opacity: 0.92 },
+  hostHeroButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 3, paddingHorizontal: 16 },
+  hostHeroButtonText: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   hostStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
-  hostStat: { flexGrow: 1, flexBasis: '48%', minWidth: 0, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 9, gap: 7 },
-  hostStatTop: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  hostStatValue: { fontSize: 21, fontFamily: 'Inter_700Bold' },
-  hostStatLabel: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  hostStat: { flexGrow: 1, flexBasis: '47%', minWidth: 0, minHeight: 72, flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingVertical: 11, paddingHorizontal: 10, gap: 9 },
+  hostStatWide: { flexBasis: '100%' },
+  hostStatIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  hostStatCopy: { flex: 1, minWidth: 0, gap: 2 },
+  hostStatValue: { fontSize: 21, lineHeight: 24, fontFamily: 'Inter_700Bold' },
+  hostStatLabel: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_500Medium' },
   hostSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 13 },
   hostSectionCopy: { flex: 1, minWidth: 0 },
   hostSectionHint: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular', marginTop: 3 },
   hostRefreshButton: { width: 44, height: 44, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  hostSearchBox: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, paddingHorizontal: 14, marginBottom: 8 },
+  hostManageAll: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 3 },
+  hostManageAllText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  hostSearchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  hostSearchBox: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, paddingHorizontal: 13 },
   hostSearchInput: { flex: 1, minWidth: 0, height: 48, paddingHorizontal: 0, fontSize: 14, fontFamily: 'Inter_400Regular' },
   hostFilterList: { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingBottom: 14 },
   hostFilterChip: { minHeight: 38, justifyContent: 'center', borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
   hostFilterText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  hostExperienceCard: { borderWidth: 1, marginBottom: 12, overflow: 'hidden' },
-  hostExperienceTop: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 15, paddingBottom: 14 },
-  hostExperienceTitleBlock: { flex: 1, minWidth: 0 },
-  hostExperienceEyebrow: { fontSize: 10, fontFamily: 'Inter_600SemiBold', marginBottom: 4 },
-  hostExperienceTitle: { fontSize: 15, lineHeight: 20, fontFamily: 'Inter_700Bold' },
+  hostExperienceCard: { flexDirection: 'row', minHeight: 166, borderWidth: 1, marginBottom: 12, overflow: 'hidden' },
+  hostExperienceArtwork: { width: 100, minHeight: 166, alignSelf: 'stretch', overflow: 'hidden' },
+  hostArtworkIcon: { position: 'absolute', right: 8, bottom: 8, width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.22)' },
+  hostExperienceContent: { flex: 1, minWidth: 0, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 11, gap: 6 },
+  hostExperienceTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  hostExperienceTitle: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_700Bold' },
   hostStatusPill: { flexShrink: 0, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 12 },
   hostStatusText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
-  hostExperienceBody: { paddingHorizontal: 16, paddingBottom: 15, gap: 10 },
-  hostMetaLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  hostMetaText: { flex: 1, minWidth: 0, fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
-  hostCapacityHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 3 },
-  hostCapacityLabel: { fontSize: 11, fontFamily: 'Inter_500Medium' },
-  hostCapacityCount: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  hostCapacityTrack: { height: 7, overflow: 'hidden', borderRadius: 4 },
-  hostCapacityFill: { height: 7, borderRadius: 4 },
+  hostMetaLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  hostMetaText: { flex: 1, minWidth: 0, fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
+  hostCapacityHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 1 },
+  hostCapacityLabel: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  hostCapacityCount: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  hostCapacityTrack: { height: 6, overflow: 'hidden', borderRadius: 4 },
+  hostCapacityFill: { height: 6, borderRadius: 4 },
   hostExperienceFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 },
-  hostRewardRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  hostRewardText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  hostPlacesText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
-  hostManageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
-  hostManageText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  hostRewardRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  hostRewardText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  hostPlacesText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  hostManageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: StyleSheet.hairlineWidth, marginTop: 1, paddingTop: 6 },
+  hostManageText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  hostQuickActionsSection: { gap: 12, marginTop: 12, marginBottom: 10 },
+  hostQuickHeading: { gap: 0 },
+  hostQuickTitle: { fontSize: 17, lineHeight: 22, fontFamily: 'Inter_700Bold' },
+  hostQuickActions: { flexDirection: 'row', gap: 8 },
+  hostQuickAction: { flex: 1, minWidth: 0, minHeight: 74, flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingHorizontal: 9, paddingVertical: 9, gap: 6 },
+  hostQuickIcon: { width: 31, height: 31, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  hostQuickLabel: { flex: 1, minWidth: 0, fontSize: 10, lineHeight: 13, fontFamily: 'Inter_700Bold' },
   hostDetailCard: { borderWidth: 1, padding: 15, marginBottom: 14 },
   hostDetailTopline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   hostDetailCategoryBadge: { minHeight: 29, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 9, borderRadius: 15 },
