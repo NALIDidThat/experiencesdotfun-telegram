@@ -1,0 +1,79 @@
+:root,
+.dark {
+  --fundraiser-primary: #f20789;
+  --fundraiser-secondary: #6805f2;
+  --fundraiser-background: #ffffff;
+  --fundraiser-foreground: #111111;
+  --fundraiser-muted: #f7f7f8;
+  --fundraiser-muted-foreground: #666666;
+  --fundraiser-border: #eaeaea;
+  --fundraiser-radius: 20px;
+}
+
+.fundraiser-mock-root {
+  box-sizing: border-box;
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  background: #f7f7f9;
+  padding: 24px;
+  font-family: Inter, system-ui, sans-serif;
+  color: var(--fundraiser-foreground);
+}
+
+.fundraiser-mock-root *,
+.fundraiser-mock-root *::before,
+.fundraiser-mock-root *::after {
+  box-sizing: border-box;
+}
+
+.fundraiser-card {
+  width: min(100%, 470px);
+  border: 1px solid var(--fundraiser-border);
+  border-radius: var(--fundraiser-radius);
+  background: var(--fundraiser-background);
+  color: var(--fundraiser-foreground);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  appearance: none;
+}
+
+.fundraiser-card-current {
+  padding: 15px;
+  box-shadow: 0 2px 8px rgb(17 17 17 / 3%);
+}
+
+.fundraiser-card-redesign {
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+  border-color: rgb(242 7 137 / 16%);
+  box-shadow: 0 12px 32px rgb(31 22 44 / 8%);
+  background:
+    radial-gradient(circle at 100% 0%, rgb(242 7 137 / 7%), transparent 35%),
+    var(--fundraiser-background);
+}
+
+.fundraiser-card-redesign::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--fundraiser-primary), var(--fundraiser-secondary));
+  content: "";
+}
+
+.fundraiser-progress-track {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: #f1edf3;
+}
+
+.fundraiser-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--fundraiser-primary), var(--fundraiser-secondary));
+  transition: width 300ms ease;
+}

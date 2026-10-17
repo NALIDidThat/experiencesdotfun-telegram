@@ -138,41 +138,99 @@ function campaignProgress(fund: OrganisationFund) {
     : 0;
 }
 
+function formatCampaignSol(value: string | number) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return String(value);
+  if (amount === 0) return "0";
+  return amount.toLocaleString(undefined, {
+    maximumFractionDigits: Math.abs(amount) < 0.0001 ? 9 : 4,
+  });
+}
+
 function CampaignProgressCard({ fund, onPress }: { fund: OrganisationFund; onPress: () => void }) {
   const colors = useColors();
   const progress = campaignProgress(fund);
+  const raised = formatCampaignSol(fund.raisedSol);
+  const goal = formatCampaignSol(fund.goalSol);
+  const depositLabel = `${fund.contributionCount} verified ${fund.contributionCount === 1 ? "deposit" : "deposits"}`;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Track ${fund.title}: ${fund.raisedSol} SOL raised of ${fund.goalSol} SOL goal`}
+      accessibilityLabel={`Track ${fund.title}: ${raised} SOL raised of ${goal} SOL goal, ${depositLabel}, ${Math.round(progress)}% funded`}
+      accessibilityHint="Opens campaign details."
       testID={`campaign-progress-${fund.id}`}
       onPress={onPress}
-      style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 4, padding: 15, gap: 12 }}
+      style={({ pressed }) => ({
+        overflow: "hidden",
+        borderWidth: 1,
+        borderColor: colors.primary + "24",
+        backgroundColor: colors.card,
+        borderRadius: colors.radius + 4,
+        shadowColor: "#170d20",
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.07,
+        shadowRadius: 14,
+        elevation: 2,
+        opacity: pressed ? 0.88 : 1,
+        transform: [{ scale: pressed ? 0.99 : 1 }],
+      })}
     >
-      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
-        <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: colors.primary + "14", alignItems: "center", justifyContent: "center" }}>
-          <Feather name="heart" size={17} color={colors.primary} />
+      <View style={{ height: 3, backgroundColor: colors.primary }} />
+      <View style={{ padding: 16, gap: 16 }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+          <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: colors.primary + "12", borderWidth: 1, borderColor: colors.primary + "16", alignItems: "center", justifyContent: "center" }}>
+            <Feather name="heart" size={19} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
+            <Text style={{ color: colors.primary, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.8 }}>COMMUNITY FUNDRAISER</Text>
+            <Text numberOfLines={2} style={{ color: colors.foreground, fontSize: 16, lineHeight: 21, fontFamily: "Inter_700Bold" }}>{fund.title}</Text>
+            {fund.experienceTitle ? (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                <Feather name="calendar" size={11} color={colors.mutedForeground} />
+                <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>Supports {fund.experienceTitle}</Text>
+              </View>
+            ) : null}
+          </View>
+          <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center" }}>
+            <Feather name="arrow-up-right" size={16} color={colors.mutedForeground} />
+          </View>
         </View>
-        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-          <Text numberOfLines={2} style={{ color: colors.foreground, fontSize: 15, lineHeight: 20, fontFamily: "Inter_700Bold" }}>{fund.title}</Text>
-          {fund.experienceTitle ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-              <Feather name="calendar" size={11} color={colors.mutedForeground} />
-              <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>For {fund.experienceTitle}</Text>
+
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14, gap: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 10 }}>
+            <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+              <Text style={{ color: colors.mutedForeground, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.55 }}>RAISED SO FAR</Text>
+              <View style={{ flexDirection: "row", alignItems: "baseline", gap: 5 }}>
+                <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: colors.foreground, fontSize: 25, lineHeight: 30, fontFamily: "Inter_700Bold" }}>{raised}</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_700Bold" }}>SOL</Text>
+              </View>
             </View>
-          ) : null}
+            <View style={{ alignItems: "flex-end", paddingHorizontal: 11, paddingVertical: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.muted + "80" }}>
+              <Text style={{ color: colors.mutedForeground, fontSize: 8, fontFamily: "Inter_700Bold", letterSpacing: 0.55 }}>GOAL</Text>
+              <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold", marginTop: 2 }}>{goal} <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>SOL</Text></Text>
+            </View>
+          </View>
+
+          <View
+            accessibilityRole="progressbar"
+            accessibilityLabel={`${Math.round(progress)}% of campaign goal`}
+            accessibilityValue={{ min: 0, max: 100, now: Math.round(progress) }}
+            style={{ height: 8, overflow: "hidden", borderRadius: 999, backgroundColor: colors.primary + "16" }}
+          >
+            <View style={{ width: `${progress}%`, height: "100%", borderRadius: 999, backgroundColor: colors.primary }} />
+          </View>
+
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
+              <Feather name="shield" size={13} color={colors.secondary} />
+              <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>{depositLabel}</Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 999, backgroundColor: colors.secondary + "10", paddingHorizontal: 9, paddingVertical: 5 }}>
+              <Feather name="check" size={11} color={colors.secondary} />
+              <Text style={{ color: colors.secondary, fontSize: 10, fontFamily: "Inter_700Bold" }}>{Math.round(progress)}% funded</Text>
+            </View>
+          </View>
         </View>
-        <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
-      </View>
-      <View style={{ gap: 7 }}>
-        <View style={{ height: 7, overflow: "hidden", borderRadius: 8, backgroundColor: colors.muted }}>
-          <View accessibilityRole="progressbar" accessibilityLabel={`${Math.round(progress)}% of campaign goal`} accessibilityValue={{ min: 0, max: 100, now: Math.round(progress) }} style={{ width: `${progress}%`, height: "100%", borderRadius: 8, backgroundColor: colors.primary }} />
-        </View>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
-          <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>{fund.raisedSol} SOL raised</Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{fund.goalSol.toLocaleString()} SOL goal</Text>
-        </View>
-        <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>{fund.contributionCount} verified {fund.contributionCount === 1 ? "deposit" : "deposits"} · {Math.round(progress)}% funded</Text>
       </View>
     </Pressable>
   );
