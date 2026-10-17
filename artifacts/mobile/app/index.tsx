@@ -287,9 +287,9 @@ function triggerHaptic() {
 }
 
 function Button({
-  label, onPress, variant = 'primary', disabled = false, icon, style, color, textColor, testID,
+  label, onPress, variant = 'primary', disabled = false, icon, style, color, textColor, testID, compact = false,
 }: {
-  label: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'alternative'; disabled?: boolean; icon?: IconName; style?: any; color?: string; textColor?: string; testID?: string;
+  label: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'alternative'; disabled?: boolean; icon?: IconName; style?: any; color?: string; textColor?: string; testID?: string; compact?: boolean;
 }) {
   const colors = useColors();
 
@@ -320,6 +320,7 @@ function Button({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        compact && styles.buttonCompact,
         {
           backgroundColor: bg,
           borderColor: border,
@@ -329,8 +330,8 @@ function Button({
         },
       ]}
     >
-      {icon ? <Feather name={icon} size={20} color={fg} style={{ marginRight: 8 }} /> : null}
-      <Text style={[styles.buttonText, { color: fg }]}>{label}</Text>
+      {icon ? <Feather name={icon} size={compact ? 16 : 20} color={fg} style={{ marginRight: compact ? 6 : 8 }} /> : null}
+      <Text numberOfLines={compact ? 1 : undefined} style={[styles.buttonText, compact && styles.buttonCompactText, { color: fg }]}>{label}</Text>
     </MotionPressable>
   );
 }
@@ -6186,6 +6187,7 @@ function HostExperienceDetail({
                 testID="host-edit-experience"
                 label="Edit experience"
                 icon="edit-3"
+                compact
                 style={styles.hostDetailEditAction}
                 onPress={() => go('create', { id: String(experience.id), step: String(createExperienceQuestions.length + 1) })}
               />
@@ -6193,6 +6195,7 @@ function HostExperienceDetail({
                 testID="host-view-live-experience"
                 label="View live page"
                 icon="eye"
+                compact
                 color={colors.primary + '12'}
                 textColor={colors.primary}
                 style={styles.hostDetailEditAction}
@@ -8871,6 +8874,8 @@ const styles = StyleSheet.create({
 
   button: { minHeight: 56, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   buttonText: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
+  buttonCompact: { minHeight: 44, paddingHorizontal: 8 },
+  buttonCompactText: { fontSize: 12 },
 
   emptyState: { padding: 32, alignItems: 'center', justifyContent: 'center', borderWidth: 1, marginVertical: 24 },
   emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
