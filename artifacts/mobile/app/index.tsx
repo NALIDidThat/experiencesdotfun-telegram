@@ -6085,7 +6085,7 @@ function HostExperienceDetail({
   return (
     <KeyboardAwareScrollViewCompat
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, styles.hostDetailScrollContent]}
       refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshHostData} tintColor={colors.primary} />}
       keyboardDismissMode="none"
       keyboardShouldPersistTaps="handled"
@@ -6198,22 +6198,19 @@ function HostExperienceDetail({
           ) : null}
 
           {['published', 'full'].includes(experience.status) ? (
-            <View style={{ flexDirection: 'row', gap: 9, marginBottom: 14 }}>
+            <View style={styles.hostDetailActions}>
               <Button
                 testID="host-edit-experience"
                 label="Edit experience"
-                icon="edit-2"
-                variant="secondary"
-                style={{ flex: 1 }}
+                style={styles.hostDetailEditAction}
                 onPress={() => go('create', { id: String(experience.id), step: String(createExperienceQuestions.length + 1) })}
               />
               <Button
                 testID="host-cancel-experience"
                 label="Cancel"
-                icon="x-circle"
                 color={colors.destructive + '12'}
                 textColor={colors.destructive}
-                style={{ flex: 1 }}
+                style={styles.hostDetailCancelAction}
                 onPress={() => setConfirmingCancellation(true)}
               />
             </View>
@@ -6221,7 +6218,7 @@ function HostExperienceDetail({
           {user?.userType === 'organisation' && user.organisation?.type === 'charity' ? (
             <Button
               testID="host-experience-start-fundraiser"
-              label="Raise funds for this Experience"
+              label="Start fundraiser"
               icon="heart"
               variant="secondary"
               style={{ marginBottom: 14 }}
@@ -6241,8 +6238,7 @@ function HostExperienceDetail({
               <View style={{ flexDirection: 'row', gap: 9, marginTop: 12 }}>
                 <Button
                   testID="host-cancel-confirm"
-                  label={cancelExperience.isPending ? 'Cancelling…' : 'Confirm cancellation'}
-                  icon="x-circle"
+                  label={cancelExperience.isPending ? 'Cancelling…' : 'Confirm'}
                   color={colors.destructive}
                   disabled={cancelExperience.isPending}
                   style={{ flex: 1 }}
@@ -6260,7 +6256,7 @@ function HostExperienceDetail({
             </View>
           ) : null}
 
-          <View style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
+          <View style={[styles.hostDetailMilestoneBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
             <View style={styles.infoBlockHeading}>
               <View style={[styles.infoBlockIcon, { backgroundColor: colors.primary + '12' }]}>
                 <Feather name="list" size={16} color={colors.primary} />
@@ -6287,18 +6283,20 @@ function HostExperienceDetail({
                   <View
                     key={milestone.id}
                     testID={`host-milestone-${milestone.id}`}
-                    style={{ alignItems: 'flex-start', backgroundColor: colors.muted, borderColor: colors.border, borderRadius: colors.radius - 6, borderWidth: 1, flexDirection: 'row', gap: 10, padding: 12 }}
+                    style={[styles.hostMilestoneRow, { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: colors.radius - 6 }]}
                   >
-                    <View style={{ alignItems: 'center', backgroundColor: colors.primary + '13', borderRadius: 18, height: 30, justifyContent: 'center', width: 30 }}>
-                      <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>{milestone.position}</Text>
+                    <View style={[styles.hostMilestoneNumber, { backgroundColor: colors.primary + '13' }]}>
+                      <Text style={{ color: colors.primary, fontSize: 12, fontFamily: 'Inter_700Bold' }}>{milestone.position}</Text>
                     </View>
-                    <View style={{ flex: 1, gap: 3 }}>
-                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '700' }}>{milestone.title}</Text>
+                    <View style={styles.hostMilestoneCopy}>
+                      <Text style={{ color: colors.foreground, fontSize: 14, lineHeight: 19, fontFamily: 'Inter_700Bold' }}>{milestone.title}</Text>
                       {milestone.description ? (
-                        <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 17 }}>{milestone.description}</Text>
+                        <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' }}>{milestone.description}</Text>
                       ) : null}
                     </View>
-                    <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>+{milestone.xpReward} XP</Text>
+                    <View style={[styles.hostMilestoneReward, { backgroundColor: colors.primary + '12' }]}>
+                      <Text style={{ color: colors.primary, fontSize: 11, fontFamily: 'Inter_700Bold' }}>+{milestone.xpReward} XP</Text>
+                    </View>
                   </View>
                 ))}
               </View>
@@ -9547,29 +9545,38 @@ const styles = StyleSheet.create({
   hostQuickDetail: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
   hostQuickCount: { minWidth: 25, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 11 },
   hostQuickCountText: { fontSize: 11, lineHeight: 14, fontFamily: 'Inter_700Bold' },
-  hostDetailCard: { borderWidth: 1, padding: 15, marginBottom: 14 },
+  hostDetailScrollContent: { paddingHorizontal: 14, paddingBottom: 18 },
+  hostDetailCard: { borderWidth: 1, padding: 16, marginBottom: 12, overflow: 'hidden' },
   hostDetailTopline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  hostDetailCategoryBadge: { minHeight: 29, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 9, borderRadius: 15 },
+  hostDetailCategoryBadge: { minHeight: 30, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, borderRadius: 15 },
   hostDetailCategoryText: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.15 },
-  hostDetailTitle: { fontSize: 21, lineHeight: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.45, marginTop: 10 },
-  hostDetailDescription: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular', marginTop: 4 },
-  hostDetailFacts: { flexDirection: 'row', alignItems: 'stretch', gap: 9, marginTop: 13 },
-  hostDetailFact: { flex: 1, minWidth: 0, borderWidth: 1, padding: 10, gap: 4 },
+  hostDetailTitle: { fontSize: 22, lineHeight: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5, marginTop: 11 },
+  hostDetailDescription: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular', marginTop: 5 },
+  hostDetailFacts: { flexDirection: 'row', alignItems: 'stretch', gap: 8, marginTop: 15 },
+  hostDetailFact: { flex: 1, minWidth: 0, borderWidth: 1, padding: 10, gap: 5 },
   hostDetailFactHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 2 },
   hostDetailFactIcon: { width: 25, height: 25, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   hostDetailFactLabel: { fontSize: 9, fontFamily: 'Inter_700Bold', letterSpacing: 0.65 },
   hostDetailFactValue: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_700Bold' },
   hostDetailFactSecondary: { fontSize: 11, lineHeight: 15, fontFamily: 'Inter_400Regular' },
-  hostDetailCapacity: { gap: 8, marginTop: 14 },
+  hostDetailCapacity: { gap: 8, marginTop: 15 },
   hostDetailProgressTrack: { height: 6, overflow: 'hidden', borderRadius: 3 },
   hostDetailProgressFill: { height: 6, borderRadius: 3 },
-  hostDetailFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 9 },
+  hostDetailFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   hostDetailRewards: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   hostDetailRewardPill: { minHeight: 27, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, borderRadius: 14 },
   hostDetailRewardText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   hostDetailMoneyReward: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
-  hostDetailMetrics: { flexDirection: 'row', gap: 8, marginBottom: 21 },
-  hostDetailMetric: { flex: 1, minWidth: 0, minHeight: 72, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 9, justifyContent: 'space-between' },
+  hostDetailActions: { flexDirection: 'row', alignItems: 'stretch', gap: 8, marginBottom: 12 },
+  hostDetailEditAction: { flex: 1, minWidth: 0 },
+  hostDetailCancelAction: { width: 104 },
+  hostDetailMilestoneBlock: { borderWidth: 1, padding: 14, marginBottom: 14 },
+  hostMilestoneRow: { alignItems: 'flex-start', borderWidth: 1, flexDirection: 'row', gap: 10, padding: 12 },
+  hostMilestoneNumber: { alignItems: 'center', borderRadius: 18, height: 30, justifyContent: 'center', width: 30, flexShrink: 0 },
+  hostMilestoneCopy: { flex: 1, minWidth: 0, gap: 3 },
+  hostMilestoneReward: { flexShrink: 0, borderRadius: 12, paddingHorizontal: 7, paddingVertical: 5 },
+  hostDetailMetrics: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+  hostDetailMetric: { flex: 1, minWidth: 0, minHeight: 68, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 9, justifyContent: 'space-between' },
   hostDetailMetricTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
   hostDetailMetricValue: { fontSize: 19, fontFamily: 'Inter_700Bold' },
   hostDetailMetricLabel: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_600SemiBold' },
@@ -9582,7 +9589,7 @@ const styles = StyleSheet.create({
   hostWaitlistTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   hostWaitlistText: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
   hostParticipantCount: { marginBottom: 9 },
-  hostParticipantCard: { borderWidth: 1, padding: 14, marginBottom: 10, gap: 10 },
+  hostParticipantCard: { borderWidth: 1, padding: 13, marginBottom: 10, gap: 10 },
   hostParticipantTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   participantAvatar: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   participantInitial: { fontSize: 18, fontFamily: 'Inter_700Bold' },
