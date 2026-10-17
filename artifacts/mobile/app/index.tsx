@@ -5615,6 +5615,8 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
 function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
   const { user } = useAuth();
+  const { width: viewportWidth } = useWindowDimensions();
+  const compactHostLayout = viewportWidth < 360;
   const overview = useGetHostOverview();
   const experiences = useListHostExperiences();
   const [experienceSearch, setExperienceSearch] = useState('');
@@ -5715,7 +5717,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
 
       {overview.isError ? <EmptyState title="Host statistics couldn’t be loaded" body="Check your connection and try again." actionLabel="Try again" onAction={() => { void overview.refetch(); }} /> : null}
 
-      <View style={styles.hostSectionHeader}>
+      <View style={[styles.hostSectionHeader, styles.hostListSectionHeader]}>
         <View style={styles.hostSectionCopy}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your experiences</Text>
           <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>
@@ -5797,9 +5799,17 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
             accessibilityLabel={`Open management for ${item.title}. ${hostExperienceStatusLabels[item.status]}, ${item.participantCount} of ${item.capacity} places filled, ${item.waitlistCount} waitlisted.`}
             testID={`host-experience-${item.id}`}
             onPress={() => { triggerHaptic(); go('host-detail', { id: String(item.id) }); }}
-            style={[styles.hostExperienceCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 2 }]}
+            style={[
+              styles.hostExperienceCard,
+              compactHostLayout ? styles.hostExperienceCardCompact : null,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 2 },
+            ]}
           >
-            <View style={[styles.hostExperienceArtwork, { backgroundColor: colors.secondary + '12' }]}>
+            <View style={[
+              styles.hostExperienceArtwork,
+              compactHostLayout ? styles.hostExperienceArtworkCompact : null,
+              { backgroundColor: colors.secondary + '12' },
+            ]}>
               {item.category === 'environmental' || item.category === 'community' ? (
                 <ImageBackground source={require('../assets/images/community-cover.jpg')} resizeMode="cover" style={StyleSheet.absoluteFill} />
               ) : (
@@ -5810,7 +5820,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
               </View>
             </View>
 
-            <View style={styles.hostExperienceContent}>
+            <View style={[styles.hostExperienceContent, compactHostLayout ? styles.hostExperienceContentCompact : null]}>
               <View style={styles.hostExperienceTop}>
                 <View style={[styles.hostStatusPill, { backgroundColor: statusColor + '14' }]}>
                   <Text style={[styles.hostStatusText, { color: statusColor }]}>{hostExperienceStatusLabels[item.status]}</Text>
@@ -5867,9 +5877,35 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
         </View>
         <View style={styles.hostQuickActions}>
           {[
-            { label: 'Review participants', icon: 'users' as const, color: colors.primary, onPress: () => openExperience(experienceForPeople, 'review'), disabled: !experienceForPeople },
-            { label: 'Review milestones', icon: 'list' as const, color: colors.secondary, onPress: () => openExperience(allExperiences[0]), disabled: !allExperiences.length },
-            ...(user.organisation?.type === 'charity' ? [{ label: 'Fundraising', icon: 'bar-chart-2' as const, color: colors.teal, onPress: () => go('funds'), disabled: false }] : []),
+            {
+              label: 'Review participants',
+              detail: 'Completion submissions',
+              count: overview.data?.pendingCompletionReviews,
+              icon: 'users' as const,
+              color: colors.primary,
+              onPress: () => openExperience(experienceForPeople, 'review'),
+              disabled: !experienceForPeople,
+            },
+            {
+              label: 'Review milestones',
+              detail: 'Milestone submissions',
+              count: overview.data?.pendingMilestoneReviews,
+              icon: 'list' as const,
+              color: colors.secondary,
+              onPress: () => openExperience(allExperiences[0]),
+              disabled: !allExperiences.length,
+            },
+            ...(user.organisation?.type === 'charity'
+              ? [{
+                  label: 'Fundraising',
+                  detail: 'Manage campaigns and funds',
+                  count: undefined,
+                  icon: 'bar-chart-2' as const,
+                  color: colors.teal,
+                  onPress: () => go('funds'),
+                  disabled: false,
+                }]
+              : []),
           ].map((action) => (
             <Pressable
               key={action.label}
@@ -5884,7 +5920,15 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
               <View style={[styles.hostQuickIcon, { backgroundColor: action.color + '14' }]}>
                 <Feather name={action.icon} size={17} color={action.color} />
               </View>
-              <Text numberOfLines={2} style={[styles.hostQuickLabel, { color: colors.foreground }]}>{action.label}</Text>
+              <View style={styles.hostQuickCopy}>
+                <Text numberOfLines={1} style={[styles.hostQuickLabel, { color: colors.foreground }]}>{action.label}</Text>
+                <Text numberOfLines={1} style={[styles.hostQuickDetail, { color: colors.mutedForeground }]}>{action.detail}</Text>
+              </View>
+              {action.count !== undefined ? (
+                <View style={[styles.hostQuickCount, { backgroundColor: action.color + '12' }]}>
+                  <Text style={[styles.hostQuickCountText, { color: action.color }]}>{action.count}</Text>
+                </View>
+              ) : null}
               <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
             </Pressable>
           ))}
@@ -9448,7 +9492,7 @@ const styles = StyleSheet.create({
   hostHeroBody: { maxWidth: 300, fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular', marginBottom: 3, opacity: 0.92 },
   hostHeroButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 3, paddingHorizontal: 16 },
   hostHeroButtonText: { fontSize: 14, fontFamily: 'Inter_700Bold' },
-  hostStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
+  hostStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
   hostStat: { flexGrow: 1, flexBasis: '47%', minWidth: 0, minHeight: 72, flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingVertical: 11, paddingHorizontal: 10, gap: 9 },
   hostStatWide: { flexBasis: '100%' },
   hostStatIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
@@ -9456,6 +9500,7 @@ const styles = StyleSheet.create({
   hostStatValue: { fontSize: 21, lineHeight: 24, fontFamily: 'Inter_700Bold' },
   hostStatLabel: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_500Medium' },
   hostSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 13 },
+  hostListSectionHeader: { marginBottom: 9 },
   hostSectionCopy: { flex: 1, minWidth: 0 },
   hostSectionHint: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular', marginTop: 3 },
   hostRefreshButton: { width: 44, height: 44, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
@@ -9467,13 +9512,16 @@ const styles = StyleSheet.create({
   hostFilterList: { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingBottom: 14 },
   hostFilterChip: { minHeight: 38, justifyContent: 'center', borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
   hostFilterText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  hostExperienceCard: { flexDirection: 'row', minHeight: 166, borderWidth: 1, marginBottom: 12, overflow: 'hidden' },
-  hostExperienceArtwork: { width: 100, minHeight: 166, alignSelf: 'stretch', overflow: 'hidden' },
+  hostExperienceCard: { flexDirection: 'row', minHeight: 158, borderWidth: 1, marginBottom: 10, overflow: 'hidden' },
+  hostExperienceCardCompact: { minHeight: 154 },
+  hostExperienceArtwork: { width: 86, minHeight: 158, alignSelf: 'stretch', overflow: 'hidden' },
+  hostExperienceArtworkCompact: { width: 72, minHeight: 154 },
   hostArtworkIcon: { position: 'absolute', right: 8, bottom: 8, width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.22)' },
-  hostExperienceContent: { flex: 1, minWidth: 0, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 11, gap: 6 },
+  hostExperienceContent: { flex: 1, minWidth: 0, justifyContent: 'center', paddingVertical: 9, paddingHorizontal: 10, gap: 5 },
+  hostExperienceContentCompact: { paddingVertical: 8, paddingHorizontal: 8, gap: 4 },
   hostExperienceTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   hostExperienceTitle: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_700Bold' },
-  hostStatusPill: { flexShrink: 0, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 12 },
+  hostStatusPill: { flexShrink: 0, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   hostStatusText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
   hostMetaLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   hostMetaText: { flex: 1, minWidth: 0, fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
@@ -9488,13 +9536,17 @@ const styles = StyleSheet.create({
   hostPlacesText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
   hostManageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: StyleSheet.hairlineWidth, marginTop: 1, paddingTop: 6 },
   hostManageText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
-  hostQuickActionsSection: { gap: 12, marginTop: 12, marginBottom: 10 },
+  hostQuickActionsSection: { gap: 10, marginTop: 9, marginBottom: 10 },
   hostQuickHeading: { gap: 0 },
   hostQuickTitle: { fontSize: 17, lineHeight: 22, fontFamily: 'Inter_700Bold' },
-  hostQuickActions: { flexDirection: 'row', gap: 8 },
-  hostQuickAction: { flex: 1, minWidth: 0, minHeight: 74, flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingHorizontal: 9, paddingVertical: 9, gap: 6 },
-  hostQuickIcon: { width: 31, height: 31, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  hostQuickLabel: { flex: 1, minWidth: 0, fontSize: 10, lineHeight: 13, fontFamily: 'Inter_700Bold' },
+  hostQuickActions: { gap: 8 },
+  hostQuickAction: { minWidth: 0, minHeight: 64, flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, gap: 10 },
+  hostQuickIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  hostQuickCopy: { flex: 1, minWidth: 0, gap: 2 },
+  hostQuickLabel: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_700Bold' },
+  hostQuickDetail: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
+  hostQuickCount: { minWidth: 25, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 11 },
+  hostQuickCountText: { fontSize: 11, lineHeight: 14, fontFamily: 'Inter_700Bold' },
   hostDetailCard: { borderWidth: 1, padding: 15, marginBottom: 14 },
   hostDetailTopline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   hostDetailCategoryBadge: { minHeight: 29, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 9, borderRadius: 15 },
