@@ -1,19 +1,25 @@
-import { useState } from "react";
-import { ActivityIndicator, Alert, Linking, Pressable, Share, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, GestureResponderEvent, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   getGetHostOverviewQueryKey,
   getGetOrganisationTreasuryQueryKey,
   getListOrganisationFundsQueryKey,
+  getListFundPayoutsQueryKey,
+  getListHostExperiencesQueryKey,
   useCreateOrganisationFund,
   useGetHostOverview,
+  useListFundPayouts,
+  useListHostExperiences,
   useGetOrganisationTreasury,
   useListOrganisationFunds,
   useRegisterOrganisationTreasury,
 } from "@workspace/api-client-react";
-import type { HostOverview, OrganisationFund, OrganisationTreasuryDashboard, OrganisationTreasuryInput } from "@workspace/api-client-react";
+import type { FundPayout, HostExperience, HostOverview, OrganisationFund, OrganisationTreasuryDashboard, OrganisationTreasuryInput } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { useAuth } from "@/context/AuthContext";
 import { ContributeToFund } from "@/components/fundraising/ContributionCheckout";
 import { CharityLedgerSection } from "@/components/fundraising/CharityLedger";
 import { CharityPayoutsSection } from "@/components/fundraising/Payouts";
@@ -175,24 +181,25 @@ function CampaignProgressCard({ fund, onPress }: { fund: OrganisationFund; onPre
 function ExpandableMetric({
   label,
   value,
-  detail,
   icon,
   expanded,
+  accessibilityLabel,
   onPress,
 }: {
   label: string;
   value: string;
-  detail: string;
   icon: keyof typeof Feather.glyphMap;
   expanded: boolean;
+  accessibilityLabel: string;
   onPress: () => void;
 }) {
   const colors = useColors();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${label}: ${value}`}
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ expanded }}
+      aria-expanded={expanded}
       testID={`treasury-metric-${label.toLowerCase().replaceAll(" ", "-")}`}
       onPress={onPress}
       style={{ flex: 1, minWidth: "46%", borderWidth: 1, borderColor: expanded ? colors.primary + "55" : colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 4, padding: 14, gap: 11 }}
@@ -207,8 +214,221 @@ function ExpandableMetric({
         <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: colors.foreground, fontSize: 19, fontFamily: "Inter_700Bold" }}>{value}</Text>
         <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.35 }}>{label}</Text>
       </View>
-      {expanded ? <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>{detail}</Text> : null}
     </Pressable>
+  );
+}
+
+type TreasuryMetric = "raised" | "participants" | "experiences" | "rewarded";
+
+function TreasuryMetricDetailsSheet({
+  metric,
+  overview,
+  funds,
+  fundsLoading,
+  fundsError,
+  retryFunds,
+  experiences,
+  experiencesLoading,
+  experiencesError,
+  retryExperiences,
+  payouts,
+  payoutsLoading,
+  payoutsError,
+  retryPayouts,
+  loadedPayouts,
+  onLoadMorePayouts,
+  hasMorePayouts,
+  payoutsFetching,
+  onClose,
+}: {
+  metric: TreasuryMetric | null;
+  overview?: HostOverview;
+  funds?: OrganisationFund[];
+  fundsLoading: boolean;
+  fundsError: boolean;
+  retryFunds: () => void;
+  experiences?: HostExperience[];
+  experiencesLoading: boolean;
+  experiencesError: boolean;
+  retryExperiences: () => void;
+  payouts?: FundPayout[];
+  payoutsLoading: boolean;
+  payoutsError: boolean;
+  retryPayouts: () => void;
+  loadedPayouts: FundPayout[];
+  onLoadMorePayouts: () => void;
+  hasMorePayouts: boolean;
+  payoutsFetching: boolean;
+  onClose: () => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const title = metric === "raised" ? "Campaign raised" : metric === "participants" ? "Participant entries" : metric === "experiences" ? "Experiences" : "Rewarded users";
+  const totalRaised = funds?.reduce((total, fund) => total + Number(fund.raisedSol || 0), 0) ?? 0;
+  const count = metric === "raised" ? (funds ? `${totalRaised.toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL` : "—")
+    : metric === "participants" ? (overview ? String(overview.participantCount) : "—")
+      : metric === "experiences" ? (overview ? String(overview.totalExperiences) : "—")
+        : (overview ? String(overview.rewardedUserCount) : "—");
+  const summaryLabel = metric === "raised" ? "verified campaign contributions"
+    : metric === "participants" ? "participant entries"
+      : metric === "experiences" ? "hosted experiences"
+        : "distinct paid recipients";
+  const summaryDescription = metric === "raised"
+    ? "Across OrganisationFund records. This is not the shared treasury balance."
+    : metric === "participants"
+      ? "Entries across experiences. A person joining multiple experiences can count more than once."
+      : metric === "experiences"
+        ? "Experiences owned by your organisation, whether or not they have a fundraiser."
+        : "Distinct recipients whose payouts have been verified paid on chain.";
+  const showExperienceLoading = metric === "participants" || metric === "experiences";
+  const showError = metric === "raised" ? fundsError : showExperienceLoading ? experiencesError : metric === "rewarded" ? payoutsError : false;
+  const loading = metric === "raised" ? fundsLoading : showExperienceLoading ? experiencesLoading : metric === "rewarded" ? payoutsLoading : false;
+  const retry = metric === "raised" ? retryFunds : showExperienceLoading ? retryExperiences : retryPayouts;
+  const panResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_event, gesture) => gesture.dy > 7 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.15,
+    onPanResponderRelease: (_event, gesture) => { if (gesture.dy > 72 && gesture.vy >= 0) onClose(); },
+  })).current;
+  const webTouch = useRef({ startX: 0, startY: 0, lastY: 0, verticalDrag: false });
+  const onWebTouchStart = (event: GestureResponderEvent) => {
+    const { pageX, pageY } = event.nativeEvent;
+    webTouch.current = { startX: pageX, startY: pageY, lastY: pageY, verticalDrag: false };
+  };
+  const onWebTouchMove = (event: GestureResponderEvent) => {
+    const { pageX, pageY } = event.nativeEvent;
+    const touch = webTouch.current;
+    const deltaX = pageX - touch.startX;
+    const deltaY = pageY - touch.startY;
+    touch.lastY = pageY;
+    if (!touch.verticalDrag && Math.abs(deltaY) > 7 && Math.abs(deltaY) > Math.abs(deltaX) * 1.15) {
+      touch.verticalDrag = true;
+    }
+    if (touch.verticalDrag) event.preventDefault();
+  };
+  const onWebTouchEnd = () => {
+    const touch = webTouch.current;
+    if (touch.verticalDrag && touch.lastY - touch.startY > 72) onClose();
+    webTouch.current = { startX: 0, startY: 0, lastY: 0, verticalDrag: false };
+  };
+  const onWebTouchCancel = () => {
+    webTouch.current = { startX: 0, startY: 0, lastY: 0, verticalDrag: false };
+  };
+  const formatDate = (date: string | null | undefined) => {
+    if (!date) return "Date unavailable";
+    const parsed = new Date(date);
+    return Number.isNaN(parsed.getTime()) ? "Date unavailable" : parsed.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  };
+  const statusLabel = (status: string) => status.replace(/[_-]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const state = (icon: keyof typeof Feather.glyphMap, heading: string, body: string) => (
+    <View style={{ alignItems: "center", paddingHorizontal: 20, paddingVertical: 28, gap: 10 }}>
+      <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + "12", alignItems: "center", justifyContent: "center" }}>
+        <Feather name={icon} size={20} color={colors.primary} />
+      </View>
+      <Text style={{ color: colors.foreground, fontSize: 16, lineHeight: 22, fontFamily: "Inter_700Bold", textAlign: "center" }}>{heading}</Text>
+      <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19, textAlign: "center" }}>{body}</Text>
+    </View>
+  );
+  const record = (key: string, heading: string, meta: string, trailing?: string, submeta?: string) => (
+    <View key={key} testID={`treasury-metric-record-${key}`} style={{ minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }}>
+      <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primary + "12", alignItems: "center", justifyContent: "center" }}>
+        <Feather name={metric === "raised" ? "trending-up" : metric === "rewarded" ? "award" : metric === "participants" ? "users" : "calendar"} size={15} color={colors.primary} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={2} style={{ color: colors.foreground, fontSize: 14, lineHeight: 19, fontFamily: "Inter_600SemiBold" }}>{heading}</Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16, marginTop: 3 }}>{meta}</Text>
+        {submeta ? <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15, marginTop: 2 }}>{submeta}</Text> : null}
+      </View>
+      {trailing ? <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_700Bold", textAlign: "right" }}>{trailing}</Text> : null}
+    </View>
+  );
+  const paidRecipients = new Map<number, FundPayout>();
+  for (const payout of loadedPayouts) {
+    if (payout.status === "paid" && !paidRecipients.has(payout.recipientUserId)) paidRecipients.set(payout.recipientUserId, payout);
+  }
+  const noRows = metric === "raised" ? !funds?.length
+    : metric === "participants" ? !experiences?.some((experience) => experience.participantCount > 0)
+      : metric === "experiences" ? !experiences?.length
+        : !paidRecipients.size;
+
+  if (!metric) return null;
+  return (
+    <Modal transparent visible animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(16,16,22,0.48)" }}>
+        <Pressable testID="treasury-metric-backdrop" accessibilityRole="button" accessibilityLabel="Close treasury metric details" onPress={onClose} style={StyleSheet.absoluteFill} />
+        <View style={{ height: "94%", maxHeight: "98%", paddingTop: 12, paddingHorizontal: 20, paddingBottom: Math.max(insets.bottom, 20), backgroundColor: colors.background, borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
+          <View
+            {...(Platform.OS === "web" ? {} : panResponder.panHandlers)}
+            onTouchStart={Platform.OS === "web" ? onWebTouchStart : undefined}
+            onTouchMove={Platform.OS === "web" ? onWebTouchMove : undefined}
+            onTouchEnd={Platform.OS === "web" ? onWebTouchEnd : undefined}
+            onTouchCancel={Platform.OS === "web" ? onWebTouchCancel : undefined}
+            testID="treasury-metric-swipe-handle"
+            accessibilityHint="Swipe down to close"
+            style={{ alignItems: "center", paddingBottom: 13 }}
+          >
+            <View style={{ width: 38, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 13 }} />
+            <View style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ color: colors.primary, fontSize: 10, letterSpacing: 1, fontFamily: "Inter_700Bold", marginBottom: 4 }}>TREASURY SUMMARY</Text>
+                <Text style={{ color: colors.foreground, fontSize: 23, lineHeight: 29, fontFamily: "Inter_700Bold" }}>{title}</Text>
+              </View>
+              <Pressable testID="treasury-metric-close" accessibilityRole="button" accessibilityLabel="Close summary" onPress={onClose} style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.65 : 1 })}>
+                <Feather name="x" size={20} color={colors.foreground} />
+              </Pressable>
+            </View>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 14, backgroundColor: colors.muted, borderRadius: colors.radius }}>
+            <Text style={{ color: colors.primary, fontSize: 32, lineHeight: 39, fontFamily: "Inter_700Bold" }}>{count}</Text>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_700Bold" }}>{summaryLabel}</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 17, marginTop: 2 }}>{summaryDescription}</Text>
+            </View>
+            <Feather name={metric === "raised" ? "trending-up" : metric === "participants" ? "users" : metric === "experiences" ? "calendar" : "award"} size={20} color={colors.primary} />
+          </View>
+          <ScrollView style={{ flex: 1, marginTop: 12 }} contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
+            {loading ? (
+              <View accessibilityRole="progressbar" accessibilityLabel={`Loading ${title.toLowerCase()}`} style={{ alignItems: "center", paddingVertical: 30, gap: 10 }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>Loading records…</Text>
+              </View>
+            ) : showError ? (
+              <View style={{ alignItems: "center", padding: 24, gap: 10 }}>
+                <Feather name="alert-circle" size={23} color={colors.destructive} />
+                <Text accessibilityRole="alert" style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold", textAlign: "center" }}>Couldn’t load these records</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18, textAlign: "center" }}>The saved summary remains available. Try again to reload its details.</Text>
+                <Pressable testID="treasury-metric-retry" accessibilityRole="button" onPress={retry} style={{ minHeight: 44, flexDirection: "row", alignItems: "center", gap: 7 }}>
+                  <Feather name="refresh-cw" size={14} color={colors.primary} /><Text style={{ color: colors.primary, fontFamily: "Inter_700Bold" }}>Try again</Text>
+                </Pressable>
+              </View>
+            ) : metric === "raised" && funds?.length ? funds.map((fund) => {
+              const amount = Number(fund.raisedSol);
+              return record(`fund-${fund.id}`, fund.title, `${fund.experienceTitle ? `For ${fund.experienceTitle} · ` : ""}${fund.contributionCount} verified ${fund.contributionCount === 1 ? "contribution" : "contributions"}`, `${Number.isFinite(amount) ? amount.toLocaleString(undefined, { maximumFractionDigits: 4 }) : fund.raisedSol} / ${fund.goalSol} SOL`, "Verified raised amount · goal");
+            }) : (metric === "participants" || metric === "experiences") && experiences?.length ? (
+              metric === "participants" ? experiences.filter((experience) => experience.participantCount > 0).map((experience) =>
+                record(`participants-${experience.id}`, experience.title, `${formatDate(experience.date)} · ${experience.city}`, `${experience.participantCount} ${experience.participantCount === 1 ? "entry" : "entries"}`, `${experience.waitlistCount} waitlisted · people can count in more than one experience`)
+              ) : experiences.map((experience) =>
+                record(`experience-${experience.id}`, experience.title, `${formatDate(experience.date)} · ${experience.city}`, statusLabel(experience.status), `${experience.participantCount} ${experience.participantCount === 1 ? "participant entry" : "participant entries"} · ${experience.waitlistCount} waitlisted`)
+              )
+            ) : metric === "rewarded" ? (
+              <>
+                <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16, paddingVertical: 8 }}>
+                  Showing distinct recipients from loaded payout history. This list may be partial; only payouts verified as paid are included.
+                </Text>
+                {!paidRecipients.size ? state("award", "No paid recipients in this page", "Only payouts verified as paid count here. Older payout pages may contain additional recipients.") : null}
+                {[...paidRecipients.entries()].map(([recipientId, payout]) =>
+                  record(`recipient-${recipientId}`, payout.recipientName, `Paid ${formatDate(payout.paidAt)} · verified on chain`, `${payout.amountSol} SOL`, payout.reason)
+                )}
+                {hasMorePayouts ? (
+                  <Pressable testID="treasury-metric-load-more-payouts" accessibilityRole="button" disabled={payoutsFetching} onPress={onLoadMorePayouts} style={{ minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }}>
+                    {payoutsFetching ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="chevron-down" size={15} color={colors.primary} />}
+                    <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold", fontSize: 12 }}>{payoutsFetching ? "Loading older payouts…" : "Load older payout history"}</Text>
+                  </Pressable>
+                ) : payouts?.length === 50 ? <Text style={{ color: colors.mutedForeground, fontSize: 11, paddingVertical: 10, textAlign: "center" }}>No further payout page is available.</Text> : null}
+              </>
+            ) : noRows ? state(metric === "raised" ? "trending-up" : metric === "participants" ? "users" : metric === "experiences" ? "calendar" : "award", "No records to show yet", metric === "raised" ? "Campaign records will appear here when funds have verified contributions." : metric === "participants" ? "Participant entries will appear here as people join hosted experiences." : metric === "experiences" ? "Experiences owned by your organisation will appear here." : "Verified paid recipients will appear here when payout history is available.") : null}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -387,8 +607,11 @@ export function OrganisationFundsScreen({
   const [createdFund, setCreatedFund] = useState<OrganisationFund | null>(null);
   const [selectedFund, setSelectedFund] = useState<OrganisationFund | null>(null);
   const [expandedMetric, setExpandedMetric] = useState<string | null>(null);
+  const [payoutBefore, setPayoutBefore] = useState<string | undefined>();
+  const [loadedPayoutRecords, setLoadedPayoutRecords] = useState<FundPayout[]>([]);
   const [campaignFilter, setCampaignFilter] = useState<"active" | "all" | "closed">("active");
   const [experienceIdToAttach, setExperienceIdToAttach] = useState<number | undefined>(initialExperienceId);
+  const { user } = useAuth();
   const hostOverviewQuery = useGetHostOverview({
     query: {
       queryKey: getGetHostOverviewQueryKey(),
@@ -408,6 +631,28 @@ export function OrganisationFundsScreen({
       enabled: Number.isSafeInteger(organisationUserId) && organisationUserId > 0,
     },
   });
+  const hostedExperiencesQuery = useListHostExperiences({
+    query: {
+      queryKey: getListHostExperiencesQueryKey(),
+      enabled: expandedMetric === "participants" || expandedMetric === "experiences",
+    },
+  });
+  const payoutParams = payoutBefore ? { before: payoutBefore } : undefined;
+  const payoutsQuery = useListFundPayouts(payoutParams, {
+    query: {
+      queryKey: [...getListFundPayoutsQueryKey(payoutParams), user?.id ?? "anon"],
+      enabled: expandedMetric === "rewarded" && !!user,
+      staleTime: 0,
+    },
+  });
+  useEffect(() => {
+    const page = payoutsQuery.data ?? [];
+    if (expandedMetric !== "rewarded" || !page.length) return;
+    setLoadedPayoutRecords((previous) => {
+      const ids = new Set(previous.map((item) => item.id));
+      return [...previous, ...page.filter((item) => !ids.has(item.id))];
+    });
+  }, [payoutsQuery.data, expandedMetric]);
   const selectedFundFromRoute = initialFundId ? fundsQuery.data?.find((fund) => fund.id === initialFundId) : undefined;
   const register = useRegisterOrganisationTreasury();
   const create = useCreateOrganisationFund({ mutation: { onSuccess: () => {
@@ -834,10 +1079,17 @@ export function OrganisationFundsScreen({
             <View style={{ gap: 9 }}>
               <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Community impact</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 9 }}>
-                <ExpandableMetric label="CAMPAIGN RAISED" value={fundsQuery.data ? `${fundsQuery.data.reduce((total, fund) => total + Number(fund.raisedSol || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL` : "—"} detail="Total across campaign records with verified, finalized deposits. It is separate from the wallet balance and excludes unattributed transfers." icon="trending-up" expanded={expandedMetric === "raised"} onPress={() => setExpandedMetric(expandedMetric === "raised" ? null : "raised")} />
-                <ExpandableMetric label="PARTICIPANT ENTRIES" value={hostOverviewQuery.data ? hostOverviewQuery.data.participantCount.toLocaleString() : "—"} detail="Participation records across your hosted Experiences. A person joining more than one Experience can appear more than once." icon="users" expanded={expandedMetric === "participants"} onPress={() => setExpandedMetric(expandedMetric === "participants" ? null : "participants")} />
-                <ExpandableMetric label="EXPERIENCES" value={hostOverviewQuery.data ? hostOverviewQuery.data.totalExperiences.toLocaleString() : "—"} detail="Experiences hosted by your organisation. Fundraising is optional; these totals are not presented as funded Experiences." icon="calendar" expanded={expandedMetric === "experiences"} onPress={() => setExpandedMetric(expandedMetric === "experiences" ? null : "experiences")} />
-                <ExpandableMetric label="REWARDED USERS" value={hostOverviewQuery.data && Number.isFinite(hostOverviewQuery.data.rewardedUserCount) ? hostOverviewQuery.data.rewardedUserCount.toLocaleString() : "—"} detail="Distinct recipients with a payout verified as paid on chain. Proposed or unverified payouts are not included." icon="award" expanded={expandedMetric === "rewarded"} onPress={() => setExpandedMetric(expandedMetric === "rewarded" ? null : "rewarded")} />
+                <ExpandableMetric label="CAMPAIGN RAISED" accessibilityLabel={`Campaign raised: ${fundsQuery.data ? `${fundsQuery.data.reduce((total, fund) => total + Number(fund.raisedSol || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL` : "unavailable"}`} value={fundsQuery.data ? `${fundsQuery.data.reduce((total, fund) => total + Number(fund.raisedSol || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL` : "—"} icon="trending-up" expanded={expandedMetric === "raised"} onPress={() => setExpandedMetric(expandedMetric === "raised" ? null : "raised")} />
+                <ExpandableMetric label="PARTICIPANT ENTRIES" accessibilityLabel={`Participant entries: ${hostOverviewQuery.data?.participantCount.toLocaleString() ?? "unavailable"}`} value={hostOverviewQuery.data ? hostOverviewQuery.data.participantCount.toLocaleString() : "—"} icon="users" expanded={expandedMetric === "participants"} onPress={() => setExpandedMetric(expandedMetric === "participants" ? null : "participants")} />
+                <ExpandableMetric label="EXPERIENCES" accessibilityLabel={`Experiences: ${hostOverviewQuery.data?.totalExperiences.toLocaleString() ?? "unavailable"}`} value={hostOverviewQuery.data ? hostOverviewQuery.data.totalExperiences.toLocaleString() : "—"} icon="calendar" expanded={expandedMetric === "experiences"} onPress={() => setExpandedMetric(expandedMetric === "experiences" ? null : "experiences")} />
+                <ExpandableMetric label="REWARDED USERS" accessibilityLabel={`Rewarded users: ${hostOverviewQuery.data && Number.isFinite(hostOverviewQuery.data.rewardedUserCount) ? hostOverviewQuery.data.rewardedUserCount.toLocaleString() : "unavailable"}`} value={hostOverviewQuery.data && Number.isFinite(hostOverviewQuery.data.rewardedUserCount) ? hostOverviewQuery.data.rewardedUserCount.toLocaleString() : "—"} icon="award" expanded={expandedMetric === "rewarded"} onPress={() => {
+                  if (expandedMetric === "rewarded") setExpandedMetric(null);
+                  else {
+                    setPayoutBefore(undefined);
+                    setLoadedPayoutRecords([]);
+                    setExpandedMetric("rewarded");
+                  }
+                }} />
               </View>
             </View>
             <View style={{ gap: 10 }}>
@@ -957,6 +1209,31 @@ export function OrganisationFundsScreen({
         <CharityLedgerSection />
         <CharityPayoutsSection funds={fundsQuery.data ?? []} />
       </KeyboardAwareScrollViewCompat>
+      <TreasuryMetricDetailsSheet
+        metric={expandedMetric as TreasuryMetric | null}
+        overview={hostOverviewQuery.data}
+        funds={fundsQuery.data}
+        fundsLoading={fundsQuery.isLoading}
+        fundsError={fundsQuery.isError}
+        retryFunds={() => { void fundsQuery.refetch(); }}
+        experiences={hostedExperiencesQuery.data}
+        experiencesLoading={hostedExperiencesQuery.isLoading}
+        experiencesError={hostedExperiencesQuery.isError}
+        retryExperiences={() => { void hostedExperiencesQuery.refetch(); }}
+        payouts={payoutsQuery.data}
+        payoutsLoading={payoutsQuery.isLoading}
+        payoutsError={payoutsQuery.isError}
+        retryPayouts={() => { void payoutsQuery.refetch(); }}
+        loadedPayouts={loadedPayoutRecords}
+        hasMorePayouts={(payoutsQuery.data?.length ?? 0) >= 50}
+        payoutsFetching={payoutsQuery.isFetching}
+        onLoadMorePayouts={() => {
+          const page = payoutsQuery.data ?? [];
+          if (page.length < 50) return;
+          setPayoutBefore(page[page.length - 1].id);
+        }}
+        onClose={() => setExpandedMetric(null)}
+      />
     </View>
   );
 }
