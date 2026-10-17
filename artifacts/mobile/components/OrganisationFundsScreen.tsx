@@ -21,7 +21,6 @@ import type { FundPayout, HostExperience, HostOverview, OrganisationFund, Organi
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { ContributeToFund } from "@/components/fundraising/ContributionCheckout";
-import { CharityLedgerSection } from "@/components/fundraising/CharityLedger";
 import { CharityPayoutsSection } from "@/components/fundraising/Payouts";
 import { FundOwnerControls, FundStats } from "@/components/fundraising/FundOwnerControls";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
@@ -1264,7 +1263,6 @@ export function OrganisationFundsScreen({
             }, false, register.isPending, "arrow-right")}
           </View>
         )}
-        <CharityLedgerSection />
         <CharityPayoutsSection funds={fundsQuery.data ?? []} />
       </KeyboardAwareScrollViewCompat>
       <TreasuryMetricDetailsSheet
