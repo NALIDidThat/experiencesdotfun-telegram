@@ -113,6 +113,7 @@ import { SocialFeed } from '@/components/SocialFeed';
 import { PersonalActivityScreen } from '@/components/PersonalActivityScreen';
 import { OrganisationActivityDashboard } from '@/components/OrganisationActivityDashboard';
 import { OrganisationHomeScreen } from '@/components/OrganisationHomeScreen';
+import { ExperienceManagementCard } from '@/components/ExperienceManagementCard';
 import { AccountsCenterScreen } from '@/components/AccountsCenterScreen';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
@@ -5615,8 +5616,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
 function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
   const { user } = useAuth();
-  const { width: viewportWidth } = useWindowDimensions();
-  const compactHostLayout = viewportWidth < 360;
   const overview = useGetHostOverview();
   const experiences = useListHostExperiences();
   const [experienceSearch, setExperienceSearch] = useState('');
@@ -5789,78 +5788,23 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
         <EmptyState title="Your experiences didn’t load" body="Try again to see your published opportunities." actionLabel="Try again" onAction={() => { void experiences.refetch(); }} />
       ) : allExperiences.length === 0 ? (
         <EmptyState title="No experience published" body="Create a real volunteering opportunity and it will appear here." icon="edit-3" actionLabel="Create experience" onAction={() => go('create')} />
-      ) : filteredExperiences.length ? filteredExperiences.map((item) => {
-        const statusColor = item.status === 'published' ? colors.success : item.status === 'full' ? colors.secondary : colors.mutedForeground;
-        const filledCapacity = item.capacity > 0 ? Math.min(100, Math.round((item.participantCount / item.capacity) * 100)) : 0;
-        return (
-          <Pressable
-            key={item.id}
-            accessibilityRole="button"
-            accessibilityLabel={`Open management for ${item.title}. ${hostExperienceStatusLabels[item.status]}, ${item.participantCount} of ${item.capacity} places filled, ${item.waitlistCount} waitlisted.`}
-            testID={`host-experience-${item.id}`}
-            onPress={() => { triggerHaptic(); go('host-detail', { id: String(item.id) }); }}
-            style={[
-              styles.hostExperienceCard,
-              compactHostLayout ? styles.hostExperienceCardCompact : null,
-              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 2 },
-            ]}
-          >
-            <View style={[
-              styles.hostExperienceArtwork,
-              compactHostLayout ? styles.hostExperienceArtworkCompact : null,
-              { backgroundColor: colors.secondary + '12' },
-            ]}>
-              {item.category === 'environmental' || item.category === 'community' ? (
-                <ImageBackground source={require('../assets/images/community-cover.jpg')} resizeMode="cover" style={StyleSheet.absoluteFill} />
-              ) : (
-                <LinearGradient colors={categoryGradients[item.category]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-              )}
-              <View style={styles.hostArtworkIcon}>
-                <Feather name={categoryIcon[item.category]} size={21} color={colors.primaryForeground} />
-              </View>
-            </View>
-
-            <View style={[styles.hostExperienceContent, compactHostLayout ? styles.hostExperienceContentCompact : null]}>
-              <View style={styles.hostExperienceTop}>
-                <View style={[styles.hostStatusPill, { backgroundColor: statusColor + '14' }]}>
-                  <Text style={[styles.hostStatusText, { color: statusColor }]}>{hostExperienceStatusLabels[item.status]}</Text>
-                </View>
-                <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
-              </View>
-              <Text numberOfLines={2} style={[styles.hostExperienceTitle, { color: colors.foreground }]}>{item.title}</Text>
-              <View style={styles.hostMetaLine}>
-                <Feather name="map-pin" size={13} color={colors.mutedForeground} />
-                <Text numberOfLines={1} style={[styles.hostMetaText, { color: colors.mutedForeground }]}>{item.location}, {item.city}</Text>
-              </View>
-              <View style={styles.hostMetaLine}>
-                <Feather name="calendar" size={13} color={colors.mutedForeground} />
-                <Text numberOfLines={1} style={[styles.hostMetaText, { color: colors.mutedForeground }]}>{dateLabel(item.date)} · {item.startTime}</Text>
-              </View>
-              <View style={styles.hostCapacityHeader}>
-                <Text style={[styles.hostCapacityLabel, { color: colors.mutedForeground }]}>Places filled</Text>
-                <Text style={[styles.hostCapacityCount, { color: colors.foreground }]}>{item.participantCount} / {item.capacity}</Text>
-              </View>
-              <View style={[styles.hostCapacityTrack, { backgroundColor: colors.border }]}>
-                <View style={[styles.hostCapacityFill, { width: `${filledCapacity}%`, backgroundColor: colors.primary }]} />
-              </View>
-              <View style={styles.hostExperienceFooter}>
-                <View style={styles.hostRewardRow}>
-                  <Feather name="award" size={14} color={colors.secondary} />
-                  <Text style={[styles.hostRewardText, { color: colors.secondary }]}>{item.xpReward} XP</Text>
-                  {item.monetaryRewardPence ? <Text style={[styles.hostRewardText, { color: colors.mutedForeground }]}>· {money(item.monetaryRewardPence)}</Text> : null}
-                </View>
-                <Text style={[styles.hostPlacesText, { color: item.availablePlaces === 0 ? colors.primary : colors.mutedForeground }]}>
-                  {item.availablePlaces === 0 ? 'Full' : `${item.availablePlaces} left`}
-                </Text>
-              </View>
-              <View style={[styles.hostManageRow, { borderTopColor: colors.border }]}>
-                <Text style={[styles.hostManageText, { color: colors.primary }]}>Manage experience</Text>
-                <Feather name="arrow-right" size={15} color={colors.primary} />
-              </View>
-            </View>
-          </Pressable>
-        );
-      }) : (
+      ) : filteredExperiences.length ? filteredExperiences.map((item) => (
+        <ExperienceManagementCard
+          key={item.id}
+          item={item}
+          statusLabel={hostExperienceStatusLabels[item.status]}
+          dateTimeLabel={`${dateLabel(item.date)} · ${item.startTime}`}
+          rewardLabel={`+${item.xpReward} XP${item.monetaryRewardPence ? ` · ${money(item.monetaryRewardPence)}` : ''}`}
+          accessibilityLabel={`Open management for ${item.title}. ${hostExperienceStatusLabels[item.status]}, ${item.participantCount} of ${item.capacity} places filled, ${item.waitlistCount} waitlisted.`}
+          testID={`host-experience-${item.id}`}
+          artwork={item.category === 'environmental' || item.category === 'community' ? (
+            <ImageBackground source={require('../assets/images/community-cover.jpg')} resizeMode="cover" style={StyleSheet.absoluteFill} />
+          ) : (
+            <LinearGradient colors={categoryGradients[item.category]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          )}
+          onPress={() => { triggerHaptic(); go('host-detail', { id: String(item.id) }); }}
+        />
+      )) : (
         <EmptyState
           title="No matching experiences"
           body="Try another search or status filter."
@@ -9510,30 +9454,14 @@ const styles = StyleSheet.create({
   hostFilterList: { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingBottom: 14 },
   hostFilterChip: { minHeight: 38, justifyContent: 'center', borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
   hostFilterText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  hostExperienceCard: { flexDirection: 'row', minHeight: 158, borderWidth: 1, marginBottom: 10, overflow: 'hidden' },
-  hostExperienceCardCompact: { minHeight: 154 },
-  hostExperienceArtwork: { width: 86, minHeight: 158, alignSelf: 'stretch', overflow: 'hidden' },
-  hostExperienceArtworkCompact: { width: 72, minHeight: 154 },
-  hostArtworkIcon: { position: 'absolute', right: 8, bottom: 8, width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.22)' },
-  hostExperienceContent: { flex: 1, minWidth: 0, justifyContent: 'center', paddingVertical: 9, paddingHorizontal: 10, gap: 5 },
-  hostExperienceContentCompact: { paddingVertical: 8, paddingHorizontal: 8, gap: 4 },
-  hostExperienceTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  hostExperienceTitle: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_700Bold' },
   hostStatusPill: { flexShrink: 0, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   hostStatusText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
-  hostMetaLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  hostMetaText: { flex: 1, minWidth: 0, fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
   hostCapacityHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 1 },
   hostCapacityLabel: { fontSize: 10, fontFamily: 'Inter_500Medium' },
   hostCapacityCount: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   hostCapacityTrack: { height: 6, overflow: 'hidden', borderRadius: 4 },
   hostCapacityFill: { height: 6, borderRadius: 4 },
-  hostExperienceFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 },
-  hostRewardRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  hostRewardText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
   hostPlacesText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
-  hostManageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: StyleSheet.hairlineWidth, marginTop: 1, paddingTop: 6 },
-  hostManageText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   hostQuickActionsSection: { gap: 10, marginTop: 9, marginBottom: 10 },
   hostQuickHeading: { gap: 0 },
   hostQuickTitle: { fontSize: 17, lineHeight: 22, fontFamily: 'Inter_700Bold' },
