@@ -5918,6 +5918,7 @@ function HostExperienceDetail({
   });
   const [participantSearch, setParticipantSearch] = useState('');
   const [participantFilter, setParticipantFilter] = useState<HostParticipantFilter>(initialFocus ?? 'all');
+  const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'participants' | 'milestones' | 'fundraising' | 'analytics'>(initialFocus ? 'participants' : 'overview');
   const [rejectReasons, setRejectReasons] = useState<Record<number, string>>({});
   const [milestoneRejectReasons, setMilestoneRejectReasons] = useState<Record<number, string>>({});
   const [actionError, setActionError] = useState<string | null>(null);
@@ -6025,6 +6026,15 @@ function HostExperienceDetail({
     : experience?.status === 'full'
       ? colors.secondary
       : colors.mutedForeground;
+  const detailTabs: Array<{ key: typeof activeDetailTab; label: string }> = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'participants', label: 'Participants' },
+    { key: 'milestones', label: 'Milestones' },
+    ...(user?.userType === 'organisation' && user.organisation?.type === 'charity'
+      ? [{ key: 'fundraising' as const, label: 'Fundraising' }]
+      : []),
+    { key: 'analytics', label: 'Analytics' },
+  ];
 
   return (
     <KeyboardAwareScrollViewCompat
@@ -6055,77 +6065,106 @@ function HostExperienceDetail({
 
       {experience ? (
         <>
-          <View style={[styles.hostDetailCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-            <View style={styles.hostDetailTopline}>
-              <View style={[styles.hostDetailCategoryBadge, { backgroundColor: colors.primary + '12' }]}>
-                <Feather name={categoryIcon[experience.category]} size={13} color={colors.primary} />
-                <Text style={[styles.hostDetailCategoryText, { color: colors.primary }]}>{categoryLabel[experience.category]}</Text>
+          <View style={[styles.hostDetailHero, { borderRadius: colors.radius + 4 }]}>
+            {experience.category === 'community' ? (
+              <ImageBackground source={require('../assets/images/community-cover.jpg')} resizeMode="cover" style={StyleSheet.absoluteFill} />
+            ) : (
+              <LinearGradient colors={categoryGradients[experience.category]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            )}
+            <View pointerEvents="none" style={styles.hostDetailHeroTint}>
+              <LinearGradient colors={['#10101A22', '#10101A58', '#10101AE8']} style={StyleSheet.absoluteFill} />
+            </View>
+            <View style={styles.hostDetailHeroTop}>
+              <View style={[styles.hostStatusPill, { backgroundColor: '#10101A99', borderColor: '#FFFFFF30', borderWidth: 1 }]}>
+                <View style={[styles.hostDetailStatusDot, { backgroundColor: statusColor }]} />
+                <Text style={[styles.hostStatusText, { color: '#FFFFFF' }]}>{hostExperienceStatusLabels[experience.status]}</Text>
               </View>
-              <View style={[styles.hostStatusPill, { backgroundColor: statusColor + '14' }]}>
-                <Text style={[styles.hostStatusText, { color: statusColor }]}>{hostExperienceStatusLabels[experience.status]}</Text>
+              <View style={styles.hostDetailHeroCategory}>
+                <Feather name={categoryIcon[experience.category]} size={12} color="#FFFFFF" />
+                <Text style={styles.hostDetailHeroCategoryText}>{categoryLabel[experience.category]}</Text>
               </View>
             </View>
-            <Text style={[styles.hostDetailTitle, { color: colors.foreground }]}>{experience.title}</Text>
-            <Text style={[styles.hostDetailDescription, { color: colors.mutedForeground }]}>
-              {experience.description || 'No description added yet.'}
-            </Text>
-
-            <View style={styles.hostDetailFacts}>
-              <View style={[styles.hostDetailFact, { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: Math.max(8, colors.radius - 6) }]}>
-                <View style={styles.hostDetailFactHeader}>
-                  <View style={[styles.hostDetailFactIcon, { backgroundColor: colors.card }]}>
-                    <Feather name="calendar" size={13} color={colors.primary} />
-                  </View>
-                  <Text style={[styles.hostDetailFactLabel, { color: colors.mutedForeground }]}>WHEN</Text>
-                </View>
-                <Text style={[styles.hostDetailFactValue, { color: colors.foreground }]}>{dateLabel(experience.date)}</Text>
-                <Text style={[styles.hostDetailFactSecondary, { color: colors.mutedForeground }]}>
-                  {experience.startTime} – {experience.endTime}
-                </Text>
+            {experience.category !== 'community' ? (
+              <View pointerEvents="none" style={styles.hostDetailHeroArtwork}>
+                <Feather name={categoryIcon[experience.category]} size={68} color="#FFFFFF" />
               </View>
-              <View style={[styles.hostDetailFact, { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: Math.max(8, colors.radius - 6) }]}>
-                <View style={styles.hostDetailFactHeader}>
-                  <View style={[styles.hostDetailFactIcon, { backgroundColor: colors.card }]}>
-                    <Feather name="map-pin" size={13} color={colors.primary} />
-                  </View>
-                  <Text style={[styles.hostDetailFactLabel, { color: colors.mutedForeground }]}>WHERE</Text>
-                </View>
-                <Text style={[styles.hostDetailFactValue, { color: colors.foreground }]}>{experience.location}</Text>
-                <Text style={[styles.hostDetailFactSecondary, { color: colors.mutedForeground }]}>{experience.city}</Text>
-              </View>
-            </View>
-
-            <View style={styles.hostDetailCapacity}>
-              <View style={styles.hostCapacityHeader}>
-                <Text style={[styles.hostCapacityLabel, { color: colors.mutedForeground }]}>Places filled</Text>
-                <Text style={[styles.hostCapacityCount, { color: colors.foreground }]}>{experience.participantCount} / {experience.capacity}</Text>
-              </View>
-              <View style={[styles.hostDetailProgressTrack, { backgroundColor: colors.border }]}>
-                <View
-                  style={[
-                    styles.hostDetailProgressFill,
-                    {
-                      width: `${experience.capacity > 0 ? Math.min(100, Math.round((experience.participantCount / experience.capacity) * 100)) : 0}%`,
-                      backgroundColor: colors.primary,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-
-            <View style={styles.hostDetailFooter}>
-              <View style={styles.hostDetailRewards}>
-                <View style={[styles.hostDetailRewardPill, { backgroundColor: colors.secondary + '12' }]}>
-                  <Feather name="award" size={13} color={colors.secondary} />
-                  <Text style={[styles.hostDetailRewardText, { color: colors.secondary }]}>{experience.xpReward} XP</Text>
-                </View>
-                {experience.monetaryRewardPence ? (
-                  <Text style={[styles.hostDetailMoneyReward, { color: colors.mutedForeground }]}>{money(experience.monetaryRewardPence)}</Text>
-                ) : null}
-              </View>
-              <Text style={[styles.hostPlacesText, { color: experience.availablePlaces === 0 ? colors.primary : colors.mutedForeground }]}>
-                {experience.availablePlaces === 0 ? 'No places left' : `${experience.availablePlaces} places left`}
+            ) : null}
+            <View style={styles.hostDetailHeroCopy}>
+              <Text numberOfLines={2} style={styles.hostDetailHeroTitle}>{experience.title}</Text>
+              <Text numberOfLines={2} style={styles.hostDetailHeroDescription}>
+                {experience.description || 'Join this experience and meet your community.'}
               </Text>
+              <View style={styles.hostDetailHeroMeta}>
+                <View style={styles.hostDetailHeroMetaItem}>
+                  <Feather name={categoryIcon[experience.category]} size={12} color="#FFFFFF" />
+                  <Text numberOfLines={1} style={styles.hostDetailHeroMetaText}>{categoryLabel[experience.category]}</Text>
+                </View>
+                <View style={styles.hostDetailHeroMetaItem}>
+                  <Feather name="map-pin" size={12} color="#FFFFFF" />
+                  <Text numberOfLines={1} style={styles.hostDetailHeroMetaText}>{experience.city}</Text>
+                </View>
+                <View style={styles.hostDetailHeroMetaItem}>
+                  <Feather name="calendar" size={12} color="#FFFFFF" />
+                  <Text numberOfLines={1} style={styles.hostDetailHeroMetaText}>{dateLabel(experience.date)} · {experience.startTime}–{experience.endTime}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.hostDetailSummaryGrid}>
+            {[
+              { label: 'Places filled', value: `${experience.participantCount} / ${experience.capacity}`, icon: 'users' as const, detail: 'Capacity', accent: colors.primary },
+              { label: 'Places left', value: experience.availablePlaces, icon: 'clock' as const, detail: experience.availablePlaces === 0 ? 'Full' : 'Available to join', accent: colors.secondary },
+              { label: 'Reward per person', value: `${experience.xpReward} XP`, icon: 'award' as const, detail: experience.monetaryRewardPence ? money(experience.monetaryRewardPence) : 'Experience reward', accent: colors.accent },
+              { label: 'Participants', value: experience.participantCount, icon: 'users' as const, detail: experience.waitlistCount ? `${experience.waitlistCount} on waitlist` : 'Joined so far', accent: colors.primary },
+            ].map((metric, index) => (
+              <View
+                key={metric.label}
+                style={[styles.hostDetailSummaryCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
+              >
+                <View style={[styles.hostDetailSummaryIcon, { backgroundColor: metric.accent + '12' }]}>
+                  <Feather name={metric.icon} size={17} color={metric.accent} />
+                </View>
+                <View style={styles.hostDetailSummaryCopy}>
+                  <Text style={[styles.hostDetailSummaryValue, { color: colors.foreground }]}>{metric.value}</Text>
+                  <Text numberOfLines={1} style={[styles.hostDetailSummaryLabel, { color: colors.mutedForeground }]}>{metric.label}</Text>
+                  {index === 0 ? (
+                    <View style={[styles.hostDetailProgressTrack, { backgroundColor: colors.border, marginTop: 7 }]}>
+                      <View
+                        style={[
+                          styles.hostDetailProgressFill,
+                          {
+                            width: `${experience.capacity > 0 ? Math.min(100, Math.round((experience.participantCount / experience.capacity) * 100)) : 0}%`,
+                            backgroundColor: colors.primary,
+                          },
+                        ]}
+                      />
+                    </View>
+                  ) : null}
+                  {index !== 0 ? <Text numberOfLines={1} style={[styles.hostDetailSummaryDetail, { color: colors.mutedForeground }]}>{metric.detail}</Text> : null}
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.hostDetailFacts}>
+            <View style={[styles.hostDetailFact, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+              <View style={[styles.hostDetailFactIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name="calendar" size={15} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[styles.hostDetailFactValue, { color: colors.foreground }]}>Date & time</Text>
+                <Text numberOfLines={2} style={[styles.hostDetailFactSecondary, { color: colors.mutedForeground }]}>{dateLabel(experience.date)} · {experience.startTime}–{experience.endTime}</Text>
+              </View>
+            </View>
+            <View style={[styles.hostDetailFact, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+              <View style={[styles.hostDetailFactIcon, { backgroundColor: colors.secondary + '12' }]}>
+                <Feather name="map-pin" size={15} color={colors.secondary} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[styles.hostDetailFactValue, { color: colors.foreground }]}>Location</Text>
+                <Text numberOfLines={2} style={[styles.hostDetailFactSecondary, { color: colors.mutedForeground }]}>{experience.location}, {experience.city}</Text>
+              </View>
             </View>
           </View>
 
@@ -6146,28 +6185,42 @@ function HostExperienceDetail({
               <Button
                 testID="host-edit-experience"
                 label="Edit experience"
+                icon="edit-3"
                 style={styles.hostDetailEditAction}
                 onPress={() => go('create', { id: String(experience.id), step: String(createExperienceQuestions.length + 1) })}
               />
               <Button
-                testID="host-cancel-experience"
-                label="Cancel"
-                color={colors.destructive + '12'}
-                textColor={colors.destructive}
-                style={styles.hostDetailCancelAction}
-                onPress={() => setConfirmingCancellation(true)}
+                testID="host-view-live-experience"
+                label="View live page"
+                icon="eye"
+                color={colors.primary + '12'}
+                textColor={colors.primary}
+                style={styles.hostDetailEditAction}
+                onPress={() => go('experience', { id: String(experience.id) })}
               />
             </View>
-          ) : null}
-          {user?.userType === 'organisation' && user.organisation?.type === 'charity' ? (
+          ) : (
             <Button
-              testID="host-experience-start-fundraiser"
-              label="Start fundraiser"
-              icon="heart"
-              variant="secondary"
-              style={{ marginBottom: 14 }}
-              onPress={() => go('funds', { experienceId: String(experience.id), experienceTitle: experience.title })}
+              testID="host-view-live-experience"
+              label="View experience page"
+              icon="eye"
+              color={colors.primary + '12'}
+              textColor={colors.primary}
+              style={{ marginBottom: 12 }}
+              onPress={() => go('experience', { id: String(experience.id) })}
             />
+          )}
+          {['published', 'full'].includes(experience.status) ? (
+            <Pressable
+              accessibilityRole="button"
+              testID="host-cancel-experience"
+              accessibilityLabel="Cancel experience"
+              onPress={() => setConfirmingCancellation(true)}
+              style={({ pressed }) => [styles.hostDetailCancelLink, { opacity: pressed ? 0.65 : 1 }]}
+            >
+              <Feather name="x-circle" size={14} color={colors.destructive} />
+              <Text style={[styles.hostDetailCancelLinkText, { color: colors.destructive }]}>Cancel experience</Text>
+            </Pressable>
           ) : null}
 
           {confirmingCancellation && ['published', 'full'].includes(experience.status) ? (
@@ -6200,6 +6253,31 @@ function HostExperienceDetail({
             </View>
           ) : null}
 
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={[styles.hostDetailTabs, { borderBottomColor: colors.border }]}
+            accessibilityLabel="Experience management sections"
+          >
+            {detailTabs.map((tab) => {
+              const selected = activeDetailTab === tab.key;
+              return (
+                <Pressable
+                  key={tab.key}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  testID={`host-detail-tab-${tab.key}`}
+                  onPress={() => { triggerHaptic(); setActiveDetailTab(tab.key); }}
+                  style={[styles.hostDetailTab, selected && { borderBottomColor: colors.primary }]}
+                >
+                  <Text style={[styles.hostDetailTabText, { color: selected ? colors.primary : colors.mutedForeground }]}>{tab.label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          {actionError ? <InlineError message={actionError} /> : null}
+
+          {activeDetailTab === 'milestones' ? (
           <View style={[styles.hostDetailMilestoneBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
             <View style={styles.infoBlockHeading}>
               <View style={[styles.infoBlockIcon, { backgroundColor: colors.primary + '12' }]}>
@@ -6319,6 +6397,10 @@ function HostExperienceDetail({
             ) : null}
           </View>
 
+          ) : null}
+
+          {activeDetailTab === 'participants' ? (
+          <>
           <View style={styles.hostDetailMetrics}>
             {[
               { key: 'participants' as const, filter: 'participants' as const, label: 'Participants', value: experience.participantCount, icon: 'users' as const },
@@ -6373,8 +6455,6 @@ function HostExperienceDetail({
               <Feather name="refresh-cw" size={17} color={colors.primary} />
             </Pressable>
           </View>
-          {actionError ? <InlineError message={actionError} /> : null}
-
           <View style={[styles.hostSearchBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
             <Feather name="search" size={17} color={colors.mutedForeground} />
             <TextInput
@@ -6593,6 +6673,86 @@ function HostExperienceDetail({
               onAction={() => { setParticipantSearch(''); setParticipantFilter('all'); }}
             />
           )}
+          </>
+          ) : null}
+
+          {activeDetailTab === 'overview' ? (
+            <View style={[styles.hostDetailOverviewPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+              <View style={styles.hostDetailOverviewHeading}>
+                <View style={[styles.hostDetailFactIcon, { backgroundColor: colors.primary + '12' }]}>
+                  <Feather name="activity" size={16} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.hostDetailOverviewTitle, { color: colors.foreground }]}>Experience overview</Text>
+                  <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>Current activity and what to manage next.</Text>
+                </View>
+              </View>
+              {[
+                { icon: 'users' as const, label: 'Participants', value: `${experience.participantCount} joined`, action: () => setActiveDetailTab('participants' as const) },
+                { icon: 'list' as const, label: 'Milestones', value: milestoneTracking.isLoading ? 'Loading…' : `${milestoneDefinitions.length} steps`, action: () => setActiveDetailTab('milestones' as const) },
+                { icon: 'check-circle' as const, label: 'Completions to review', value: participants.isLoading ? 'Loading…' : participants.isError ? 'Unavailable' : `${pendingReviewCount} pending`, action: () => { setParticipantFilter('review'); setActiveDetailTab('participants'); } },
+              ].map((row) => (
+                <Pressable
+                  key={row.label}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${row.label}: ${row.value}`}
+                  onPress={row.action}
+                  style={[styles.hostDetailOverviewRow, { borderTopColor: colors.border }]}
+                >
+                  <Feather name={row.icon} size={16} color={colors.primary} />
+                  <Text style={[styles.hostDetailOverviewRowLabel, { color: colors.foreground }]}>{row.label}</Text>
+                  <Text style={[styles.hostDetailOverviewRowValue, { color: colors.mutedForeground }]}>{row.value}</Text>
+                  <Feather name="chevron-right" size={15} color={colors.mutedForeground} />
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+
+          {activeDetailTab === 'fundraising' ? (
+            <View style={[styles.hostDetailOverviewPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+              <View style={styles.hostDetailOverviewHeading}>
+                <View style={[styles.hostDetailFactIcon, { backgroundColor: colors.primary + '12' }]}>
+                  <Feather name="heart" size={16} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.hostDetailOverviewTitle, { color: colors.foreground }]}>Fundraise around this experience</Text>
+                  <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>Create a fundraiser to support your organisation’s work.</Text>
+                </View>
+              </View>
+              <Button
+                testID="host-experience-start-fundraiser"
+                label="Start fundraiser"
+                icon="heart"
+                style={{ marginTop: 16 }}
+                onPress={() => go('funds', { experienceId: String(experience.id), experienceTitle: experience.title })}
+              />
+            </View>
+          ) : null}
+
+          {activeDetailTab === 'analytics' ? (
+            <View style={[styles.hostDetailOverviewPanel, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+              <View style={styles.hostDetailOverviewHeading}>
+                <View style={[styles.hostDetailFactIcon, { backgroundColor: colors.secondary + '12' }]}>
+                  <Feather name="bar-chart-2" size={16} color={colors.secondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.hostDetailOverviewTitle, { color: colors.foreground }]}>Participation snapshot</Text>
+                  <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>Live totals from this experience’s participant records.</Text>
+                </View>
+              </View>
+              {[
+                { label: 'Joined', value: participants.isLoading ? '…' : participants.isError ? '—' : participantCount, icon: 'users' as const },
+                { label: 'Waitlisted', value: participants.isLoading ? '…' : participants.isError ? '—' : waitlistedParticipants.length, icon: 'clock' as const },
+                { label: 'Verified completions', value: participants.isLoading ? '…' : participants.isError ? '—' : allParticipants.filter((item) => item.status === 'verified').length, icon: 'check-circle' as const },
+              ].map((metric) => (
+                <View key={metric.label} style={[styles.hostAnalyticsRow, { borderTopColor: colors.border }]}>
+                  <Feather name={metric.icon} size={16} color={colors.primary} />
+                  <Text style={[styles.hostDetailOverviewRowLabel, { color: colors.foreground }]}>{metric.label}</Text>
+                  <Text style={[styles.hostDetailSummaryValue, { color: colors.foreground }]}>{metric.value}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </>
       ) : null}
       <View style={{ height: 120 }} />
@@ -9474,6 +9634,26 @@ const styles = StyleSheet.create({
   hostQuickCount: { minWidth: 25, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 11 },
   hostQuickCountText: { fontSize: 11, lineHeight: 14, fontFamily: 'Inter_700Bold' },
   hostDetailScrollContent: { paddingHorizontal: 14, paddingBottom: 18 },
+  hostDetailHero: { minHeight: 192, justifyContent: 'space-between', overflow: 'hidden', marginBottom: 10, padding: 14, position: 'relative' },
+  hostDetailHeroTint: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  hostDetailHeroTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', gap: 8, zIndex: 1 },
+  hostDetailStatusDot: { width: 7, height: 7, borderRadius: 4 },
+  hostDetailHeroCategory: { alignItems: 'center', flexDirection: 'row', gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999, backgroundColor: '#10101A99' },
+  hostDetailHeroCategoryText: { color: '#FFFFFF', fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  hostDetailHeroArtwork: { position: 'absolute', right: 28, top: 50, opacity: 0.22, transform: [{ rotate: '-12deg' }] },
+  hostDetailHeroCopy: { gap: 5, zIndex: 1 },
+  hostDetailHeroTitle: { color: '#FFFFFF', fontSize: 21, lineHeight: 27, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
+  hostDetailHeroDescription: { color: '#FFFFFFE8', fontSize: 12, lineHeight: 16, fontFamily: 'Inter_400Regular', maxWidth: '92%' },
+  hostDetailHeroMeta: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 3 },
+  hostDetailHeroMetaItem: { alignItems: 'center', flexDirection: 'row', gap: 5, maxWidth: '100%' },
+  hostDetailHeroMetaText: { color: '#FFFFFF', fontSize: 10, fontFamily: 'Inter_500Medium', flexShrink: 1 },
+  hostDetailSummaryGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, marginBottom: 10 },
+  hostDetailSummaryCard: { width: '48.5%', minHeight: 78, borderWidth: 1, flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9 },
+  hostDetailSummaryIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  hostDetailSummaryCopy: { flex: 1, minWidth: 0 },
+  hostDetailSummaryValue: { fontSize: 16, lineHeight: 20, fontFamily: 'Inter_700Bold' },
+  hostDetailSummaryLabel: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_500Medium' },
+  hostDetailSummaryDetail: { fontSize: 9, lineHeight: 12, fontFamily: 'Inter_400Regular', marginTop: 3 },
   hostDetailCard: { borderWidth: 1, padding: 16, marginBottom: 12, overflow: 'hidden' },
   hostDetailTopline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   hostDetailCategoryBadge: { minHeight: 30, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, borderRadius: 15 },
@@ -9498,6 +9678,18 @@ const styles = StyleSheet.create({
   hostDetailActions: { flexDirection: 'row', alignItems: 'stretch', gap: 8, marginBottom: 12 },
   hostDetailEditAction: { flex: 1, minWidth: 0 },
   hostDetailCancelAction: { width: 104 },
+  hostDetailCancelLink: { minHeight: 38, alignSelf: 'center', alignItems: 'center', flexDirection: 'row', gap: 6, justifyContent: 'center', marginBottom: 9, paddingHorizontal: 12 },
+  hostDetailCancelLinkText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  hostDetailTabs: { minWidth: '100%', alignItems: 'stretch', borderBottomWidth: 1, justifyContent: 'space-between', marginBottom: 14 },
+  hostDetailTab: { minHeight: 43, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent', paddingHorizontal: 11 },
+  hostDetailTabText: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_600SemiBold' },
+  hostDetailOverviewPanel: { borderWidth: 1, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4, marginBottom: 14 },
+  hostDetailOverviewHeading: { alignItems: 'center', flexDirection: 'row', gap: 10, marginBottom: 10 },
+  hostDetailOverviewTitle: { fontSize: 14, lineHeight: 19, fontFamily: 'Inter_700Bold' },
+  hostDetailOverviewRow: { minHeight: 48, alignItems: 'center', flexDirection: 'row', gap: 9, borderTopWidth: 1 },
+  hostDetailOverviewRowLabel: { flex: 1, minWidth: 0, fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  hostDetailOverviewRowValue: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  hostAnalyticsRow: { minHeight: 52, alignItems: 'center', flexDirection: 'row', gap: 10, borderTopWidth: 1 },
   hostDetailMilestoneBlock: { borderWidth: 1, padding: 14, marginBottom: 14 },
   hostMilestoneRow: { alignItems: 'flex-start', borderWidth: 1, flexDirection: 'row', gap: 10, padding: 12 },
   hostMilestoneNumber: { alignItems: 'center', borderRadius: 18, height: 30, justifyContent: 'center', width: 30, flexShrink: 0 },

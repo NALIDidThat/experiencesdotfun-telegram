@@ -558,9 +558,16 @@ test("organisation hosts can manage experience participants from a phone-sized d
   await tapTestId(client, `organisation-activity-experience-${experience.id}`);
   await waitForValue(
     client,
-    `Boolean(document.querySelector('[data-testid="host-detail-filter-all"]'))`,
+    `Boolean(document.querySelector('[data-testid="host-detail-tab-participants"]'))`,
     Boolean,
     "the host experience detail screen opened from organisation activity",
+  );
+  await tapTestId(client, "host-detail-tab-participants");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-detail-filter-all"]'))`,
+    Boolean,
+    "the participant section opened from organisation activity",
   );
 
   await client.send("Page.navigate", { url: `https://${domain}/?screen=host` });
@@ -583,10 +590,11 @@ test("organisation hosts can manage experience participants from a phone-sized d
   await tapTestId(client, `host-experience-${experience.id}`);
   await waitForValue(
     client,
-    `Boolean(document.querySelector('[data-testid="host-detail-filter-all"]'))`,
+    `Boolean(document.querySelector('[data-testid="host-detail-tab-participants"]'))`,
     Boolean,
     "the host experience detail screen",
   );
+  await tapTestId(client, "host-detail-tab-participants");
   await waitForValue(
     client,
     `document.querySelector('[data-testid="host-detail-filter-all"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
@@ -800,10 +808,23 @@ test("organisation hosts can manage experience participants from a phone-sized d
     "All 5",
     "Cancellation must keep existing participant records visible.",
   );
+  await tapTestId(client, "host-detail-tab-milestones");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-milestone-7410"]'))`,
+    Boolean,
+    "the milestone timeline after cancellation",
+  );
   assert.equal(
-    await client.evaluate(`document.body.innerText.includes('Garden prepared') && document.body.innerText.includes('Avery Joined')`),
+    await client.evaluate(`document.body.innerText.includes('Garden prepared')`),
     true,
-    "Cancellation must keep milestone definitions and pending submissions visible.",
+    "Cancellation must keep milestone definitions visible.",
+  );
+  await tapTestId(client, "host-detail-tab-participants");
+  assert.equal(
+    await client.evaluate(`document.body.innerText.includes('Avery Joined')`),
+    true,
+    "Cancellation must keep participant records visible.",
   );
 
   await tapSelector(client, '[aria-label="Go back"]');
