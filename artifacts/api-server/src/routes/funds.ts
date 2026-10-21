@@ -162,7 +162,7 @@ router.get("/:organisationUserId", async (req, res): Promise<void> => {
     fund: organisationFundsTable,
     organisation: organisationsTable,
     treasury: organisationTreasuriesTable,
-    experience: experiencesTable,
+    experienceTitle: experiencesTable.title,
     creatorUsername: usersTable.username,
   })
     .from(organisationFundsTable)
@@ -176,7 +176,7 @@ router.get("/:organisationUserId", async (req, res): Promise<void> => {
     ))
     .orderBy(desc(organisationFundsTable.createdAt), desc(organisationFundsTable.id));
   const totals = await campaignTotals(rows.map(({ fund }) => fund.id));
-  res.json(rows.map(({ fund, organisation, treasury, experience, creatorUsername }) => ({
+  res.json(rows.map(({ fund, organisation, treasury, experienceTitle, creatorUsername }) => ({
     id: fund.id,
     organisationId: organisation.id,
     organisationUserId: userId,
@@ -185,7 +185,7 @@ router.get("/:organisationUserId", async (req, res): Promise<void> => {
     title: fund.title,
     description: fund.description,
     experienceId: fund.experienceId,
-    experienceTitle: experience?.title ?? null,
+    experienceTitle: experienceTitle ?? null,
     walletAddress: treasury.walletAddress,
     cluster: treasury.cluster,
     goalSol: Number(fund.goalSol),
@@ -261,9 +261,10 @@ router.post("/", requireTelegramUser, async (req, res): Promise<void> => {
   });
 });
 
-const fundraisingErrorHandler: ErrorRequestHandler = (error, _req, res, next) => {
+const fundraisingErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
   const cause = error?.cause ?? error;
   if (cause?.code === "42P01" || cause?.code === "42703") {
+    req.log?.warn({ code: cause.code, message: cause.message }, "Fundraising database migration is missing");
     res.status(503).json({ message: "Fundraising ledger setup is pending. The database migration must be approved and applied before donations can be recorded." });
     return;
   }

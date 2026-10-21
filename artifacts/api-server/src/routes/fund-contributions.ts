@@ -9,7 +9,7 @@ import {
 import { CreateFundContributionBody, UpdateOrganisationFundBody } from "@workspace/api-zod";
 import { currentUser, requireTelegramUser } from "../lib/auth";
 import { createPaymentReference, solToLamports, solanaRpc, readFinalizedTransfers, matchesPayment, SolanaRpcError, publicPaymentError } from "../lib/fund-payments.mjs";
-import { contributionJson, fundJson, getFundContext, recordTreasuryTransfer } from "../lib/fund-ledger";
+import { campaignActivity, contributionJson, fundJson, getFundContext, recordTreasuryTransfer } from "../lib/fund-ledger";
 import { lamportsToSol } from "../lib/solana-rpc.mjs";
 
 const router: IRouter = Router();
@@ -44,6 +44,17 @@ router.get("/contributions", requireTelegramUser, async (req, res): Promise<void
     before ? or(lt(contributions.createdAt, before.createdAt), and(eq(contributions.createdAt, before.createdAt), lt(contributions.id, before.id))) : undefined))
     .orderBy(desc(contributions.createdAt), desc(contributions.id)).limit(50);
   res.json(await Promise.all(rows.map(contributionJson)));
+});
+
+router.get("/campaigns/:fundId/activity/:period", async (req, res): Promise<void> => {
+  const fundId = Number(req.params.fundId);
+  const period = z.enum(["all", "month"]).safeParse(req.params.period);
+  if (!Number.isSafeInteger(fundId) || fundId <= 0 || !period.success) {
+    res.status(400).json({ message: "Invalid campaign." }); return;
+  }
+  const activity = await campaignActivity(fundId, period.data);
+  if (!activity) { res.status(404).json({ message: "Campaign not found." }); return; }
+  res.json(activity);
 });
 
 router.post("/campaigns/:fundId/contributions", requireTelegramUser, async (req, res): Promise<void> => {

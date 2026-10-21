@@ -21,6 +21,7 @@ import type { FundPayout, HostExperience, HostOverview, OrganisationFund, Organi
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { ContributeToFund } from "@/components/fundraising/ContributionCheckout";
+import { CampaignTrackerInsights } from "@/components/fundraising/CampaignTrackerInsights";
 import { CharityPayoutsSection } from "@/components/fundraising/Payouts";
 import { FundOwnerControls, FundStats } from "@/components/fundraising/FundOwnerControls";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
@@ -501,6 +502,7 @@ function TreasuryMetricDetailsSheet({
 function FundCard({ fund }: { fund: OrganisationFund }) {
   const colors = useColors();
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [trackerExpanded, setTrackerExpanded] = useState(false);
   return (
     <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 4, overflow: "hidden" }}>
       <View style={{ padding: 15, gap: 12 }}>
@@ -535,6 +537,18 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
         </View>
 
         <FundStats fund={fund} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={trackerExpanded ? "Hide campaign tracker" : "View campaign tracker"}
+          accessibilityState={{ expanded: trackerExpanded }}
+          testID={`fund-tracker-toggle-${fund.id}`}
+          onPress={() => setTrackerExpanded((expanded) => !expanded)}
+          style={{ minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1, borderColor: colors.primary + "35", borderRadius: colors.radius - 5, backgroundColor: colors.primary + "08", paddingHorizontal: 12 }}
+        >
+          <Feather name={trackerExpanded ? "chevron-up" : "bar-chart-2"} size={15} color={colors.primary} />
+          <Text style={{ color: colors.primary, fontSize: 12, fontFamily: "Inter_700Bold" }}>{trackerExpanded ? "Hide campaign tracker" : "View campaign tracker"}</Text>
+        </Pressable>
+        {trackerExpanded ? <CampaignTrackerInsights fund={fund} showProgress={false} /> : null}
         <ContributeToFund fund={fund} />
         <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8, gap: 5 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -853,7 +867,8 @@ export function OrganisationFundsScreen({
             </View>
           ) : null}
           {field("Fund name", title, setTitle, "e.g. Community garden supplies")}
-          {field("Short description", description, setDescription, "Explain what donations will support and how they help.", true)}
+          {field("Short description", description, setDescription, "Explain what donations will support; list outcomes on separate lines.", true)}
+          <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16, marginTop: -10 }}>Each non-empty line appears as a separate campaign detail. Use organizer-provided facts only.</Text>
           {field("Goal amount (SOL)", goalSol, setGoalSol, "e.g. 10")}
           {error ? <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 12, lineHeight: 18 }}>{error}</Text> : null}
           {button(create.isPending ? "Creating fund…" : "Create fund", () => {
@@ -980,10 +995,7 @@ export function OrganisationFundsScreen({
             ) : null}
           </View>
 
-          <View style={{ gap: 8 }}>
-            <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>What this supports</Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 14, lineHeight: 21 }}>{fund.description}</Text>
-          </View>
+          <CampaignTrackerInsights fund={fund} />
 
           <View style={{ borderWidth: 1, borderColor: colors.primary + "30", backgroundColor: colors.primary + "08", borderRadius: colors.radius + 3, padding: 15, gap: 10 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
@@ -1024,7 +1036,6 @@ export function OrganisationFundsScreen({
 
           <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 3, padding: 15, gap: 12 }}>
             <Text accessibilityRole="header" style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Make a contribution</Text>
-            <FundStats fund={fund} />
             <ContributeToFund fund={fund} />
           </View>
           <FundOwnerControls fund={fund} onUpdated={(updated) => {

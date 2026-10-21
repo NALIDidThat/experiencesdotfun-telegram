@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import {
   db, fundContributionsTable as contributions, treasuryDepositsTable as deposits,
   organisationTreasuriesTable as treasuries, organisationFundsTable as funds, organisationsTable,
@@ -54,6 +54,59 @@ export async function campaignTotals(fundIds: number[]) {
   return new Map(totals.filter((row) => row.fundId !== null).map((row) => [
     row.fundId!, { raisedSol: lamportsToSol(row.amount), contributionCount: row.count },
   ]));
+}
+
+export async function campaignActivity(fundId: number, period: "all" | "month") {
+  const [fund] = await db.select({ id: funds.id }).from(funds)
+    .innerJoin(organisationsTable, eq(funds.organisationId, organisationsTable.id))
+    .where(and(eq(funds.id, fundId), eq(organisationsTable.organisationType, "charity")))
+    .limit(1);
+  if (!fund) return null;
+
+  const monthStart = new Date();
+  monthStart.setUTCDate(1);
+  monthStart.setUTCHours(0, 0, 0, 0);
+  const confirmedAt = sql<Date>`coalesce(${deposits.blockTime}, ${deposits.recordedAt})`;
+  const fundActivityWhere = eq(deposits.fundId, fundId);
+  const supporterWhere = and(
+    fundActivityWhere,
+    period === "month" ? gte(confirmedAt, monthStart) : undefined,
+  );
+  const [recent, supporterTotals, [supporterCount]] = await Promise.all([
+    db.select({
+      id: deposits.id,
+      amountLamports: deposits.amountLamports,
+      confirmedAt,
+    }).from(deposits)
+      .where(fundActivityWhere)
+      .orderBy(desc(confirmedAt), desc(deposits.id))
+      .limit(6),
+    db.select({
+      amountLamports: sql<string>`sum(${deposits.amountLamports})::text`,
+      contributionCount: sql<number>`count(*)::int`,
+    }).from(deposits)
+      .where(supporterWhere)
+      .groupBy(deposits.sender)
+      .orderBy(desc(sql`sum(${deposits.amountLamports})`), desc(sql`count(*)`))
+      .limit(5),
+    db.select({ count: sql<number>`count(distinct ${deposits.sender})::int` })
+      .from(deposits)
+      .where(supporterWhere),
+  ]);
+
+  return {
+    supporterWalletCount: supporterCount?.count ?? 0,
+    recentContributions: recent.map((deposit) => ({
+      id: deposit.id,
+      amountSol: lamportsToSol(deposit.amountLamports),
+      confirmedAt: new Date(deposit.confirmedAt).toISOString(),
+    })),
+    topSupporters: supporterTotals.map((supporter, index) => ({
+      rank: index + 1,
+      amountSol: lamportsToSol(supporter.amountLamports),
+      contributionCount: supporter.contributionCount,
+    })),
+  };
 }
 
 // Treasury lock serializes imports and verification. A transfer is unique by

@@ -149,6 +149,22 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/FundContribution" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+  /funds/campaigns/{fundId}/activity/{period}:
+    get:
+      operationId: getFundCampaignActivity
+      tags: [host]
+      summary: List anonymous, verified campaign contributions and supporters for a period
+      parameters:
+        - { name: fundId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: period, in: path, required: true, schema: { type: string, enum: [all, month] } }
+      responses:
+        "200":
+          description: Recent verified contributions and anonymised supporter totals
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FundCampaignActivity" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /funds/campaigns/{fundId}/contributions:
     post:
       operationId: createFundContribution
@@ -2982,6 +2998,31 @@ components:
       required: [amountSol]
       properties:
         amountSol: { type: string, pattern: '^[0-9]+(\.[0-9]{1,9})?$' }
+    FundCampaignActivityContribution:
+      type: object
+      required: [id, amountSol, confirmedAt]
+      properties:
+        id: { type: integer }
+        amountSol: { type: string }
+        confirmedAt: { type: string, format: date-time }
+    FundCampaignTopSupporter:
+      type: object
+      required: [rank, amountSol, contributionCount]
+      properties:
+        rank: { type: integer }
+        amountSol: { type: string }
+        contributionCount: { type: integer }
+    FundCampaignActivity:
+      type: object
+      required: [supporterWalletCount, recentContributions, topSupporters]
+      properties:
+        supporterWalletCount: { type: integer }
+        recentContributions:
+          type: array
+          items: { $ref: "#/components/schemas/FundCampaignActivityContribution" }
+        topSupporters:
+          type: array
+          items: { $ref: "#/components/schemas/FundCampaignTopSupporter" }
     CharityLedgerSyncInput:
       type: object
       properties:

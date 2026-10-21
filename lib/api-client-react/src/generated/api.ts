@@ -83,6 +83,7 @@ import type {
   FriendProfile,
   FriendRequest,
   FriendRequestCreateInput,
+  FundCampaignActivity,
   FundContribution,
   FundContributionInput,
   FundPayout,
@@ -661,6 +662,88 @@ export function useListMyContributions<TData = Awaited<ReturnType<typeof listMyC
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListMyContributionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetFundCampaignActivityUrl = (fundId: number,
+    period: 'all' | 'month',) => {
+
+
+
+
+  return `/api/funds/campaigns/${fundId}/activity/${period}`
+}
+
+/**
+ * @summary List anonymous, verified campaign contributions and supporters for a period
+ */
+export const getFundCampaignActivity = async (fundId: number,
+    period: 'all' | 'month', options?: Parameters<typeof customFetch>[1]): Promise<FundCampaignActivity> => {
+
+  return customFetch<FundCampaignActivity>(getGetFundCampaignActivityUrl(fundId,period),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFundCampaignActivityQueryKey = (fundId: number,
+    period: 'all' | 'month',) => {
+    return [
+    `/api/funds/campaigns/${fundId}/activity/${period}`
+    ] as const;
+    }
+
+
+export const getGetFundCampaignActivityQueryOptions = <TData = Awaited<ReturnType<typeof getFundCampaignActivity>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(fundId: number,
+    period: 'all' | 'month', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFundCampaignActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFundCampaignActivityQueryKey(fundId,period);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFundCampaignActivity>>> = ({ signal }) => getFundCampaignActivity(fundId,period, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: fundId !== null && fundId !== undefined && period !== null && period !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFundCampaignActivity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFundCampaignActivityQueryResult = NonNullable<Awaited<ReturnType<typeof getFundCampaignActivity>>>
+export type GetFundCampaignActivityQueryError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+
+/**
+ * @summary List anonymous, verified campaign contributions and supporters for a period
+ */
+
+export function useGetFundCampaignActivity<TData = Awaited<ReturnType<typeof getFundCampaignActivity>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
+ fundId: number,
+    period: 'all' | 'month', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFundCampaignActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFundCampaignActivityQueryOptions(fundId,period,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -69,6 +69,24 @@ export interface FundContributionInput {
   amountSol: string;
 }
 
+export interface FundCampaignActivityContribution {
+  id: number;
+  amountSol: string;
+  confirmedAt: string;
+}
+
+export interface FundCampaignTopSupporter {
+  rank: number;
+  amountSol: string;
+  contributionCount: number;
+}
+
+export interface FundCampaignActivity {
+  supporterWalletCount: number;
+  recentContributions: FundCampaignActivityContribution[];
+  topSupporters: FundCampaignTopSupporter[];
+}
+
 export interface CharityLedgerSyncInput {
   before?: string;
 }

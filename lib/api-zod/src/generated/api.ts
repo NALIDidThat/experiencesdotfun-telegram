@@ -172,6 +172,32 @@ export const ListMyContributionsResponse = zod.array(ListMyContributionsResponse
 
 
 /**
+ * @summary List anonymous, verified campaign contributions and supporters for a period
+ */
+
+
+
+export const GetFundCampaignActivityParams = zod.object({
+  "fundId": zod.coerce.number().int().min(1),
+  "period": zod.enum(['all', 'month'])
+})
+
+export const GetFundCampaignActivityResponse = zod.object({
+  "supporterWalletCount": zod.number().int(),
+  "recentContributions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "amountSol": zod.string(),
+  "confirmedAt": zod.coerce.date()
+})),
+  "topSupporters": zod.array(zod.object({
+  "rank": zod.number().int(),
+  "amountSol": zod.string(),
+  "contributionCount": zod.number().int()
+}))
+})
+
+
+/**
  * @summary Create or resume a profile-bound SOL payment request
  */
 

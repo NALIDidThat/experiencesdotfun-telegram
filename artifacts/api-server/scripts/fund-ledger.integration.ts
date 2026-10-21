@@ -43,6 +43,14 @@ function transaction(signature: string, source: string, destination: string, amo
 }
 const app = express();
 app.use(express.json());
+app.use((req, _res, next) => {
+  (req as express.Request & { log?: { warn(fields: Record<string, unknown>, message: string): void } }).log = {
+    warn(fields, message) {
+      console.error(message, fields.code, fields.message);
+    },
+  };
+  next();
+});
 app.use("/api/funds", fundsRouter);
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(error);
@@ -128,6 +136,16 @@ try {
   rpcHistories.set(late.reference, [{ signature: signatures[2], err: null }]);
   assert.equal((await request(`/contributions/${late.id}/verify`, { method: "POST" })).status, "confirmed", "closed/cancelled request can still receive late payment");
   assert.equal((await request("/1"))[0].raisedSol, "0.300000000");
+  const allTimeActivity = await request("/campaigns/1/activity/all", { user: 0 });
+  assert.equal(allTimeActivity.supporterWalletCount, 1, "the public campaign tracker counts distinct wallets, not profiles");
+  assert.deepEqual(allTimeActivity.topSupporters[0], { rank: 1, amountSol: "0.300000000", contributionCount: 2 });
+  assert.equal(allTimeActivity.recentContributions.length, 2);
+  assert.ok(allTimeActivity.recentContributions.every((entry: Record<string, unknown>) => !("sender" in entry) && !("signature" in entry)));
+  const monthlyActivity = await request("/campaigns/1/activity/month", { user: 0 });
+  assert.equal(monthlyActivity.topSupporters[0].amountSol, "0.300000000", "the monthly filter ranks only deposits confirmed this month");
+  assert.equal(monthlyActivity.supporterWalletCount, 1);
+  await request("/campaigns/1/activity/year", { user: 0, expected: 400 });
+  await request("/campaigns/999/activity/all", { user: 0, expected: 404 });
   await request("/campaigns/1", { user: 1, method: "PATCH", body: { status: "active" } });
   const payoutInput = { recipientUserId: 4, walletAddress: addresses[3], amountSol: "0.05", reason: "Garden volunteering expenses", fundId: 1 };
   await request("/payouts", { user: 2, method: "POST", body: payoutInput, expected: 403 });
