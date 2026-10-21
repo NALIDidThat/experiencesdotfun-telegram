@@ -158,10 +158,17 @@ router.get("/:organisationUserId", async (req, res): Promise<void> => {
     res.status(404).json({ message: "Organisation profile not found." });
     return;
   }
-  const rows = await db.select({ fund: organisationFundsTable, organisation: organisationsTable, treasury: organisationTreasuriesTable, experience: experiencesTable })
+  const rows = await db.select({
+    fund: organisationFundsTable,
+    organisation: organisationsTable,
+    treasury: organisationTreasuriesTable,
+    experience: experiencesTable,
+    creatorUsername: usersTable.username,
+  })
     .from(organisationFundsTable)
     .innerJoin(organisationsTable, eq(organisationFundsTable.organisationId, organisationsTable.id))
     .innerJoin(organisationTreasuriesTable, eq(organisationFundsTable.organisationId, organisationTreasuriesTable.organisationId))
+    .innerJoin(usersTable, eq(organisationFundsTable.createdByUserId, usersTable.id))
     .leftJoin(experiencesTable, eq(organisationFundsTable.experienceId, experiencesTable.id))
     .where(and(
       eq(organisationsTable.ownerUserId, userId),
@@ -169,11 +176,12 @@ router.get("/:organisationUserId", async (req, res): Promise<void> => {
     ))
     .orderBy(desc(organisationFundsTable.createdAt), desc(organisationFundsTable.id));
   const totals = await campaignTotals(rows.map(({ fund }) => fund.id));
-  res.json(rows.map(({ fund, organisation, treasury, experience }) => ({
+  res.json(rows.map(({ fund, organisation, treasury, experience, creatorUsername }) => ({
     id: fund.id,
     organisationId: organisation.id,
     organisationUserId: userId,
     organisationName: organisation.name,
+    creatorUsername,
     title: fund.title,
     description: fund.description,
     experienceId: fund.experienceId,
@@ -238,6 +246,7 @@ router.post("/", requireTelegramUser, async (req, res): Promise<void> => {
     organisationId: organisation.id,
     organisationUserId: user.id,
     organisationName: organisation.name,
+    creatorUsername: user.username,
     title: fund.title,
     description: fund.description,
     experienceId: fund.experienceId,

@@ -511,6 +511,8 @@ export interface OrganisationFund {
   organisationId: number;
   organisationUserId: number;
   organisationName: string;
+  /** @nullable */
+  creatorUsername: string | null;
   title: string;
   description: string;
   /** @nullable */

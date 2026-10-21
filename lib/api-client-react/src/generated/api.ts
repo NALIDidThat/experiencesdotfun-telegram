@@ -6234,7 +6234,7 @@ export const getGetHostExperienceMilestonesUrl = (experienceId: number,) => {
 }
 
 /**
- * @summary Get milestone definitions and pending reviews for a hosted experience
+ * @summary Get milestone definitions and participant submissions for a hosted experience
  */
 export const getHostExperienceMilestones = async (experienceId: number, options?: Parameters<typeof customFetch>[1]): Promise<HostExperienceMilestonesResponse> => {
 
@@ -6281,7 +6281,7 @@ export type GetHostExperienceMilestonesQueryError = ErrorType<UnauthorizedRespon
 
 
 /**
- * @summary Get milestone definitions and pending reviews for a hosted experience
+ * @summary Get milestone definitions and participant submissions for a hosted experience
  */
 
 export function useGetHostExperienceMilestones<TData = Awaited<ReturnType<typeof getHostExperienceMilestones>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(

@@ -3213,6 +3213,7 @@ components:
         organisationId: { type: integer }
         organisationUserId: { type: integer }
         organisationName: { type: string }
+        creatorUsername: { type: [string, "null"] }
         title: { type: string }
         description: { type: string }
         experienceId: { type: [integer, "null"] }
@@ -3224,7 +3225,7 @@ components:
         contributionCount: { type: integer }
         status: { type: string, enum: [active, closed] }
         createdAt: { type: string, format: date-time }
-      required: [id, organisationId, organisationUserId, organisationName, title, description, experienceId, experienceTitle, walletAddress, cluster, goalSol, raisedSol, contributionCount, status, createdAt]
+      required: [id, organisationId, organisationUserId, organisationName, creatorUsername, title, description, experienceId, experienceTitle, walletAddress, cluster, goalSol, raisedSol, contributionCount, status, createdAt]
     OrganisationFundCreateInput:
       type: object
       properties:

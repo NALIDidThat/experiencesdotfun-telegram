@@ -151,20 +151,21 @@ function CampaignProgressCard({ fund, onPress }: { fund: OrganisationFund; onPre
   const progress = campaignProgress(fund);
   const raised = formatCampaignSol(fund.raisedSol);
   const goal = formatCampaignSol(fund.goalSol);
+  const creatorUsername = fund.creatorUsername?.trim().replace(/^@+/, "") ?? "";
   const depositLabel = `${fund.contributionCount} verified ${fund.contributionCount === 1 ? "deposit" : "deposits"}`;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Track ${fund.title}: ${raised} SOL raised of ${goal} SOL goal, ${depositLabel}, ${Math.round(progress)}% funded`}
+      accessibilityLabel={`Open ${fund.title}, ${creatorUsername ? `created by @${creatorUsername}, ` : ""}${raised} SOL raised of ${goal} SOL goal, ${depositLabel}, ${Math.round(progress)}% funded`}
       accessibilityHint="Opens campaign details."
       testID={`campaign-progress-${fund.id}`}
       onPress={onPress}
       style={({ pressed }) => ({
         overflow: "hidden",
         borderWidth: 1,
-        borderColor: colors.primary + "24",
+        borderColor: colors.border,
         backgroundColor: colors.card,
-        borderRadius: colors.radius + 4,
+        borderRadius: colors.radius + 8,
         shadowColor: "#170d20",
         shadowOffset: { width: 0, height: 5 },
         shadowOpacity: 0.07,
@@ -174,28 +175,35 @@ function CampaignProgressCard({ fund, onPress }: { fund: OrganisationFund; onPre
         transform: [{ scale: pressed ? 0.99 : 1 }],
       })}
     >
-      <View style={{ height: 3, backgroundColor: colors.primary }} />
-      <View style={{ padding: 16, gap: 16 }}>
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
-          <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: colors.primary + "12", borderWidth: 1, borderColor: colors.primary + "16", alignItems: "center", justifyContent: "center" }}>
-            <Feather name="heart" size={19} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
-            <Text style={{ color: colors.primary, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.8 }}>COMMUNITY FUNDRAISER</Text>
-            <Text numberOfLines={2} style={{ color: colors.foreground, fontSize: 16, lineHeight: 21, fontFamily: "Inter_700Bold" }}>{fund.title}</Text>
-            {fund.experienceTitle ? (
+      <View style={{ padding: 12, gap: 14 }}>
+        <View style={{ padding: 13, gap: 9, borderRadius: colors.radius + 2, backgroundColor: colors.primary + "0D" }}>
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 11 }}>
+            <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: colors.primary + "18", alignItems: "center", justifyContent: "center" }}>
+              <Feather name="heart" size={19} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+              <Text style={{ color: colors.primary, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.8 }}>COMMUNITY FUNDRAISER</Text>
+              <Text numberOfLines={2} style={{ color: colors.foreground, fontSize: 16, lineHeight: 21, fontFamily: "Inter_700Bold" }}>{fund.title}</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                <Feather name="calendar" size={11} color={colors.mutedForeground} />
-                <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>Supports {fund.experienceTitle}</Text>
+                <Feather name="user" size={11} color={colors.mutedForeground} />
+                <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>
+                  {creatorUsername ? `Created by @${creatorUsername}` : `Fundraiser by ${fund.organisationName}`}
+                </Text>
               </View>
-            ) : null}
+            </View>
+            <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" }}>
+              <Feather name="arrow-up-right" size={16} color={colors.foreground} />
+            </View>
           </View>
-          <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center" }}>
-            <Feather name="arrow-up-right" size={16} color={colors.mutedForeground} />
-          </View>
+          {fund.experienceTitle ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.primary + "20" }}>
+              <Feather name="calendar" size={11} color={colors.mutedForeground} />
+              <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>Supports {fund.experienceTitle}</Text>
+            </View>
+          ) : null}
         </View>
 
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14, gap: 12 }}>
+        <View style={{ paddingHorizontal: 4, gap: 12 }}>
           <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 10 }}>
             <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
               <Text style={{ color: colors.mutedForeground, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.55 }}>RAISED SO FAR</Text>
@@ -204,9 +212,10 @@ function CampaignProgressCard({ fund, onPress }: { fund: OrganisationFund; onPre
                 <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_700Bold" }}>SOL</Text>
               </View>
             </View>
-            <View style={{ alignItems: "flex-end", paddingHorizontal: 11, paddingVertical: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.muted + "80" }}>
+            <View style={{ alignItems: "flex-end", paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 14, backgroundColor: colors.muted + "80" }}>
               <Text style={{ color: colors.mutedForeground, fontSize: 8, fontFamily: "Inter_700Bold", letterSpacing: 0.55 }}>GOAL</Text>
               <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold", marginTop: 2 }}>{goal} <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>SOL</Text></Text>
+              <Text style={{ color: colors.secondary, fontSize: 9, fontFamily: "Inter_700Bold", marginTop: 3 }}>{Math.round(progress)}% funded</Text>
             </View>
           </View>
 
@@ -214,7 +223,7 @@ function CampaignProgressCard({ fund, onPress }: { fund: OrganisationFund; onPre
             accessibilityRole="progressbar"
             accessibilityLabel={`${Math.round(progress)}% of campaign goal`}
             accessibilityValue={{ min: 0, max: 100, now: Math.round(progress) }}
-            style={{ height: 8, overflow: "hidden", borderRadius: 999, backgroundColor: colors.primary + "16" }}
+            style={{ height: 7, overflow: "hidden", borderRadius: 999, backgroundColor: colors.primary + "16" }}
           >
             <View style={{ width: `${progress}%`, height: "100%", borderRadius: 999, backgroundColor: colors.primary }} />
           </View>
@@ -224,9 +233,9 @@ function CampaignProgressCard({ fund, onPress }: { fund: OrganisationFund; onPre
               <Feather name="shield" size={13} color={colors.secondary} />
               <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>{depositLabel}</Text>
             </View>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 999, backgroundColor: colors.secondary + "10", paddingHorizontal: 9, paddingVertical: 5 }}>
-              <Feather name="check" size={11} color={colors.secondary} />
-              <Text style={{ color: colors.secondary, fontSize: 10, fontFamily: "Inter_700Bold" }}>{Math.round(progress)}% funded</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 9 }}>
+              <Text style={{ color: colors.primaryForeground, fontSize: 11, fontFamily: "Inter_700Bold" }}>View fundraiser</Text>
+              <Feather name="arrow-right" size={13} color={colors.primaryForeground} />
             </View>
           </View>
         </View>

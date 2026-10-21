@@ -338,6 +338,7 @@ export const UpdateOrganisationFundResponse = zod.object({
   "organisationId": zod.number().int(),
   "organisationUserId": zod.number().int(),
   "organisationName": zod.string(),
+  "creatorUsername": zod.string().nullable(),
   "title": zod.string(),
   "description": zod.string(),
   "experienceId": zod.number().int().nullable(),
@@ -675,6 +676,7 @@ export const CreateOrganisationFundResponse = zod.object({
   "organisationId": zod.number().int(),
   "organisationUserId": zod.number().int(),
   "organisationName": zod.string(),
+  "creatorUsername": zod.string().nullable(),
   "title": zod.string(),
   "description": zod.string(),
   "experienceId": zod.number().int().nullable(),
@@ -704,6 +706,7 @@ export const ListOrganisationFundsResponseItem = zod.object({
   "organisationId": zod.number().int(),
   "organisationUserId": zod.number().int(),
   "organisationName": zod.string(),
+  "creatorUsername": zod.string().nullable(),
   "title": zod.string(),
   "description": zod.string(),
   "experienceId": zod.number().int().nullable(),
@@ -3003,7 +3006,7 @@ export const CancelHostExperienceResponse = zod.object({
 
 
 /**
- * @summary Get milestone definitions and pending reviews for a hosted experience
+ * @summary Get milestone definitions and participant submissions for a hosted experience
  */
 export const GetHostExperienceMilestonesParams = zod.object({
   "experienceId": zod.coerce.number().int()

@@ -2,14 +2,23 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   db, fundContributionsTable as contributions, treasuryDepositsTable as deposits,
   organisationTreasuriesTable as treasuries, organisationFundsTable as funds, organisationsTable,
+  experiencesTable, usersTable,
 } from "@workspace/db";
 import { lamportsToSol } from "./solana-rpc.mjs";
 import { matchesPayment, paymentUri, type SolTransfer } from "./fund-payments.mjs";
 
 export async function getFundContext(fundId: number) {
-  const [row] = await db.select({ fund: funds, treasury: treasuries, organisation: organisationsTable })
+  const [row] = await db.select({
+    fund: funds,
+    treasury: treasuries,
+    organisation: organisationsTable,
+    creatorUsername: usersTable.username,
+    experienceTitle: experiencesTable.title,
+  })
     .from(funds).innerJoin(treasuries, eq(funds.organisationId, treasuries.organisationId))
     .innerJoin(organisationsTable, eq(funds.organisationId, organisationsTable.id))
+    .innerJoin(usersTable, eq(funds.createdByUserId, usersTable.id))
+    .leftJoin(experiencesTable, eq(funds.experienceId, experiencesTable.id))
     .where(eq(funds.id, fundId)).limit(1);
   return row;
 }
@@ -96,11 +105,12 @@ export async function recordTreasuryTransfer(
 }
 
 export async function fundJson(context: NonNullable<Awaited<ReturnType<typeof getFundContext>>>) {
-  const { fund, treasury, organisation } = context;
+  const { fund, treasury, organisation, creatorUsername, experienceTitle } = context;
   const totals = await campaignTotals([fund.id]);
   return {
     id: fund.id, organisationId: organisation.id, organisationUserId: organisation.ownerUserId,
-    organisationName: organisation.name, title: fund.title, description: fund.description,
+    organisationName: organisation.name, creatorUsername, title: fund.title, description: fund.description,
+    experienceId: fund.experienceId, experienceTitle: experienceTitle ?? null,
     walletAddress: treasury.walletAddress, cluster: treasury.cluster, goalSol: Number(fund.goalSol),
     status: fund.status, createdAt: fund.createdAt.toISOString(),
     ...(totals.get(fund.id) ?? { raisedSol: "0.000000000", contributionCount: 0 }),
