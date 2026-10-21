@@ -296,6 +296,12 @@ function makeFixtures() {
     attendedAt: person.status === "attended" ? "2026-09-29T11:00:00.000Z" : null,
     submittedAt: person.status === "submitted" ? `2026-09-3${index - 1}T12:00:00.000Z` : null,
     verifiedAt: null,
+    completionStatement: person.status === "submitted" ? `${person.name} completed the garden preparation.` : null,
+    evidenceObjectKeys: [],
+    submissionVersion: 1,
+    reviewReason: null,
+    reviewedAt: null,
+    reviewHistory: [],
     rewardStatus: "pending",
   }));
   return { organisation, user, experience, people };
@@ -304,6 +310,7 @@ function makeFixtures() {
 test("organisation hosts can manage experience participants from a phone-sized detail screen", async (t) => {
   const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
   assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the host management preview test.");
+  const appBaseUrl = process.env.HOST_MANAGEMENT_APP_URL ?? `https://${domain}`;
 
   const client = await launchBrowser(t);
   const { user, experience, people } = makeFixtures();
@@ -330,6 +337,23 @@ test("organisation hosts can manage experience participants from a phone-sized d
     status: "submitted",
     submittedAt: "2026-09-30T12:00:00.000Z",
     verifiedAt: null,
+    evidenceObjectKeys: ["private/participant/avery/milestone-proof.jpg"],
+    reviewReason: null,
+    submissionVersion: 1,
+  }, {
+    id: 7412,
+    participationId: 7402,
+    milestoneId: 7410,
+    participant: { id: 17402, name: "Blake Attended", username: "blake_attended", avatarUrl: null },
+    milestoneTitle: "Garden prepared",
+    milestonePosition: 1,
+    xpReward: 100,
+    status: "verified",
+    submittedAt: "2026-09-28T12:00:00.000Z",
+    verifiedAt: "2026-09-29T12:00:00.000Z",
+    evidenceObjectKeys: [],
+    reviewReason: null,
+    submissionVersion: 1,
   }];
 
   function currentExperience() {
@@ -416,7 +440,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
         } else if (url.pathname === `/api/host/experiences/${experience.id}/milestones` && method === "GET") {
           response = {
             milestones: milestoneRecords,
-            submissions: milestoneSubmissions.filter((item) => item.status === "submitted"),
+            submissions: milestoneSubmissions,
             milestonesEditable: milestoneSubmissions.length === 0,
           };
         } else if (url.pathname === `/api/host/experiences/${experience.id}` && method === "PATCH") {
@@ -526,7 +550,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
     source: "localStorage.setItem('@experiences/auth-token', 'email_host-management-test');",
   });
   await setViewport(client);
-  await client.send("Page.navigate", { url: `https://${domain}/?screen=profile` });
+  await client.send("Page.navigate", { url: `${appBaseUrl}/?screen=profile` });
   await waitForValue(
     client,
     `document.querySelector('[data-testid="organisation-activity-experience-${experience.id}"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
@@ -570,7 +594,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
     "the participant section opened from organisation activity",
   );
 
-  await client.send("Page.navigate", { url: `https://${domain}/?screen=host` });
+  await client.send("Page.navigate", { url: `${appBaseUrl}/?screen=host` });
 
   try {
     await waitForValue(
@@ -629,6 +653,26 @@ test("organisation hosts can manage experience participants from a phone-sized d
   assert.equal(initialLayout.reviewCount, "Completions 2");
   assert.equal(initialLayout.waitlistCount, "Waitlist 1");
 
+  await tapTestId(client, "host-participant-card-7402");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-participant-sheet"]')) && Boolean(document.querySelector('[data-testid="host-participant-milestone-7412"]'))`,
+    Boolean,
+    "a participant contribution sheet with verified milestone history",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="host-participant-milestone-7412"]')?.innerText.includes('Verified')`),
+    true,
+    "The participant sheet should show completed milestone contribution records.",
+  );
+  await tapTestId(client, "host-participant-sheet-close");
+  await waitForValue(
+    client,
+    `!document.querySelector('[data-testid="host-participant-sheet"]')`,
+    Boolean,
+    "the participant sheet to close",
+  );
+
   await tapTestId(client, "host-detail-filter-waitlisted");
   await waitForValue(
     client,
@@ -656,13 +700,22 @@ test("organisation hosts can manage experience participants from a phone-sized d
     Boolean,
     "the completion review filter",
   );
-  assert.equal(
-    await client.evaluate(`Boolean(document.querySelector('[data-testid="host-verify-7403"]')) && Boolean(document.querySelector('[data-testid="host-reject-7404"]'))`),
-    true,
-    "Submitted completions should expose verify and reject actions.",
+  await tapTestId(client, "host-participant-card-7403");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-participant-sheet"]')) && Boolean(document.querySelector('[data-testid="host-verify-7403"]'))`,
+    Boolean,
+    "the selected participant’s completion review actions",
   );
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="host-verify-7403"]')) && Boolean(document.querySelector('[data-testid="host-reject-with-reason-7404"]'))`),
+    true,
+    "The participant sheet should expose verify and reject actions.",
+  );
+  await tapTestId(client, "host-participant-sheet-close");
 
   await tapTestId(client, "host-detail-filter-participants");
+  await tapTestId(client, "host-participant-card-7401");
   await tapTestId(client, "host-attend-7401");
   await waitForValue(
     client,
@@ -682,8 +735,10 @@ test("organisation hosts can manage experience participants from a phone-sized d
     Boolean,
     "attendance to update after retry",
   );
+  await tapTestId(client, "host-participant-sheet-close");
 
   await tapTestId(client, "host-detail-filter-review");
+  await tapTestId(client, "host-participant-card-7403");
   await tapTestId(client, "host-verify-7403");
   await waitForValue(
     client,
@@ -691,6 +746,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
     Boolean,
     "the review list to update after verification",
   );
+  await tapTestId(client, "host-participant-sheet-close");
   await tapTestId(client, "host-detail-filter-all");
   await waitForValue(
     client,
@@ -700,13 +756,16 @@ test("organisation hosts can manage experience participants from a phone-sized d
   );
 
   await tapTestId(client, "host-detail-filter-review");
-  await tapTestId(client, "host-reject-7404");
+  await tapTestId(client, "host-participant-card-7404");
+  await replaceInput(client, "host-reject-reason-7404", "Please add a clearer account of the task.");
+  await tapTestId(client, "host-reject-with-reason-7404");
   await waitForValue(
     client,
-    `!document.querySelector('[data-testid="host-reject-7404"]') && document.body.innerText.includes('No matching people')`,
+    `!document.querySelector('[data-testid="host-reject-with-reason-7404"]') && document.body.innerText.includes('No matching people')`,
     Boolean,
     "the review list to update after rejection",
   );
+  await tapTestId(client, "host-participant-sheet-close");
   await tapTestId(client, "host-detail-filter-all");
   await waitForValue(
     client,

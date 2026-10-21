@@ -2369,10 +2369,7 @@ router.get("/host/experiences/:experienceId/milestones", async (req, res) => {
       )
       .innerJoin(usersTable, eq(usersTable.id, participationsTable.userId))
       .where(
-        and(
-          eq(experienceMilestonesTable.experienceId, experience.id),
-          eq(experienceMilestoneSubmissionsTable.status, "submitted"),
-        ),
+        eq(experienceMilestonesTable.experienceId, experience.id),
       )
       .orderBy(
         asc(experienceMilestonesTable.position),

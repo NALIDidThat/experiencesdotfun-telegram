@@ -5904,6 +5904,8 @@ function HostExperienceDetail({
   const colors = useColors();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { height: viewportHeight } = useWindowDimensions();
   const validExperienceId = Number.isSafeInteger(experienceId) && experienceId > 0;
   const experiences = useListHostExperiences({
     query: {
@@ -5926,6 +5928,7 @@ function HostExperienceDetail({
   });
   const [participantSearch, setParticipantSearch] = useState('');
   const [participantFilter, setParticipantFilter] = useState<HostParticipantFilter>(initialFocus ?? 'all');
+  const [selectedParticipantId, setSelectedParticipantId] = useState<number | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'participants' | 'milestones' | 'fundraising' | 'analytics'>(initialFocus ? 'participants' : 'overview');
   const [rejectReasons, setRejectReasons] = useState<Record<number, string>>({});
   const [milestoneRejectReasons, setMilestoneRejectReasons] = useState<Record<number, string>>({});
@@ -5961,8 +5964,13 @@ function HostExperienceDetail({
     ? experiences.data?.find((item) => item.id === experienceId)
     : undefined;
   const allParticipants = participants.data ?? [];
+  const selectedParticipant = allParticipants.find((item) => item.id === selectedParticipantId) ?? null;
   const milestoneDefinitions = milestoneTracking.data?.milestones ?? [];
-  const pendingMilestoneSubmissions: ExperienceMilestoneSubmission[] = milestoneTracking.data?.submissions ?? [];
+  const milestoneSubmissions: ExperienceMilestoneSubmission[] = milestoneTracking.data?.submissions ?? [];
+  const pendingMilestoneSubmissions = milestoneSubmissions.filter((submission) => submission.status === 'submitted');
+  const selectedParticipantMilestones = selectedParticipant
+    ? milestoneSubmissions.filter((submission) => submission.participationId === selectedParticipant.id)
+    : [];
   const waitlistedParticipants = allParticipants
     .filter((item) => item.status === 'waitlisted')
     .sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime() || a.id - b.id);
@@ -6564,7 +6572,24 @@ function HostExperienceDetail({
                   : colors.mutedForeground;
             const activityDate = hostTimestampLabel(item.status === 'submitted' ? item.submittedAt : item.joinedAt);
             return (
-              <View key={item.id} style={[styles.hostParticipantCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+              <Pressable
+                key={item.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.participant.name}, ${hostParticipationStatusLabels[item.status]}. Open contribution details and participant actions.`}
+                accessibilityHint="Shows this participant’s activity and the host actions available for this experience."
+                accessibilityState={{ expanded: selectedParticipantId === item.id }}
+                testID={`host-participant-card-${item.id}`}
+                onPress={() => {
+                  setActionError(null);
+                  setSelectedParticipantId(item.id);
+                  triggerHaptic();
+                }}
+                style={({ pressed }) => [
+                  styles.hostParticipantCard,
+                  { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+                  pressed && styles.hostParticipantCardPressed,
+                ]}
+              >
                 <View style={styles.hostParticipantTop}>
                   <View style={[styles.participantAvatar, { backgroundColor: colors.primary + '15' }]}>
                     <Text style={[styles.participantInitial, { color: colors.primary }]}>{item.participant.name.slice(0, 1).toUpperCase()}</Text>
@@ -6576,6 +6601,7 @@ function HostExperienceDetail({
                   <View style={[styles.hostStatusPill, { backgroundColor: participantStatusColor + '14' }]}>
                     <Text style={[styles.hostStatusText, { color: participantStatusColor }]}>{hostParticipationStatusLabels[item.status]}</Text>
                   </View>
+                  <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
                 </View>
                 <View style={styles.hostParticipantMeta}>
                   <Feather name={item.status === 'submitted' ? 'clock' : 'calendar'} size={13} color={colors.mutedForeground} />
@@ -6588,67 +6614,15 @@ function HostExperienceDetail({
                   </Text>
                 </View>
                 {item.status === 'submitted' ? (
-                  <>
-                    {item.completionStatement ? (
-                      <View style={[styles.hostReviewNote, { backgroundColor: colors.muted }]}>
-                        <Feather name="file-text" size={15} color={colors.mutedForeground} />
-                        <Text style={[styles.hostReviewText, { color: colors.foreground }]}>
-                          {item.completionStatement}
-                        </Text>
-                      </View>
-                    ) : null}
-                    {(item.evidenceObjectKeys ?? []).map((key, index) => (
-                      <Pressable key={key} accessibilityRole="button" onPress={() => void openReviewEvidence(key)}>
-                        <Text style={[styles.hostReviewText, { color: colors.primary }]}>Open participant evidence {index + 1}</Text>
-                      </Pressable>
-                    ))}
-                    <View style={[styles.hostReviewNote, { backgroundColor: colors.primary + '0C' }]}>
-                      <Feather name="award" size={16} color={colors.primary} />
-                      <Text style={[styles.hostReviewText, { color: colors.foreground }]}>
-                        Verify this completion to award {item.experience.xpReward} XP.
-                      </Text>
-                    </View>
-                    <View style={styles.hostActionPair}>
-                      <Button
-                        label={verify.isPending ? 'Saving…' : 'Verify'}
-                        icon="check"
-                        color={colors.secondary}
-                        disabled={verify.isPending || reject.isPending}
-                        style={styles.hostActionButton}
-                        testID={`host-verify-${item.id}`}
-                        onPress={() => void runHostAction(() => verify.mutateAsync({ participationId: item.id }))}
-                      />
-                    </View>
-                    <TextInput
-                      value={rejectReasons[item.id] ?? ''}
-                      onChangeText={(value) => setRejectReasons((current) => ({ ...current, [item.id]: value.slice(0, 500) }))}
-                      placeholder="Explain what needs to change (at least 10 characters)"
-                      placeholderTextColor={colors.mutedForeground}
-                      accessibilityLabel={`Rejection reason for ${item.participant.name}`}
-                      maxLength={500}
-                      multiline
-                      style={{ minHeight: 68, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius, padding: 10, color: colors.foreground, backgroundColor: colors.card, marginTop: 10, textAlignVertical: 'top' }}
-                    />
-                    <Button
-                      label={reject.isPending ? 'Saving…' : 'Reject with reason'}
-                      icon="x"
-                      variant="secondary"
-                      disabled={verify.isPending || reject.isPending || (rejectReasons[item.id] ?? '').trim().length < 10}
-                      style={styles.hostFullActionButton}
-                      testID={`host-reject-with-reason-${item.id}`}
-                      onPress={() => rejectParticipation(item.id)}
-                    />
-                  </>
+                  <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.secondary + '12' }]}>
+                    <Feather name="clock" size={15} color={colors.secondary} />
+                    <Text style={[styles.hostParticipantOutcomeText, { color: colors.secondary }]}>Completion submitted · Review needed</Text>
+                  </View>
                 ) : item.status === 'joined' ? (
-                  <Button
-                    label={attend.isPending ? 'Saving…' : 'Mark attended'}
-                    icon="check"
-                    variant="secondary"
-                    disabled={attend.isPending}
-                    style={styles.hostFullActionButton}
-                    testID={`host-attend-${item.id}`}
-                    onPress={() => void runHostAction(() => attend.mutateAsync({ participationId: item.id }))}
-                  />
+                  <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.muted }]}>
+                    <Feather name="calendar" size={15} color={colors.mutedForeground} />
+                    <Text style={[styles.hostParticipantOutcomeText, { color: colors.mutedForeground }]}>Attendance not recorded</Text>
+                  </View>
                 ) : item.status === 'waitlisted' ? (
                   <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.secondary + '12' }]}>
                     <Feather name="clock" size={15} color={colors.secondary} />
@@ -6659,7 +6633,9 @@ function HostExperienceDetail({
                 ) : item.status === 'verified' ? (
                   <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.success + '12' }]}>
                     <Feather name="check-circle" size={15} color={colors.success} />
-                    <Text style={[styles.hostParticipantOutcomeText, { color: colors.success }]}>Completion approved · XP ready to redeem</Text>
+                    <Text style={[styles.hostParticipantOutcomeText, { color: colors.success }]}>
+                      Completion approved · {item.rewardStatus === 'issued' ? 'XP issued' : 'XP ready to redeem'}
+                    </Text>
                   </View>
                 ) : item.status === 'attended' ? (
                   <View style={[styles.hostParticipantOutcome, { backgroundColor: colors.success + '12' }]}>
@@ -6672,7 +6648,11 @@ function HostExperienceDetail({
                     <Text style={[styles.hostParticipantOutcomeText, { color: colors.mutedForeground }]}>Completion was rejected</Text>
                   </View>
                 )}
-              </View>
+                <View style={styles.hostParticipantOpenHint}>
+                  <Text style={[styles.hostParticipantOpenHintText, { color: colors.primary }]}>View contribution & actions</Text>
+                  <Feather name="arrow-up-right" size={13} color={colors.primary} />
+                </View>
+              </Pressable>
             );
           }) : (
             <EmptyState
@@ -6766,6 +6746,355 @@ function HostExperienceDetail({
         </>
       ) : null}
       <View style={{ height: 120 }} />
+      {selectedParticipant && experience ? (
+        <Modal
+          transparent
+          visible
+          animationType="slide"
+          presentationStyle="overFullScreen"
+          statusBarTranslucent
+          onRequestClose={() => setSelectedParticipantId(null)}
+        >
+          <View style={styles.hostParticipantSheetOverlay}>
+            <Pressable
+              testID="host-participant-sheet-backdrop"
+              accessibilityRole="button"
+              accessibilityLabel="Close participant details"
+              onPress={() => setSelectedParticipantId(null)}
+              style={StyleSheet.absoluteFill}
+            />
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={styles.hostParticipantSheetKeyboard}
+            >
+              <View
+                testID="host-participant-sheet"
+                accessibilityViewIsModal
+                style={[
+                  styles.hostParticipantSheet,
+                  {
+                    backgroundColor: colors.background,
+                    maxHeight: Math.min(viewportHeight - insets.top - 12, 760),
+                    paddingBottom: Math.max(insets.bottom, 16),
+                  },
+                ]}
+              >
+                <View style={[styles.hostParticipantSheetHandle, { backgroundColor: colors.border }]} />
+                <View style={styles.hostParticipantSheetHeader}>
+                  <View style={[styles.participantAvatar, { backgroundColor: colors.primary + '15' }]}>
+                    <Text style={[styles.participantInitial, { color: colors.primary }]}>
+                      {selectedParticipant.participant.name.slice(0, 1).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.hostParticipantSheetIdentity}>
+                    <Text style={[styles.hostParticipantSheetEyebrow, { color: colors.primary }]}>PARTICIPANT CONTRIBUTION</Text>
+                    <Text numberOfLines={1} style={[styles.hostParticipantSheetTitle, { color: colors.foreground }]}>
+                      {selectedParticipant.participant.name}
+                    </Text>
+                    <Text numberOfLines={1} style={[styles.hostParticipantSheetUsername, { color: colors.mutedForeground }]}>
+                      {selectedParticipant.participant.username ? `@${selectedParticipant.participant.username}` : 'Experiences.fun participant'}
+                    </Text>
+                  </View>
+                  <Pressable
+                    testID="host-participant-sheet-close"
+                    accessibilityRole="button"
+                    accessibilityLabel="Close participant details"
+                    onPress={() => setSelectedParticipantId(null)}
+                    style={({ pressed }) => [
+                      styles.hostParticipantSheetClose,
+                      { backgroundColor: colors.muted, opacity: pressed ? 0.65 : 1 },
+                    ]}
+                  >
+                    <Feather name="x" size={20} color={colors.foreground} />
+                  </Pressable>
+                </View>
+
+                <ScrollView
+                  style={styles.hostParticipantSheetScroll}
+                  contentContainerStyle={styles.hostParticipantSheetContent}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                >
+                  {actionError ? <InlineError message={actionError} /> : null}
+
+                  <View style={[styles.hostParticipantContributionSummary, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+                    <View style={[styles.hostParticipantContributionIcon, { backgroundColor: colors.primary + '12' }]}>
+                      <Feather name="award" size={18} color={colors.primary} />
+                    </View>
+                    <View style={styles.hostParticipantContributionCopy}>
+                      <Text style={[styles.hostParticipantContributionTitle, { color: colors.foreground }]}>{experience.title}</Text>
+                      <Text style={[styles.hostParticipantContributionMeta, { color: colors.mutedForeground }]}>
+                        {experience.xpReward} XP total reward
+                        {milestoneDefinitions.length ? ' · shared across milestones' : ' · for verified completion'}
+                      </Text>
+                    </View>
+                    <View style={[styles.hostStatusPill, {
+                      backgroundColor: (
+                        selectedParticipant.status === 'verified' || selectedParticipant.status === 'attended'
+                          ? colors.success
+                          : selectedParticipant.status === 'submitted' || selectedParticipant.status === 'waitlisted'
+                            ? colors.secondary
+                            : selectedParticipant.status === 'rejected'
+                              ? colors.destructive
+                              : colors.mutedForeground
+                      ) + '14',
+                    }]}>
+                      <Text style={[styles.hostStatusText, {
+                        color: selectedParticipant.status === 'verified' || selectedParticipant.status === 'attended'
+                          ? colors.success
+                          : selectedParticipant.status === 'submitted' || selectedParticipant.status === 'waitlisted'
+                            ? colors.secondary
+                            : selectedParticipant.status === 'rejected'
+                              ? colors.destructive
+                              : colors.mutedForeground,
+                      }]}>{hostParticipationStatusLabels[selectedParticipant.status]}</Text>
+                    </View>
+                  </View>
+
+                  <View style={[styles.hostParticipantSheetSection, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+                    <Text style={[styles.hostParticipantSheetSectionTitle, { color: colors.foreground }]}>Participation record</Text>
+                    {[
+                      { icon: 'calendar' as const, label: 'Joined', value: hostTimestampLabel(selectedParticipant.joinedAt) ?? 'Date unavailable' },
+                      { icon: 'check-circle' as const, label: 'Attendance', value: selectedParticipant.attendedAt ? hostTimestampLabel(selectedParticipant.attendedAt) ?? 'Recorded' : 'Not recorded' },
+                      {
+                        icon: 'file-text' as const,
+                        label: 'Completion',
+                        value: selectedParticipant.status === 'submitted'
+                          ? `Submitted${selectedParticipant.submittedAt ? ` · ${hostTimestampLabel(selectedParticipant.submittedAt) ?? ''}` : ''}`
+                          : selectedParticipant.status === 'verified'
+                            ? `Approved${selectedParticipant.verifiedAt ? ` · ${hostTimestampLabel(selectedParticipant.verifiedAt) ?? ''}` : ''}`
+                            : selectedParticipant.status === 'rejected'
+                              ? `Needs an update${selectedParticipant.reviewedAt ? ` · ${hostTimestampLabel(selectedParticipant.reviewedAt) ?? ''}` : ''}`
+                              : 'No completion submitted',
+                      },
+                    ].map((row) => (
+                      <View key={row.label} style={[styles.hostParticipantDetailRow, { borderTopColor: colors.border }]}>
+                        <Feather name={row.icon} size={15} color={colors.primary} />
+                        <Text style={[styles.hostParticipantDetailLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
+                        <Text style={[styles.hostParticipantDetailValue, { color: colors.foreground }]}>{row.value}</Text>
+                      </View>
+                    ))}
+                    {selectedParticipant.status === 'verified' ? (
+                      <View style={[styles.hostParticipantRewardNotice, { backgroundColor: colors.success + '12' }]}>
+                        <Feather name="zap" size={15} color={colors.success} />
+                        <Text style={[styles.hostParticipantRewardText, { color: colors.success }]}>
+                          {selectedParticipant.rewardStatus === 'issued'
+                            ? 'The experience XP reward has been issued.'
+                            : 'The experience XP reward is ready to redeem.'}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {selectedParticipant.completionStatement || selectedParticipant.evidenceObjectKeys.length || selectedParticipant.reviewHistory.length ? (
+                    <View style={[styles.hostParticipantSheetSection, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+                      <Text style={[styles.hostParticipantSheetSectionTitle, { color: colors.foreground }]}>Completion contribution</Text>
+                      {selectedParticipant.completionStatement ? (
+                        <View style={[styles.hostReviewNote, { backgroundColor: colors.muted }]}>
+                          <Feather name="file-text" size={15} color={colors.mutedForeground} />
+                          <Text style={[styles.hostReviewText, { color: colors.foreground }]}>{selectedParticipant.completionStatement}</Text>
+                        </View>
+                      ) : null}
+                      {selectedParticipant.reviewReason ? (
+                        <Text style={[styles.hostParticipantReviewReason, { color: colors.mutedForeground }]}>
+                          Latest review note: {selectedParticipant.reviewReason}
+                        </Text>
+                      ) : null}
+                      {selectedParticipant.evidenceObjectKeys.map((key, index) => (
+                        <Pressable
+                          key={key}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Open completion evidence ${index + 1}`}
+                          testID={`host-participant-evidence-${selectedParticipant.id}-${index}`}
+                          onPress={() => void openReviewEvidence(key)}
+                          style={styles.hostParticipantEvidenceLink}
+                        >
+                          <Feather name="paperclip" size={14} color={colors.primary} />
+                          <Text style={[styles.hostParticipantEvidenceText, { color: colors.primary }]}>Open completion evidence {index + 1}</Text>
+                        </Pressable>
+                      ))}
+                      {selectedParticipant.reviewHistory.map((review, index) => (
+                        <View key={`${review.createdAt}-${index}`} style={[styles.hostParticipantReviewEvent, { borderTopColor: colors.border }]}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.hostParticipantReviewEventTitle, { color: review.decision === 'verified' ? colors.success : colors.destructive }]}>
+                              {review.decision === 'verified' ? 'Completion approved' : 'Update requested'}
+                            </Text>
+                            <Text style={[styles.hostParticipantReviewEventMeta, { color: colors.mutedForeground }]}>
+                              {review.reviewerName} · {hostTimestampLabel(review.createdAt) ?? 'Review recorded'}
+                            </Text>
+                            {review.reason ? <Text style={[styles.hostParticipantReviewReason, { color: colors.mutedForeground }]}>{review.reason}</Text> : null}
+                          </View>
+                          <Feather name={review.decision === 'verified' ? 'check-circle' : 'rotate-ccw'} size={16} color={review.decision === 'verified' ? colors.success : colors.destructive} />
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  <View style={[styles.hostParticipantSheetSection, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+                    <Text style={[styles.hostParticipantSheetSectionTitle, { color: colors.foreground }]}>Milestone contribution</Text>
+                    {milestoneTracking.isLoading && !milestoneTracking.data ? (
+                      <View style={styles.hostParticipantSheetLoading}>
+                        <ActivityIndicator size="small" color={colors.primary} />
+                        <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>Loading milestone activity…</Text>
+                      </View>
+                    ) : milestoneTracking.isError ? (
+                      <Text style={[styles.hostParticipantReviewReason, { color: colors.mutedForeground }]}>Milestone activity could not be loaded. Refresh the experience to try again.</Text>
+                    ) : milestoneDefinitions.length ? selectedParticipantMilestones.length ? (
+                      selectedParticipantMilestones.map((submission) => {
+                        const statusColor = submission.status === 'verified'
+                          ? colors.success
+                          : submission.status === 'rejected'
+                            ? colors.destructive
+                            : colors.secondary;
+                        const rejectionReason = milestoneRejectReasons[submission.id] ?? '';
+                        return (
+                          <View key={submission.id} testID={`host-participant-milestone-${submission.id}`} style={[styles.hostParticipantMilestone, { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: colors.radius - 6 }]}>
+                            <View style={styles.hostParticipantMilestoneHeading}>
+                              <View style={{ flex: 1, minWidth: 0 }}>
+                                <Text style={[styles.hostParticipantMilestoneTitle, { color: colors.foreground }]}>{submission.milestoneTitle}</Text>
+                                <Text style={[styles.hostParticipantMilestoneMeta, { color: colors.mutedForeground }]}>
+                                  Submitted {hostTimestampLabel(submission.submittedAt) ?? 'date unavailable'} · {submission.xpReward} XP
+                                </Text>
+                              </View>
+                              <View style={[styles.hostStatusPill, { backgroundColor: statusColor + '14' }]}>
+                                <Text style={[styles.hostStatusText, { color: statusColor }]}>
+                                  {submission.status === 'submitted' ? 'To review' : submission.status === 'verified' ? 'Verified' : 'Update needed'}
+                                </Text>
+                              </View>
+                            </View>
+                            {submission.verifiedAt ? (
+                              <Text style={[styles.hostParticipantMilestoneMeta, { color: colors.mutedForeground }]}>
+                                Verified {hostTimestampLabel(submission.verifiedAt) ?? ''}
+                              </Text>
+                            ) : null}
+                            {submission.reviewReason ? (
+                              <Text style={[styles.hostParticipantReviewReason, { color: colors.mutedForeground }]}>{submission.reviewReason}</Text>
+                            ) : null}
+                            {submission.evidenceObjectKeys.map((key, index) => (
+                              <Pressable
+                                key={key}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Open milestone evidence ${index + 1}`}
+                                testID={`host-participant-milestone-evidence-${submission.id}-${index}`}
+                                onPress={() => void openReviewEvidence(key)}
+                                style={styles.hostParticipantEvidenceLink}
+                              >
+                                <Feather name="paperclip" size={14} color={colors.primary} />
+                                <Text style={[styles.hostParticipantEvidenceText, { color: colors.primary }]}>Open milestone evidence {index + 1}</Text>
+                              </Pressable>
+                            ))}
+                            {submission.status === 'submitted' ? (
+                              <>
+                                <TextInput
+                                  value={rejectionReason}
+                                  onChangeText={(value) => setMilestoneRejectReasons((current) => ({ ...current, [submission.id]: value.slice(0, 500) }))}
+                                  placeholder="Reason for requesting an update (at least 5 characters)"
+                                  placeholderTextColor={colors.mutedForeground}
+                                  maxLength={500}
+                                  multiline
+                                  accessibilityLabel={`Milestone update reason for ${selectedParticipant.participant.name}`}
+                                  testID={`host-participant-milestone-reason-${submission.id}`}
+                                  style={[styles.hostParticipantReasonInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+                                />
+                                <View style={styles.hostActionPair}>
+                                  <Button
+                                    testID={`host-verify-milestone-${submission.id}`}
+                                    label={reviewMilestone.isPending ? 'Saving…' : 'Approve milestone'}
+                                    icon="check"
+                                    color={colors.secondary}
+                                    disabled={reviewMilestone.isPending}
+                                    style={styles.hostActionButton}
+                                    onPress={() => void reviewMilestoneSubmission(submission.id, 'verify')}
+                                  />
+                                  <Button
+                                    testID={`host-reject-milestone-${submission.id}`}
+                                    label={reviewMilestone.isPending ? 'Saving…' : 'Request update'}
+                                    icon="rotate-ccw"
+                                    variant="secondary"
+                                    disabled={reviewMilestone.isPending || rejectionReason.trim().length < 5}
+                                    style={styles.hostActionButton}
+                                    onPress={() => void reviewMilestoneSubmission(submission.id, 'reject')}
+                                  />
+                                </View>
+                              </>
+                            ) : null}
+                          </View>
+                        );
+                      })
+                    ) : (
+                      <Text style={[styles.hostParticipantReviewReason, { color: colors.mutedForeground }]}>No milestone submissions recorded for this participant yet.</Text>
+                    ) : (
+                      <Text style={[styles.hostParticipantReviewReason, { color: colors.mutedForeground }]}>This experience uses a single completion submission rather than milestone steps.</Text>
+                    )}
+                  </View>
+
+                  <View style={[styles.hostParticipantSheetSection, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+                    <Text style={[styles.hostParticipantSheetSectionTitle, { color: colors.foreground }]}>Host actions</Text>
+                    {selectedParticipant.status === 'joined' ? (
+                      <Button
+                        label={attend.isPending ? 'Saving…' : 'Mark attended'}
+                        icon="check"
+                        variant="secondary"
+                        disabled={attend.isPending}
+                        style={styles.hostFullActionButton}
+                        testID={`host-attend-${selectedParticipant.id}`}
+                        onPress={() => void runHostAction(() => attend.mutateAsync({ participationId: selectedParticipant.id }))}
+                      />
+                    ) : selectedParticipant.status === 'submitted' ? (
+                      <>
+                        <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>
+                          Approve this contribution to release {experience.xpReward} XP, or explain what needs to change.
+                        </Text>
+                        <View style={styles.hostActionPair}>
+                          <Button
+                            label={verify.isPending ? 'Saving…' : 'Approve completion'}
+                            icon="check"
+                            color={colors.secondary}
+                            disabled={verify.isPending || reject.isPending}
+                            style={styles.hostActionButton}
+                            testID={`host-verify-${selectedParticipant.id}`}
+                            onPress={() => void runHostAction(() => verify.mutateAsync({ participationId: selectedParticipant.id }))}
+                          />
+                        </View>
+                        <TextInput
+                          value={rejectReasons[selectedParticipant.id] ?? ''}
+                          onChangeText={(value) => setRejectReasons((current) => ({ ...current, [selectedParticipant.id]: value.slice(0, 500) }))}
+                          placeholder="Explain what needs to change (at least 10 characters)"
+                          placeholderTextColor={colors.mutedForeground}
+                          accessibilityLabel={`Rejection reason for ${selectedParticipant.participant.name}`}
+                          testID={`host-reject-reason-${selectedParticipant.id}`}
+                          maxLength={500}
+                          multiline
+                          style={[styles.hostParticipantReasonInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, borderRadius: colors.radius }]}
+                        />
+                        <Button
+                          label={reject.isPending ? 'Saving…' : 'Reject with reason'}
+                          icon="x"
+                          variant="secondary"
+                          disabled={verify.isPending || reject.isPending || (rejectReasons[selectedParticipant.id] ?? '').trim().length < 10}
+                          style={styles.hostFullActionButton}
+                          testID={`host-reject-with-reason-${selectedParticipant.id}`}
+                          onPress={() => rejectParticipation(selectedParticipant.id)}
+                        />
+                      </>
+                    ) : selectedParticipant.status === 'waitlisted' ? (
+                      <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>
+                        This participant is on the waitlist. Use “Promote next” when a place is available.
+                      </Text>
+                    ) : selectedParticipant.status === 'verified' ? (
+                      <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>This completion has been approved. Its reward status is shown above.</Text>
+                    ) : selectedParticipant.status === 'attended' ? (
+                      <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>Attendance is recorded. The participant can submit their completion when ready.</Text>
+                    ) : (
+                      <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>The participant’s completion was rejected. Their review history and feedback are shown above.</Text>
+                    )}
+                  </View>
+                </ScrollView>
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        </Modal>
+      ) : null}
     </KeyboardAwareScrollViewCompat>
   );
 }
@@ -9722,6 +10051,7 @@ const styles = StyleSheet.create({
   hostWaitlistText: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
   hostParticipantCount: { marginBottom: 9 },
   hostParticipantCard: { borderWidth: 1, padding: 13, marginBottom: 10, gap: 10 },
+  hostParticipantCardPressed: { opacity: 0.78 },
   hostParticipantTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   participantAvatar: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   participantInitial: { fontSize: 18, fontFamily: 'Inter_700Bold' },
@@ -9737,7 +10067,45 @@ const styles = StyleSheet.create({
   hostFullActionButton: { width: '100%' },
   hostParticipantOutcome: { flexDirection: 'row', alignItems: 'center', gap: 7, padding: 10, borderRadius: 12 },
   hostParticipantOutcomeText: { flex: 1, fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  
+  hostParticipantOpenHint: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 5, paddingTop: 1 },
+  hostParticipantOpenHintText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  hostParticipantSheetOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(16,16,22,0.48)' },
+  hostParticipantSheetKeyboard: { flex: 1, justifyContent: 'flex-end' },
+  hostParticipantSheet: { width: '100%', height: '88%', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12, paddingHorizontal: 18 },
+  hostParticipantSheetHandle: { width: 38, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 15 },
+  hostParticipantSheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 13 },
+  hostParticipantSheetIdentity: { flex: 1, minWidth: 0 },
+  hostParticipantSheetEyebrow: { fontSize: 9, letterSpacing: 0.9, fontFamily: 'Inter_700Bold', marginBottom: 3 },
+  hostParticipantSheetTitle: { fontSize: 18, lineHeight: 22, fontFamily: 'Inter_700Bold' },
+  hostParticipantSheetUsername: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  hostParticipantSheetClose: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  hostParticipantSheetScroll: { flex: 1 },
+  hostParticipantSheetContent: { paddingBottom: 18, gap: 12 },
+  hostParticipantContributionSummary: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, padding: 12 },
+  hostParticipantContributionIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  hostParticipantContributionCopy: { flex: 1, minWidth: 0, gap: 3 },
+  hostParticipantContributionTitle: { fontSize: 13, lineHeight: 17, fontFamily: 'Inter_700Bold' },
+  hostParticipantContributionMeta: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
+  hostParticipantSheetSection: { borderWidth: 1, padding: 13, gap: 10 },
+  hostParticipantSheetSectionTitle: { fontSize: 14, lineHeight: 19, fontFamily: 'Inter_700Bold' },
+  hostParticipantDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 9, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 9 },
+  hostParticipantDetailLabel: { width: 76, fontSize: 11, fontFamily: 'Inter_500Medium' },
+  hostParticipantDetailValue: { flex: 1, minWidth: 0, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_600SemiBold', textAlign: 'right' },
+  hostParticipantRewardNotice: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 9, borderRadius: 11 },
+  hostParticipantRewardText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_600SemiBold' },
+  hostParticipantEvidenceLink: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 4 },
+  hostParticipantEvidenceText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  hostParticipantReviewEvent: { flexDirection: 'row', alignItems: 'center', gap: 9, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 9 },
+  hostParticipantReviewEventTitle: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  hostParticipantReviewEventMeta: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  hostParticipantReviewReason: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
+  hostParticipantMilestone: { borderWidth: 1, padding: 11, gap: 8 },
+  hostParticipantMilestoneHeading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hostParticipantMilestoneTitle: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_700Bold' },
+  hostParticipantMilestoneMeta: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
+  hostParticipantReasonInput: { minHeight: 62, borderWidth: 1, padding: 10, fontSize: 12, lineHeight: 17, textAlignVertical: 'top' },
+  hostParticipantSheetLoading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+
   // Create
   createContent: { paddingHorizontal: 20 },
   createTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 },

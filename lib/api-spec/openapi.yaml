@@ -1715,13 +1715,13 @@ paths:
     get:
       operationId: getHostExperienceMilestones
       tags: [host]
-      summary: Get milestone definitions and pending reviews for a hosted experience
+      summary: Get milestone definitions and participant submissions for a hosted experience
       security: [{ telegramInitData: [] }]
       parameters:
         - $ref: "#/components/parameters/ExperienceId"
       responses:
         "200":
-          description: Milestones and pending milestone submissions
+          description: Milestones and all participant milestone submissions
           content:
             application/json:
               schema:
