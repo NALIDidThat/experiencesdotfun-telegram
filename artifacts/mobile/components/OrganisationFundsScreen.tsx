@@ -729,15 +729,15 @@ export function OrganisationFundsScreen({
       />
     </View>
   );
-  const button = (label: string, action: () => void, secondary = false, disabled = false, icon?: keyof typeof Feather.glyphMap) => (
+  const button = (label: string, action: () => void, secondary = false, disabled = false, icon?: keyof typeof Feather.glyphMap, compact = false) => (
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
       onPress={action}
-      style={{ minHeight: 50, borderRadius: colors.radius - 4, paddingHorizontal: 16, backgroundColor: secondary ? colors.card : colors.primary, borderWidth: secondary ? 1 : 0, borderColor: colors.border, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, opacity: disabled ? 0.55 : 1 }}
+      style={{ minHeight: compact ? 44 : 50, borderRadius: colors.radius - 4, paddingHorizontal: compact ? 12 : 16, backgroundColor: secondary ? colors.card : colors.primary, borderWidth: secondary ? 1 : 0, borderColor: colors.border, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: compact ? 6 : 8, opacity: disabled ? 0.55 : 1 }}
     >
-      {icon ? <Feather name={icon} size={16} color={secondary ? colors.foreground : colors.primaryForeground} /> : null}
-      <Text style={{ color: secondary ? colors.foreground : colors.primaryForeground, fontFamily: "Inter_700Bold", fontSize: 14 }}>{label}</Text>
+      {icon ? <Feather name={icon} size={compact ? 14 : 16} color={secondary ? colors.foreground : colors.primaryForeground} /> : null}
+      <Text style={{ color: secondary ? colors.foreground : colors.primaryForeground, fontFamily: "Inter_700Bold", fontSize: compact ? 13 : 14 }}>{label}</Text>
     </Pressable>
   );
   const header = (titleText: string, subtitle: string, backAction: () => void, backLabel: string) => (
@@ -885,7 +885,7 @@ export function OrganisationFundsScreen({
               <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Campaigns</Text>
               <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{activeCount} active · {campaigns.length} total</Text>
             </View>
-            {button("Launch a fund", () => { setError(null); setStage("create"); }, false, false, "plus")}
+            {button("Launch a fund", () => { setError(null); setStage("create"); }, false, false, "plus", true)}
           </View>
           <View style={{ flexDirection: "row", gap: 7 }}>
             {(["active", "all", "closed"] as const).map((filter) => (
@@ -906,7 +906,7 @@ export function OrganisationFundsScreen({
               <Feather name="target" size={25} color={colors.primary} />
               <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold" }}>{campaignFilter === "active" ? "No active campaigns" : campaignFilter === "closed" ? "No closed campaigns" : "No campaigns yet"}</Text>
               <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18, textAlign: "center" }}>Launch a fundraiser when your organisation is ready to raise support.</Text>
-              {campaignFilter !== "active" ? null : button("Launch a fund", () => { setError(null); setStage("create"); }, false, false, "plus")}
+              {campaignFilter !== "active" ? null : button("Launch a fund", () => { setError(null); setStage("create"); }, false, false, "plus", true)}
             </View>
           )}
           <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15 }}>Progress includes recorded, finalized campaign deposits only. Transfers to the shared treasury may not be attributable to a campaign.</Text>
@@ -1158,7 +1158,7 @@ export function OrganisationFundsScreen({
                 {fundsQuery.data?.length ? <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{fundsQuery.data.filter((fund) => fund.status === "active").length} active</Text> : null}
               </View>
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>{button("Launch a fund", () => { setExperienceIdToAttach(undefined); setError(null); setStage("create"); }, false, false, "plus")}</View>
+                <View style={{ flex: 1 }}>{button("Launch a fund", () => { setExperienceIdToAttach(undefined); setError(null); setStage("create"); }, false, false, "plus", true)}</View>
                 <View style={{ flex: 1 }}>{button("Track campaigns", () => onOpenCampaign ? onOpenCampaign() : setStage("campaigns"), true, false, "bar-chart-2")}</View>
               </View>
               {fundsQuery.isLoading ? <Text style={{ color: colors.mutedForeground, fontSize: 13, paddingVertical: 10 }}>Loading your campaigns…</Text> :
