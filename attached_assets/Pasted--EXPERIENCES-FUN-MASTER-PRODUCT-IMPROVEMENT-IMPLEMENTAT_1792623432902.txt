@@ -1,0 +1,1168 @@
+# EXPERIENCES.FUN: MASTER PRODUCT IMPROVEMENT & IMPLEMENTATION PROMPT
+
+## Mission
+
+You are the lead product engineer, senior mobile engineer, backend engineer and UX architect responsible for improving Experiences.fun.
+
+Repository: https://github.com/NALIDidThat/experiencesdotfun-telegram
+
+Your task is to audit, improve and implement the next stage of Experiences.fun, prioritising the role-specific mobile home experience, core participation lifecycle, product analytics, code quality, test automation, accessibility, security and operational reliability.
+
+This is an implementation task. Do not simply produce a plan, mockup, recommendation list or audit report. Inspect the existing code, make the changes, test the results and report the actual outcome.
+
+Work directly within the existing architecture. Avoid unnecessary rewrites, duplicate systems, invented functionality and destructive changes.
+
+---
+
+# 1. PRODUCT VISION AND NORTH STAR
+
+Experiences.fun is building the social operating system for local community development.
+
+The platform should help people discover meaningful real-world experiences, participate in them, document contributions, receive appropriate recognition, connect with local communities and return to contribute again.
+
+Organisations should be able to host experiences, coordinate participation, review submissions, understand engagement, build partnerships and, where appropriate, manage fundraising campaigns.
+
+The product's long-term differentiation is not simply that it lists local activities or awards points.
+
+It is the connection between:
+
+1. Discovering an opportunity to contribute.
+2. Taking a real-world action.
+3. Recording and verifying participation.
+4. Building trustworthy, portable recognition.
+5. Helping communities coordinate further activity.
+6. Learning from the resulting data to improve future participation.
+
+Every engineering and product decision must support this system.
+
+## The north star
+
+Increase the frequency and quality of meaningful, verified real-world contributions made through Experiences.fun.
+
+Do not optimise superficial engagement at the expense of genuine participation. Screen views, messages, clicks and XP totals are useful signals, but they are not substitutes for completed and verified contributions.
+
+## Primary user groups
+
+### Participants
+
+People who discover experiences, join activities, participate in community initiatives, document progress, connect with others and build a record of contribution.
+
+### Organisations
+
+Eligible charities, nonprofits, schools, community centres, libraries, youth organisations, businesses and other approved organisations that host experiences or coordinate local activity.
+
+Organisation capabilities vary by organisation type. Never assume that every organisation is eligible for every feature.
+
+## Product design principle
+
+**Every user should understand three things within seconds of opening the app:**
+
+- Where they stand.
+- What deserves their attention.
+- What they should do next.
+
+This principle is especially important on the home screen.
+
+---
+
+# 2. FIRST: AUDIT THE EXISTING REPOSITORY
+
+Before modifying code, inspect the current implementation and trace the main user journeys across the mobile client, API server, database and generated API client.
+
+Important starting points include:
+
+- `replit.md`
+- `package.json`
+- `pnpm-workspace.yaml`
+- `artifacts/mobile/package.json`
+- `artifacts/api-server/package.json`
+- `artifacts/mobile/app/index.tsx`
+- `artifacts/mobile/components/OrganisationHomeScreen.tsx`
+- `artifacts/mobile/components/OrganisationActivityDashboard.tsx`
+- `artifacts/mobile/components/PersonalActivityScreen.tsx`
+- `artifacts/mobile/components/ExperienceManagementCard.tsx`
+- `artifacts/mobile/components/CommunityXpPanel.tsx`
+- `artifacts/mobile/components/OrganisationFundsScreen.tsx`
+- `artifacts/mobile/components/AccountsCenterScreen.tsx`
+- `artifacts/mobile/components/SocialFeed.tsx`
+- `artifacts/mobile/components/NotificationsScreen.tsx`
+- `artifacts/mobile/components/AccountabilitySection.tsx`
+- `artifacts/mobile/context/AuthContext.tsx`
+- `artifacts/mobile/constants/colors.ts`
+- `artifacts/mobile/hooks/useColors.ts`
+- `artifacts/api-server/src/routes/experiences.ts`
+- `artifacts/api-server/src/routes/community.ts`
+- `artifacts/api-server/src/routes/analytics.ts`
+- `artifacts/api-server/src/routes/funds.ts`
+- `artifacts/api-server/src/lib/analytics.ts`
+- `lib/db/src/schema/experiences.ts`
+- `lib/db/src/schema/community.ts`
+- `lib/db/src/schema/xp-awards.ts`
+- `lib/db/src/schema/experience-milestones.ts`
+- `lib/db/src/schema/fundraising.ts`
+- `lib/api-spec/openapi.yaml`
+
+Also inspect the existing authentication, organisation verification, participation review, notification, friend, challenge, accountability, location and fundraising implementations.
+
+These paths are starting points, not an exhaustive list. Search the repository for the actual ownership of each feature before making changes.
+
+## Repository-specific context
+
+The existing system includes:
+
+- Expo and React Native, with a web build.
+- Expo Router and screen state managed in the mobile application.
+- An Express API.
+- PostgreSQL and Drizzle ORM.
+- OpenAPI-generated API client and validation types.
+- Email and Telegram-related authentication flows.
+- Experiences, participation, verification and milestones.
+- Social feed, friends, direct messaging and accountability.
+- XP awards and redemption.
+- Organisation verification.
+- Charity fundraising and Solana payment verification.
+- Existing unit tests, integration tests and browser interaction tests.
+
+The main `artifacts/mobile/app/index.tsx` file is approximately 10,000 lines, while `OrganisationFundsScreen.tsx` is also unusually large. Treat this as a maintainability concern, not permission to rewrite the application from scratch.
+
+## Establish a baseline
+
+Run the available tests, type checks and builds before modifying code.
+
+Record:
+
+- Which tests pass.
+- Which tests fail.
+- Which commands are missing.
+- Whether the web build succeeds.
+- Whether any failures are pre-existing.
+- Which tests require Chromium, a database, external services or environment variables.
+
+Do not claim that an existing failure was introduced by your work without evidence.
+
+After establishing the baseline, continue through every implementation phase below. Do not stop after the audit or ask for routine approval between phases.
+
+---
+
+# 3. PRIORITY ZERO: REDESIGN AND IMPROVE THE ROLE-SPECIFIC HOME EXPERIENCE
+
+This is the most important product improvement in this task.
+
+The home experience must evolve from a screen that primarily exposes application functionality into an intelligent, role-aware action centre.
+
+The home screen should use existing API data to determine which actions matter most to the current user.
+
+Do not create separate, disconnected dashboard systems that duplicate existing application logic. Reuse the current home components, hooks, API endpoints and domain models wherever possible.
+
+First inspect the existing implementation thoroughly, then improve it.
+
+## 3.1 Design the home screen around user intent
+
+Before coding, map the participant and organisation home journeys.
+
+For each user type, identify:
+
+- The user's most important immediate objective.
+- The events and states that can require attention.
+- Which API data is available to support that decision.
+- The next best action for each state.
+- The destination screen for that action.
+- What should happen if no relevant data exists.
+- What should happen if the required API request fails.
+
+Use these findings to determine the home screen's content hierarchy.
+
+Do not start by adding cards. Start by identifying the decisions users need to make.
+
+### Core home screen hierarchy
+
+Use the following conceptual hierarchy, adapting it to the actual product and available data:
+
+1. **Identity and context:** who the user is and which community or organisation context is active.
+2. **Priority action:** the single most relevant next action.
+3. **Active commitments:** experiences, tasks or reviews that require follow-through.
+4. **Progress and recognition:** verified contribution progress, meaningful milestones and relevant XP.
+5. **Discovery:** relevant opportunities to participate or collaborate.
+6. **Community context:** useful updates or connections that help the user take action.
+
+These are content categories, not mandatory cards. Combine, omit or rearrange sections where the data or user's state makes that appropriate.
+
+The screen must not display every category simply because the category exists.
+
+## 3.2 Participant home experience
+
+Build the participant home screen around a simple question:
+
+**"What is the most meaningful thing I can do next?"**
+
+### A. Personal welcome and local context
+
+Use existing profile information, where available, to establish a personalised starting point.
+
+Show a human greeting and concise local context. Respect the user's profile and location privacy.
+
+Do not request location permissions just to decorate the screen. Use stored city or other authorised location data when appropriate.
+
+If information is incomplete, keep the interface useful without forcing unnecessary profile completion.
+
+### B. Priority action module
+
+Create a prominent, dynamic next-action area based on actual user state.
+
+Possible priorities include:
+
+- A joined experience that requires a completion submission.
+- An upcoming experience for which the user has not yet recorded attendance, where applicable.
+- A pending experience application or waitlist status that requires action.
+- A saved or ongoing activity the user can continue.
+- A profile setup step that genuinely blocks participation.
+- An appropriate experience to join when there are no outstanding commitments.
+
+Prioritise these states based on their urgency and ability to unblock the user's progress.
+
+For example, a submission awaiting the participant should generally take precedence over passive discovery.
+
+Do not show a participant's own completion as "awaiting review" if it is actually waiting for the organiser. Distinguish between actions awaiting the user, actions awaiting the organisation and completed actions.
+
+The priority module should contain:
+
+- A specific, informative title.
+- A short explanation of why the action matters.
+- Relevant verified context, such as an experience title or date.
+- One clear primary action.
+- A sensible secondary action only where useful.
+
+The primary action must navigate to the relevant existing screen or open the appropriate existing flow.
+
+Do not invent tasks or activity merely to prevent an empty home screen.
+
+### C. My experiences and commitments
+
+Surface the user's relevant active experiences in a compact, useful format.
+
+Use existing participation and experience data to distinguish between states such as:
+
+- Joined.
+- Upcoming.
+- Waitlisted.
+- Attended.
+- Completion submitted.
+- Verified.
+- Rejected or requiring resubmission, where the product permits it.
+
+Only show statuses that are genuinely represented by the underlying model.
+
+Use clear status labels. Do not make users interpret database terminology.
+
+Prioritise immediate obligations over historical activity.
+
+When the user has no active commitments, replace the section with a concise discovery state and a direct action to explore available experiences.
+
+### D. Discover relevant experiences
+
+Make it easy for a participant to find their next meaningful activity.
+
+Use the existing experience discovery system and data available through the API.
+
+Consider relevance signals already supported by the application, including:
+
+- Availability.
+- Category.
+- Location or city.
+- Interests.
+- Time and scheduling information.
+- Existing participation state.
+
+Do not introduce a new recommendation service or machine-learning dependency just to sort a few experience cards.
+
+Use deterministic, understandable ranking where suitable.
+
+Exclude or appropriately label experiences the user cannot join. Respect capacity, publishing status and other existing participation rules.
+
+Provide a clear path to Explore for users who want broader discovery.
+
+### E. Contribution and XP progress
+
+Make progress visible without allowing points to overpower the real-world mission.
+
+Reuse the XP awards and activity systems already in place.
+
+Where available, show:
+
+- Verified contribution or participation progress.
+- Recently earned XP.
+- The next meaningful milestone.
+- A relevant outstanding step needed to complete a journey.
+
+Distinguish earned XP from pending or unverified awards. Respect existing redemption and verification states.
+
+Do not calculate "impact" purely from XP. Do not claim that users have produced a measurable environmental or educational outcome unless a suitable, verified record supports that claim.
+
+Avoid generic gamification widgets with no actionable purpose.
+
+### F. Community and social activity
+
+Reuse existing community, social feed, accountability and friendship features selectively.
+
+Surface community information when it helps the user participate or maintain a useful connection.
+
+Examples include:
+
+- A relevant update from an experience they joined.
+- An actionable notification.
+- A meaningful community challenge.
+- A current accountability commitment.
+
+Do not replicate the entire social feed on the home screen. The user should be able to enter the full social experience without being forced to scroll through a duplicate feed.
+
+### G. Participant home empty states
+
+Design intentional states for a new or inactive participant.
+
+For example:
+
+- No joined experiences: explain the value of taking a first action and direct the user to discovery.
+- No verified contributions: explain how participation becomes a verified contribution.
+- No current priority tasks: offer the most relevant discovery action.
+- Incomplete profile: request only the information that materially improves the experience or is required for a feature.
+
+An empty state must remain useful, not appear as a failed dashboard with missing numbers.
+
+---
+
+## 3.3 Organisation home experience
+
+The organisation home screen must answer:
+
+**"What needs my attention to help this organisation run better and create more meaningful participation?"**
+
+An organisation dashboard must not simply reproduce the participant dashboard using different labels.
+
+It is an operational workspace for managing experiences, reviewing work, coordinating people and tracking legitimate outcomes.
+
+### A. Organisation identity and verification context
+
+Use the existing organisation profile, organisation type and verification system.
+
+Make the organisation's name and relevant status clear.
+
+Where setup or verification is genuinely incomplete, explain the next action and link to the relevant existing workflow.
+
+Do not block the rest of the dashboard unnecessarily if the user can already perform other permitted actions.
+
+Avoid treating an unverified organisation as verified or implying that verification has been completed when it has not.
+
+### B. Organisation priority action centre
+
+Create a dynamic operational action area.
+
+Candidates include:
+
+- Completion submissions awaiting review.
+- Upcoming experiences requiring preparation.
+- Experiences that need publishing or profile details.
+- Waitlisted participants or capacity management.
+- Incomplete organisation onboarding.
+- Relevant partnership requests.
+- Fundraising tasks for eligible charities.
+
+Prioritise items based on urgency, operational consequence and whether the organisation can act on them now.
+
+If there are submissions awaiting review, the interface should make the review queue obvious and provide a direct route to it.
+
+If the organisation has not created an experience, make creating or publishing its first experience a clear next action.
+
+If there are no outstanding tasks, shift the emphasis toward improving an existing experience, attracting participants, creating a new experience or reviewing meaningful activity.
+
+Avoid displaying artificial warnings simply to make the dashboard feel busy.
+
+Each action should be traceable to actual backend state.
+
+### C. Experience operations
+
+Provide a compact view of the organisation's relevant experiences.
+
+Where supported, distinguish between:
+
+- Drafts or unpublished experiences.
+- Published and upcoming experiences.
+- Full experiences and waitlists.
+- Ongoing activities.
+- Completed experiences.
+- Experiences awaiting post-event reviews or verification.
+
+Do not assume every status is actionable. Match the controls to the existing business rules.
+
+Provide direct actions for the most important operational tasks, such as viewing participants, reviewing submissions or managing a particular experience.
+
+Do not duplicate the whole host management interface on the home screen.
+
+### D. Participant and completion review queue
+
+Where the existing API exposes reviewable submissions, make the queue a first-class organisational workflow.
+
+Show the number of outstanding items only when it has been retrieved from an authoritative source.
+
+Where useful, include:
+
+- The related experience.
+- The number of submissions requiring review.
+- The age or date of the oldest outstanding item.
+- A direct action to review submissions.
+
+Do not calculate counts using partial local lists if the backend provides paginated or filtered data.
+
+Do not create fake participant names or review entries.
+
+If reviewable submissions do not exist, show an appropriate zero state. Avoid confusing the absence of submissions with an API failure.
+
+The review action must lead into the existing, functional verification workflow.
+
+### E. Organisation activity and performance
+
+Make organisational progress understandable.
+
+Use existing data for metrics such as:
+
+- Participation across relevant experiences.
+- Verified completions.
+- Active or completed experiences.
+- Engagement with hosted experiences.
+- Relevant partnerships or community activity.
+
+Use clear date ranges and labels wherever the metric depends on time.
+
+Distinguish between total participation and verified completion. Do not count waitlisted people as participants who completed an experience.
+
+Where useful, connect an aggregate metric to the underlying records so the number can be investigated.
+
+Do not add a chart merely because dashboards usually have charts. Start with the few metrics that change what an organisation should do next.
+
+### F. Organisation-type-aware capabilities
+
+Use actual organisation type to determine which capabilities appear.
+
+Examples:
+
+- Eligible charities can access fundraising functionality.
+- Schools can focus on educational experiences and learner participation.
+- Community centres and libraries can focus on local programming and attendance.
+- Youth organisations can focus on their relevant activities and participation workflows.
+- Businesses can see the experiences and community activity they are authorised to manage.
+
+These are prioritisation examples, not permission to bypass existing role restrictions.
+
+Never infer permissions from hidden UI elements alone. The API must continue to enforce authorisation.
+
+Provide a sensible fallback for other organisation types.
+
+### G. Charity fundraising integration
+
+Reuse the existing fundraising dashboard and campaign tracker.
+
+When an eligible charity has an active campaign, show a concise, accurate summary with a direct action to inspect its progress.
+
+Use verified campaign-linked deposits for campaign progress, not raw wallet balances.
+
+Clearly distinguish:
+
+- Campaign contributions.
+- Live treasury balance.
+- Verified deposits.
+- Payout proposals.
+- Completed payouts.
+- Campaign goals.
+- Verified social impact.
+
+A payout proposal is not a completed payout. A treasury balance is not automatically money raised for a particular campaign.
+
+Never claim a real-world outcome merely because a fundraising milestone has been reached.
+
+Avoid making fundraising the dominant part of the home screen when the organisation has more urgent operational tasks.
+
+### H. Organisation empty states
+
+Support important initial and inactive states:
+
+- Organisation profile incomplete.
+- Verification pending or required.
+- No experiences created.
+- Experiences created but unpublished.
+- Published experience with no participants.
+- Participants present but no submissions yet.
+- Reviews outstanding.
+- No active fundraising campaign.
+- No available analytics data.
+
+Explain the current situation and provide a sensible next action.
+
+Do not confuse zero records with request failure. Loading, error and empty states must look and behave differently.
+
+---
+
+## 3.4 Build a home-screen priority engine
+
+Do not scatter ad hoc priority conditions across multiple components.
+
+Where necessary, implement a small, typed and testable selector or prioritisation helper that converts the user's available application data into a home-screen view model.
+
+The view model should be derived from existing source-of-truth data, not stored as a second copy of it.
+
+Define transparent ordering rules.
+
+For a participant, prioritisation should generally consider:
+
+1. User action required to unblock a joined experience or completion.
+2. Upcoming commitments and time-sensitive actions.
+3. Other outstanding participation steps.
+4. Relevant discovery opportunities.
+5. General progress and social context.
+
+For an organisation, prioritisation should generally consider:
+
+1. Operational items awaiting organisational action, especially reviews.
+2. Upcoming experience preparation and immediate hosting obligations.
+3. Publishing and onboarding tasks that block progress.
+4. Relevant participant and experience management.
+5. Campaign, partnership and broader growth actions.
+
+Adapt these rules to real state and available data. If an action is already complete, exclude it. If it is waiting on someone else, do not present it as though the current user can resolve it.
+
+Ensure that two users in different states can see meaningfully different priorities.
+
+Avoid arbitrary scoring algorithms and unexplained ranking. A transparent decision tree is preferable until there is sufficient evidence to justify greater complexity.
+
+## 3.5 Home screen technical requirements
+
+- Reuse existing generated API hooks and domain models.
+- Avoid duplicate network requests where existing queries can be shared.
+- Use appropriate query caching and invalidate relevant queries after mutations.
+- Avoid fetching every dataset in the application just to render the home screen.
+- Lazy-load secondary information where practical.
+- Show priority content quickly, without requiring every nonessential module to load.
+- Do not show stale counts as though they are current after a failed refresh.
+- Implement refresh behaviour where appropriate.
+- Handle unauthenticated, loading, error, empty and populated states.
+- Support narrow mobile screens and web viewports.
+- Respect safe areas, keyboard behaviour and touch targets.
+- Preserve navigation, browser history, deep links, Telegram Mini App behaviour and existing authentication.
+- Use the existing semantic colour system and brand tokens.
+- Ensure every primary action is connected to its real workflow.
+
+The app currently contains multiple navigation patterns and a substantial amount of screen-state logic. Understand them before making changes.
+
+Do not introduce a replacement routing system.
+
+## 3.6 Home screen visual direction
+
+Deliver a polished, mobile-first experience consistent with Experiences.fun's existing branding.
+
+Brand colours include:
+
+- Pink: `#F20789`
+- Purple: `#6805F2`
+- Aqua: `#04ADBF`
+- Blue: `#1A98E5`
+
+Use the existing semantic theme and colour hooks where available, rather than hardcoding these values throughout new components.
+
+Design principles:
+
+- A clear visual hierarchy.
+- A strong, identifiable primary action.
+- Useful whitespace.
+- Short, action-focused copy.
+- Legible body text and headings.
+- Restrained use of gradients and accent colours.
+- Consistent components, spacing and radii.
+- Compact operational summaries that remain readable on mobile.
+- Meaningful visual distinctions between pending, completed, blocked and unavailable states.
+- Accessible contrast and touch targets.
+- Subtle motion only when it helps communicate a state change.
+
+Do not use every colour on every card.
+
+Do not overcrowd the screen with charts, badges, decorative progress bars or repeated metrics.
+
+Avoid making both role-specific home screens look like generic SaaS admin templates. Participants and organisations have different goals and should have different content hierarchies.
+
+## 3.7 Home screen validation
+
+Add or extend automated tests that cover the priority engine and screen interactions.
+
+At minimum, validate:
+
+### Participant cases
+
+1. A new participant with no joined experiences.
+2. A participant with an upcoming experience.
+3. A participant who needs to submit a completion.
+4. A participant whose completion is awaiting organiser review.
+5. A participant with a rejected or resubmittable completion, where supported.
+6. A participant with no outstanding actions but available experiences to discover.
+7. A participant with incomplete onboarding.
+8. API loading and request failure.
+9. Navigation to the correct destination from the priority action.
+10. Layout at narrow mobile dimensions.
+
+### Organisation cases
+
+1. A newly created organisation with incomplete profile details.
+2. An organisation with no experiences.
+3. An organisation with a draft or unpublished experience.
+4. An organisation with upcoming experiences.
+5. An organisation with participant submissions awaiting review.
+6. An organisation whose review queue is empty.
+7. An organisation with an active charity campaign.
+8. An organisation type that is not eligible for charity fundraising.
+9. Failed activity or review data requests.
+10. Navigation to the correct organisation action.
+
+Include integration or browser tests for the most important end-to-end home journeys where the environment permits.
+
+A static component snapshot is not enough. Verify that the displayed action corresponds to the user's state and that pressing it opens the correct functional destination.
+
+---
+
+# 4. PRIORITY ONE: IMPLEMENT RELIABLE PRODUCT ANALYTICS
+
+The analytics system must measure meaningful product behaviour.
+
+The existing analytics API records screen views even though the database already has a vocabulary for experience creation, joining, attendance, milestone review and completion verification.
+
+Extend this system without creating a second analytics architecture.
+
+## 4.1 Establish the authoritative event contract
+
+Inspect:
+
+- `artifacts/api-server/src/routes/analytics.ts`
+- `artifacts/api-server/src/lib/analytics.ts`
+- The analytics database schema.
+- Analytics-related SQL migrations.
+- `lib/api-spec/openapi.yaml`
+- Generated Zod types and React hooks.
+- Existing event allowlists and database check constraints.
+
+Define a validated event contract for explicitly supported product actions.
+
+The event contract must specify which fields the client may submit, which fields the server derives and which domain actions must be recorded by the server after successful execution.
+
+Clients must not be allowed to impersonate users by submitting arbitrary user IDs or success claims.
+
+Update the OpenAPI source first, regenerate generated types with the project's existing workflow, and add any necessary additive database migration.
+
+Do not manually patch generated files.
+
+## 4.2 Measure the core lifecycle
+
+Track available and meaningful events, including:
+
+- Sign-up and login.
+- Onboarding completion.
+- Experience viewed.
+- Experience created and published.
+- Experience joined or waitlist joined.
+- Attendance recorded.
+- Completion submitted, verified or rejected.
+- Milestone submitted and reviewed.
+- XP awarded and redeemed.
+- Relevant invitations or friend requests.
+- Fundraising campaign created.
+- Contribution request created.
+- Contribution payment verified.
+
+Only implement events for functionality that actually exists. Keep event names and properties allowlisted.
+
+Record successful actions only after their underlying operation succeeds. Add explicit failure events when useful and supported.
+
+Avoid firing the same event because a React component rendered repeatedly, a query refetched or a user retried a request.
+
+## 4.3 Treat business state as the source of truth
+
+For important lifecycle events, instrument the server-side action or another reliable point in the successful business transaction.
+
+Do not trust a client-reported event to prove that an experience was completed, payment was received or XP was awarded.
+
+Where event persistence occurs after a database transaction, design for retries and duplicates. Never create an analytics design that causes duplicate XP or duplicate contribution records.
+
+Track enough information to understand conversion while minimising personal information.
+
+Never record passwords, authentication tokens, private evidence contents, or secrets in analytics.
+
+## 4.4 Create an actionable event catalogue
+
+Document:
+
+- Event name.
+- Trigger.
+- Permitted properties.
+- Authoritative source.
+- Whether the event is client- or server-generated.
+- Intended metric.
+- Relevant privacy constraints.
+
+The system should enable measurement of:
+
+- Sign-up to onboarding completion.
+- Onboarding to first experience view.
+- Experience view to join.
+- Join to attendance.
+- Attendance to completion submission.
+- Completion submission to verification.
+- First meaningful contribution to repeat participation.
+- Organisation creation to first published experience.
+- Organisation participant acquisition and completion review.
+- Fundraising request to verified contribution.
+
+Do not build a dashboard full of metrics until the events producing those metrics are reliable.
+
+---
+
+# 5. PRIORITY ONE: FIX THE TESTING AND CONTINUOUS INTEGRATION PIPELINE
+
+The current workspace runs scripts named `test` recursively, but the mobile package has individual scripts such as `test:auth`, `test:host`, `test:keyboard`, `test:memory-game` and `test:solana-pay`.
+
+Those test scripts are not automatically executed merely because the root invokes the standard package `test` script.
+
+Correct this.
+
+## 5.1 Create an explicit test strategy
+
+Implement:
+
+- A mobile test command that invokes the intended mobile unit, regression and browser tests.
+- A documented command for the relevant complete regression suite.
+- The API unit tests.
+- Existing API routing tests.
+- The fundraising integration test where its environment prerequisites are met.
+- Relevant integration and browser interaction tests.
+- Root-level integration of these checks into the standard build workflow.
+
+Keep individual test commands available for debugging.
+
+Do not make production database access a prerequisite for ordinary CI.
+
+Where browser interaction tests require Chromium, configure the test environment properly or separate them into an appropriate CI job.
+
+Where database integration tests require a database, provision a disposable isolated database or schema.
+
+## 5.2 Add GitHub Actions
+
+Create a workflow under `.github/workflows/` that runs on pull requests and pushes to the primary branch.
+
+It should:
+
+1. Set up the supported Node.js version.
+2. Install the correct pnpm version using the repository's actual configuration and lockfile.
+3. Install dependencies reproducibly.
+4. Run library, API and mobile type checks.
+5. Run the appropriate unit and regression tests.
+6. Run relevant integration or browser tests.
+7. Produce and validate the web build.
+8. Fail when required checks fail.
+
+Use appropriate job separation and caching where helpful.
+
+Do not introduce production credentials into normal CI jobs.
+
+Do not weaken tests or silently make important checks optional solely to obtain green status. If an existing test requires infrastructure that cannot reasonably be provisioned, document the separation and preserve a reliable way to run it.
+
+## 5.3 Protect existing behaviour
+
+Preserve the current authentication, Telegram, browser-preview and fundraising safeguards.
+
+Test existing critical functionality, especially:
+
+- Authentication and session handling.
+- Account type selection.
+- Experience creation and joining.
+- Participation and milestone verification.
+- XP awarding and redemption.
+- Social and friendship functionality.
+- Fundraising payment verification.
+
+A new feature is not successful if it breaks an existing user journey.
+
+---
+
+# 6. PRIORITY ONE: REFACTOR THE APPLICATION WITHOUT BREAKING IT
+
+The main `artifacts/mobile/app/index.tsx` file is approximately 10,000 lines. It contains extensive screen logic, state, navigation, and rendering.
+
+Reduce its complexity in incremental steps.
+
+## Requirements
+
+1. Identify clear feature and screen boundaries.
+2. Extract cohesive screens and helpers into well-named modules.
+3. Keep shared state and navigation logic in appropriate locations.
+4. Move domain-specific logic closer to the feature that owns it where practical.
+5. Reuse existing shared components, hooks and semantic theme functions.
+6. Preserve route parameters, URL synchronisation, browser history and deep links.
+7. Avoid circular dependencies.
+8. Avoid replacing Expo Router or introducing an unnecessary state-management library.
+9. Keep generated API clients and Zod schemas generated from their authoritative sources.
+10. Avoid introducing new abstractions that solve no real problem.
+
+Start with the logic required to implement the home experience cleanly.
+
+Refactor the larger fundraising screen only where it materially improves readability, reuse or testing. Do not refactor every large file merely to reduce line counts.
+
+Prefer small changes that can be tested independently.
+
+After each significant extraction, run the relevant checks.
+
+## Acceptance criteria
+
+- The same existing product journeys remain available.
+- Both participant and organisation accounts can reach their expected screens.
+- URL-based navigation continues to work.
+- Home priority rules can be tested independently.
+- Feature logic has clearer ownership and reduced coupling.
+- No broad rewrite has been performed unnecessarily.
+
+---
+
+# 7. PRIORITY TWO: STRENGTHEN THE CONTRIBUTION AND REPUTATION MODEL
+
+Experiences.fun already contains XP awards, experience milestones, participation review functionality, private evidence handling and financial contribution records.
+
+Build on these mechanisms rather than introducing a duplicate reputation ledger.
+
+## 7.1 Audit contribution traceability
+
+For a verified contribution, establish what existing data can reliably identify:
+
+- The relevant experience or initiative.
+- The participant and/or organisation involved.
+- The recorded participation.
+- The verification status.
+- The responsible verifier where available.
+- Supporting evidence where permitted.
+- The resulting XP or recognition.
+- Relevant timestamps and review history.
+
+Identify real gaps before proposing schema changes.
+
+## 7.2 Make reputation understandable
+
+Where existing records support it, make it possible for users to understand why recognition was awarded.
+
+Keep the distinction between:
+
+- Self-reported activity.
+- Submitted evidence.
+- Organiser-reviewed participation.
+- Verified completion.
+- XP awarded.
+- Measured social impact.
+
+Do not automatically treat XP as proof of social impact.
+
+Do not make private evidence publicly accessible because a user earns a badge.
+
+Where a new data field or record is required, use an additive migration and update the relevant API contract, validation and tests.
+
+## 7.3 Preserve financial correctness
+
+Keep the existing safeguards around SOL contribution requests, references, payment verification, campaign ledgers and treasury history.
+
+Never infer a completed payment merely because the user opened a wallet link.
+
+Never equate treasury balance with campaign fundraising totals.
+
+Never represent a payout proposal as a completed payout.
+
+Never imply that Experiences.fun controls an organisation's funds, owns a wallet or has verified a multisig's ownership unless that is genuinely supported by the system.
+
+Do not store private keys or begin signing transactions as part of this work.
+
+If production database changes are required, create and validate the migration, but leave production deployment and migration approval separate.
+
+---
+
+# 8. PRIORITY TWO: ACCESSIBILITY, SECURITY AND OPERATIONAL RELIABILITY
+
+Audit the affected application flows instead of performing an unfocused security rewrite.
+
+## 8.1 Mobile UX reliability
+
+Review:
+
+- Narrow viewport layout.
+- Safe-area handling.
+- Scroll behaviour.
+- Keyboard dismissal and form interaction.
+- Touch-target dimensions.
+- Loading states.
+- Empty states.
+- Error states and retries.
+- Query invalidation following mutations.
+- Duplicate submissions.
+- Feedback after a successful action.
+- Accessible labels and semantic roles.
+- Motion behaviour and reduced-motion preferences.
+
+Extend the appropriate tests for demonstrated issues.
+
+## 8.2 API and authentication
+
+Review the relevant middleware, routes and existing tests for:
+
+- Authentication requirements.
+- Authorisation for individual and organisation resources.
+- Request schema validation.
+- Sensitive endpoint rate limits.
+- Duplicate mutation handling.
+- Error messages that reveal too much internal detail.
+- Session lifecycle and token handling.
+- Logging that could leak secrets.
+- External RPC failure handling.
+
+Keep public routes public where needed for onboarding and authentication.
+
+Do not accidentally break the legitimate Telegram Mini App, mobile web or Replit preview experience while tightening controls.
+
+Do not claim a vulnerability without demonstrating the underlying failure or documenting convincing evidence.
+
+## 8.3 Data and query reliability
+
+For any new home-screen or analytics requests:
+
+- Query only the data needed.
+- Avoid duplicate API calls.
+- Handle partial failures explicitly.
+- Do not show old values as new verified facts.
+- Use appropriate query caching.
+- Invalidate related queries after successful mutations.
+- Avoid N+1 query patterns in new aggregate endpoints.
+- Follow existing pagination and validation patterns.
+- Use database transactions where multiple records must change together.
+
+Prefer the existing generated API hooks rather than introducing parallel fetch conventions.
+
+---
+
+# 9. PRIORITY TWO: IMPROVE THE DEVELOPMENT DOCUMENTATION
+
+Update project documentation to reflect the actual implementation.
+
+Document:
+
+- How to install dependencies.
+- How to run the application.
+- How to run the mobile and API servers.
+- How to execute the complete regression suite.
+- How to run specific browser and integration tests.
+- How to regenerate the API client.
+- How analytics events are defined and recorded.
+- How the home priority engine determines its actions.
+- How to create and validate database migrations.
+- What environment variables and services are required.
+- Which financial safeguards must not be bypassed.
+
+Update `replit.md` and relevant existing documentation rather than creating an oversized, duplicate documentation system.
+
+Every documented command must be checked against the actual scripts and project configuration.
+
+Never document a test, workflow or capability as implemented unless it actually exists.
+
+---
+
+# 10. IMPLEMENTATION ORDER
+
+Work through these phases in order.
+
+## Phase A: Baseline and architecture mapping
+
+- Inspect the repository.
+- Run and record existing test results.
+- Map the mobile home data dependencies.
+- Map participant and organisation state transitions.
+- Identify existing API endpoints and query hooks.
+- Determine what can be built from existing data.
+- Record any missing data requirements.
+
+Then continue.
+
+## Phase B: Testing and CI foundation
+
+- Add the aggregate mobile test command.
+- Connect the relevant tests to the root test workflow.
+- Add GitHub Actions.
+- Fix genuine regressions that block verification.
+- Verify type checks and the web build.
+
+This establishes a safety net before substantial UI work.
+
+## Phase C: Home experience implementation
+
+Implement the participant home experience first, followed by the organisation home experience.
+
+For each role:
+
+1. Define the relevant state combinations.
+2. Define the priority rules.
+3. Implement the typed view model or selector.
+4. Reuse the existing data hooks.
+5. Build the screen hierarchy and primary actions.
+6. Add loading, empty, error and retry states.
+7. Implement navigation.
+8. Add role-specific and interaction tests.
+9. Validate mobile and web layouts.
+10. Review the resulting design for unnecessary UI.
+
+Do not wait for all secondary features to be perfect before delivering the core home experience.
+
+## Phase D: Analytics
+
+- Extend the authoritative event contract.
+- Update the OpenAPI specification.
+- Regenerate API types.
+- Add safe server-side event recording.
+- Instrument the critical user lifecycle.
+- Add validation, duplicate-handling and privacy tests.
+- Create the event catalogue.
+- Validate any additive migration without applying it to production.
+
+## Phase E: Architecture and contribution trust
+
+- Refactor the relevant sections of the oversized app entry file.
+- Separate cohesive feature components and business rules.
+- Audit contribution verification and recognition.
+- Strengthen proven gaps without duplicating existing systems.
+- Run the relevant regression tests after changes.
+
+## Phase F: Final quality and documentation
+
+- Review accessibility, security and operational reliability.
+- Fix demonstrated defects.
+- Complete the required documentation.
+- Run the appropriate tests, type checks and build.
+- Review the complete Git diff.
+- Produce the final implementation report.
+
+If a phase uncovers an existing issue that blocks subsequent work, investigate and fix it where safe. Otherwise, record the issue and continue.
+
+Do not stop to request routine confirmation between these phases.
+
+---
+
+# 11. DEFINITION OF DONE
+
+The task is complete only when the following criteria have been addressed.
+
+## Product
+
+- The participant home prioritises meaningful participation and the user's actual next action.
+- The organisation home prioritises meaningful operational tasks and the organisation's actual next action.
+- Each screen adapts to real user and organisation state.
+- Primary actions are functional and navigate to the correct destination.
+- Organisation type and permissions are respected.
+- Financial and social-impact metrics remain accurate.
+- The screen works on mobile and web.
+- Loading, empty and error states are intentionally designed.
+
+## Analytics
+
+- The lifecycle event contract is typed and validated.
+- Events originate from appropriate successful actions.
+- Duplicate renders do not create duplicate business events.
+- Sensitive data is not exposed in analytics.
+- Key conversion stages can be measured.
+
+## Engineering
+
+- The aggregate test command includes the intended mobile regression tests.
+- CI is configured for pull requests and primary-branch pushes.
+- API and mobile type checks have been run.
+- The web build has been run.
+- Existing critical journeys remain functional.
+- The relevant application code is easier to maintain.
+- Generated files follow the existing generation workflow.
+
+## Data and safety
+
+- Existing XP and contribution systems remain authoritative.
+- No false verification or impact claims have been introduced.
+- No production migration has been applied as part of this task.
+- No production secrets have been added to the repository.
+- Any environmental test limitation is clearly documented.
+
+Do not declare the task complete just because the app compiles or the home screen looks attractive.
+
+---
+
+# 12. FINAL REPORT REQUIRED FROM THE AGENT
+
+When implementation is complete, provide a clear report containing:
+
+### A. Executive summary
+
+Explain what has materially improved in the product and why it matters.
+
+### B. Home experience
+
+Explain the new participant and organisation home behaviour separately.
+
+For each role, describe:
+
+- The new content hierarchy.
+- The priority rules.
+- The available primary actions.
+- How the interface handles empty, pending, completed and error states.
+- Any differences based on organisation type.
+- The specific tests verifying the implementation.
+
+### C. Analytics
+
+List the event names implemented, their authoritative triggers and any migrations or API contract updates.
+
+### D. Architecture
+
+List the important files added or modified and explain the reasoning behind the refactors.
+
+### E. Verification
+
+Report the actual outcomes for:
+
+- Unit tests.
+- API tests.
+- Browser interaction tests.
+- Integration tests.
+- Mobile type checks.
+- API type checks.
+- Production web build.
+
+Separate passing tests from skipped tests, pre-existing failures and environment blockers.
+
+### F. Database and operational impact
+
+Describe any proposed schema migrations, required environment variables, deployment prerequisites and remaining operational risks.
+
+Do not claim a migration has been applied or a live payment tested unless that action actually happened.
+
+### G. Remaining issues
+
+List any unresolved high-priority issues and explain their impact.
+
+### H. Recommended next steps
+
+Prioritise the remaining work according to risk, user value and dependencies.
+
+---
+
+# FINAL INSTRUCTION
+
+Optimise for a coherent product, not a larger product.
+
+The central challenge is making the existing Experiences.fun functionality work together in a way that changes user behaviour.
+
+A participant should open the app and immediately understand how to make progress. An organisation should open the app and immediately understand how to coordinate its next meaningful action.
+
+Every important action should create trustworthy records. Those records should support credible recognition and useful analytics. The resulting information should improve future experiences and encourage repeat contribution.
+
+Implement the changes incrementally, protect existing behaviour, validate the results and report honestly on what was completed.
+
+Start with the repository audit and baseline, then execute every phase in the prescribed order. Do not finish at the planning stage.
