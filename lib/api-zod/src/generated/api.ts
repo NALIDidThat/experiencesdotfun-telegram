@@ -351,11 +351,15 @@ export const updateOrganisationFundBodyTitleMax = 80;
 export const updateOrganisationFundBodyDescriptionMin = 10;
 export const updateOrganisationFundBodyDescriptionMax = 600;
 
+export const updateOrganisationFundBodyGoalSolExclusiveMin = 0;
+export const updateOrganisationFundBodyGoalSolMax = 1000000000;
+
 
 
 export const UpdateOrganisationFundBody = zod.object({
   "title": zod.string().min(updateOrganisationFundBodyTitleMin).max(updateOrganisationFundBodyTitleMax).optional(),
   "description": zod.string().min(updateOrganisationFundBodyDescriptionMin).max(updateOrganisationFundBodyDescriptionMax).optional(),
+  "goalSol": zod.number().gt(updateOrganisationFundBodyGoalSolExclusiveMin).max(updateOrganisationFundBodyGoalSolMax).optional(),
   "status": zod.enum(['active', 'closed']).optional()
 })
 

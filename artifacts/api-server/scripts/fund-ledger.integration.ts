@@ -135,7 +135,15 @@ try {
   rpcTransactions.set(signatures[2], transaction(signatures[2], addresses[1], addresses[0], 200000000n, late.reference));
   rpcHistories.set(late.reference, [{ signature: signatures[2], err: null }]);
   assert.equal((await request(`/contributions/${late.id}/verify`, { method: "POST" })).status, "confirmed", "closed/cancelled request can still receive late payment");
-  assert.equal((await request("/1"))[0].raisedSol, "0.300000000");
+  const beforeGoalEdit = (await request("/1"))[0];
+  assert.equal(beforeGoalEdit.raisedSol, "0.300000000");
+  const editedGoal = await request("/campaigns/1", { user: 1, method: "PATCH", body: { goalSol: 0.600000001 } });
+  assert.equal(editedGoal.goalSol, 0.600000001);
+  assert.equal(editedGoal.raisedSol, beforeGoalEdit.raisedSol, "editing the goal does not change recorded deposits");
+  assert.equal(editedGoal.contributionCount, beforeGoalEdit.contributionCount, "editing the goal does not change the deposit count");
+  assert.equal(editedGoal.status, "closed", "editing the goal does not change campaign status");
+  await request("/campaigns/1", { user: 1, method: "PATCH", body: { goalSol: 0 }, expected: 400 });
+  await request("/campaigns/1", { user: 1, method: "PATCH", body: { goalSol: 1.1234567891 }, expected: 400 });
   const allTimeActivity = await request("/campaigns/1/activity/all", { user: 0 });
   assert.equal(allTimeActivity.supporterWalletCount, 1, "the public campaign tracker counts distinct wallets, not profiles");
   assert.deepEqual(allTimeActivity.topSupporters[0], { rank: 1, amountSol: "0.300000000", contributionCount: 2 });

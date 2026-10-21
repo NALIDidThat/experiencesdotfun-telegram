@@ -110,6 +110,11 @@ export interface OrganisationFundUpdateInput {
      * @maxLength 600
      */
   description?: string;
+  /**
+     * @maximum 1000000000
+     * @exclusiveMinimum 0
+     */
+  goalSol?: number;
   status?: OrganisationFundUpdateInputStatus;
 }
 

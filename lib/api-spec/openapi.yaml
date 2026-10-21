@@ -270,7 +270,7 @@ paths:
     patch:
       operationId: updateOrganisationFund
       tags: [host]
-      summary: Edit or close an owned campaign without removing its ledger
+      summary: Edit campaign details or goal, or close an owned campaign without removing its ledger
       security: [{ telegramInitData: [] }]
       parameters:
         - { name: fundId, in: path, required: true, schema: { type: integer, minimum: 1 } }
@@ -3032,6 +3032,7 @@ components:
       properties:
         title: { type: string, minLength: 3, maxLength: 80 }
         description: { type: string, minLength: 10, maxLength: 600 }
+        goalSol: { type: number, exclusiveMinimum: 0, maximum: 1000000000 }
         status: { type: string, enum: [active, closed] }
     FundContribution:
       type: object

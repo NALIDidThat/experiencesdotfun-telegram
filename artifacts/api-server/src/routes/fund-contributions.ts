@@ -227,10 +227,15 @@ router.patch("/campaigns/:fundId", requireTelegramUser, async (req, res): Promis
   }
   const details = z.object({
     title: z.string().trim().min(3).max(80).optional(), description: z.string().trim().min(10).max(600).optional(),
+    goalSol: z.number().positive().max(1_000_000_000).refine((value) => Number.isFinite(value) && Number(value.toFixed(9)) === value).optional(),
     status: z.enum(["active", "closed"]).optional(),
   }).safeParse(parsed.data);
   if (!details.success || !Object.keys(details.data).length) { res.status(400).json({ message: "Provide valid campaign changes." }); return; }
-  await db.update(funds).set(details.data).where(eq(funds.id, fundId));
+  const { goalSol, ...detailsToUpdate } = details.data;
+  await db.update(funds).set({
+    ...detailsToUpdate,
+    ...(goalSol === undefined ? {} : { goalSol: String(goalSol) }),
+  }).where(eq(funds.id, fundId));
   res.json(await fundJson((await getFundContext(fundId))!));
 });
 

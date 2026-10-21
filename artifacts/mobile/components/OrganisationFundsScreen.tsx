@@ -1038,7 +1038,7 @@ export function OrganisationFundsScreen({
             <Text accessibilityRole="header" style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Make a contribution</Text>
             <ContributeToFund fund={fund} />
           </View>
-          <FundOwnerControls fund={fund} onUpdated={(updated) => {
+          <FundOwnerControls key={fund.id} fund={fund} onUpdated={(updated) => {
             setSelectedFund(updated);
             queryClient.setQueryData<OrganisationFund[]>(getListOrganisationFundsQueryKey(organisationUserId), (current) =>
               current?.map((row) => row.id === updated.id ? updated : row));
