@@ -161,6 +161,19 @@ export async function setTelegramCommunitySpamProtection(input: {
   return updated ? { ...context, spamProtectionEnabled: input.enabled } : null;
 }
 
+export async function disconnectTelegramCommunity(input: {
+  chatId: string;
+  telegramUserId: number;
+}) {
+  const context = await getTelegramCommunityManagementContext(input.chatId, input.telegramUserId);
+  if (!context) return null;
+  const [removed] = await db
+    .delete(telegramCommunitiesTable)
+    .where(eq(telegramCommunitiesTable.id, context.communityId))
+    .returning({ id: telegramCommunitiesTable.id });
+  return removed ? context : null;
+}
+
 export async function listTelegramCommunityKeywordRules(chatId: string, limit = 20) {
   return db
     .select({

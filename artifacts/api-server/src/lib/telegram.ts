@@ -1,5 +1,5 @@
 import { logger } from "./logger";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import {
   experiencesTable,
   friendshipsTable,
@@ -28,6 +28,7 @@ import {
 import {
   addTelegramCommunityKeywordRule,
   connectTelegramCommunity,
+  disconnectTelegramCommunity,
   getTelegramCommunity,
   getTelegramCommunityManagementContext,
   listTelegramCommunityKeywordRules,
@@ -35,6 +36,14 @@ import {
   removeTelegramCommunityKeywordRule,
   setTelegramCommunitySpamProtection,
 } from "./community-moderation";
+import {
+  tryAcquireTelegramPollingLease,
+  type TelegramPollingLease,
+} from "./telegram-polling-lock";
+import {
+  isTelegramPollingConflict,
+  TELEGRAM_POLLING_CONFLICT_BACKOFF_MS,
+} from "./telegram-polling-policy";
 import {
   getMessageQualification,
   isTelegramChatMember,
@@ -131,11 +140,43 @@ const token = () => process.env.TELEGRAM_BOT_TOKEN;
 let botUsername: string | null = null;
 let botTelegramId: number | null = null;
 let botRunning = false;
+let botStarting = false;
+let telegramPollingLease: TelegramPollingLease | null = null;
+let telegramBotRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let consecutivePollingFailures = 0;
+let pollingConflictDetected = false;
+let lastPollingConflictLogAt = 0;
+let lastPollingLeaseBusyLogAt = 0;
 
 function nextPollingRetryDelay(): number {
   consecutivePollingFailures += 1;
   return Math.min(1_000 * 2 ** (consecutivePollingFailures - 1), 60_000);
+}
+
+function scheduleTelegramBotRetry(delayMs: number) {
+  if (telegramBotRetryTimer) return;
+  telegramBotRetryTimer = setTimeout(() => {
+    telegramBotRetryTimer = null;
+    void startTelegramBot();
+  }, delayMs);
+}
+
+async function releaseTelegramPollingLease() {
+  const lease = telegramPollingLease;
+  telegramPollingLease = null;
+  if (!lease) return;
+  try {
+    await lease.release();
+  } catch (error) {
+    logger.error({ err: error }, "Telegram polling lease release failed");
+  }
+}
+
+function handleTelegramPollingLeaseLost(error: Error) {
+  telegramPollingLease = null;
+  botRunning = false;
+  logger.error({ err: error }, "Telegram polling lease connection was lost; polling stopped.");
+  scheduleTelegramBotRetry(TELEGRAM_POLLING_CONFLICT_BACKOFF_MS);
 }
 
 function rankNumber(rank: number): string {
@@ -164,7 +205,19 @@ async function telegramCall<T>(method: string, body: Record<string, unknown>): P
     });
     const payload = (await response.json()) as { ok: boolean; result?: T; description?: string };
     if (!payload.ok) {
-      logger.warn({ method, description: payload.description }, "Telegram API call failed");
+      if (isTelegramPollingConflict(method, payload.description)) {
+        pollingConflictDetected = true;
+        const now = Date.now();
+        if (now - lastPollingConflictLogAt >= 60_000) {
+          lastPollingConflictLogAt = now;
+          logger.error(
+            { method, description: payload.description },
+            "Another Telegram poller is using this bot token; this process will back off before retrying.",
+          );
+        }
+      } else {
+        logger.warn({ method, description: payload.description }, "Telegram API call failed");
+      }
       return null;
     }
     return payload.result ?? null;
@@ -485,7 +538,7 @@ async function sendCommandMenu(chatId: number) {
   return sendTelegramMessage(
     chatId,
     groupChat
-      ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome and quick actions\n<code>/experiences</code> Browse upcoming experiences\n<code>/rank</code> Your Community XP rank · add <code>@username</code> to look up a member\n<code>/leaderboard</code> Top contributors in this group\n\n<b>Group controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view controls\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code>\n<code>/filters</code> List active phrases\n\n<code>/help</code> Show this guide\n\nFor private profile, XP, and friend commands, open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")}.`
+      ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome and quick actions\n<code>/experiences</code> Browse upcoming experiences\n<code>/rank</code> Your Community XP rank · add <code>@username</code> to look up a member\n<code>/leaderboard</code> Top contributors in this group\n\n<b>Group controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code>\n<code>/filters</code> List saved phrases\n\n<code>/help</code> Show this guide\n\nFor private profile, XP, and friend commands, open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")}.`
       : `<b>Experiences.fun · Quick menu</b>\n\nChoose where to start:\n\n1️⃣ <b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n2️⃣ <b>Track your XP</b>\n<code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Your community</b>\n<code>/rank</code> Your rank · <code>/leaderboard</code> Group leaders\n\n4️⃣ <b>Connect and host</b>\n<code>/profile</code> Passport · <code>/add @username</code> Friends · <code>/friends</code> List · <code>/requests</code> Requests · <code>/accountability</code> Partner space · <code>/create</code> Create · <code>/host</code> Manage\n\nNeed more help? Use <code>/help</code> or <code>/onboarding</code>.`,
     menuKeyboard(groupChat),
   );
@@ -551,7 +604,7 @@ async function handleCommand(
       break;
     case "/community":
       await runCommunityControlsSafely(chatId, "community", () =>
-        handleCommunityCommand(chatId, chatTitle ?? "Telegram community", identity),
+        handleCommunityCommand(chatId, chatTitle ?? "Telegram community", identity, args),
       );
       break;
     case "/spam":
@@ -574,7 +627,7 @@ async function handleCommand(
       await sendTelegramMessage(
         chatId,
         groupChat
-          ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/help</code> This guide\n\n<b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n<b>Community XP</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n<b>Spam controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view group controls\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code> · <code>/filters</code> List rules\n\nProfile, XP, friend, and host commands are private. Open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} to use them.`
+           ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/help</code> This guide\n\n<b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n<b>Community XP</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n<b>Spam controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view group controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code> · <code>/filters</code> List rules\n\nProfile, XP, friend, and host commands are private. Open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} to use them.`
           : `<b>Experiences.fun · Commands</b>\n\n1️⃣ <b>Start</b>\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/onboarding</code> Finish setup\n\n2️⃣ <b>Discover and track</b>\n<code>/experiences</code> Browse · <code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Community group</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n4️⃣ <b>Connect</b>\n<code>/profile</code> Passport · <code>/add @username</code> Add a friend · <code>/friends</code> Friends · <code>/requests</code> Requests · <code>/accountability</code> Partner space\n\n5️⃣ <b>Host</b>\n<code>/create</code> Create an experience · <code>/host</code> Host tools\n\nUse <code>/help</code> to open this guide.`,
         [[callbackButton("Open menu", "menu:open"), callbackButton("How it works", "onboarding:how")]],
       );
@@ -924,12 +977,35 @@ async function handleCommunityCommand(
   chatId: number,
   chatTitle: string,
   identity: TelegramIdentity,
+  args: string[],
 ) {
+  const action = args[0]?.toLowerCase();
+  if (args.length > 1 || (action && action !== "disconnect")) {
+    await sendTelegramMessage(
+      chatId,
+      "Use <code>/community</code> to view or connect this group, or <code>/community disconnect</code> to unlink it.",
+    );
+    return;
+  }
+  if (action === "disconnect") {
+    const context = await requireTelegramCommunityOwner(chatId, identity);
+    if (!context) return;
+    await sendTelegramMessage(
+      chatId,
+      `<b>Disconnect ${escapeTelegramHtml(context.chatTitle)}?</b>\n\nPhrase protection will stop, and this group's saved phrase filters will be permanently deleted. Community XP history will be kept.`,
+      [[
+        callbackButton("Disconnect group", "community:disconnect:confirm"),
+        callbackButton("Cancel", "community:disconnect:cancel"),
+      ]],
+    );
+    return;
+  }
+
   const existing = await getTelegramCommunity(String(chatId));
   if (existing) {
     await sendTelegramMessage(
       chatId,
-      `<b>${escapeTelegramHtml(existing.chatTitle)}</b>\nConnected to <b>${escapeTelegramHtml(existing.organisationName)}</b>\nPhrase protection: <b>${existing.spamProtectionEnabled ? "ON" : "OFF"}</b>\n\nOnly the linked organisation owner who is also a Telegram group admin can change settings.\n\n<code>/spam on</code> / <code>/spam off</code>\n<code>/filter add phrase</code> · <code>/filter remove phrase</code> · <code>/filters</code>\n\nThis first version removes exact-word or exact-phrase matches only. It does not detect floods or suspicious links.`,
+      `<b>${escapeTelegramHtml(existing.chatTitle)}</b>\nConnected to <b>${escapeTelegramHtml(existing.organisationName)}</b>\nPhrase protection: <b>${existing.spamProtectionEnabled ? "ON" : "OFF"}</b>\n\nOnly the linked organisation owner who is also a Telegram group admin can change settings.\n\n<code>/spam on</code> / <code>/spam off</code>\n<code>/filter add phrase</code> · <code>/filter remove phrase</code> · <code>/filters</code>\n<code>/community disconnect</code> Unlink this group\n\nThis first version removes exact-word or exact-phrase matches only. It does not detect floods or suspicious links.`,
     );
     return;
   }
@@ -1018,6 +1094,36 @@ async function handleCommunityConnectionCallback(
     result.status === "connected"
       ? `<b>Group connected</b>\n\nThis group is now linked to <b>${escapeTelegramHtml(result.organisationName)}</b>. Phrase protection is off by default. An owner who is also a group admin can enable it with <code>/spam on</code>.`
       : `This group is already connected to <b>${escapeTelegramHtml(result.organisationName)}</b>.`,
+  );
+}
+
+async function handleCommunityDisconnectCallback(
+  chatId: number,
+  identity: TelegramIdentity,
+) {
+  if (!(await isTelegramChatAdmin(chatId, identity.id))) {
+    await sendTelegramMessage(chatId, "Only a Telegram group admin can disconnect this group.");
+    return;
+  }
+  const context = await disconnectTelegramCommunity({
+    chatId: String(chatId),
+    telegramUserId: identity.id,
+  });
+  if (!context) {
+    await sendTelegramMessage(
+      chatId,
+      "This group is no longer connected to an organisation you own. Run /community to check its current status.",
+    );
+    return;
+  }
+  logger.warn({
+    chatId,
+    organisationId: context.organisationId,
+    actorUserId: context.ownerUserId,
+  }, "Telegram community disconnected by its organisation owner");
+  await sendTelegramMessage(
+    chatId,
+    "<b>Group disconnected.</b>\n\nPhrase protection is off and saved phrase filters for this group were deleted. Community XP history was kept.",
   );
 }
 
@@ -1192,7 +1298,7 @@ async function handleFiltersCommand(chatId: number, identity: TelegramIdentity) 
   const more = rules.length > visibleRules.length ? "\n…and more. Remove a phrase by its exact text." : "";
   await sendTelegramMessage(
     chatId,
-    `<b>Active phrase filters</b> · ${visibleRules.length}${more}\n\n${visibleRules
+    `<b>Saved phrase filters</b> · ${visibleRules.length}${more}\n\n${visibleRules
       .map((rule) => `• <code>${escapeTelegramHtml(rule.phrase)}</code>`)
       .join("\n")}\n\nProtection is <b>${context.spamProtectionEnabled ? "ON" : "OFF"}</b>. Remove one with <code>/filter remove phrase</code>.`,
   );
@@ -1326,6 +1432,18 @@ async function handleCallback(update: NonNullable<TelegramUpdate["callback_query
     );
     return;
   }
+  if (callback === "community:disconnect:cancel") {
+    if (!update.message || !isGroupChat(chatType)) return;
+    await sendTelegramMessage(chatId, "Group disconnection canceled. Your link and settings are unchanged.");
+    return;
+  }
+  if (callback === "community:disconnect:confirm") {
+    if (!update.message || !isGroupChat(chatType)) return;
+    await runCommunityControlsSafely(chatId, "disconnect_group", () =>
+      handleCommunityDisconnectCallback(chatId, update.from),
+    );
+    return;
+  }
   if (callback === "menu:open") {
     await sendCommandMenu(chatId);
     return;
@@ -1428,10 +1546,16 @@ async function poll(offset: number): Promise<void> {
       allowed_updates: ["message", "callback_query"],
     });
     if (updates === null) {
+      const conflictDetected = pollingConflictDetected;
+      pollingConflictDetected = false;
       retryDelayMs = nextPollingRetryDelay();
+      if (conflictDetected) {
+        retryDelayMs = Math.max(retryDelayMs, TELEGRAM_POLLING_CONFLICT_BACKOFF_MS);
+      }
       return;
     }
     consecutivePollingFailures = 0;
+    pollingConflictDetected = false;
     for (const update of updates ?? []) {
       nextOffset = Math.max(nextOffset, update.update_id + 1);
       try {
@@ -1481,29 +1605,68 @@ async function poll(offset: number): Promise<void> {
     logger.error({ err: error }, "Telegram polling iteration failed");
     retryDelayMs = nextPollingRetryDelay();
   } finally {
-    if (token() && botRunning) {
+    if (!token() && botRunning) {
+      botRunning = false;
+      void releaseTelegramPollingLease();
+    } else if (token() && botRunning) {
       setTimeout(() => void poll(nextOffset), retryDelayMs);
     }
   }
 }
 
 export async function startTelegramBot() {
-  if (botRunning) return;
+  if (botRunning || botStarting) return;
   if (!token()) {
     logger.warn("TELEGRAM_BOT_TOKEN is not configured; bot polling is disabled.");
     return;
   }
-  botRunning = true;
-  const me = await telegramCall<{ id?: number; username?: string }>("getMe", {});
-  if (!me) {
+  botStarting = true;
+  try {
+    telegramPollingLease = await tryAcquireTelegramPollingLease(
+      pool,
+      handleTelegramPollingLeaseLost,
+    );
+    if (!telegramPollingLease) {
+      const now = Date.now();
+      if (now - lastPollingLeaseBusyLogAt >= 60_000) {
+        lastPollingLeaseBusyLogAt = now;
+        logger.warn(
+          "Another API instance owns Telegram polling; this instance will retry without calling getUpdates.",
+        );
+      }
+      scheduleTelegramBotRetry(TELEGRAM_POLLING_CONFLICT_BACKOFF_MS);
+      return;
+    }
+
+    const me = await telegramCall<{ id?: number; username?: string }>("getMe", {});
+    if (!me) {
+      await releaseTelegramPollingLease();
+      scheduleTelegramBotRetry(5_000);
+      return;
+    }
+    botUsername = me.username ?? null;
+    if (me.id && Number.isSafeInteger(me.id)) botTelegramId = me.id;
+
+    const webhookRemoved = await telegramCall<boolean>("deleteWebhook", {
+      drop_pending_updates: false,
+    });
+    if (webhookRemoved !== true) {
+      logger.error("Telegram webhook state could not be verified; polling was not started.");
+      await releaseTelegramPollingLease();
+      scheduleTelegramBotRetry(TELEGRAM_POLLING_CONFLICT_BACKOFF_MS);
+      return;
+    }
+
+    botRunning = true;
+    await registerTelegramCommands();
+    logger.info({ username: me.username }, "Telegram bot polling started");
+    void poll(0);
+  } catch (error) {
     botRunning = false;
-    setTimeout(() => void startTelegramBot(), 5_000);
-    return;
+    logger.error({ err: error }, "Telegram bot startup failed; polling will retry.");
+    await releaseTelegramPollingLease();
+    scheduleTelegramBotRetry(5_000);
+  } finally {
+    botStarting = false;
   }
-  botUsername = me.username ?? null;
-  if (me.id && Number.isSafeInteger(me.id)) botTelegramId = me.id;
-  await telegramCall("deleteWebhook", { drop_pending_updates: false });
-  await registerTelegramCommands();
-  logger.info({ username: me.username }, "Telegram bot polling started");
-  void poll(0);
 }
