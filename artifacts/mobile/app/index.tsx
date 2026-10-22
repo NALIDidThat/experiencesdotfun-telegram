@@ -3020,7 +3020,6 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
         verifiedAt: participation?.verifiedAt ?? null,
       }];
   const acceptsParticipants = item.status === 'published' || item.status === 'full';
-  const gradient = categoryGradients[item.category] || categoryGradients.community;
   const canEditExperience = user?.userType === 'organisation'
     && user.organisation?.id === item.organisation.id
     && ['published', 'full'].includes(item.status);
@@ -3070,98 +3069,126 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           )}
         </View>
 
+        {/*
+         * Keep the participant detail summary aligned with the organization
+         * management screen. Participant-specific join and completion actions
+         * remain in the persistent action area below.
+         */}
+        <View testID="participant-detail-hero" style={[styles.hostDetailHero, { borderRadius: colors.radius + 4 }]}>
+          {item.category === 'community' ? (
+            <ImageBackground source={require('../assets/images/community-cover.jpg')} resizeMode="cover" style={StyleSheet.absoluteFill} />
+          ) : (
+            <LinearGradient colors={categoryGradients[item.category]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+          )}
+          <View pointerEvents="none" style={styles.hostDetailHeroTint}>
+            <LinearGradient colors={['#10101A22', '#10101A58', '#10101AE8']} style={StyleSheet.absoluteFill} />
+          </View>
+          <View style={styles.hostDetailHeroTop}>
+            <View accessibilityLabel={`Experience status: ${hostExperienceStatusLabels[item.status]}`} style={[styles.hostStatusPill, { backgroundColor: '#10101A99', borderColor: '#FFFFFF30', borderWidth: 1 }]}>
+              <View style={[styles.hostDetailStatusDot, { backgroundColor: item.status === 'published' ? colors.success : item.status === 'full' ? colors.secondary : colors.mutedForeground }]} />
+              <Text style={[styles.hostStatusText, { color: '#FFFFFF' }]}>{hostExperienceStatusLabels[item.status]}</Text>
+            </View>
+            <View style={styles.hostDetailHeroCategory}>
+              <Feather name={categoryIcon[item.category]} size={12} color="#FFFFFF" />
+              <Text style={styles.hostDetailHeroCategoryText}>{categoryLabel[item.category]}</Text>
+            </View>
+          </View>
+          {item.category !== 'community' ? (
+            <View pointerEvents="none" style={styles.hostDetailHeroArtwork}>
+              <Feather name={categoryIcon[item.category]} size={68} color="#FFFFFF" />
+            </View>
+          ) : null}
+          <View style={styles.hostDetailHeroCopy}>
+            <Text numberOfLines={2} style={styles.hostDetailHeroTitle}>{item.title}</Text>
+            <Text numberOfLines={2} style={styles.hostDetailHeroDescription}>
+              {item.description || 'Join this experience and meet your community.'}
+            </Text>
+            <View style={styles.hostDetailHeroMeta}>
+              <View style={styles.hostDetailHeroMetaItem}>
+                <Feather name={categoryIcon[item.category]} size={12} color="#FFFFFF" />
+                <Text numberOfLines={1} style={styles.hostDetailHeroMetaText}>{categoryLabel[item.category]}</Text>
+              </View>
+              <View style={styles.hostDetailHeroMetaItem}>
+                <Feather name="map-pin" size={12} color="#FFFFFF" />
+                <Text numberOfLines={1} style={styles.hostDetailHeroMetaText}>{item.city}</Text>
+              </View>
+              <View style={styles.hostDetailHeroMetaItem}>
+                <Feather name="calendar" size={12} color="#FFFFFF" />
+                <Text numberOfLines={1} style={styles.hostDetailHeroMetaText}>{dateLabel(item.date)} · {item.startTime}–{item.endTime}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View testID="participant-detail-summary" style={styles.hostDetailSummaryGrid}>
+          {[
+            { label: 'Places filled', value: `${item.participantCount} / ${item.capacity}`, icon: 'users' as const, detail: 'Capacity', accent: colors.primary },
+            { label: 'Places left', value: item.availablePlaces, icon: 'clock' as const, detail: acceptsParticipants ? (item.availablePlaces === 0 ? 'Full' : 'Available to join') : 'Registration closed', accent: colors.secondary },
+            { label: 'Reward per person', value: `${item.xpReward} XP`, icon: 'award' as const, detail: item.monetaryRewardPence ? money(item.monetaryRewardPence) : 'Experience reward', accent: colors.accent },
+            { label: 'Participants', value: item.participantCount, icon: 'users' as const, detail: 'Joined so far', accent: colors.primary },
+          ].map((metric, index) => (
+            <View
+              key={metric.label}
+              style={[styles.hostDetailSummaryCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
+            >
+              <View style={[styles.hostDetailSummaryIcon, { backgroundColor: metric.accent + '12' }]}>
+                <Feather name={metric.icon} size={17} color={metric.accent} />
+              </View>
+              <View style={styles.hostDetailSummaryCopy}>
+                <Text style={[styles.hostDetailSummaryValue, { color: colors.foreground }]}>{metric.value}</Text>
+                <Text numberOfLines={1} style={[styles.hostDetailSummaryLabel, { color: colors.mutedForeground }]}>{metric.label}</Text>
+                {index === 0 ? (
+                  <View style={[styles.hostDetailProgressTrack, { backgroundColor: colors.border, marginTop: 7 }]}>
+                    <View
+                      style={[
+                        styles.hostDetailProgressFill,
+                        {
+                          width: `${item.capacity > 0 ? Math.min(100, Math.round((item.participantCount / item.capacity) * 100)) : 0}%`,
+                          backgroundColor: colors.primary,
+                        },
+                      ]}
+                    />
+                  </View>
+                ) : (
+                  <Text numberOfLines={1} style={[styles.hostDetailSummaryDetail, { color: colors.mutedForeground }]}>{metric.detail}</Text>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <View testID="participant-detail-facts" style={styles.hostDetailFacts}>
+          <View style={[styles.hostDetailFact, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <View style={[styles.hostDetailFactIcon, { backgroundColor: colors.primary + '12' }]}>
+              <Feather name="calendar" size={15} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[styles.hostDetailFactValue, { color: colors.foreground }]}>Date & time</Text>
+              <Text numberOfLines={2} style={[styles.hostDetailFactSecondary, { color: colors.mutedForeground }]}>{dateLabel(item.date)} · {item.startTime}–{item.endTime}</Text>
+            </View>
+          </View>
+          <View style={[styles.hostDetailFact, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <View style={[styles.hostDetailFactIcon, { backgroundColor: colors.secondary + '12' }]}>
+              <Feather name="map-pin" size={15} color={colors.secondary} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[styles.hostDetailFactValue, { color: colors.foreground }]}>Location</Text>
+              <Text numberOfLines={2} style={[styles.hostDetailFactSecondary, { color: colors.mutedForeground }]}>{item.location}, {item.city}</Text>
+            </View>
+          </View>
+        </View>
+
         {item.status === 'cancelled' ? (
           <View
             testID="experience-cancelled-notice"
-            style={[styles.createTip, { backgroundColor: colors.destructive + '10', borderRadius: colors.radius, marginBottom: 12, padding: 13 }]}
+            style={[styles.createTip, { backgroundColor: colors.destructive + '10', borderRadius: colors.radius, marginBottom: 14, padding: 13 }]}
           >
             <Feather name="slash" size={18} color={colors.destructive} />
             <Text style={[styles.createTipText, { color: colors.foreground, flex: 1 }]}>
-              This experience was cancelled. New sign-ups are closed.
+              This experience is cancelled. New sign-ups are closed. Existing participant and milestone records are kept.
             </Text>
           </View>
         ) : null}
-
-        <View style={[styles.detailHero, { borderRadius: colors.radius + 8 }]}>
-          {item.category === 'community' ? (
-            <ImageBackground
-              source={require('../assets/images/community-cover.jpg')}
-              accessibilityLabel="Community experience category artwork"
-              resizeMode="cover"
-              style={styles.detailCoverFill}
-            >
-              <LinearGradient
-                colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.5)']}
-                style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-              />
-              <View style={styles.detailCoverBottom}>
-                <View style={styles.detailCoverPill}>
-                  <Feather name={categoryIcon[item.category]} size={14} color={colors.primary} />
-                  <Text style={[styles.detailCoverPillText, { color: colors.primary }]}>{categoryLabel[item.category]}</Text>
-                </View>
-              </View>
-            </ImageBackground>
-          ) : (
-            <LinearGradient colors={gradient} style={styles.detailCoverFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <View style={styles.detailCategoryFallback}>
-                <View style={styles.detailHeroIcon}>
-                  <Feather name={categoryIcon[item.category]} size={26} color="#ffffff" />
-                </View>
-                <Text style={styles.detailCategoryText}>{categoryLabel[item.category]}</Text>
-              </View>
-            </LinearGradient>
-          )}
-        </View>
-
-        <View
-          style={[
-            styles.detailIntro,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              borderRadius: colors.radius + 8,
-            },
-          ]}
-        >
-          <View style={styles.detailOrganisationLine}>
-            <Text style={[styles.detailOrgText, { color: colors.foreground }]} numberOfLines={1}>{item.organisation.name}</Text>
-            {item.organisation.verified ? (
-              <View style={[styles.detailVerifiedBadge, { backgroundColor: colors.success + '12' }]}>
-                <Feather name="check-circle" size={13} color={colors.success} />
-                <Text style={[styles.detailVerifiedText, { color: colors.success }]}>Verified host</Text>
-              </View>
-            ) : null}
-          </View>
-          <Text style={[styles.detailTitleText, { color: colors.foreground }]}>{item.title}</Text>
-          <View style={[styles.detailAboutBlock, { backgroundColor: colors.muted, borderRadius: colors.radius }]}>
-            <View style={[styles.detailAboutAccent, { backgroundColor: colors.primary }]} />
-            <View style={styles.detailAboutCopy}>
-              <Text style={[styles.detailAboutTitle, { color: colors.mutedForeground }]}>About this experience</Text>
-              <Text style={[styles.detailBody, { color: colors.inkSoft }]}>{item.description}</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.detailMetaGrid}>
-          <View style={[styles.metaBox, styles.detailWhenBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
-            <View style={styles.metaIconLabel}>
-              <Feather name="calendar" size={15} color={colors.primary} />
-              <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHEN</Text>
-            </View>
-            <Text style={[styles.metaValue, { color: colors.foreground }]}>{dateLabel(item.date)}</Text>
-            <Text style={[styles.metaSub, { color: colors.mutedForeground }]}>{item.startTime} – {item.endTime}</Text>
-          </View>
-          <View style={[styles.metaBox, styles.detailWhereBox, { backgroundColor: colors.teal + '0C', borderColor: colors.teal + '30', borderRadius: colors.radius + 6 }]}>
-            <View style={styles.metaIconLabel}>
-              <Feather name="map-pin" size={15} color={colors.teal} />
-              <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>WHERE</Text>
-            </View>
-            <Text style={[styles.metaValue, { color: colors.foreground }]}>{item.city}</Text>
-            <Text style={[styles.metaSub, { color: colors.mutedForeground }]} numberOfLines={1}>{item.location}</Text>
-          </View>
-        </View>
 
         <View style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
           <Pressable
@@ -9744,7 +9771,7 @@ const styles = StyleSheet.create({
   resultCount: { fontSize: 12, fontFamily: 'Inter_500Medium' },
   
   // Detail
-  detailScrollContent: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28 },
+  detailScrollContent: { paddingHorizontal: 14, paddingTop: 6, paddingBottom: 28 },
   detailToolbar: { height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   detailToolbarButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   detailToolbarTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
