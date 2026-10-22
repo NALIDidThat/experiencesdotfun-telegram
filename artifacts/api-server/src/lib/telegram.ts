@@ -26,8 +26,19 @@ import {
   processCommunityMessage,
 } from "./contribution";
 import {
+  addTelegramCommunityKeywordRule,
+  connectTelegramCommunity,
+  getTelegramCommunity,
+  getTelegramCommunityManagementContext,
+  listTelegramCommunityKeywordRules,
+  listTelegramOwnedOrganisations,
+  removeTelegramCommunityKeywordRule,
+  setTelegramCommunitySpamProtection,
+} from "./community-moderation";
+import {
   getMessageQualification,
   isTelegramChatMember,
+  matchesCommunityModerationPhrase,
   normalizePublicTelegramGroupUsername,
   parseAdminRewardAmount,
 } from "./community-rules";
@@ -72,7 +83,7 @@ type TelegramUpdate = {
     id: string;
     data?: string;
     from: TelegramIdentity;
-    message?: { chat: { id: number; type?: string }; message_id: number };
+    message?: { chat: { id: number; type?: string; title?: string }; message_id: number };
   };
 };
 
@@ -92,7 +103,12 @@ const botCommands = [
   { command: "host", description: "Open host tools" },
   { command: "onboarding", description: "Finish setting up your profile" },
   { command: "help", description: "Show commands and quick guide" },
+  { command: "community", description: "Connect or view this group's controls" },
+  { command: "spam", description: "Enable or disable phrase spam protection" },
+  { command: "filter", description: "Add or remove a blocked phrase" },
+  { command: "filters", description: "List this group's active phrase filters" },
 ];
+const groupOnlyCommandNames = new Set(["/community", "/spam", "/filter", "/filters"]);
 const groupCommandNames = new Set([
   "start",
   "menu",
@@ -100,12 +116,20 @@ const groupCommandNames = new Set([
   "rank",
   "leaderboard",
   "help",
+  "community",
+  "spam",
+  "filter",
+  "filters",
 ]);
 const groupBotCommands = botCommands.filter(({ command }) => groupCommandNames.has(command));
+const privateBotCommands = botCommands.filter(
+  ({ command }) => !groupOnlyCommandNames.has(`/${command}`),
+);
 
 const rankNumberEmojis = ["", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 const token = () => process.env.TELEGRAM_BOT_TOKEN;
 let botUsername: string | null = null;
+let botTelegramId: number | null = null;
 let botRunning = false;
 let consecutivePollingFailures = 0;
 
@@ -363,8 +387,9 @@ export async function sendFriendRequestNotification(
 
 export async function getTelegramBotUsername(): Promise<string | null> {
   if (botUsername) return botUsername;
-  const me = await telegramCall<{ username?: string }>("getMe", {});
+  const me = await telegramCall<{ id?: number; username?: string }>("getMe", {});
   botUsername = me?.username ?? null;
+  if (me?.id && Number.isSafeInteger(me.id)) botTelegramId = me.id;
   return botUsername;
 }
 
@@ -376,7 +401,7 @@ async function registerTelegramCommands() {
   const registrations = await Promise.all([
     telegramCall<boolean>("setMyCommands", { commands: botCommands }),
     telegramCall<boolean>("setMyCommands", {
-      commands: botCommands,
+      commands: privateBotCommands,
       scope: { type: "all_private_chats" },
     }),
     telegramCall<boolean>("setMyCommands", {
@@ -460,13 +485,19 @@ async function sendCommandMenu(chatId: number) {
   return sendTelegramMessage(
     chatId,
     groupChat
-      ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome and quick actions\n<code>/experiences</code> Browse upcoming experiences\n<code>/rank</code> Your Community XP rank · add <code>@username</code> to look up a member\n<code>/leaderboard</code> Top contributors in this group\n<code>/help</code> Show this guide\n\nFor private profile, XP, and friend commands, open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")}.`
+      ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome and quick actions\n<code>/experiences</code> Browse upcoming experiences\n<code>/rank</code> Your Community XP rank · add <code>@username</code> to look up a member\n<code>/leaderboard</code> Top contributors in this group\n\n<b>Group controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view controls\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code>\n<code>/filters</code> List active phrases\n\n<code>/help</code> Show this guide\n\nFor private profile, XP, and friend commands, open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")}.`
       : `<b>Experiences.fun · Quick menu</b>\n\nChoose where to start:\n\n1️⃣ <b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n2️⃣ <b>Track your XP</b>\n<code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Your community</b>\n<code>/rank</code> Your rank · <code>/leaderboard</code> Group leaders\n\n4️⃣ <b>Connect and host</b>\n<code>/profile</code> Passport · <code>/add @username</code> Friends · <code>/friends</code> List · <code>/requests</code> Requests · <code>/accountability</code> Partner space · <code>/create</code> Create · <code>/host</code> Manage\n\nNeed more help? Use <code>/help</code> or <code>/onboarding</code>.`,
     menuKeyboard(groupChat),
   );
 }
 
-async function handleCommand(chatId: number, chatType: string | undefined, identity: TelegramIdentity, text: string) {
+async function handleCommand(
+  chatId: number,
+  chatType: string | undefined,
+  identity: TelegramIdentity,
+  text: string,
+  chatTitle?: string,
+) {
   const parsedCommand = parseTelegramCommand(text, botUsername);
   if (!parsedCommand) return;
   const { command, args } = parsedCommand;
@@ -483,6 +514,13 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
   const privateCommands = new Set(["/onboarding", "/create", "/xp", "/progress", "/profile", "/friends", "/requests", "/add", "/addfriend", "/accountability", "/host"]);
   if (chatType !== "private" && privateCommands.has(command)) {
     await sendTelegramMessage(chatId, "For your privacy, use this command in a private chat with the Experiences.fun bot.");
+    return;
+  }
+  if (groupOnlyCommandNames.has(command) && !isGroupChat(chatType)) {
+    await sendTelegramMessage(
+      chatId,
+      "Use this community control inside the Telegram group you want to manage.",
+    );
     return;
   }
   switch (command) {
@@ -511,12 +549,32 @@ async function handleCommand(chatId: number, chatType: string | undefined, ident
     case "/menu":
       await sendCommandMenu(chatId);
       break;
+    case "/community":
+      await runCommunityControlsSafely(chatId, "community", () =>
+        handleCommunityCommand(chatId, chatTitle ?? "Telegram community", identity),
+      );
+      break;
+    case "/spam":
+      await runCommunityControlsSafely(chatId, "spam_protection", () =>
+        handleSpamCommand(chatId, identity, args),
+      );
+      break;
+    case "/filter":
+      await runCommunityControlsSafely(chatId, "keyword_filter", () =>
+        handleFilterCommand(chatId, identity, args),
+      );
+      break;
+    case "/filters":
+      await runCommunityControlsSafely(chatId, "list_filters", () =>
+        handleFiltersCommand(chatId, identity),
+      );
+      break;
     case "/help":
       const groupChat = isGroupChat(chatType);
       await sendTelegramMessage(
         chatId,
         groupChat
-          ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/help</code> This guide\n\n<b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n<b>Community</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\nProfile, XP, friend, and host commands are private. Open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} to use them.`
+          ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/help</code> This guide\n\n<b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n<b>Community XP</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n<b>Spam controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view group controls\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code> · <code>/filters</code> List rules\n\nProfile, XP, friend, and host commands are private. Open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} to use them.`
           : `<b>Experiences.fun · Commands</b>\n\n1️⃣ <b>Start</b>\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/onboarding</code> Finish setup\n\n2️⃣ <b>Discover and track</b>\n<code>/experiences</code> Browse · <code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Community group</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n4️⃣ <b>Connect</b>\n<code>/profile</code> Passport · <code>/add @username</code> Add a friend · <code>/friends</code> Friends · <code>/requests</code> Requests · <code>/accountability</code> Partner space\n\n5️⃣ <b>Host</b>\n<code>/create</code> Create an experience · <code>/host</code> Host tools\n\nUse <code>/help</code> to open this guide.`,
         [[callbackButton("Open menu", "menu:open"), callbackButton("How it works", "onboarding:how")]],
       );
@@ -828,16 +886,366 @@ async function isTelegramChatAdmin(chatId: number, telegramUserId: number): Prom
   return member?.status === "creator" || member?.status === "administrator";
 }
 
+async function botCanDeleteMessages(chatId: number): Promise<boolean> {
+  if (!botTelegramId) {
+    const bot = await telegramCall<{ id?: number }>("getMe", {});
+    if (!bot?.id || !Number.isSafeInteger(bot.id)) return false;
+    botTelegramId = bot.id;
+  }
+  const botMember = await telegramCall<{
+    status?: string;
+    can_delete_messages?: boolean;
+  }>("getChatMember", {
+    chat_id: chatId,
+    user_id: botTelegramId,
+  });
+  return botMember?.status === "creator" || (
+    botMember?.status === "administrator" && botMember.can_delete_messages === true
+  );
+}
+
+async function runCommunityControlsSafely(
+  chatId: number,
+  action: string,
+  run: () => Promise<void>,
+) {
+  try {
+    await run();
+  } catch (error) {
+    logger.error({ err: error, chatId, action }, "Telegram community control failed");
+    await sendTelegramMessage(
+      chatId,
+      "Community controls are temporarily unavailable. Existing community XP commands are unaffected.",
+    );
+  }
+}
+
+async function handleCommunityCommand(
+  chatId: number,
+  chatTitle: string,
+  identity: TelegramIdentity,
+) {
+  const existing = await getTelegramCommunity(String(chatId));
+  if (existing) {
+    await sendTelegramMessage(
+      chatId,
+      `<b>${escapeTelegramHtml(existing.chatTitle)}</b>\nConnected to <b>${escapeTelegramHtml(existing.organisationName)}</b>\nPhrase protection: <b>${existing.spamProtectionEnabled ? "ON" : "OFF"}</b>\n\nOnly the linked organisation owner who is also a Telegram group admin can change settings.\n\n<code>/spam on</code> / <code>/spam off</code>\n<code>/filter add phrase</code> · <code>/filter remove phrase</code> · <code>/filters</code>\n\nThis first version removes exact-word or exact-phrase matches only. It does not detect floods or suspicious links.`,
+    );
+    return;
+  }
+
+  if (!(await isTelegramChatAdmin(chatId, identity.id))) {
+    await sendTelegramMessage(chatId, "A Telegram group admin must connect this group.");
+    return;
+  }
+  if (!(await botCanDeleteMessages(chatId))) {
+    await sendTelegramMessage(
+      chatId,
+      "To enable phrase protection, make the Experiences.fun bot a group admin with permission to delete messages, then run /community again.",
+    );
+    return;
+  }
+
+  const organisations = await listTelegramOwnedOrganisations(identity.id);
+  if (!organisations.length) {
+    await sendTelegramMessage(
+      chatId,
+      "No organisation owner profile is linked to this Telegram account. Open Experiences.fun using the same Telegram account and set up an organisation profile first.",
+    );
+    return;
+  }
+  const keyboard: TelegramButton[][] = organisations.map((organisation) => {
+    const name = organisation.name.length > 48
+      ? `${organisation.name.slice(0, 45)}...`
+      : organisation.name;
+    return [{
+      text: `Connect ${name}`,
+      callback_data: `community:connect:${organisation.id}`,
+    }];
+  });
+  await sendTelegramMessage(
+    chatId,
+    `<b>Connect this group</b>\n\nChoose the organisation you own. The same Telegram account must be a group admin, and the Experiences.fun bot needs permission to delete messages.`,
+    keyboard,
+  );
+}
+
+async function handleCommunityConnectionCallback(
+  chatId: number,
+  chatTitle: string,
+  identity: TelegramIdentity,
+  organisationId: number,
+) {
+  if (!(await isTelegramChatAdmin(chatId, identity.id))) {
+    await sendTelegramMessage(chatId, "Only a Telegram group admin can connect this group.");
+    return;
+  }
+  if (!(await botCanDeleteMessages(chatId))) {
+    await sendTelegramMessage(
+      chatId,
+      "The Experiences.fun bot needs group-admin permission to delete messages before this group can be connected.",
+    );
+    return;
+  }
+  const result = await connectTelegramCommunity({
+    chatId: String(chatId),
+    chatTitle,
+    organisationId,
+    telegramUserId: identity.id,
+  });
+  if (result.status === "not_owner") {
+    await sendTelegramMessage(
+      chatId,
+      "That organisation is not linked to an organisation owner profile for your Telegram account.",
+    );
+    return;
+  }
+  if (result.status === "owned_by_another_organisation") {
+    await sendTelegramMessage(
+      chatId,
+      "This group is already connected to a different organisation. Ask that organisation's owner to review the connection.",
+    );
+    return;
+  }
+  logger.info({
+    chatId,
+    organisationId,
+    telegramUserId: identity.id,
+    result: result.status,
+  }, "Telegram community connected by its organisation owner");
+  await sendTelegramMessage(
+    chatId,
+    result.status === "connected"
+      ? `<b>Group connected</b>\n\nThis group is now linked to <b>${escapeTelegramHtml(result.organisationName)}</b>. Phrase protection is off by default. An owner who is also a group admin can enable it with <code>/spam on</code>.`
+      : `This group is already connected to <b>${escapeTelegramHtml(result.organisationName)}</b>.`,
+  );
+}
+
+async function requireTelegramCommunityOwner(
+  chatId: number,
+  identity: TelegramIdentity,
+) {
+  if (!(await isTelegramChatAdmin(chatId, identity.id))) {
+    await sendTelegramMessage(chatId, "A Telegram group admin must run this command.");
+    return null;
+  }
+  const context = await getTelegramCommunityManagementContext(String(chatId), identity.id);
+  if (!context) {
+    const community = await getTelegramCommunity(String(chatId));
+    await sendTelegramMessage(
+      chatId,
+      community
+        ? "Only the organisation owner linked to this group can change its settings. Telegram group-admin status alone is not enough."
+        : "This group is not connected yet. A Telegram group admin can start with /community.",
+    );
+    return null;
+  }
+  return context;
+}
+
+async function handleSpamCommand(
+  chatId: number,
+  identity: TelegramIdentity,
+  args: string[],
+) {
+  const setting = args[0]?.toLowerCase();
+  if (setting !== "on" && setting !== "off") {
+    const community = await getTelegramCommunity(String(chatId));
+    await sendTelegramMessage(
+      chatId,
+      community
+        ? `Phrase protection is <b>${community.spamProtectionEnabled ? "ON" : "OFF"}</b>.\nUse <code>/spam on</code> or <code>/spam off</code>. Only the linked organisation owner who is also a Telegram group admin can change it.`
+        : "This group is not connected. A Telegram group admin can start with /community.",
+    );
+    return;
+  }
+
+  const context = await requireTelegramCommunityOwner(chatId, identity);
+  if (!context) return;
+  const enabled = setting === "on";
+  if (enabled && !(await botCanDeleteMessages(chatId))) {
+    await sendTelegramMessage(
+      chatId,
+      "Phrase protection was not enabled. Make the Experiences.fun bot a group admin with permission to delete messages, then try again.",
+    );
+    return;
+  }
+
+  const updated = await setTelegramCommunitySpamProtection({
+    chatId: String(chatId),
+    telegramUserId: identity.id,
+    enabled,
+  });
+  if (!updated) {
+    await sendTelegramMessage(chatId, "Your organisation access changed. Reopen /community and try again.");
+    return;
+  }
+  logger.info({
+    chatId,
+    organisationId: updated.organisationId,
+    actorUserId: updated.ownerUserId,
+    enabled,
+  }, "Telegram community phrase protection updated");
+  await sendTelegramMessage(
+    chatId,
+    enabled
+      ? "<b>Phrase protection is on.</b>\n\nEnabled exact-word and exact-phrase filters will be removed automatically. Other spam signals, such as message floods and suspicious links, are not covered yet."
+      : "<b>Phrase protection is off.</b>\n\nYour saved filters remain available and can be re-enabled with <code>/spam on</code>.",
+  );
+}
+
+async function handleFilterCommand(
+  chatId: number,
+  identity: TelegramIdentity,
+  args: string[],
+) {
+  const action = args[0]?.toLowerCase();
+  const phrase = args.slice(1).join(" ").trim();
+  if (action !== "add" && action !== "remove") {
+    await sendTelegramMessage(
+      chatId,
+      "Use <code>/filter add phrase</code> or <code>/filter remove phrase</code>. Phrases must be 2–80 characters.",
+    );
+    return;
+  }
+  if (!phrase) {
+    await sendTelegramMessage(
+      chatId,
+      action === "add"
+        ? "Add a phrase after the command, for example <code>/filter add free crypto</code>."
+        : "Enter the exact phrase to remove, for example <code>/filter remove free crypto</code>.",
+    );
+    return;
+  }
+  const context = await requireTelegramCommunityOwner(chatId, identity);
+  if (!context) return;
+
+  if (action === "add") {
+    const result = await addTelegramCommunityKeywordRule({
+      chatId: String(chatId),
+      telegramUserId: identity.id,
+      phrase,
+    });
+    if (result.status === "invalid_phrase") {
+      await sendTelegramMessage(chatId, "That phrase is invalid. Use 2–80 characters without control characters.");
+      return;
+    }
+    if (result.status === "already_exists") {
+      await sendTelegramMessage(chatId, "That exact-word or exact-phrase filter is already saved.");
+      return;
+    }
+    if (result.status === "not_owner") {
+      await sendTelegramMessage(chatId, "Only the linked organisation owner can manage phrase filters.");
+      return;
+    }
+    logger.info({
+      chatId,
+      organisationId: result.context.organisationId,
+      actorUserId: result.context.ownerUserId,
+      ruleId: result.ruleId,
+    }, "Telegram community phrase filter added");
+    await sendTelegramMessage(
+      chatId,
+      `Added filter <code>${escapeTelegramHtml(phrase)}</code>${result.context.spamProtectionEnabled ? ". It is active now." : ". It is saved but inactive until an owner runs /spam on."}`,
+    );
+    return;
+  }
+
+  const result = await removeTelegramCommunityKeywordRule({
+    chatId: String(chatId),
+    telegramUserId: identity.id,
+    phrase,
+  });
+  if (result.status === "invalid_phrase") {
+    await sendTelegramMessage(chatId, "Enter the exact filter phrase to remove (2–80 characters).");
+    return;
+  }
+  if (result.status === "not_found") {
+    await sendTelegramMessage(chatId, "I couldn't find an active filter with that exact phrase.");
+    return;
+  }
+  if (result.status === "not_owner") {
+    await sendTelegramMessage(chatId, "Only the linked organisation owner can manage phrase filters.");
+    return;
+  }
+  logger.info({
+    chatId,
+    organisationId: result.context.organisationId,
+    actorUserId: result.context.ownerUserId,
+    ruleId: result.ruleId,
+  }, "Telegram community phrase filter removed");
+  await sendTelegramMessage(chatId, `Removed filter <code>${escapeTelegramHtml(phrase)}</code>.`);
+}
+
+async function handleFiltersCommand(chatId: number, identity: TelegramIdentity) {
+  const context = await requireTelegramCommunityOwner(chatId, identity);
+  if (!context) return;
+  const rules = await listTelegramCommunityKeywordRules(String(chatId), 21);
+  if (!rules.length) {
+    await sendTelegramMessage(
+      chatId,
+      `No phrase filters are saved for <b>${escapeTelegramHtml(context.chatTitle)}</b>.\nAdd one with <code>/filter add phrase</code>.`,
+    );
+    return;
+  }
+  const visibleRules = rules.slice(0, 20);
+  const more = rules.length > visibleRules.length ? "\n…and more. Remove a phrase by its exact text." : "";
+  await sendTelegramMessage(
+    chatId,
+    `<b>Active phrase filters</b> · ${visibleRules.length}${more}\n\n${visibleRules
+      .map((rule) => `• <code>${escapeTelegramHtml(rule.phrase)}</code>`)
+      .join("\n")}\n\nProtection is <b>${context.spamProtectionEnabled ? "ON" : "OFF"}</b>. Remove one with <code>/filter remove phrase</code>.`,
+  );
+}
+
+async function moderateCommunityMessage(
+  message: NonNullable<TelegramUpdate["message"]>,
+): Promise<boolean> {
+  if (!message.text || !isGroupChat(message.chat.type)) return false;
+  try {
+    const community = await getTelegramCommunity(String(message.chat.id));
+    if (!community?.spamProtectionEnabled) return false;
+    const rules = await listTelegramCommunityKeywordRules(String(message.chat.id), 100);
+    const matched = rules.find((rule) => matchesCommunityModerationPhrase(message.text!, rule.phrase));
+    if (!matched) return false;
+
+    const deleted = await telegramCall<boolean>("deleteMessage", {
+      chat_id: message.chat.id,
+      message_id: message.message_id,
+    });
+    const logFields = {
+      chatId: message.chat.id,
+      messageId: message.message_id,
+      ruleId: matched.id,
+      targetTelegramUserId: message.from?.id,
+      deletionSucceeded: deleted === true,
+    };
+    if (deleted === true) {
+      logger.info(logFields, "Community message removed by a phrase filter");
+    } else {
+      logger.warn(logFields, "Community phrase matched but the message could not be removed");
+    }
+    return true;
+  } catch (error) {
+    logger.error(
+      { err: error, chatId: message.chat.id, messageId: message.message_id },
+      "Community phrase moderation could not be checked",
+    );
+    return false;
+  }
+}
+
 async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
   const text = message.text;
   const identity = message.from;
   if (!text || !identity || identity.is_bot) return;
 
   if (text.trim().startsWith("/")) {
-    await handleCommand(message.chat.id, message.chat.type, identity, text);
+    await handleCommand(message.chat.id, message.chat.type, identity, text, message.chat.title);
     return;
   }
   if (!isGroupChat(message.chat.type)) return;
+  if (await moderateCommunityMessage(message)) return;
 
   const rewardAmount = parseAdminRewardAmount(text);
   const reply = message.reply_to_message;
@@ -900,6 +1308,24 @@ async function handleCallback(update: NonNullable<TelegramUpdate["callback_query
   if (chatType && chatType !== "private" && !isGroupChat(chatType)) return;
   const chatId = update.message?.chat.id ?? update.from.id;
   const callback = update.data ?? "";
+  const communityConnectPrefix = "community:connect:";
+  if (callback.startsWith(communityConnectPrefix)) {
+    if (!update.message || !isGroupChat(chatType)) return;
+    const organisationId = Number(callback.slice(communityConnectPrefix.length));
+    if (!Number.isSafeInteger(organisationId) || organisationId <= 0) {
+      await sendTelegramMessage(chatId, "That organisation selection is invalid. Run /community and try again.");
+      return;
+    }
+    await runCommunityControlsSafely(chatId, "connect_group", () =>
+      handleCommunityConnectionCallback(
+        chatId,
+        update.message?.chat.title ?? "Telegram community",
+        update.from,
+        organisationId,
+      ),
+    );
+    return;
+  }
   if (callback === "menu:open") {
     await sendCommandMenu(chatId);
     return;
@@ -1068,13 +1494,14 @@ export async function startTelegramBot() {
     return;
   }
   botRunning = true;
-  const me = await telegramCall<{ username?: string }>("getMe", {});
+  const me = await telegramCall<{ id?: number; username?: string }>("getMe", {});
   if (!me) {
     botRunning = false;
     setTimeout(() => void startTelegramBot(), 5_000);
     return;
   }
   botUsername = me.username ?? null;
+  if (me.id && Number.isSafeInteger(me.id)) botTelegramId = me.id;
   await telegramCall("deleteWebhook", { drop_pending_updates: false });
   await registerTelegramCommands();
   logger.info({ username: me.username }, "Telegram bot polling started");

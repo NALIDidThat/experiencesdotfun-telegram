@@ -72,6 +72,33 @@ export function countWords(text: string): number {
   return trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
 }
 
+export function normalizeCommunityModerationPhrase(value: string): string | null {
+  const normalized = value.normalize("NFKC").trim().replace(/\s+/g, " ");
+  const length = [...normalized].length;
+  if (
+    length < 2 ||
+    length > 80 ||
+    /[\u0000-\u001F\u007F]/u.test(normalized)
+  ) {
+    return null;
+  }
+  return normalized.toLowerCase();
+}
+
+export function matchesCommunityModerationPhrase(text: string, phrase: string): boolean {
+  const normalizedPhrase = normalizeCommunityModerationPhrase(phrase);
+  if (!normalizedPhrase) return false;
+  const normalizedText = text.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+  const escapedPhrase = normalizedPhrase
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\s+/g, "\\s+");
+  const rule = new RegExp(
+    `(^|[^\\p{L}\\p{N}_])${escapedPhrase}(?=$|[^\\p{L}\\p{N}_])`,
+    "iu",
+  );
+  return rule.test(normalizedText);
+}
+
 export function getMessageQualification(input: {
   text: string;
   isGroup: boolean;

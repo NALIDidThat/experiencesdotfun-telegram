@@ -9,6 +9,8 @@ import {
   parseAdminRewardAmount,
   countWords,
   isTelegramChatMember,
+  matchesCommunityModerationPhrase,
+  normalizeCommunityModerationPhrase,
   normalizePublicTelegramGroupUsername,
 } from "./community-rules.ts";
 
@@ -128,4 +130,18 @@ test("Telegram group membership accepts active members but not departed or restr
   ]) {
     assert.equal(isTelegramChatMember(member), false);
   }
+});
+
+test("community keyword phrases normalize safely and enforce whole-word boundaries", () => {
+  assert.equal(normalizeCommunityModerationPhrase("  FREE   Crypto "), "free crypto");
+  assert.equal(normalizeCommunityModerationPhrase("a"), null);
+  assert.equal(normalizeCommunityModerationPhrase("x".repeat(81)), null);
+  assert.equal(normalizeCommunityModerationPhrase("bad\u0000phrase"), null);
+
+  assert.equal(matchesCommunityModerationPhrase("Get FREE crypto now", "free crypto"), true);
+  assert.equal(matchesCommunityModerationPhrase("free   crypto", "free crypto"), true);
+  assert.equal(matchesCommunityModerationPhrase("a-free crypto-link", "free crypto"), true);
+  assert.equal(matchesCommunityModerationPhrase("freedom crypto", "free crypto"), false);
+  assert.equal(matchesCommunityModerationPhrase("free cryptocurrencies", "free crypto"), false);
+  assert.equal(matchesCommunityModerationPhrase("free (crypto) today", "(crypto)"), true);
 });

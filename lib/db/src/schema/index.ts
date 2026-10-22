@@ -21,6 +21,7 @@ export * from "./experiences";
 export * from "./experience-locations";
 export * from "./experience-milestones";
 export * from "./community";
+export * from "./community-moderation";
 export * from "./accountability";
 export * from "./xp-awards";
 export * from "./memory-game";
