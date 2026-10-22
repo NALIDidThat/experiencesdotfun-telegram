@@ -16,23 +16,22 @@ export type AnalyticsEventInput = {
   outcome?: "success" | "failure";
 };
 
-export function recordAnalyticsEvent(event: AnalyticsEventInput): void {
-  void db
-    .insert(analyticsEventsTable)
-    .values({
+export async function recordAnalyticsEvent(event: AnalyticsEventInput): Promise<void> {
+  try {
+    await db.insert(analyticsEventsTable).values({
       source: event.source,
       eventName: event.eventName,
       category: event.category,
       platform: event.platform,
       outcome: event.outcome ?? null,
-    })
-    .catch((error: unknown) => {
-      const code =
-        typeof error === "object" && error !== null && "code" in error
-          ? String(error.code)
-          : "unknown";
-      logger.warn({ code }, "Analytics event was not stored.");
     });
+  } catch (error) {
+    const code =
+      typeof error === "object" && error !== null && "code" in error
+        ? String(error.code)
+        : "unknown";
+    logger.warn({ code }, "Analytics event was not stored.");
+  }
 }
 
 async function pruneExpiredAnalyticsEvents(): Promise<void> {

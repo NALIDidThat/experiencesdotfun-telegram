@@ -110,6 +110,10 @@ import { OrganisationPartnershipsSection } from '@/components/OrganisationPartne
 import { ContributionHistoryScreen } from '@/components/fundraising/ContributionHistoryScreen';
 import { OrganisationFundsScreen, OrganisationFundraiserSection } from '@/components/OrganisationFundsScreen';
 import { SocialFeed } from '@/components/SocialFeed';
+import {
+  getParticipantHomeCommitments,
+  selectParticipantHomePriority,
+} from '@/lib/home-priority';
 import { PersonalActivityScreen } from '@/components/PersonalActivityScreen';
 import { OrganisationActivityDashboard } from '@/components/OrganisationActivityDashboard';
 import { OrganisationHomeScreen } from '@/components/OrganisationHomeScreen';
@@ -737,6 +741,7 @@ function EmailAuthPanel({
     <View testID="email-auth-screen" style={[styles.emailAuthScreen, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       <KeyboardAwareScrollViewCompat
+        testID="email-auth-scroll"
         style={[styles.emailAuthScroll, { backgroundColor: colors.background }]}
         contentContainerStyle={[
           styles.emailAuthContent,
@@ -2036,10 +2041,12 @@ function Home({
   const [feedRefreshSignal, setFeedRefreshSignal] = useState(0);
   const [feedRefreshing, setFeedRefreshing] = useState(false);
   const query = useListExperiences({ availableOnly: true });
-  const participations = useListMyParticipations(
-    { status: 'upcoming' },
-    { query: { enabled: user.userType === 'participant', queryKey: getListMyParticipationsQueryKey({ status: 'upcoming' }) } },
-  );
+  const participations = useListMyParticipations(undefined, {
+    query: {
+      enabled: user.userType === 'participant',
+      queryKey: getListMyParticipationsQueryKey(),
+    },
+  });
   const directConversations = useListDirectConversations({
     query: {
       enabled: Boolean(authenticatedUser),
@@ -2050,9 +2057,28 @@ function Home({
   });
   const items = query.data ?? [];
   const firstName = user.name.split(' ')[0];
-  const upcomingCount = participations.data?.length ?? 0;
+  const homePriority = selectParticipantHomePriority({
+    participations: participations.data,
+    participationsLoading: participations.isLoading,
+    participationsError: participations.isError,
+    availableExperienceCount: query.data?.length,
+    experiencesLoading: query.isLoading,
+    experiencesError: query.isError,
+  });
+  const activeCommitments = getParticipantHomeCommitments(participations.data);
   const unreadDirectMessageCount = (directConversations.data ?? [])
     .reduce((total, conversation) => total + conversation.unreadCount, 0);
+  const openHomePriority = () => {
+    triggerHaptic();
+    if (homePriority.experienceId && homePriority.kind !== 'upcoming') {
+      go('experience', { id: String(homePriority.experienceId) });
+    } else if (homePriority.kind === 'error') {
+      if (participations.isError && !participations.data) void participations.refetch();
+      else void query.refetch();
+    } else {
+      go('experiences');
+    }
+  };
 
   return (
       <ScrollView
@@ -2128,28 +2154,48 @@ function Home({
           <Pressable
             testID="dashboard-first-experience"
             accessibilityRole="button"
-            accessibilityLabel={upcomingCount ? 'Open your upcoming experiences' : 'Explore your first experience'}
-            accessibilityHint={upcomingCount ? 'View your experience journey' : 'Find an experience to join'}
-            onPress={() => { triggerHaptic(); go('experiences'); }}
+            accessibilityLabel={homePriority.accessibilityLabel}
+            accessibilityHint={homePriority.kind === 'upcoming'
+              ? 'View your experience journey'
+              : homePriority.kind === 'error'
+                ? 'Retry loading your home information'
+                : 'Open the next step for your experiences'}
+            accessibilityState={{ disabled: homePriority.kind === 'loading' }}
+            disabled={homePriority.kind === 'loading'}
+            onPress={openHomePriority}
             style={({ pressed }) => [
               styles.dashboardStatusPrompt,
               pressed && styles.dashboardStatusCardPressed,
             ]}
           >
             <View style={styles.dashboardStatusMain}>
-              <View style={[styles.dashboardStatusIcon, { backgroundColor: colors.primary + '12' }]}>
-                <Feather name={upcomingCount ? 'calendar' : 'compass'} size={18} color={colors.primary} />
+              <View style={[styles.dashboardStatusIcon, {
+                backgroundColor: homePriority.kind === 'needs-update' || homePriority.kind === 'cancelled' || homePriority.kind === 'error'
+                  ? colors.destructive + '12'
+                  : colors.primary + '12',
+              }]}>
+                {homePriority.kind === 'loading' ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Feather
+                    name={homePriority.icon}
+                    size={18}
+                    color={homePriority.kind === 'needs-update' || homePriority.kind === 'cancelled' || homePriority.kind === 'error'
+                      ? colors.destructive
+                      : colors.primary}
+                  />
+                )}
               </View>
               <View style={styles.dashboardStatusCopy}>
                 <Text style={[styles.dashboardStatusTitle, { color: colors.foreground }]}>
-                  {upcomingCount ? `${upcomingCount} experience${upcomingCount === 1 ? '' : 's'} coming up` : 'Ready for your first experience?'}
+                  {homePriority.title}
                 </Text>
                 <Text style={[styles.dashboardStatusSub, { color: colors.mutedForeground }]}>
-                  {upcomingCount ? 'Your next plans are ready when you are.' : 'Find an experience you’ll look forward to.'}
+                  {homePriority.detail}
                 </Text>
                 <View style={styles.dashboardStatusCta}>
                   <Text style={[styles.dashboardStatusCtaText, { color: colors.primary }]}>
-                    {upcomingCount ? 'View upcoming experiences' : 'Explore experiences'}
+                    {homePriority.buttonLabel}
                   </Text>
                   <Feather name="arrow-right" size={15} color={colors.primary} />
                 </View>
@@ -2204,7 +2250,56 @@ function Home({
           </ScrollView>
         </View>
       </View>
-      {participations.isError ? <InlineError message="Your upcoming bookings couldn’t be loaded. Pull down to try again." /> : null}
+      {participations.isError && participations.data
+        ? <InlineError message="Your latest commitment updates couldn’t be loaded. Pull down to refresh." />
+        : null}
+
+      {activeCommitments.length ? (
+        <View testID="dashboard-commitments">
+          <View style={styles.dashboardSectionHeader}>
+            <Text style={[styles.dashboardSectionTitle, { color: colors.foreground }]}>Your commitments</Text>
+            <Pressable accessibilityRole="button" onPress={() => { triggerHaptic(); go('activity'); }}>
+              <Text style={[styles.dashboardSeeAll, { color: colors.primary }]}>See all</Text>
+            </Pressable>
+          </View>
+          <View style={styles.dashboardCommitmentList}>
+            {activeCommitments.map((commitment) => (
+              <Pressable
+                key={commitment.id}
+                testID={`dashboard-commitment-${commitment.id}`}
+                accessibilityRole="button"
+                accessibilityLabel={`${commitment.title}, ${commitment.statusLabel}, ${dateLabel(commitment.date)}`}
+                onPress={() => {
+                  triggerHaptic();
+                  go('experience', { id: String(commitment.experienceId) });
+                }}
+                style={({ pressed }) => [
+                  styles.dashboardCommitmentCard,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    borderRadius: colors.radius,
+                    opacity: pressed ? 0.78 : 1,
+                  },
+                ]}
+              >
+                <View style={[styles.dashboardCommitmentIcon, { backgroundColor: colors.primary + '12' }]}>
+                  <Feather name="calendar" size={16} color={colors.primary} />
+                </View>
+                <View style={styles.dashboardStatusCopy}>
+                  <Text numberOfLines={1} style={[styles.dashboardStatusTitle, { color: colors.foreground }]}>
+                    {commitment.title}
+                  </Text>
+                  <Text numberOfLines={1} style={[styles.dashboardStatusSub, { color: colors.mutedForeground }]}>
+                    {commitment.statusLabel} · {dateLabel(commitment.date)}
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       <View style={styles.dashboardSectionHeader}>
         <Text style={[styles.dashboardSectionTitle, { color: colors.foreground }]}>Your progress</Text>
@@ -5474,9 +5569,9 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
               <TextInput value={organisationDescription} onChangeText={setOrganisationDescription} multiline maxLength={600} placeholder="What your organisation does" placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
             </>
           ) : null}
-          <TextInput value={name} onChangeText={setName} placeholder={current.userType === 'organisation' ? 'Contact name' : 'Display name'} placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
-          <TextInput value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
-          <TextInput value={bio} onChangeText={setBio} multiline placeholder={current.userType === 'organisation' ? 'Short contact bio' : 'Short bio'} placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          <TextInput testID="profile-edit-name" value={name} onChangeText={setName} placeholder={current.userType === 'organisation' ? 'Contact name' : 'Display name'} placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          <TextInput testID="profile-edit-city" value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          <TextInput testID="profile-edit-bio" value={bio} onChangeText={setBio} multiline placeholder={current.userType === 'organisation' ? 'Short contact bio' : 'Short bio'} placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
           <Text style={[styles.formLabel, { color: colors.foreground }]}>{current.userType === 'organisation' ? 'Causes your organisation supports' : 'Interests'}</Text>
           <View style={styles.onboardingChoices}>
             {categories.slice(1).map((item) => {
@@ -9524,6 +9619,9 @@ const styles = StyleSheet.create({
   dashboardStatusMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
   dashboardStatusIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   dashboardStatusCopy: { flex: 1, minWidth: 0, gap: 3 },
+  dashboardCommitmentList: { gap: 8, marginBottom: 8 },
+  dashboardCommitmentCard: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 9 },
+  dashboardCommitmentIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   dashboardStatusTitle: { fontSize: 16, lineHeight: 21, fontFamily: 'Inter_700Bold', letterSpacing: -0.25 },
   dashboardStatusSub: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_400Regular' },
   dashboardStatusCta: { minHeight: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 6, marginTop: 8 },

@@ -7,14 +7,14 @@ const router: IRouter = Router();
 
 router.use(requireTelegramUser);
 
-router.post("/events", (req, res) => {
+router.post("/events", async (req, res) => {
   const parsed = TrackAnalyticsEventBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: "The analytics event is invalid." });
     return;
   }
 
-  recordAnalyticsEvent({
+  await recordAnalyticsEvent({
     source: "app",
     eventName: "screen_view",
     category: parsed.data.screen,

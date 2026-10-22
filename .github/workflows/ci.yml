@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit, API, and dependency security tests
+        run: pnpm test
+
+      - name: Typecheck all workspaces
+        run: pnpm run typecheck
+
+      - name: Build all workspaces
+        run: pnpm -r --if-present run build
+        env:
+          PORT: "8081"
+          BASE_PATH: "/__mockup"
+
+      - name: Select Chromium
+        run: |
+          CHROMIUM="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROMIUM" ]; then
+            echo "No supported Chromium binary was found on the runner." >&2
+            exit 1
+          fi
+          echo "CHROMIUM_PATH=$CHROMIUM" >> "$GITHUB_ENV"
+
+      - name: Start Expo web preview
+        run: |
+          nohup pnpm --filter @workspace/mobile run dev > /tmp/mobile-expo.log 2>&1 &
+          echo $! > /tmp/mobile-expo.pid
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:19006/ > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/mobile-expo.log
+          exit 1
+        env:
+          CI: "1"
+          PORT: "19006"
+          REPLIT_DEV_DOMAIN: "127.0.0.1:19006"
+          REPL_ID: "ci"
+          EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ""
+
+      - name: Run mobile browser interaction tests
+        run: pnpm --filter @workspace/mobile run test:e2e
+        env:
+          EXPO_WEB_PREVIEW_URL: http://127.0.0.1:19006

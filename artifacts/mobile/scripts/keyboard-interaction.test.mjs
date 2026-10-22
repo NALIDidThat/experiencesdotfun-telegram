@@ -6,11 +6,75 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { test } from "node:test";
+import { getAppPreviewUrl } from "./preview-test-config.mjs";
 
 const initialViewport = { width: 390, height: 740 };
 const keyboardViewportHeight = 430;
 const chromiumPath = process.env.CHROMIUM_PATH
   ?? (existsSync("/repl/tools/bin/chromium") ? "/repl/tools/bin/chromium" : "chromium");
+
+async function installProfileApiMock(client) {
+  const profileUser = {
+    id: 880,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    telegramId: null,
+    email: "keyboard.profile@example.test",
+    name: "Keyboard QA",
+    username: "keyboard_qa",
+    avatarUrl: null,
+    bio: null,
+    city: "London",
+    country: "UK",
+    socialLinks: {},
+    interests: ["environmental"],
+    participationType: null,
+    userType: "participant",
+    organisation: null,
+    xp: 0,
+    level: "Explorer",
+    completedCount: 0,
+    hostedCount: 0,
+    rewardsPence: 0,
+  };
+  const source = `(() => {
+    const user = ${JSON.stringify(profileUser)};
+    localStorage.setItem("@experiences/auth-token", "email_keyboard-profile-test");
+    window.__keyboardTestUnexpectedApi = [];
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (input, init = {}) => {
+      const rawUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
+      const url = new URL(rawUrl, window.location.href);
+      if (!url.pathname.startsWith("/api/")) return originalFetch(input, init);
+
+      const method = String(init.method ?? input.method ?? "GET").toUpperCase();
+      let status = 200;
+      let data;
+      if (url.pathname === "/api/me" && method === "GET") {
+        data = user;
+      } else if (url.pathname === "/api/friends/notifications" && method === "GET") {
+        data = { notifications: [], unreadCount: 0 };
+      } else if (url.pathname === "/api/friends" && method === "GET") {
+        data = [];
+      } else if (url.pathname === "/api/accountability" && method === "GET") {
+        data = { items: [], unreadCount: 0 };
+      } else if (url.pathname.includes("participations") && method === "GET") {
+        data = [];
+      } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
+        status = 202;
+        data = { accepted: true };
+      } else {
+        window.__keyboardTestUnexpectedApi.push(method + " " + url.pathname);
+        status = 404;
+        data = { message: "Unexpected API request in keyboard interaction test." };
+      }
+      return new Response(JSON.stringify(data), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      });
+    };
+  })();`;
+  await client.send("Page.addScriptToEvaluateOnNewDocument", { source });
+}
 
 class DevToolsClient {
   #socket;
@@ -372,13 +436,12 @@ const readFormState = `(() => {
 })()`;
 
 test("shared form harness remains scrollable across a mobile keyboard resize", async (t) => {
-  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
-  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile preview interaction test.");
+  const appUrl = getAppPreviewUrl("The mobile preview interaction test");
 
   const client = await launchBrowser(t);
   await setViewport(client, initialViewport.height);
   await client.send("Page.navigate", {
-    url: `https://${domain}/?keyboardTest=1`,
+    url: `${appUrl}/?keyboardTest=1`,
   });
 
   const initial = await waitForValue(
@@ -491,14 +554,35 @@ test("shared form harness remains scrollable across a mobile keyboard resize", a
 });
 
 test("actual signup, profile, and experience forms stay usable with the keyboard open", async (t) => {
-  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
-  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile preview interaction test.");
+  const appUrl = getAppPreviewUrl("The mobile preview interaction test");
 
   const client = await launchBrowser(t);
 
   await t.test("email signup keeps the username field reachable", async () => {
     await setViewport(client, initialViewport.height);
-    await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=signup` });
+    await client.send("Page.navigate", { url: `${appUrl}/` });
+    await waitForValue(
+      client,
+      `Boolean(document.querySelector('[data-testid="welcome-start"]'))`,
+      Boolean,
+      "the signed-out welcome screen",
+    );
+    await tapTestId(client, "welcome-start");
+    await waitForValue(
+      client,
+      `Boolean(document.querySelector('[data-testid="account-type-participant"]'))`,
+      Boolean,
+      "the participant account choice",
+    );
+    await tapTestId(client, "account-type-participant");
+    await tapTestId(client, "account-type-continue");
+    await waitForValue(
+      client,
+      `Boolean(document.querySelector('[data-testid="login-choice-email"]'))`,
+      Boolean,
+      "the email sign-in choice",
+    );
+    await tapTestId(client, "login-choice-email");
     await waitForValue(
       client,
       `Boolean(document.querySelector('[data-testid="email-auth-mode-switch"]'))`,
@@ -539,7 +623,8 @@ test("actual signup, profile, and experience forms stay usable with the keyboard
 
   await t.test("profile editing scrolls to the bio field without losing focus", async () => {
     await setViewport(client, initialViewport.height);
-    await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=profile` });
+    await installProfileApiMock(client);
+    await client.send("Page.navigate", { url: `${appUrl}/?screen=profile` });
     await waitForValue(
       client,
       `Boolean(document.querySelector('[data-testid="profile-menu-toggle"]'))`,
@@ -572,12 +657,11 @@ test("actual signup, profile, and experience forms stay usable with the keyboard
 });
 
 test("experience creation shows one question and keeps it reachable with the keyboard open", async (t) => {
-  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
-  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile preview interaction test.");
+  const appUrl = getAppPreviewUrl("The mobile preview interaction test");
 
   const client = await launchBrowser(t);
   await setViewport(client, initialViewport.height);
-  await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=create&step=2` });
+  await client.send("Page.navigate", { url: `${appUrl}/?keyboardTest=create&step=2` });
   await waitForValue(
     client,
     `document.querySelectorAll('[data-testid^="create-field-"]').length`,
@@ -594,12 +678,11 @@ test("experience creation shows one question and keeps it reachable with the key
 });
 
 test("experience XP reward slider can be dragged across its full 0–1,000 XP range", async (t) => {
-  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
-  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile preview interaction test.");
+  const appUrl = getAppPreviewUrl("The mobile preview interaction test");
 
   const client = await launchBrowser(t);
   await setViewport(client, initialViewport.height);
-  await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=create&step=12` });
+  await client.send("Page.navigate", { url: `${appUrl}/?keyboardTest=create&step=12` });
   await waitForValue(
     client,
     `Boolean(document.querySelector('[data-testid="create-xp-reward-slider"]'))`,
@@ -660,12 +743,11 @@ test("experience XP reward slider can be dragged across its full 0–1,000 XP ra
 });
 
 test("experience review returns to the overview after saving an edited answer", async (t) => {
-  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
-  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile preview interaction test.");
+  const appUrl = getAppPreviewUrl("The mobile preview interaction test");
 
   const client = await launchBrowser(t);
   await setViewport(client, initialViewport.height);
-  await client.send("Page.navigate", { url: `https://${domain}/?keyboardTest=create&step=17` });
+  await client.send("Page.navigate", { url: `${appUrl}/?keyboardTest=create&step=17` });
   await waitForValue(
     client,
     `Boolean(document.querySelector('[data-testid="create-review-heading"]'))`,
@@ -696,12 +778,11 @@ test("experience review returns to the overview after saving an edited answer", 
 });
 
 test("bottom navigation can be changed by holding and sliding", async (t) => {
-  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
-  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile preview interaction test.");
+  const appUrl = getAppPreviewUrl("The mobile preview interaction test");
 
   const client = await launchBrowser(t);
   await setViewport(client, initialViewport.height);
-  await client.send("Page.navigate", { url: `https://${domain}/?navTest=1` });
+  await client.send("Page.navigate", { url: `${appUrl}/?navTest=1` });
 
   const activeTab = `document.querySelector('[data-testid="nav-test-active"]')?.textContent?.trim() ?? null`;
   await waitForValue(client, activeTab, (value) => value === "home", "the bottom-navigation test screen");
@@ -915,7 +996,7 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
     "the Memory Game quick action",
   );
 
-  await client.send("Page.navigate", { url: `https://${domain}/?navTest=organisation` });
+  await client.send("Page.navigate", { url: `${appUrl}/?navTest=organisation` });
   await waitForValue(client, activeTab, (value) => value === "home", "the organisation navigation test screen");
   await tapTestId(client, "bottom-nav-quick-button");
   await waitForValue(

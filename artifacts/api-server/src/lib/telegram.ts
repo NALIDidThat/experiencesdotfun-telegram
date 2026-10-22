@@ -1012,7 +1012,7 @@ async function poll(offset: number): Promise<void> {
         if (update.message?.text) {
           await handleMessage(update.message);
           if (update.message.text.trim().startsWith("/")) {
-            recordAnalyticsEvent({
+            void recordAnalyticsEvent({
               source: "bot",
               eventName: "bot_command",
               category: commandAnalyticsCategoryFor(update.message.text),
@@ -1022,7 +1022,7 @@ async function poll(offset: number): Promise<void> {
           }
         } else if (update.callback_query) {
           await handleCallback(update.callback_query);
-          recordAnalyticsEvent({
+          void recordAnalyticsEvent({
             source: "bot",
             eventName: "bot_callback",
             category: callbackAnalyticsCategoryFor(update.callback_query.data),
@@ -1032,7 +1032,7 @@ async function poll(offset: number): Promise<void> {
         }
       } catch (error) {
         if (update.message?.text?.trim().startsWith("/")) {
-          recordAnalyticsEvent({
+          void recordAnalyticsEvent({
             source: "bot",
             eventName: "bot_command",
             category: commandAnalyticsCategoryFor(update.message.text),
@@ -1040,7 +1040,7 @@ async function poll(offset: number): Promise<void> {
             outcome: "failure",
           });
         } else if (update.callback_query) {
-          recordAnalyticsEvent({
+          void recordAnalyticsEvent({
             source: "bot",
             eventName: "bot_callback",
             category: callbackAnalyticsCategoryFor(update.callback_query.data),

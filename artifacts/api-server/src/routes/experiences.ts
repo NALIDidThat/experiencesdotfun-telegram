@@ -302,7 +302,7 @@ router.post("/auth/telegram", async (req, res) => {
       : undefined;
     const user = await upsertTelegramUser(identity, parsed.data.userType);
     const sessionToken = await issueTelegramSession(user.id);
-    recordAnalyticsEvent({
+    await recordAnalyticsEvent({
       source: "server",
       eventName: "auth_login",
       category: "telegram",
@@ -328,7 +328,7 @@ router.post("/auth/email/signup", async (req, res) => {
   }
   try {
     const result = await createEmailAccount(parsed.data);
-    recordAnalyticsEvent({
+    await recordAnalyticsEvent({
       source: "server",
       eventName: "auth_signup",
       category: "email",
@@ -337,7 +337,7 @@ router.post("/auth/email/signup", async (req, res) => {
     });
     res.json(toEmailSignupResponse(await userResponse(result.user), result.sessionToken));
   } catch (signupError) {
-    recordAnalyticsEvent({
+    await recordAnalyticsEvent({
       source: "server",
       eventName: "auth_signup",
       category: "email",
@@ -384,7 +384,7 @@ router.post("/auth/email/login", async (req, res) => {
   try {
     result = await authenticateEmail(credentials);
   } catch (authError) {
-    recordAnalyticsEvent({
+    await recordAnalyticsEvent({
       source: "server",
       eventName: "auth_login",
       category: "email",
@@ -399,7 +399,7 @@ router.post("/auth/email/login", async (req, res) => {
     return;
   }
   if (!result) {
-    recordAnalyticsEvent({
+    await recordAnalyticsEvent({
       source: "server",
       eventName: "auth_login",
       category: "email",
@@ -409,7 +409,7 @@ router.post("/auth/email/login", async (req, res) => {
     error(res, 401, "That email, username or password is not correct.");
     return;
   }
-  recordAnalyticsEvent({
+  await recordAnalyticsEvent({
     source: "server",
     eventName: "auth_login",
     category: "email",
@@ -1243,7 +1243,7 @@ router.patch("/me", async (req, res) => {
     }
     throw updateError;
   }
-  recordAnalyticsEvent({
+  await recordAnalyticsEvent({
     source: "server",
     eventName: "profile_update",
     category: "profile",
@@ -1379,7 +1379,7 @@ router.post("/experiences", async (req, res) => {
       });
       return createdExperience;
     });
-    recordAnalyticsEvent({
+    await recordAnalyticsEvent({
       source: "server",
       eventName: "experience_create",
       category: "create",
@@ -1415,7 +1415,7 @@ router.get("/experiences/:experienceId", async (req, res) => {
       eq(participationsTable.userId, user.id),
     ),
   });
-  recordAnalyticsEvent({
+  await recordAnalyticsEvent({
     source: "server",
     eventName: "experience_view",
     category: "experience",
@@ -1537,7 +1537,7 @@ router.post("/experiences/:experienceId/join", async (req, res) => {
       await sendHostNewParticipantNotification(host.telegramId, user.name, joinedExperience);
     }
   }
-  recordAnalyticsEvent({
+  await recordAnalyticsEvent({
     source: "server",
     eventName: created.status === "waitlisted" ? "experience_waitlist_join" : "experience_join",
     category: "experience",
@@ -1700,7 +1700,7 @@ router.post("/participations/:participationId/submit", async (req, res) => {
     error(res, 409, "This participation is no longer ready for completion submission.");
     return;
   }
-  recordAnalyticsEvent({
+  await recordAnalyticsEvent({
     source: "server",
     eventName: "completion_submit",
     category: "experience",
@@ -1849,7 +1849,7 @@ router.post(
       return;
     }
 
-    recordAnalyticsEvent({
+    await recordAnalyticsEvent({
       source: "server",
       eventName: "milestone_submit",
       category: "experience",
@@ -2199,7 +2199,7 @@ router.patch("/host/experiences/:experienceId", async (req, res) => {
     );
     return;
   }
-  recordAnalyticsEvent({
+  await recordAnalyticsEvent({
     source: "server",
     eventName: "experience_edit",
     category: "host",
@@ -2256,7 +2256,7 @@ router.post("/host/experiences/:experienceId/cancel", async (req, res) => {
     error(res, 409, "This experience is no longer active.");
     return;
   }
-  recordAnalyticsEvent({
+  await recordAnalyticsEvent({
     source: "server",
     eventName: "experience_cancel",
     category: "host",
@@ -2546,7 +2546,7 @@ router.post("/host/participations/:participationId/attend", async (req, res) => 
     error(res, 409, "This participation can no longer be marked as attended.");
     return;
   }
-  recordAnalyticsEvent({
+  await recordAnalyticsEvent({
     source: "server",
     eventName: "experience_attend",
     category: "host",
@@ -2663,7 +2663,7 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
     error(res, 409, "This contribution is no longer awaiting review.");
     return;
   }
-  recordAnalyticsEvent({
+  await recordAnalyticsEvent({
     source: "server",
     eventName: "completion_verify",
     category: "host",
@@ -2947,7 +2947,7 @@ router.post(
       error(res, 409, "This milestone is no longer awaiting review.");
       return;
     }
-    recordAnalyticsEvent({
+    await recordAnalyticsEvent({
       source: "server",
       eventName: outcome.action === "verify" ? "milestone_verify" : "milestone_reject",
       category: "host",
@@ -3030,7 +3030,7 @@ router.post("/host/participations/:participationId/reject", async (req, res) => 
     error(res, 409, "This contribution is no longer awaiting review.");
     return;
   }
-  recordAnalyticsEvent({
+  await recordAnalyticsEvent({
     source: "server",
     eventName: "completion_reject",
     category: "host",
@@ -3280,7 +3280,7 @@ router.post("/friends/requests", async (req, res) => {
     requester.username,
     created.id,
   );
-  recordAnalyticsEvent({
+  await recordAnalyticsEvent({
     source: "server",
     eventName: "friend_request",
     category: "friendship",

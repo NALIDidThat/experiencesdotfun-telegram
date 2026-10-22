@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { test } from "node:test";
+import { getAppPreviewUrl } from "./preview-test-config.mjs";
 
 const viewport = { width: 360, height: 740 };
 const sessionToken = "email_home-prompt-test";
@@ -193,12 +194,12 @@ async function tapTestId(client, testId, { scrollIntoView = true } = {}) {
   });
 }
 
-function apiResponseHeaders(request, domain) {
+function apiResponseHeaders(request, origin) {
   return [
     { name: "Content-Type", value: "application/json" },
     {
       name: "Access-Control-Allow-Origin",
-      value: request.headers.Origin ?? request.headers.origin ?? `https://${domain}`,
+      value: request.headers.Origin ?? request.headers.origin ?? origin,
     },
   ];
 }
@@ -269,8 +270,8 @@ function makeParticipation(id) {
 }
 
 test("the signed-in Home prompt and personal Activity timeline work on mobile", async (t) => {
-  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
-  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the Home prompt preview test.");
+  const appUrl = getAppPreviewUrl("The Home prompt preview test");
+  const appOrigin = new URL(appUrl).origin;
 
   const client = await launchBrowser(t);
   const apiTraffic = [];
@@ -322,7 +323,7 @@ test("the signed-in Home prompt and personal Activity timeline work on mobile", 
             requestId: params.requestId,
             responseCode: 204,
             responseHeaders: [
-              ...apiResponseHeaders(params.request, domain),
+              ...apiResponseHeaders(params.request, appOrigin),
               { name: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
               {
                 name: "Access-Control-Allow-Headers",
@@ -371,7 +372,9 @@ test("the signed-in Home prompt and personal Activity timeline work on mobile", 
         } else if (url.pathname === "/api/direct-messages/conversations" && method === "GET") {
           response = [];
         } else if (url.pathname === "/api/experiences" && method === "GET") {
-          response = [];
+          response = [makeParticipation(99).experience];
+        } else if (url.pathname === "/api/explore/activity" && method === "GET") {
+          response = { windowDays: 30, cities: [] };
         } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
           status = 202;
           response = { accepted: true };
@@ -384,7 +387,7 @@ test("the signed-in Home prompt and personal Activity timeline work on mobile", 
         await client.send("Fetch.fulfillRequest", {
           requestId: params.requestId,
           responseCode: status,
-          responseHeaders: apiResponseHeaders(params.request, domain),
+          responseHeaders: apiResponseHeaders(params.request, appOrigin),
           body: Buffer.from(JSON.stringify(response)).toString("base64"),
         });
       } catch (error) {
@@ -412,7 +415,8 @@ test("the signed-in Home prompt and personal Activity timeline work on mobile", 
 
   async function openHomeForCount(count, stateName) {
     upcomingParticipations = Array.from({ length: count }, (_, index) => makeParticipation(index + 1));
-    await client.send("Page.navigate", { url: `https://${domain}/?screen=home` });
+    fullParticipationHistory = upcomingParticipations;
+    await client.send("Page.navigate", { url: `${appUrl}/?screen=home` });
     const headline = count === 0
       ? "Ready for your first experience?"
       : `${count} experience${count === 1 ? "" : "s"} coming up`;
@@ -449,7 +453,9 @@ test("the signed-in Home prompt and personal Activity timeline work on mobile", 
       const titleText = ${JSON.stringify(headline)};
       const bodyText = ${JSON.stringify(count === 0
         ? "Find an experience you’ll look forward to."
-        : "Your next plans are ready when you are.")};
+        : count === 1
+          ? "Community Garden 1 is on your calendar."
+          : "Your next experience is Community Garden 1.")};
       const actionText = ${JSON.stringify(count === 0 ? "Explore experiences" : "View upcoming experiences")};
       const title = exactText(titleText);
       const body = exactText(bodyText);
@@ -516,6 +522,12 @@ test("the signed-in Home prompt and personal Activity timeline work on mobile", 
       `the expected My journey destination from the ${stateName} card`,
     );
     if (count === 0) {
+      await waitForValue(
+        client,
+        `document.body.innerText.includes('Nothing booked yet')`,
+        Boolean,
+        "the empty upcoming journey state",
+      );
       assert.equal(
         await client.evaluate(`document.body.innerText.includes('Nothing booked yet')`),
         true,
@@ -625,6 +637,12 @@ test("the signed-in Home prompt and personal Activity timeline work on mobile", 
         "A dismissed feed composer should not reopen when returning to Home.",
       );
     } else {
+      await waitForValue(
+        client,
+        `document.body.innerText.includes('Community Garden 1')`,
+        Boolean,
+        "the matching experience in the upcoming journey",
+      );
       assert.equal(
         await client.evaluate(`document.body.innerText.includes('Community Garden 1')`),
         true,
@@ -674,7 +692,7 @@ test("the signed-in Home prompt and personal Activity timeline work on mobile", 
   joinedParticipation.joinedAt = "2026-09-29T11:00:00.000Z";
   fullParticipationHistory = [verifiedParticipation, joinedParticipation];
 
-  await client.send("Page.navigate", { url: `https://${domain}/?screen=activity` });
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=activity` });
   await waitForValue(
     client,
     `document.querySelectorAll('[data-testid^="activity-entry-"]').length`,

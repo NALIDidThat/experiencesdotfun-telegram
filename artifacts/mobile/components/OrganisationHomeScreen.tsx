@@ -2,15 +2,23 @@ import React from 'react';
 import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getGetOrganisationTreasuryQueryKey, useGetHostOverview, useGetOrganisationTreasury, useListHostExperiences } from '@workspace/api-client-react';
+import {
+  getGetOrganisationTreasuryQueryKey,
+  getListOrganisationFundsQueryKey,
+  useGetHostOverview,
+  useGetOrganisationTreasury,
+  useListHostExperiences,
+  useListOrganisationFunds,
+} from '@workspace/api-client-react';
 import type { User } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { UserAvatar } from '@/components/UserAvatar';
 import { LinearGradient } from '@/components/LinearGradient';
+import { selectOrganisationHomePriority } from '@/lib/home-priority';
 
 type Props = {
   user: User;
-  go: (screen: 'profile' | 'host' | 'host-detail' | 'create' | 'funds' | 'notifications', params?: Record<string, string>) => void;
+  go: (screen: 'profile' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'notifications', params?: Record<string, string>) => void;
 };
 
 export function OrganisationHomeScreen({ user, go }: Props) {
@@ -19,6 +27,13 @@ export function OrganisationHomeScreen({ user, go }: Props) {
   const isCharity = user.organisation?.type === 'charity';
   const overview = useGetHostOverview();
   const experiences = useListHostExperiences();
+  const funds = useListOrganisationFunds(user.id, {
+    query: {
+      queryKey: getListOrganisationFundsQueryKey(user.id),
+      enabled: isCharity && Number.isSafeInteger(user.id) && user.id > 0,
+      retry: false,
+    },
+  });
   const treasury = useGetOrganisationTreasury(
     { limit: 1 },
     { query: { queryKey: getGetOrganisationTreasuryQueryKey({ limit: 1 }), enabled: isCharity, retry: false } },
@@ -27,6 +42,19 @@ export function OrganisationHomeScreen({ user, go }: Props) {
   const hostedExperiences = experiences.data ?? [];
   const activeExperiences = hostedExperiences.filter((item) => ['published', 'full'].includes(item.status));
   const reviewCount = overview.data?.pendingVerifications ?? 0;
+  const priority = selectOrganisationHomePriority({
+    overviewLoading: overview.isLoading,
+    overviewError: overview.isError,
+    pendingReviews: overview.data?.pendingVerifications,
+    totalExperiences: overview.data?.totalExperiences,
+    experiences: experiences.data,
+    experiencesLoading: experiences.isLoading,
+    experiencesError: experiences.isError,
+    isCharity,
+    funds: funds.data,
+    fundsLoading: funds.isLoading,
+    fundsError: funds.isError,
+  });
   const formatDate = (value: string) => {
     const date = new Date(`${value}T12:00:00`);
     return Number.isNaN(date.getTime())
@@ -34,9 +62,42 @@ export function OrganisationHomeScreen({ user, go }: Props) {
       : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   };
   const refresh = () => {
-    void Promise.all([overview.refetch(), experiences.refetch(), ...(isCharity ? [treasury.refetch()] : [])]);
+    void Promise.all([
+      overview.refetch(),
+      experiences.refetch(),
+      ...(isCharity ? [treasury.refetch(), funds.refetch()] : []),
+    ]);
   };
   const openHost = () => go('host');
+  const openPriority = () => {
+    switch (priority.action) {
+      case 'retry-overview':
+        void overview.refetch();
+        return;
+      case 'retry-experiences':
+        void experiences.refetch();
+        return;
+      case 'retry-funds':
+        void funds.refetch();
+        return;
+      case 'host':
+        go('host');
+        return;
+      case 'experience':
+        if (priority.experienceId) go('host-detail', { id: String(priority.experienceId) });
+        return;
+      case 'create':
+        go('create');
+        return;
+      case 'funds':
+        go('funds');
+        return;
+      case 'campaign':
+        if (priority.fundId) go('campaigns', { id: String(priority.fundId) });
+        else go('campaigns');
+        return;
+    }
+  };
 
   const sectionTitle = (title: string, action?: string, onAction?: () => void) => (
     <View style={styles.sectionHeading}>
@@ -65,7 +126,7 @@ export function OrganisationHomeScreen({ user, go }: Props) {
         paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 67) : insets.top + 8,
         paddingBottom: Platform.OS === 'web' ? 34 : Math.max(insets.bottom, 24),
       }]}
-      refreshControl={<RefreshControl refreshing={overview.isRefetching || experiences.isRefetching || treasury.isRefetching} onRefresh={refresh} tintColor={colors.primary} />}
+      refreshControl={<RefreshControl refreshing={overview.isRefetching || experiences.isRefetching || treasury.isRefetching || funds.isRefetching} onRefresh={refresh} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.brandRow}>
@@ -97,6 +158,42 @@ export function OrganisationHomeScreen({ user, go }: Props) {
           <Text style={[styles.editText, { color: colors.foreground }]}>Edit</Text>
         </Pressable>
       </View>
+
+      {sectionTitle('Your next action')}
+      <Pressable
+        testID="organisation-home-priority"
+        accessibilityRole="button"
+        accessibilityLabel={`${priority.title}. ${priority.detail} ${priority.buttonLabel}.`}
+        accessibilityState={{ disabled: priority.kind === 'loading' }}
+        disabled={priority.kind === 'loading'}
+        onPress={openPriority}
+        style={({ pressed }) => [
+          styles.attentionCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            opacity: pressed ? 0.78 : 1,
+          },
+        ]}
+      >
+        <View style={[styles.workspaceIcon, {
+          backgroundColor: priority.kind === 'error' ? `${colors.destructive}18` : `${colors.primary}18`,
+        }]}>
+          {priority.kind === 'loading'
+            ? <ActivityIndicator color={colors.primary} />
+            : <Feather
+                name={priority.icon}
+                size={19}
+                color={priority.kind === 'error' ? colors.destructive : colors.primary}
+              />}
+        </View>
+        <View style={styles.workspaceCopy}>
+          <Text style={[styles.workspaceTitle, { color: colors.foreground }]}>{priority.title}</Text>
+          <Text style={[styles.workspaceDetail, { color: colors.mutedForeground }]}>{priority.detail}</Text>
+          <Text style={[styles.actionText, { color: colors.primary }]}>{priority.buttonLabel}</Text>
+        </View>
+        <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+      </Pressable>
 
       {isCharity ? (
         <Pressable
@@ -137,21 +234,6 @@ export function OrganisationHomeScreen({ user, go }: Props) {
           </Pressable>
         ))}
       </View>
-
-      {sectionTitle('Needs your attention', reviewCount > 0 ? 'View all' : undefined, openHost)}
-      {overview.isLoading ? (
-        <View style={[styles.noticeCard, { backgroundColor: colors.card, borderColor: colors.border }]}><ActivityIndicator color={colors.primary} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Checking outstanding reviews…</Text></View>
-      ) : overview.isError ? (
-        <Pressable accessibilityRole="button" onPress={() => void overview.refetch()} style={[styles.noticeCard, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="alert-circle" size={18} color={colors.destructive} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Organisation tasks couldn’t load. Tap to retry.</Text></Pressable>
-      ) : reviewCount > 0 ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={`${reviewCount} completion reviews need attention`} onPress={openHost} style={[styles.attentionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.workspaceIcon, { backgroundColor: `${colors.primary}18` }]}><Feather name="clipboard" size={19} color={colors.primary} /></View>
-          <View style={styles.workspaceCopy}><Text style={[styles.workspaceTitle, { color: colors.foreground }]}>Review participant submissions</Text><Text style={[styles.workspaceDetail, { color: colors.mutedForeground }]}>{reviewCount} completion or milestone {reviewCount === 1 ? 'review' : 'reviews'} awaiting review</Text></View>
-          <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-        </Pressable>
-      ) : (
-        <View style={[styles.noticeCard, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="check-circle" size={18} color={colors.success} /><Text style={[styles.noticeText, { color: colors.foreground }]}>You’re all caught up on participant reviews.</Text></View>
-      )}
 
       {sectionTitle('Impact this month')}
       <View style={[styles.impactCard, { backgroundColor: colors.card, borderColor: colors.border }]}>

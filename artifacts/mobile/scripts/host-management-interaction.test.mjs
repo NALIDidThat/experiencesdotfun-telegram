@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { test } from "node:test";
+import { getAppPreviewUrl } from "./preview-test-config.mjs";
 
 const viewport = { width: 390, height: 740 };
 const chromiumPath = process.env.CHROMIUM_PATH
@@ -162,13 +163,68 @@ async function setViewport(client) {
   });
 }
 
-async function tapSelector(client, selector) {
+async function waitForStableElementBounds(client, selector, description) {
+  const selectorValue = JSON.stringify(selector);
+  const samples = [];
+  await waitForValue(
+    client,
+    `(() => {
+      const element = document.querySelector(${selectorValue});
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+        viewportHeight: window.visualViewport?.height ?? window.innerHeight,
+      };
+    })()`,
+    (bounds) => {
+      if (!bounds
+        || bounds.top < 0
+        || bounds.bottom > bounds.viewportHeight
+        || bounds.width <= 0
+        || bounds.height <= 0) {
+        samples.length = 0;
+        return false;
+      }
+      samples.push(bounds);
+      if (samples.length > 4) samples.shift();
+      return samples.length === 4 && samples.every((sample) => (
+        Math.abs(sample.top - bounds.top) < 0.5
+        && Math.abs(sample.bottom - bounds.bottom) < 0.5
+        && Math.abs(sample.height - bounds.height) < 0.5
+      ));
+    },
+    description,
+  );
+}
+
+async function waitForStableValue(client, expression, predicate, description) {
+  const samples = [];
+  return waitForValue(client, expression, (value) => {
+    if (!predicate(value)) {
+      samples.length = 0;
+      return false;
+    }
+    samples.push(value);
+    if (samples.length > 4) samples.shift();
+    return samples.length === 4 && samples.every((sample) => sample === value);
+  }, description);
+}
+
+async function tapSelector(client, selector, { scrollIntoView = true } = {}) {
   const selectorValue = JSON.stringify(selector);
   const point = await client.evaluate(`(() => {
     const element = document.querySelector(${selectorValue});
     if (!element) return null;
-    element.scrollIntoView({ block: "center", inline: "nearest" });
+    if (${scrollIntoView}) element.scrollIntoView({ block: "center", inline: "nearest" });
     const rect = element.getBoundingClientRect();
+    const hitTarget = document.elementFromPoint(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2,
+    );
     return {
       x: Math.round(rect.left + rect.width / 2),
       y: Math.round(rect.top + rect.height / 2),
@@ -176,11 +232,13 @@ async function tapSelector(client, selector) {
         && rect.top >= 0
         && rect.bottom <= (window.visualViewport?.height ?? window.innerHeight),
       disabled: Boolean(element.disabled || element.getAttribute("aria-disabled") === "true"),
+      hitTargetMatches: Boolean(hitTarget && (hitTarget === element || element.contains(hitTarget))),
     };
   })()`);
   assert.ok(point, `Expected control matching "${selector}" to be present.`);
   assert.ok(point.visible, `Expected control matching "${selector}" to be visible.`);
   assert.ok(!point.disabled, `Expected control matching "${selector}" to be enabled.`);
+  assert.ok(point.hitTargetMatches, `Expected the tap point to resolve to "${selector}".`);
   const { x, y } = point;
   await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
   await client.send("Input.dispatchMouseEvent", {
@@ -199,12 +257,64 @@ async function tapSelector(client, selector) {
   });
 }
 
-async function tapTestId(client, testId) {
-  await tapSelector(client, `[data-testid="${testId}"]`);
+async function revealInScrollableAncestor(client, selector) {
+  const selectorValue = JSON.stringify(selector);
+  return client.evaluate(`(() => {
+    const target = document.querySelector(${selectorValue});
+    if (!target) return false;
+    let ancestor = target.parentElement;
+    while (ancestor && ancestor !== document.body) {
+      const style = getComputedStyle(ancestor);
+      const isScrollable = ['auto', 'scroll'].includes(style.overflowY)
+        && ancestor.scrollHeight > ancestor.clientHeight + 1;
+      if (isScrollable) {
+        const targetRect = target.getBoundingClientRect();
+        const ancestorRect = ancestor.getBoundingClientRect();
+        if (targetRect.bottom > ancestorRect.bottom) {
+          ancestor.scrollTop += targetRect.bottom - ancestorRect.bottom;
+        } else if (targetRect.top < ancestorRect.top) {
+          ancestor.scrollTop -= ancestorRect.top - targetRect.top;
+        }
+        return true;
+      }
+      ancestor = ancestor.parentElement;
+    }
+    return false;
+  })()`);
 }
 
-async function replaceInput(client, testId, value) {
-  await tapTestId(client, testId);
+async function tapTestId(client, testId, {
+  scrollIntoView = true,
+  waitForStable = false,
+  revealInScrollContainer = false,
+} = {}) {
+  const selector = `[data-testid="${testId}"]`;
+  if (revealInScrollContainer) await revealInScrollableAncestor(client, selector);
+  if (waitForStable) {
+    await waitForStableElementBounds(client, selector, `the ${testId} control to settle in view`);
+  }
+  await tapSelector(client, selector, { scrollIntoView });
+}
+
+async function revealParticipantControl(client, testId) {
+  const selector = `[data-testid="${testId}"]`;
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-participant-sheet"]') && document.querySelector(${JSON.stringify(selector)}))`,
+    Boolean,
+    `${testId} in the participant sheet`,
+  );
+  await waitForStableElementBounds(
+    client,
+    '[data-testid="host-participant-sheet"]',
+    "the participant sheet to finish opening",
+  );
+  await revealInScrollableAncestor(client, selector);
+  await waitForStableElementBounds(client, selector, `${testId} to settle in view`);
+}
+
+async function replaceInput(client, testId, value, options) {
+  await tapTestId(client, testId, options);
   await client.send("Input.dispatchKeyEvent", {
     type: "keyDown",
     key: "a",
@@ -220,12 +330,12 @@ async function replaceInput(client, testId, value) {
   await client.send("Input.insertText", { text: value });
 }
 
-function apiResponseHeaders(request, domain) {
+function apiResponseHeaders(request, origin) {
   return [
     { name: "Content-Type", value: "application/json" },
     {
       name: "Access-Control-Allow-Origin",
-      value: request.headers.Origin ?? request.headers.origin ?? `https://${domain}`,
+      value: request.headers.Origin ?? request.headers.origin ?? origin,
     },
   ];
 }
@@ -238,6 +348,7 @@ function makeFixtures() {
     city: "London",
     country: "UK",
     categories: ["environmental"],
+    type: "nonprofit",
     verified: true,
   };
   const user = {
@@ -308,9 +419,9 @@ function makeFixtures() {
 }
 
 test("organisation hosts can manage experience participants from a phone-sized detail screen", async (t) => {
-  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
-  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the host management preview test.");
-  const appBaseUrl = process.env.HOST_MANAGEMENT_APP_URL ?? `https://${domain}`;
+  const appUrl = getAppPreviewUrl("The host management preview test");
+  const appBaseUrl = process.env.HOST_MANAGEMENT_APP_URL ?? appUrl;
+  const appOrigin = new URL(appBaseUrl).origin;
 
   const client = await launchBrowser(t);
   const { user, experience, people } = makeFixtures();
@@ -400,7 +511,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
             requestId: params.requestId,
             responseCode: 204,
             responseHeaders: [
-              ...apiResponseHeaders(params.request, domain),
+              ...apiResponseHeaders(params.request, appOrigin),
               { name: "Access-Control-Allow-Methods", value: "GET, POST, PATCH, OPTIONS" },
               {
                 name: "Access-Control-Allow-Headers",
@@ -422,6 +533,8 @@ test("organisation hosts can manage experience participants from a phone-sized d
           response = [];
         } else if (url.pathname === "/api/friends/notifications" && method === "GET") {
           response = { notifications: [], unreadCount: 0 };
+        } else if (url.pathname === "/api/organisations/verification" && method === "GET") {
+          response = { status: "unsubmitted" };
         } else if (url.pathname === "/api/host/overview" && method === "GET") {
           response = hostOverview();
         } else if (url.pathname === "/api/host/experiences" && method === "GET") {
@@ -532,7 +645,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
         await client.send("Fetch.fulfillRequest", {
           requestId: params.requestId,
           responseCode: status,
-          responseHeaders: apiResponseHeaders(params.request, domain),
+          responseHeaders: apiResponseHeaders(params.request, appOrigin),
           body: Buffer.from(JSON.stringify(response)).toString("base64"),
         });
       } catch (error) {
@@ -551,12 +664,22 @@ test("organisation hosts can manage experience participants from a phone-sized d
   });
   await setViewport(client);
   await client.send("Page.navigate", { url: `${appBaseUrl}/?screen=profile` });
-  await waitForValue(
-    client,
-    `document.querySelector('[data-testid="organisation-activity-experience-${experience.id}"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
-    (text) => text.includes(experience.title) && text.includes("4 registrations") && text.includes("1 waitlisted"),
-    "the organisation's hosted activity and participation records on its profile",
-  );
+  try {
+    await waitForValue(
+      client,
+      `document.querySelector('[data-testid="organisation-activity-experience-${experience.id}"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+      (text) => text.includes(experience.title) && text.includes("4 registrations") && text.includes("1 waitlisted"),
+      "the organisation's hosted activity and participation records on its profile",
+    );
+  } catch (error) {
+    const browserState = await client.evaluate(`({
+      url: location.href,
+      text: document.body?.innerText?.slice(0, 1200) ?? "",
+      dashboard: Boolean(document.querySelector('[data-testid="organisation-activity-dashboard"]')),
+      profile: Boolean(document.querySelector('[data-testid="profile-screen"]')),
+    })`);
+    throw new Error(`${error.message} Browser state: ${JSON.stringify(browserState)}; API traffic: ${apiTraffic.join(", ")}; unexpected: ${unexpectedApiRequests.join(", ")}`);
+  }
   const organisationStats = await client.evaluate(`(() => ({
     stats: [...document.querySelectorAll('[data-testid^="organisation-activity-stat-"]')]
       .map((element) => element.innerText.replace(/[^\\x20-\\x7E]/g, ' ').replace(/\\s+/g, ' ').trim()),
@@ -665,7 +788,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
     true,
     "The participant sheet should show completed milestone contribution records.",
   );
-  await tapTestId(client, "host-participant-sheet-close");
+  await tapTestId(client, "host-participant-sheet-close", { scrollIntoView: false, waitForStable: true });
   await waitForValue(
     client,
     `!document.querySelector('[data-testid="host-participant-sheet"]')`,
@@ -708,15 +831,16 @@ test("organisation hosts can manage experience participants from a phone-sized d
     "the selected participant’s completion review actions",
   );
   assert.equal(
-    await client.evaluate(`Boolean(document.querySelector('[data-testid="host-verify-7403"]')) && Boolean(document.querySelector('[data-testid="host-reject-with-reason-7404"]'))`),
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="host-verify-7403"]')) && Boolean(document.querySelector('[data-testid="host-reject-with-reason-7403"]'))`),
     true,
-    "The participant sheet should expose verify and reject actions.",
+    "The selected participant sheet should expose its verify and reject actions.",
   );
-  await tapTestId(client, "host-participant-sheet-close");
+  await tapTestId(client, "host-participant-sheet-close", { scrollIntoView: false, waitForStable: true });
 
   await tapTestId(client, "host-detail-filter-participants");
   await tapTestId(client, "host-participant-card-7401");
-  await tapTestId(client, "host-attend-7401");
+  await revealParticipantControl(client, "host-attend-7401");
+  await tapTestId(client, "host-attend-7401", { scrollIntoView: false });
   await waitForValue(
     client,
     `document.body.innerText.includes('Attendance could not be saved right now. Try again.')`,
@@ -728,25 +852,27 @@ test("organisation hosts can manage experience participants from a phone-sized d
     true,
     "The attendance action should remain available after a failed request.",
   );
-  await tapTestId(client, "host-attend-7401");
+  await revealParticipantControl(client, "host-attend-7401");
+  await tapTestId(client, "host-attend-7401", { scrollIntoView: false });
   await waitForValue(
     client,
     `!document.querySelector('[data-testid="host-attend-7401"]') && document.body.innerText.includes('Attendance recorded')`,
     Boolean,
     "attendance to update after retry",
   );
-  await tapTestId(client, "host-participant-sheet-close");
+  await tapTestId(client, "host-participant-sheet-close", { scrollIntoView: false, waitForStable: true });
 
   await tapTestId(client, "host-detail-filter-review");
   await tapTestId(client, "host-participant-card-7403");
-  await tapTestId(client, "host-verify-7403");
+  await revealParticipantControl(client, "host-verify-7403");
+  await tapTestId(client, "host-verify-7403", { scrollIntoView: false });
   await waitForValue(
     client,
     `!document.querySelector('[data-testid="host-verify-7403"]') && document.body.innerText.includes('1 of 5 people')`,
     Boolean,
     "the review list to update after verification",
   );
-  await tapTestId(client, "host-participant-sheet-close");
+  await tapTestId(client, "host-participant-sheet-close", { scrollIntoView: false, waitForStable: true });
   await tapTestId(client, "host-detail-filter-all");
   await waitForValue(
     client,
@@ -757,15 +883,22 @@ test("organisation hosts can manage experience participants from a phone-sized d
 
   await tapTestId(client, "host-detail-filter-review");
   await tapTestId(client, "host-participant-card-7404");
-  await replaceInput(client, "host-reject-reason-7404", "Please add a clearer account of the task.");
-  await tapTestId(client, "host-reject-with-reason-7404");
+  await revealParticipantControl(client, "host-reject-reason-7404");
+  await replaceInput(
+    client,
+    "host-reject-reason-7404",
+    "Please add a clearer account of the task.",
+    { scrollIntoView: false },
+  );
+  await revealParticipantControl(client, "host-reject-with-reason-7404");
+  await tapTestId(client, "host-reject-with-reason-7404", { scrollIntoView: false });
   await waitForValue(
     client,
     `!document.querySelector('[data-testid="host-reject-with-reason-7404"]') && document.body.innerText.includes('No matching people')`,
     Boolean,
     "the review list to update after rejection",
   );
-  await tapTestId(client, "host-participant-sheet-close");
+  await tapTestId(client, "host-participant-sheet-close", { scrollIntoView: false, waitForStable: true });
   await tapTestId(client, "host-detail-filter-all");
   await waitForValue(
     client,
@@ -862,6 +995,13 @@ test("organisation hosts can manage experience participants from a phone-sized d
     Boolean,
     "the cancelled experience state with editing and sign-up controls closed",
   );
+  await tapTestId(client, "host-detail-tab-participants");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="host-detail-filter-all"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+    (value) => value === "All 5",
+    "existing participant records to remain accessible after cancellation",
+  );
   assert.equal(
     await client.evaluate(`document.querySelector('[data-testid="host-detail-filter-all"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`),
     "All 5",
@@ -915,8 +1055,8 @@ test("organisation hosts can manage experience participants from a phone-sized d
 });
 
 test("publishing an experience opens its host-management detail screen", async (t) => {
-  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
-  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the publish handoff preview test.");
+  const appUrl = getAppPreviewUrl("The publish handoff preview test");
+  const appOrigin = new URL(appUrl).origin;
 
   const client = await launchBrowser(t);
   const { user } = makeFixtures();
@@ -953,7 +1093,7 @@ test("publishing an experience opens its host-management detail screen", async (
             requestId: params.requestId,
             responseCode: 204,
             responseHeaders: [
-              ...apiResponseHeaders(params.request, domain),
+              ...apiResponseHeaders(params.request, appOrigin),
               { name: "Access-Control-Allow-Methods", value: "GET, POST, PATCH, OPTIONS" },
               {
                 name: "Access-Control-Allow-Headers",
@@ -1014,7 +1154,7 @@ test("publishing an experience opens its host-management detail screen", async (
         await client.send("Fetch.fulfillRequest", {
           requestId: params.requestId,
           responseCode: status,
-          responseHeaders: apiResponseHeaders(params.request, domain),
+          responseHeaders: apiResponseHeaders(params.request, appOrigin),
           body: Buffer.from(JSON.stringify(response)).toString("base64"),
         });
       } catch (error) {
@@ -1032,7 +1172,7 @@ test("publishing an experience opens its host-management detail screen", async (
     source: "localStorage.setItem('@experiences/auth-token', 'email_host-publish-test');",
   });
   await setViewport(client);
-  await client.send("Page.navigate", { url: `https://${domain}/?screen=create` });
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=create` });
 
   const waitForPrompt = async (prompt) => waitForValue(
     client,
@@ -1045,7 +1185,16 @@ test("publishing an experience opens its host-management detail screen", async (
     await waitForPrompt(prompt);
   };
 
-  await waitForPrompt("Who is hosting?");
+  try {
+    await waitForPrompt("Who is hosting?");
+  } catch (error) {
+    const browserState = await client.evaluate(`({
+      url: location.href,
+      text: document.body?.innerText?.slice(0, 1200) ?? "",
+      question: document.querySelector('[data-testid="create-question-heading"]')?.innerText ?? null,
+    })`);
+    throw new Error(`${error.message} Browser state: ${JSON.stringify(browserState)}; API traffic: ${apiTraffic.join(", ")}; unexpected: ${unexpectedApiRequests.join(", ")}`);
+  }
   await continueTo("What does your organisation do?");
   await continueTo("What should participants call it?");
   await replaceInput(client, "create-field-title", "Publish handoff test");
@@ -1056,9 +1205,29 @@ test("publishing an experience opens its host-management detail screen", async (
   await continueTo("What day will it happen?");
   await tapTestId(client, "create-date-use-selected");
   await continueTo("What time does it start?");
-  await tapTestId(client, "create-field-startTime-hour-value-10");
+  await tapTestId(client, "create-field-startTime-hour-value-11", {
+    scrollIntoView: false,
+    waitForStable: true,
+    revealInScrollContainer: true,
+  });
+  await waitForStableValue(
+    client,
+    `document.querySelector('[data-testid="create-field-startTime"]')?.getAttribute('aria-label') ?? ''`,
+    (label) => label.endsWith("11:00"),
+    "the selected 11:00 start time to settle",
+  );
   await continueTo("When will it finish?");
-  await tapTestId(client, "create-field-endTime-hour-value-12");
+  await tapTestId(client, "create-field-endTime-hour-value-12", {
+    scrollIntoView: false,
+    waitForStable: true,
+    revealInScrollContainer: true,
+  });
+  await waitForStableValue(
+    client,
+    `document.querySelector('[data-testid="create-field-endTime"]')?.getAttribute('aria-label') ?? ''`,
+    (label) => label.endsWith("12:00"),
+    "the selected 12:00 end time to settle",
+  );
   await continueTo("What city is it in?");
   await continueTo("Where will everyone meet?");
   await replaceInput(client, "create-field-location", "Community Garden");
@@ -1075,6 +1244,18 @@ test("publishing an experience opens its host-management detail screen", async (
     `Boolean(document.querySelector('[data-testid="create-review-heading"]'))`,
     Boolean,
     "the final experience review before publishing",
+  );
+  const publishButtonState = await client.evaluate(`(() => {
+    const button = document.querySelector('[data-testid="create-primary"]');
+    return {
+      disabled: Boolean(button?.disabled || button?.getAttribute('aria-disabled') === 'true'),
+      review: document.body.innerText.slice(-1800),
+    };
+  })()`);
+  assert.equal(
+    publishButtonState.disabled,
+    false,
+    `The completed experience review should be publishable. Review state: ${JSON.stringify(publishButtonState.review)}`,
   );
   await tapTestId(client, "create-primary");
 

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { test } from "node:test";
+import { getAppPreviewUrl } from "./preview-test-config.mjs";
 
 const viewport = { width: 360, height: 740 };
 const sessionToken = "email_explore-globe-test";
@@ -334,12 +335,12 @@ async function dragSheetWithSyntheticTouch(client, deltaY) {
   return result;
 }
 
-function apiResponseHeaders(request, domain) {
+function apiResponseHeaders(request, origin) {
   return [
     { name: "Content-Type", value: "application/json" },
     {
       name: "Access-Control-Allow-Origin",
-      value: request.headers.Origin ?? request.headers.origin ?? `https://${domain}`,
+      value: request.headers.Origin ?? request.headers.origin ?? origin,
     },
   ];
 }
@@ -421,8 +422,8 @@ const friends = [
 ];
 
 test("Explore map fallback preserves activity and friend pins, city filtering, zoom controls, and categories", async (t) => {
-  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
-  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the Explore map fallback test.");
+  const appUrl = getAppPreviewUrl("The Explore map fallback test");
+  const appOrigin = new URL(appUrl).origin;
   if (process.env.Google_Maps_API || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY) {
     t.skip("This fixture uses the globe fallback; a configured browser key would make a live, billable Places request.");
     return;
@@ -458,7 +459,7 @@ test("Explore map fallback preserves activity and friend pins, city filtering, z
             requestId: params.requestId,
             responseCode: 204,
             responseHeaders: [
-              ...apiResponseHeaders(params.request, domain),
+              ...apiResponseHeaders(params.request, appOrigin),
               { name: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
               {
                 name: "Access-Control-Allow-Headers",
@@ -524,7 +525,7 @@ test("Explore map fallback preserves activity and friend pins, city filtering, z
         await client.send("Fetch.fulfillRequest", {
           requestId: params.requestId,
           responseCode: status,
-          responseHeaders: apiResponseHeaders(params.request, domain),
+          responseHeaders: apiResponseHeaders(params.request, appOrigin),
           body: Buffer.from(JSON.stringify(response)).toString("base64"),
         });
       } catch (error) {
@@ -555,7 +556,7 @@ Object.defineProperty(navigator, 'geolocation', {
     deviceScaleFactor: 1,
     mobile: true,
   });
-  await client.send("Page.navigate", { url: `https://${domain}/?screen=explore` });
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=explore` });
 
   try {
     await waitForValue(
@@ -1009,7 +1010,7 @@ Object.defineProperty(navigator, 'geolocation', {
   await waitForValue(client, "document.readyState", (state) => state === "complete", "the Explore page load");
   user.userType = "organisation";
   user.organisation = { ...experiences[0].organisation, id: experiences[0].organisation.id + 1 };
-  await client.send("Page.navigate", { url: `https://${domain}/?screen=experience&id=761` });
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=experience&id=761` });
   await waitForValue(
     client,
     `document.body.innerText.includes('Experience details') && document.body.innerText.includes('London River Cleanup')`,
@@ -1053,8 +1054,8 @@ test("Google Maps and nearby Places work with the configured browser key", {
     ? "Set RUN_LIVE_GOOGLE_MAPS_TEST=1 to make live Google Maps and Places requests."
     : false,
 }, async (t) => {
-  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
-  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the live Google Maps test.");
+  const appUrl = getAppPreviewUrl("The live Google Maps test");
+  const appOrigin = new URL(appUrl).origin;
 
   const client = await launchBrowser(t);
   const browserErrors = [];
@@ -1088,7 +1089,7 @@ test("Google Maps and nearby Places work with the configured browser key", {
             requestId: params.requestId,
             responseCode: 204,
             responseHeaders: [
-              ...apiResponseHeaders(params.request, domain),
+              ...apiResponseHeaders(params.request, appOrigin),
               { name: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
               {
                 name: "Access-Control-Allow-Headers",
@@ -1129,7 +1130,7 @@ test("Google Maps and nearby Places work with the configured browser key", {
         await client.send("Fetch.fulfillRequest", {
           requestId: params.requestId,
           responseCode: status,
-          responseHeaders: apiResponseHeaders(params.request, domain),
+          responseHeaders: apiResponseHeaders(params.request, appOrigin),
           body: Buffer.from(JSON.stringify(response)).toString("base64"),
         });
       } catch (error) {
@@ -1144,7 +1145,7 @@ test("Google Maps and nearby Places work with the configured browser key", {
     source: `localStorage.setItem('@experiences/auth-token', '${sessionToken}');`,
   });
   await client.send("Emulation.setDeviceMetricsOverride", { ...viewport, deviceScaleFactor: 1, mobile: true });
-  await client.send("Page.navigate", { url: `https://${domain}/?screen=explore` });
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=explore` });
 
   try {
     await waitForValue(
