@@ -7,4 +7,4 @@ The mobile preview workflow sets `CI=1`, which starts Metro with reloads disable
 
 **Why:** A profile redesign typechecked, but the preview stayed unchanged; workflow logs showed Metro running in CI mode.
 
-**How to apply:** If Expo screenshots contradict the edited source, check the mobile workflow logs for CI mode and restart the configured workflow before capturing the screen again.
+**How to apply:** If Expo screenshots or browser tests contradict the edited source, check the mobile workflow logs for CI mode and restart the configured workflow. After a restart, allow the first cold bundle compile to finish before treating a single test timeout as a product failure; rerun once the bundle is warm.
