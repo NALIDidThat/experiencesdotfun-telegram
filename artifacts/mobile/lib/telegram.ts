@@ -77,7 +77,8 @@ export function getTelegramInitData(): string | null {
 
 export function isTelegramMiniApp(): boolean {
   if (typeof window === 'undefined') return false;
-  return Boolean((window as TelegramWindow).Telegram?.WebApp);
+  const initData = (window as TelegramWindow).Telegram?.WebApp?.initData;
+  return typeof initData === 'string' && initData.trim().length > 0;
 }
 
 export function openTelegramBot(username?: string | null): void {

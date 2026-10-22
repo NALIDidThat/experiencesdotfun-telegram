@@ -427,7 +427,7 @@ export async function requireTelegramUser(
     ? authorization.slice("Bearer ".length)
     : "";
   if (!initData) {
-    res.status(401).json({ message: "Open Experiences.fun from Telegram to continue." });
+    res.status(401).json({ message: "Sign in to Experiences.fun to continue." });
     return;
   }
 

@@ -341,6 +341,25 @@ async function assertLoginIdentifierRequest(t, identifier, expectedInput) {
     Boolean,
     "the sign-in method choices",
   );
+  const webLoginChoices = await client.evaluate(`(() => {
+    const email = document.querySelector('[data-testid="login-choice-email"]');
+    const telegram = document.querySelector('[data-testid="login-choice-telegram"]');
+    const label = (element) => element?.textContent
+      ?.replace(/^[^\\p{L}\\p{N}]+/u, "")
+      .replace(/\\s+/g, " ")
+      .trim() ?? null;
+    return {
+      email: label(email),
+      telegram: label(telegram),
+      emailFirst: Boolean(email && telegram
+        && (email.compareDocumentPosition(telegram) & Node.DOCUMENT_POSITION_FOLLOWING)),
+    };
+  })()`);
+  assert.deepEqual(webLoginChoices, {
+    email: "Continue with email",
+    telegram: "Open Telegram",
+    emailFirst: true,
+  });
   await tapTestId(client, "login-choice-email");
   await waitForValue(
     client,

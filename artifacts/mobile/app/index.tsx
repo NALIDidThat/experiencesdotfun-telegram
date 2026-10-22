@@ -1439,6 +1439,29 @@ function LoginChoiceScreen({
     if (inTelegram) onTelegram();
     else openTelegramBot();
   };
+  const emailAction = (
+    <Button
+      label="Continue with email"
+      variant={inTelegram ? 'secondary' : undefined}
+      color={inTelegram ? colors.card : undefined}
+      textColor={inTelegram ? colors.foreground : undefined}
+      onPress={() => { clearAuthError(); onEmail(); }}
+      icon="mail"
+      testID="login-choice-email"
+    />
+  );
+  const telegramAction = (
+    <Button
+      label={loading ? 'Connecting…' : inTelegram ? 'Continue with Telegram' : 'Open Telegram'}
+      variant={inTelegram ? undefined : 'secondary'}
+      color={inTelegram ? undefined : colors.card}
+      textColor={inTelegram ? undefined : colors.foreground}
+      disabled={loading}
+      onPress={continueWithTelegram}
+      icon="send"
+      testID="login-choice-telegram"
+    />
+  );
 
   return (
     <KeyboardAwareScrollViewCompat
@@ -1464,22 +1487,9 @@ function LoginChoiceScreen({
         </Text>
 
         <View style={styles.loginMethods}>
-          <Button
-            label={loading ? 'Connecting…' : inTelegram ? 'Continue with Telegram' : 'Open Telegram'}
-            disabled={loading}
-            onPress={continueWithTelegram}
-            icon="send"
-          />
+          {inTelegram ? telegramAction : emailAction}
           {authError ? <InlineError message={authError} /> : null}
-          <Button
-            label="Continue with email"
-            variant="secondary"
-            color={colors.card}
-            textColor={colors.foreground}
-            onPress={() => { clearAuthError(); onEmail(); }}
-            icon="mail"
-            testID="login-choice-email"
-          />
+          {inTelegram ? emailAction : telegramAction}
         </View>
         <View style={styles.flowReassurance}>
           <Feather name="shield" size={14} color={colors.mutedForeground} />
@@ -7485,7 +7495,7 @@ function CreateExperienceForm({
     if (!valid || create.isPending || update.isPending) return;
     setPublishError(null);
     if (!user) {
-      setPublishError(isEditing ? 'Sign in to save these changes.' : 'Open Experiences.fun from Telegram to publish an experience.');
+      setPublishError(isEditing ? 'Sign in to save these changes.' : 'Sign in to publish this experience.');
       return;
     }
     try {
