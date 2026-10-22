@@ -36,7 +36,7 @@ function matchesImageSignature(contentType: string, bytes: Buffer): boolean {
     bytes.toString("ascii", 8, 12) === "WEBP";
 }
 
-router.use(requireTelegramUser);
+router.use("/evidence", requireTelegramUser);
 
 router.post("/evidence/upload", async (req, res) => {
   const { contentType, data } = req.body ?? {};

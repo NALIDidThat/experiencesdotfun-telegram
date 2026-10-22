@@ -21,3 +21,17 @@ test("email and Telegram login endpoints are public and reach their validators",
     assert.deepEqual(await response.json(), { message: expectedMessage });
   }
 });
+
+test("private evidence endpoints remain protected by authentication", async () => {
+  assert.ok(domain, "REPLIT_DEV_DOMAIN must point to the running development API.");
+
+  const response = await fetch(`https://${domain}/api/evidence/access`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), {
+    message: "Sign in to Experiences.fun to continue.",
+  });
+});

@@ -650,6 +650,133 @@ test("login accepts an @-prefixed username", async (t) => {
   });
 });
 
+test("Telegram Mini App sign-in uses live init data and keeps Telegram first", async (t) => {
+  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the Telegram auth flow test.");
+
+  const client = await launchBrowser(t);
+  const telegramInitData = "auth_date=1700000000&hash=test-signature";
+  const telegramRequests = [];
+  let interceptionError;
+
+  client.on("Fetch.requestPaused", ({ params }) => {
+    void (async () => {
+      try {
+        const url = new URL(params.request.url);
+        if (params.request.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
+          const origin = params.request.headers.Origin ?? `https://${domain}`;
+          const requestedHeaders = params.request.headers["Access-Control-Request-Headers"]
+            ?? params.request.headers["access-control-request-headers"]
+            ?? "authorization,content-type";
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 204,
+            responseHeaders: [
+              { name: "Access-Control-Allow-Origin", value: origin },
+              { name: "Access-Control-Allow-Methods", value: "POST, OPTIONS" },
+              { name: "Access-Control-Allow-Headers", value: requestedHeaders },
+            ],
+            body: "",
+          });
+          return;
+        }
+
+        if (url.pathname.endsWith("/api/auth/telegram") && params.request.method === "POST") {
+          telegramRequests.push(await getRequestBody(client, params));
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 401,
+            responseHeaders: apiResponseHeaders(params.request, domain),
+            body: Buffer.from(JSON.stringify({
+              message: "Mock Telegram auth failure.",
+            })).toString("base64"),
+          });
+          return;
+        }
+
+        if (url.pathname.startsWith("/api/")) {
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 200,
+            responseHeaders: apiResponseHeaders(params.request, domain),
+            body: Buffer.from(JSON.stringify([])).toString("base64"),
+          });
+          return;
+        }
+
+        await client.send("Fetch.continueRequest", { requestId: params.requestId });
+      } catch (error) {
+        interceptionError ??= error;
+        await client.send("Fetch.failRequest", {
+          requestId: params.requestId,
+          errorReason: "Failed",
+        }).catch(() => {});
+      }
+    })();
+  });
+
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
+  await client.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `window.Telegram = { WebApp: { initData: ${JSON.stringify(telegramInitData)}, ready() {}, expand() {} } };`,
+  });
+  await setViewport(client, viewport.height);
+  await client.send("Page.navigate", { url: `https://${domain}/` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="welcome-start"]'))`,
+    Boolean,
+    "the Telegram Mini App welcome screen",
+  );
+  await tapTestId(client, "welcome-start");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="account-type-participant"]'))`,
+    Boolean,
+    "the participant account choice",
+  );
+  await tapTestId(client, "account-type-participant");
+  await tapTestId(client, "account-type-continue");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="login-choice-telegram"]'))`,
+    Boolean,
+    "the Telegram sign-in choice",
+  );
+
+  const loginChoices = await client.evaluate(`(() => {
+    const email = document.querySelector('[data-testid="login-choice-email"]');
+    const telegram = document.querySelector('[data-testid="login-choice-telegram"]');
+    const label = (element) => element?.textContent
+      ?.replace(/^[^\\p{L}\\p{N}]+/u, "")
+      .replace(/\\s+/g, " ")
+      .trim() ?? null;
+    return {
+      email: label(email),
+      telegram: label(telegram),
+      telegramFirst: Boolean(telegram && email
+        && (telegram.compareDocumentPosition(email) & Node.DOCUMENT_POSITION_FOLLOWING)),
+    };
+  })()`);
+  assert.deepEqual(loginChoices, {
+    email: "Continue with email",
+    telegram: "Continue with Telegram",
+    telegramFirst: true,
+  });
+
+  await tapTestId(client, "login-choice-telegram");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes("Mock Telegram auth failure.")`,
+    Boolean,
+    "the mocked Telegram authentication response",
+  );
+  assert.ifError(interceptionError);
+  assert.deepEqual(telegramRequests, [{
+    initData: telegramInitData,
+    userType: "participant",
+  }]);
+});
+
 test("organisation signup requires a supported subtype before sign-in", async (t) => {
   const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
   assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile organisation flow test.");
