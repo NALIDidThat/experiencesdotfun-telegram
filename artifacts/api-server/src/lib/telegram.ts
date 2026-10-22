@@ -451,6 +451,7 @@ async function answerCallback(id: string) {
 }
 
 async function registerTelegramCommands() {
+  if (!telegramPollingLease) return;
   const registrations = await Promise.all([
     telegramCall<boolean>("setMyCommands", { commands: botCommands }),
     telegramCall<boolean>("setMyCommands", {
@@ -1537,6 +1538,7 @@ function callbackAnalyticsCategoryFor(data: string | undefined): AnalyticsEventC
 }
 
 async function poll(offset: number): Promise<void> {
+  if (!botRunning || !telegramPollingLease) return;
   let nextOffset = offset;
   let retryDelayMs = 500;
   try {
@@ -1545,6 +1547,7 @@ async function poll(offset: number): Promise<void> {
       timeout: 25,
       allowed_updates: ["message", "callback_query"],
     });
+    if (!botRunning || !telegramPollingLease) return;
     if (updates === null) {
       const conflictDetected = pollingConflictDetected;
       pollingConflictDetected = false;
@@ -1621,12 +1624,16 @@ export async function startTelegramBot() {
     return;
   }
   botStarting = true;
+  let leaseLostBeforeAssignment = false;
   try {
-    telegramPollingLease = await tryAcquireTelegramPollingLease(
+    const lease = await tryAcquireTelegramPollingLease(
       pool,
-      handleTelegramPollingLeaseLost,
+      (error) => {
+        leaseLostBeforeAssignment = true;
+        handleTelegramPollingLeaseLost(error);
+      },
     );
-    if (!telegramPollingLease) {
+    if (!lease) {
       const now = Date.now();
       if (now - lastPollingLeaseBusyLogAt >= 60_000) {
         lastPollingLeaseBusyLogAt = now;
@@ -1637,8 +1644,14 @@ export async function startTelegramBot() {
       scheduleTelegramBotRetry(TELEGRAM_POLLING_CONFLICT_BACKOFF_MS);
       return;
     }
+    if (leaseLostBeforeAssignment) {
+      await lease.release();
+      return;
+    }
+    telegramPollingLease = lease;
 
     const me = await telegramCall<{ id?: number; username?: string }>("getMe", {});
+    if (telegramPollingLease !== lease) return;
     if (!me) {
       await releaseTelegramPollingLease();
       scheduleTelegramBotRetry(5_000);
@@ -1650,6 +1663,7 @@ export async function startTelegramBot() {
     const webhookRemoved = await telegramCall<boolean>("deleteWebhook", {
       drop_pending_updates: false,
     });
+    if (telegramPollingLease !== lease) return;
     if (webhookRemoved !== true) {
       logger.error("Telegram webhook state could not be verified; polling was not started.");
       await releaseTelegramPollingLease();
@@ -1659,6 +1673,7 @@ export async function startTelegramBot() {
 
     botRunning = true;
     await registerTelegramCommands();
+    if (telegramPollingLease !== lease || !botRunning) return;
     logger.info({ username: me.username }, "Telegram bot polling started");
     void poll(0);
   } catch (error) {
