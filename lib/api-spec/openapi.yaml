@@ -4024,6 +4024,9 @@ components:
         dailyXpLimit: { type: integer }
         dailyXpRemaining: { type: integer }
         memberXpLimit: { type: integer }
+        totalXpAwarded: { type: integer, description: Total Community XP awarded in this group to date. }
+        membersWithXp: { type: integer, description: Number of distinct members who have earned Community XP in this group. }
+        xpEarnersToday: { type: integer, description: Number of distinct members awarded Community XP since 00:00 UTC. }
         resetTimezone: { type: string, enum: [UTC] }
       required:
         - chatId
@@ -4034,6 +4037,9 @@ components:
         - dailyXpLimit
         - dailyXpRemaining
         - memberXpLimit
+        - totalXpAwarded
+        - membersWithXp
+        - xpEarnersToday
         - resetTimezone
     AddCommunityInput:
       type: object

@@ -16,5 +16,11 @@ export interface TelegramManagedCommunity {
   dailyXpLimit: number;
   dailyXpRemaining: number;
   memberXpLimit: number;
+  /** Total Community XP awarded in this group to date. */
+  totalXpAwarded: number;
+  /** Number of distinct members who have earned Community XP in this group. */
+  membersWithXp: number;
+  /** Number of distinct members awarded Community XP since 00:00 UTC. */
+  xpEarnersToday: number;
   resetTimezone: TelegramManagedCommunityResetTimezone;
 }

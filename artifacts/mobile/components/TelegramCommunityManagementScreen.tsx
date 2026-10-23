@@ -101,14 +101,27 @@ function CommunityCard({
               ]}
             />
           </View>
+          <Text style={[styles.statsHeading, { color: colors.foreground }]}>Community statistics</Text>
           <View style={styles.statsGrid}>
             <View style={[styles.statCell, { backgroundColor: colors.muted }]}>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>XP remaining today</Text>
               <Text style={[styles.statValue, { color: colors.foreground }]}>{community.dailyXpRemaining.toLocaleString()}</Text>
             </View>
             <View style={[styles.statCell, { backgroundColor: colors.muted }]}>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Per-member limit</Text>
+              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Lifetime cap per member</Text>
               <Text style={[styles.statValue, { color: colors.foreground }]}>{community.memberXpLimit.toLocaleString()} XP</Text>
+            </View>
+            <View style={[styles.statCell, { backgroundColor: colors.muted }]}>
+              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Lifetime XP awarded</Text>
+              <Text style={[styles.statValue, { color: colors.foreground }]}>{community.totalXpAwarded.toLocaleString()}</Text>
+            </View>
+            <View style={[styles.statCell, { backgroundColor: colors.muted }]}>
+              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Members with XP</Text>
+              <Text style={[styles.statValue, { color: colors.foreground }]}>{community.membersWithXp.toLocaleString()}</Text>
+            </View>
+            <View style={[styles.statCell, { backgroundColor: colors.muted }]}>
+              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>XP earners today</Text>
+              <Text style={[styles.statValue, { color: colors.foreground }]}>{community.xpEarnersToday.toLocaleString()}</Text>
             </View>
           </View>
           <Text style={[styles.budgetNote, { color: colors.mutedForeground }]}>
@@ -288,8 +301,9 @@ const styles = StyleSheet.create({
   budgetValue: { fontFamily: 'Inter_700Bold', fontSize: 12 },
   progressTrack: { height: 6, borderRadius: 4, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 4 },
-  statsGrid: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  statCell: { flex: 1, minWidth: 0, padding: 10, borderRadius: 10, gap: 5 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  statsHeading: { fontFamily: 'Inter_600SemiBold', fontSize: 12, marginTop: 14 },
+  statCell: { flex: 1, minWidth: 135, padding: 10, borderRadius: 10, gap: 5 },
   statLabel: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 14 },
   statValue: { fontFamily: 'Inter_700Bold', fontSize: 14 },
   budgetNote: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 8, marginBottom: 13 },

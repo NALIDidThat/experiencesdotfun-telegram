@@ -2,6 +2,7 @@ import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   communityContributionsTable,
+  communityMembersTable,
   organisationsTable,
   telegramCommunitiesTable,
   telegramCommunityKeywordRulesTable,
@@ -97,29 +98,56 @@ export async function listTelegramOwnedCommunitiesForManagement(
   if (!communities.length) return [];
 
   const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const totals = await db
-    .select({
-      chatId: communityContributionsTable.chatId,
-      xpAwarded: sql<number>`coalesce(sum(${communityContributionsTable.xpAwarded}), 0)`,
-    })
-    .from(communityContributionsTable)
-    .where(
-      and(
-        inArray(communityContributionsTable.chatId, communities.map(({ chatId }) => chatId)),
-        gte(communityContributionsTable.createdAt, dayStart),
-      ),
-    )
-    .groupBy(communityContributionsTable.chatId);
+  const chatIds = communities.map(({ chatId }) => chatId);
+  const [totals, memberStats] = await Promise.all([
+    db
+      .select({
+        chatId: communityContributionsTable.chatId,
+        xpAwarded: sql<number>`coalesce(sum(${communityContributionsTable.xpAwarded}), 0)`,
+      })
+      .from(communityContributionsTable)
+      .where(
+        and(
+          inArray(communityContributionsTable.chatId, chatIds),
+          gte(communityContributionsTable.createdAt, dayStart),
+        ),
+      )
+      .groupBy(communityContributionsTable.chatId),
+    db
+      .select({
+        chatId: communityMembersTable.chatId,
+        totalXpAwarded: sql<number>`coalesce(sum(${communityMembersTable.communityXp}), 0)`,
+        membersWithXp: sql<number>`count(*) filter (where ${communityMembersTable.communityXp} > 0)`,
+        xpEarnersToday: sql<number>`count(*) filter (where ${communityMembersTable.communityXp} > 0 and ${communityMembersTable.lastContributionAt} >= ${dayStart})`,
+      })
+      .from(communityMembersTable)
+      .where(inArray(communityMembersTable.chatId, chatIds))
+      .groupBy(communityMembersTable.chatId),
+  ]);
   const dailyTotals = new Map(totals.map(({ chatId, xpAwarded }) => [chatId, Number(xpAwarded)]));
+  const statsByCommunity = new Map(
+    memberStats.map((stats) => [
+      stats.chatId,
+      {
+        totalXpAwarded: Number(stats.totalXpAwarded),
+        membersWithXp: Number(stats.membersWithXp),
+        xpEarnersToday: Number(stats.xpEarnersToday),
+      },
+    ]),
+  );
 
   return communities.map((community) => {
     const xpAwardedToday = dailyTotals.get(community.chatId) ?? 0;
+    const stats = statsByCommunity.get(community.chatId);
     return {
       ...community,
       xpAwardedToday,
       dailyXpLimit: COMMUNITY_XP_CONFIG.maxDailyXpPerCommunity,
       dailyXpRemaining: Math.max(0, COMMUNITY_XP_CONFIG.maxDailyXpPerCommunity - xpAwardedToday),
       memberXpLimit: COMMUNITY_XP_CONFIG.maxXpPerMember,
+      totalXpAwarded: stats?.totalXpAwarded ?? 0,
+      membersWithXp: stats?.membersWithXp ?? 0,
+      xpEarnersToday: stats?.xpEarnersToday ?? 0,
       resetTimezone: "UTC",
     };
   });

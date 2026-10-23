@@ -2141,6 +2141,9 @@ export const GetTelegramCommunityManagementResponse = zod.object({
   "dailyXpLimit": zod.number().int(),
   "dailyXpRemaining": zod.number().int(),
   "memberXpLimit": zod.number().int(),
+  "totalXpAwarded": zod.number().int().describe('Total Community XP awarded in this group to date.'),
+  "membersWithXp": zod.number().int().describe('Number of distinct members who have earned Community XP in this group.'),
+  "xpEarnersToday": zod.number().int().describe('Number of distinct members awarded Community XP since 00:00 UTC.'),
   "resetTimezone": zod.enum(['UTC'])
 }))
 })
