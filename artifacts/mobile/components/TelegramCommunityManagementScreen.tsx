@@ -1,4 +1,5 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import {
   useGetTelegramCommunityManagement,
@@ -19,6 +20,7 @@ function CommunityCard({
   onManage: () => void;
 }) {
   const colors = useColors();
+  const [expanded, setExpanded] = useState(false);
   const progress = community.dailyXpLimit
     ? Math.min(100, Math.round((community.xpAwardedToday / community.dailyXpLimit) * 100))
     : 0;
@@ -31,7 +33,15 @@ function CommunityCard({
         { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
       ]}
     >
-      <View style={styles.communityHeader}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${community.chatTitle}, ${community.organisationName}. Phrase protection ${community.spamProtectionEnabled ? 'on' : 'off'}. ${expanded ? 'Hide' : 'View'} group stats`}
+        accessibilityState={{ expanded }}
+        accessibilityHint="Shows this group's Community XP usage and limits"
+        testID={`telegram-community-toggle-${community.chatId}`}
+        onPress={() => setExpanded((value) => !value)}
+        style={({ pressed }) => [styles.communityHeader, { opacity: pressed ? 0.76 : 1 }]}
+      >
         <View style={[styles.groupIcon, { backgroundColor: colors.primary + '12' }]}>
           <Feather name="users" size={18} color={colors.primary} />
         </View>
@@ -67,43 +77,60 @@ function CommunityCard({
             {community.spamProtectionEnabled ? 'Protection on' : 'Protection off'}
           </Text>
         </View>
-      </View>
-
-      <View style={styles.budgetHeader}>
-        <Text style={[styles.budgetLabel, { color: colors.foreground }]}>Community XP today</Text>
-        <Text style={[styles.budgetValue, { color: colors.foreground }]}>
-          {community.xpAwardedToday.toLocaleString()} / {community.dailyXpLimit.toLocaleString()}
-        </Text>
-      </View>
-      <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
-        <View
-          style={[
-            styles.progressFill,
-            { width: `${progress}%`, backgroundColor: progress >= 100 ? colors.accent : colors.primary },
-          ]}
-        />
-      </View>
-      <Text style={[styles.budgetNote, { color: colors.mutedForeground }]}>
-        {community.dailyXpRemaining.toLocaleString()} XP remaining · resets at 00:00 {community.resetTimezone}
-      </Text>
-      <Text style={[styles.capNote, { color: colors.mutedForeground }]}>
-        Each member can earn up to {community.memberXpLimit} Community XP in this group.
-      </Text>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Manage ${community.chatTitle} in Telegram`}
-        testID={`telegram-community-manage-${community.chatId}`}
-        onPress={onManage}
-        style={({ pressed }) => [
-          styles.manageButton,
-          { backgroundColor: colors.primary, borderRadius: colors.radius - 5, opacity: pressed ? 0.78 : 1 },
-        ]}
-      >
-        <Feather name="send" size={16} color={colors.primaryForeground} />
-        <Text style={[styles.manageButtonText, { color: colors.primaryForeground }]}>Manage in Telegram</Text>
-        <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />
+        <Feather name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.mutedForeground} />
       </Pressable>
+
+      {expanded ? (
+        <View testID={`telegram-community-stats-${community.chatId}`} style={styles.communityDetails}>
+          <View style={styles.budgetHeader}>
+            <Text style={[styles.budgetLabel, { color: colors.foreground }]}>Community XP today</Text>
+            <Text style={[styles.budgetValue, { color: colors.foreground }]}>
+              {community.xpAwardedToday.toLocaleString()} / {community.dailyXpLimit.toLocaleString()}
+            </Text>
+          </View>
+          <View
+            accessibilityRole="progressbar"
+            accessibilityLabel="Daily Community XP budget used"
+            accessibilityValue={{ min: 0, max: community.dailyXpLimit, now: community.xpAwardedToday }}
+            style={[styles.progressTrack, { backgroundColor: colors.border }]}
+          >
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${progress}%`, backgroundColor: progress >= 100 ? colors.accent : colors.primary },
+              ]}
+            />
+          </View>
+          <View style={styles.statsGrid}>
+            <View style={[styles.statCell, { backgroundColor: colors.muted }]}>
+              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>XP remaining today</Text>
+              <Text style={[styles.statValue, { color: colors.foreground }]}>{community.dailyXpRemaining.toLocaleString()}</Text>
+            </View>
+            <View style={[styles.statCell, { backgroundColor: colors.muted }]}>
+              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Per-member limit</Text>
+              <Text style={[styles.statValue, { color: colors.foreground }]}>{community.memberXpLimit.toLocaleString()} XP</Text>
+            </View>
+          </View>
+          <Text style={[styles.budgetNote, { color: colors.mutedForeground }]}>
+            Daily budget resets at 00:00 {community.resetTimezone}.
+          </Text>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Manage ${community.chatTitle} in Telegram`}
+            testID={`telegram-community-manage-${community.chatId}`}
+            onPress={onManage}
+            style={({ pressed }) => [
+              styles.manageButton,
+              { backgroundColor: colors.primary, borderRadius: colors.radius - 5, opacity: pressed ? 0.78 : 1 },
+            ]}
+          >
+            <Feather name="send" size={16} color={colors.primaryForeground} />
+            <Text style={[styles.manageButtonText, { color: colors.primaryForeground }]}>Manage in Telegram</Text>
+            <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -247,7 +274,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 17 },
   count: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   communityCard: { borderWidth: 1, padding: 14, marginBottom: 1 },
-  communityHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+  communityHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48 },
   groupIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   communityTitleCopy: { flex: 1, minWidth: 0, gap: 3 },
   communityTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 },
@@ -255,13 +282,17 @@ const styles = StyleSheet.create({
   protectionBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
   protectionDot: { width: 6, height: 6, borderRadius: 3 },
   protectionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  communityDetails: { marginTop: 14 },
   budgetHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginBottom: 8 },
   budgetLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   budgetValue: { fontFamily: 'Inter_700Bold', fontSize: 12 },
   progressTrack: { height: 6, borderRadius: 4, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 4 },
-  budgetNote: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 7 },
-  capNote: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginTop: 4, marginBottom: 13 },
+  statsGrid: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  statCell: { flex: 1, minWidth: 0, padding: 10, borderRadius: 10, gap: 5 },
+  statLabel: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 14 },
+  statValue: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  budgetNote: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 8, marginBottom: 13 },
   manageButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
   manageButtonText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
 });
