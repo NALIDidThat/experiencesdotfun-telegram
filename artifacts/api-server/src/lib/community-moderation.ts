@@ -55,6 +55,36 @@ export async function getTelegramCommunity(chatId: string) {
   return community ?? null;
 }
 
+export async function listTelegramOwnedCommunities(
+  telegramUserId: number,
+  limit = 21,
+  offset = 0,
+) {
+  return db
+    .select({
+      chatId: telegramCommunitiesTable.chatId,
+      chatTitle: telegramCommunitiesTable.chatTitle,
+      organisationName: organisationsTable.name,
+      spamProtectionEnabled: telegramCommunitiesTable.spamProtectionEnabled,
+    })
+    .from(telegramCommunitiesTable)
+    .innerJoin(
+      organisationsTable,
+      eq(organisationsTable.id, telegramCommunitiesTable.organisationId),
+    )
+    .innerJoin(
+      usersTable,
+      and(
+        eq(usersTable.id, organisationsTable.ownerUserId),
+        eq(usersTable.telegramId, String(telegramUserId)),
+        eq(usersTable.userType, "organisation"),
+      ),
+    )
+    .orderBy(asc(telegramCommunitiesTable.chatTitle), asc(telegramCommunitiesTable.id))
+    .limit(Math.max(1, Math.min(101, Math.floor(limit))))
+    .offset(Math.max(0, Math.floor(offset)));
+}
+
 export async function getTelegramCommunityManagementContext(
   chatId: string,
   telegramUserId: number,
@@ -174,7 +204,11 @@ export async function disconnectTelegramCommunity(input: {
   return removed ? context : null;
 }
 
-export async function listTelegramCommunityKeywordRules(chatId: string, limit = 20) {
+export async function listTelegramCommunityKeywordRules(
+  chatId: string,
+  limit = 20,
+  offset = 0,
+) {
   return db
     .select({
       id: telegramCommunityKeywordRulesTable.id,
@@ -193,8 +227,12 @@ export async function listTelegramCommunityKeywordRules(chatId: string, limit = 
         eq(telegramCommunityKeywordRulesTable.enabled, true),
       ),
     )
-    .orderBy(asc(telegramCommunityKeywordRulesTable.createdAt))
-    .limit(Math.max(1, Math.min(100, Math.floor(limit))));
+    .orderBy(
+      asc(telegramCommunityKeywordRulesTable.createdAt),
+      asc(telegramCommunityKeywordRulesTable.id),
+    )
+    .limit(Math.max(1, Math.min(101, Math.floor(limit))))
+    .offset(Math.max(0, Math.floor(offset)));
 }
 
 export async function addTelegramCommunityKeywordRule(input: {
@@ -262,4 +300,25 @@ export async function removeTelegramCommunityKeywordRule(input: {
   return removed
     ? { status: "removed", ruleId: removed.id, context }
     : { status: "not_found" };
+}
+
+export async function removeTelegramCommunityKeywordRuleById(input: {
+  chatId: string;
+  telegramUserId: number;
+  ruleId: number;
+}) {
+  const context = await getTelegramCommunityManagementContext(input.chatId, input.telegramUserId);
+  if (!context) return { status: "not_owner" as const };
+  const [removed] = await db
+    .delete(telegramCommunityKeywordRulesTable)
+    .where(
+      and(
+        eq(telegramCommunityKeywordRulesTable.communityId, context.communityId),
+        eq(telegramCommunityKeywordRulesTable.id, input.ruleId),
+      ),
+    )
+    .returning({ id: telegramCommunityKeywordRulesTable.id });
+  return removed
+    ? { status: "removed" as const, ruleId: removed.id, context }
+    : { status: "not_found" as const };
 }

@@ -32,8 +32,10 @@ import {
   getTelegramCommunity,
   getTelegramCommunityManagementContext,
   listTelegramCommunityKeywordRules,
+  listTelegramOwnedCommunities,
   listTelegramOwnedOrganisations,
   removeTelegramCommunityKeywordRule,
+  removeTelegramCommunityKeywordRuleById,
   setTelegramCommunitySpamProtection,
 } from "./community-moderation";
 import {
@@ -117,7 +119,7 @@ const botCommands = [
   { command: "filter", description: "Add or remove a blocked phrase" },
   { command: "filters", description: "List this group's active phrase filters" },
 ];
-const groupOnlyCommandNames = new Set(["/community", "/spam", "/filter", "/filters"]);
+const groupOnlyCommandNames = new Set(["/spam", "/filter", "/filters"]);
 const groupCommandNames = new Set([
   "start",
   "menu",
@@ -147,6 +149,11 @@ let consecutivePollingFailures = 0;
 let pollingConflictDetected = false;
 let lastPollingConflictLogAt = 0;
 let lastPollingLeaseBusyLogAt = 0;
+const pendingPrivateCommunityPhrases = new Map<
+  number,
+  { chatId: number; expiresAt: number }
+>();
+const PRIVATE_COMMUNITY_PHRASE_TTL_MS = 5 * 60_000;
 
 function nextPollingRetryDelay(): number {
   consecutivePollingFailures += 1;
@@ -539,8 +546,8 @@ async function sendCommandMenu(chatId: number) {
   return sendTelegramMessage(
     chatId,
     groupChat
-      ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome and quick actions\n<code>/experiences</code> Browse upcoming experiences\n<code>/rank</code> Your Community XP rank · add <code>@username</code> to look up a member\n<code>/leaderboard</code> Top contributors in this group\n\n<b>Group controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code>\n<code>/filters</code> List saved phrases\n\n<code>/help</code> Show this guide\n\nFor private profile, XP, and friend commands, open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")}.`
-      : `<b>Experiences.fun · Quick menu</b>\n\nChoose where to start:\n\n1️⃣ <b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n2️⃣ <b>Track your XP</b>\n<code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Your community</b>\n<code>/rank</code> Your rank · <code>/leaderboard</code> Group leaders\n\n4️⃣ <b>Connect and host</b>\n<code>/profile</code> Passport · <code>/add @username</code> Friends · <code>/friends</code> List · <code>/requests</code> Requests · <code>/accountability</code> Partner space · <code>/create</code> Create · <code>/host</code> Manage\n\nNeed more help? Use <code>/help</code> or <code>/onboarding</code>.`,
+      ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome and quick actions\n<code>/experiences</code> Browse upcoming experiences\n<code>/rank</code> Your Community XP rank · add <code>@username</code> to look up a member\n<code>/leaderboard</code> Top contributors in this group\n\n<b>Group controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code>\n<code>/filters</code> List saved phrases\n\nManage linked groups from a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} using <code>/community</code>.\n\n<code>/help</code> Show this guide\n\nFor private profile, XP, and friend commands, open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")}.`
+       : `<b>Experiences.fun · Quick menu</b>\n\nChoose where to start:\n\n1️⃣ <b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n2️⃣ <b>Track your XP</b>\n<code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Your community</b>\n<code>/rank</code> Your rank · <code>/leaderboard</code> Group leaders\n<code>/community</code> Manage groups you own\n\n4️⃣ <b>Connect and host</b>\n<code>/profile</code> Passport · <code>/add @username</code> Friends · <code>/friends</code> List · <code>/requests</code> Requests · <code>/accountability</code> Partner space · <code>/create</code> Create · <code>/host</code> Manage\n\nNeed more help? Use <code>/help</code> or <code>/onboarding</code>.`,
     menuKeyboard(groupChat),
   );
 }
@@ -573,7 +580,9 @@ async function handleCommand(
   if (groupOnlyCommandNames.has(command) && !isGroupChat(chatType)) {
     await sendTelegramMessage(
       chatId,
-      "Use this community control inside the Telegram group you want to manage.",
+      chatType === "private"
+        ? "Use <code>/community</code> in this private chat to manage your linked groups. This command also works inside its Telegram group."
+        : "Use this community control inside the Telegram group you want to manage.",
     );
     return;
   }
@@ -605,7 +614,13 @@ async function handleCommand(
       break;
     case "/community":
       await runCommunityControlsSafely(chatId, "community", () =>
-        handleCommunityCommand(chatId, chatTitle ?? "Telegram community", identity, args),
+        handleCommunityCommand(
+          chatId,
+          chatType,
+          chatTitle ?? "Telegram community",
+          identity,
+          args,
+        ),
       );
       break;
     case "/spam":
@@ -628,8 +643,8 @@ async function handleCommand(
       await sendTelegramMessage(
         chatId,
         groupChat
-           ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/help</code> This guide\n\n<b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n<b>Community XP</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n<b>Spam controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view group controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code> · <code>/filters</code> List rules\n\nProfile, XP, friend, and host commands are private. Open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} to use them.`
-          : `<b>Experiences.fun · Commands</b>\n\n1️⃣ <b>Start</b>\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/onboarding</code> Finish setup\n\n2️⃣ <b>Discover and track</b>\n<code>/experiences</code> Browse · <code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Community group</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n4️⃣ <b>Connect</b>\n<code>/profile</code> Passport · <code>/add @username</code> Add a friend · <code>/friends</code> Friends · <code>/requests</code> Requests · <code>/accountability</code> Partner space\n\n5️⃣ <b>Host</b>\n<code>/create</code> Create an experience · <code>/host</code> Host tools\n\nUse <code>/help</code> to open this guide.`,
+           ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/help</code> This guide\n\n<b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n<b>Community XP</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n<b>Spam controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view group controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code> · <code>/filters</code> List rules\n\nManage linked groups privately with <code>/community</code>. Profile, XP, friend, and host commands are also private. Open @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} to use them.`
+           : `<b>Experiences.fun · Commands</b>\n\n1️⃣ <b>Start</b>\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/onboarding</code> Finish setup\n\n2️⃣ <b>Discover and track</b>\n<code>/experiences</code> Browse · <code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Community group</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n<code>/community</code> Manage linked groups privately\n\n4️⃣ <b>Connect</b>\n<code>/profile</code> Passport · <code>/add @username</code> Add a friend · <code>/friends</code> Friends · <code>/requests</code> Requests · <code>/accountability</code> Partner space\n\n5️⃣ <b>Host</b>\n<code>/create</code> Create an experience · <code>/host</code> Host tools\n\nUse <code>/help</code> to open this guide.`,
         [[callbackButton("Open menu", "menu:open"), callbackButton("How it works", "onboarding:how")]],
       );
       break;
@@ -976,10 +991,27 @@ async function runCommunityControlsSafely(
 
 async function handleCommunityCommand(
   chatId: number,
+  chatType: string | undefined,
   chatTitle: string,
   identity: TelegramIdentity,
   args: string[],
 ) {
+  if (chatType === "private") {
+    if (args.length) {
+      await sendTelegramMessage(
+        chatId,
+        "Use <code>/community</code> to open your linked-group controls, then choose a group to manage it here.",
+      );
+      return;
+    }
+    await sendPrivateCommunityList(chatId, identity);
+    return;
+  }
+  if (!isGroupChat(chatType)) {
+    await sendTelegramMessage(chatId, "Use /community in a group or in a private chat with the bot.");
+    return;
+  }
+
   const action = args[0]?.toLowerCase();
   if (args.length > 1 || (action && action !== "disconnect")) {
     await sendTelegramMessage(
@@ -1006,7 +1038,7 @@ async function handleCommunityCommand(
   if (existing) {
     await sendTelegramMessage(
       chatId,
-      `<b>${escapeTelegramHtml(existing.chatTitle)}</b>\nConnected to <b>${escapeTelegramHtml(existing.organisationName)}</b>\nPhrase protection: <b>${existing.spamProtectionEnabled ? "ON" : "OFF"}</b>\n\nOnly the linked organisation owner who is also a Telegram group admin can change settings.\n\n<code>/spam on</code> / <code>/spam off</code>\n<code>/filter add phrase</code> · <code>/filter remove phrase</code> · <code>/filters</code>\n<code>/community disconnect</code> Unlink this group\n\nThis first version removes exact-word or exact-phrase matches only. It does not detect floods or suspicious links.`,
+      `<b>${escapeTelegramHtml(existing.chatTitle)}</b>\nConnected to <b>${escapeTelegramHtml(existing.organisationName)}</b>\nPhrase protection: <b>${existing.spamProtectionEnabled ? "ON" : "OFF"}</b>\n\nOnly the linked organisation owner who is also a Telegram group admin can change settings.\n\n<code>/spam on</code> / <code>/spam off</code>\n<code>/filter add phrase</code> · <code>/filter remove phrase</code> · <code>/filters</code>\n<code>/community disconnect</code> Unlink this group\n\nYou can manage linked groups privately by opening the bot and running <code>/community</code>.\n\nThis first version removes exact-word or exact-phrase matches only. It does not detect floods or suspicious links.`,
     );
     return;
   }
@@ -1045,6 +1077,382 @@ async function handleCommunityCommand(
     `<b>Connect this group</b>\n\nChoose the organisation you own. The same Telegram account must be a group admin, and the Experiences.fun bot needs permission to delete messages.`,
     keyboard,
   );
+}
+
+const PRIVATE_COMMUNITY_PAGE_SIZE = 20;
+
+function requestPrivateCommunityPhrase(telegramUserId: number, groupChatId: number) {
+  const now = Date.now();
+  for (const [userId, pending] of pendingPrivateCommunityPhrases) {
+    if (pending.expiresAt <= now) pendingPrivateCommunityPhrases.delete(userId);
+  }
+  pendingPrivateCommunityPhrases.set(telegramUserId, {
+    chatId: groupChatId,
+    expiresAt: now + PRIVATE_COMMUNITY_PHRASE_TTL_MS,
+  });
+}
+
+function parseGroupChatId(value: string | undefined): number | null {
+  if (!value || !/^-?\d+$/.test(value)) return null;
+  const chatId = Number(value);
+  return Number.isSafeInteger(chatId) && chatId < 0 ? chatId : null;
+}
+
+async function sendPrivateCommunityList(
+  privateChatId: number,
+  identity: TelegramIdentity,
+  page = 0,
+) {
+  const safePage = Math.max(0, Math.min(10_000, Math.floor(page)));
+  const communities = await listTelegramOwnedCommunities(
+    identity.id,
+    PRIVATE_COMMUNITY_PAGE_SIZE + 1,
+    safePage * PRIVATE_COMMUNITY_PAGE_SIZE,
+  );
+  const visible = communities.slice(0, PRIVATE_COMMUNITY_PAGE_SIZE);
+  if (!visible.length && safePage === 0) {
+    await sendTelegramMessage(
+      privateChatId,
+      "<b>Group management</b>\n\nYou do not have a linked Telegram group yet. Connect one by running <code>/community</code> inside the group as its admin and organisation owner. Then return here to manage its protection and phrase filters.",
+    );
+    return;
+  }
+  if (!visible.length) {
+    await sendTelegramMessage(
+      privateChatId,
+      "There are no more linked groups on this page.",
+      [[callbackButton("Back to groups", "community:private:list:0")]],
+    );
+    return;
+  }
+
+  const keyboard: TelegramButton[][] = visible.map((community) => {
+    const title = community.chatTitle.length > 34
+      ? `${community.chatTitle.slice(0, 31)}...`
+      : community.chatTitle;
+    const organisation = community.organisationName.length > 20
+      ? `${community.organisationName.slice(0, 17)}...`
+      : community.organisationName;
+    return [{
+      text: `${title} · ${organisation}`,
+      callback_data: `community:private:select:${community.chatId}`,
+    }];
+  });
+  const navigation: TelegramButton[] = [];
+  if (safePage > 0) {
+    navigation.push(callbackButton("Previous", `community:private:list:${safePage - 1}`));
+  }
+  if (communities.length > PRIVATE_COMMUNITY_PAGE_SIZE) {
+    navigation.push(callbackButton("Next", `community:private:list:${safePage + 1}`));
+  }
+  if (navigation.length) keyboard.push(navigation);
+
+  await sendTelegramMessage(
+    privateChatId,
+    `<b>Your linked groups</b>\n\nChoose a group to manage phrase protection and saved filters. Group changes are available only while you remain both its Telegram admin and the linked organisation owner.`,
+    keyboard,
+  );
+}
+
+async function showPrivateCommunityControls(
+  privateChatId: number,
+  groupChatId: number,
+  identity: TelegramIdentity,
+) {
+  const context = await requireTelegramCommunityOwner(groupChatId, identity, privateChatId);
+  if (!context) return;
+
+  const protectionAction = context.spamProtectionEnabled ? "off" : "on";
+  const protectionLabel = context.spamProtectionEnabled
+    ? "Turn phrase protection off"
+    : "Turn phrase protection on";
+  await sendTelegramMessage(
+    privateChatId,
+    `<b>${escapeTelegramHtml(context.chatTitle)}</b>\n${escapeTelegramHtml(context.organisationName)}\nPhrase protection: <b>${context.spamProtectionEnabled ? "ON" : "OFF"}</b>\n\nManage these settings privately. You must remain a Telegram group admin and the linked organisation owner.`,
+    [
+      [callbackButton(protectionLabel, `community:private:toggle:${groupChatId}:${protectionAction}`)],
+      [
+        callbackButton("Add phrase filter", `community:private:add:${groupChatId}`),
+        callbackButton("View saved filters", `community:private:filters:${groupChatId}:0`),
+      ],
+      [
+        callbackButton("Disconnect group", `community:private:disconnect:${groupChatId}`),
+        callbackButton("All groups", "community:private:list:0"),
+      ],
+    ],
+  );
+}
+
+async function showPrivateCommunityFilters(
+  privateChatId: number,
+  groupChatId: number,
+  identity: TelegramIdentity,
+  page = 0,
+) {
+  const context = await requireTelegramCommunityOwner(groupChatId, identity, privateChatId);
+  if (!context) return;
+  const safePage = Math.max(0, Math.min(10_000, Math.floor(page)));
+  const rules = await listTelegramCommunityKeywordRules(
+    String(groupChatId),
+    PRIVATE_COMMUNITY_PAGE_SIZE + 1,
+    safePage * PRIVATE_COMMUNITY_PAGE_SIZE,
+  );
+  const visibleRules = rules.slice(0, PRIVATE_COMMUNITY_PAGE_SIZE);
+  if (!visibleRules.length && safePage === 0) {
+    await sendTelegramMessage(
+      privateChatId,
+      `<b>No saved phrase filters</b>\n\n${escapeTelegramHtml(context.chatTitle)} has no filters yet. Add one to start building the list.`,
+      [
+        [callbackButton("Add phrase filter", `community:private:add:${groupChatId}`)],
+        [callbackButton("Back to group controls", `community:private:select:${groupChatId}`)],
+      ],
+    );
+    return;
+  }
+  if (!visibleRules.length) {
+    await sendTelegramMessage(
+      privateChatId,
+      "There are no more filters on this page.",
+      [[callbackButton("Back to filters", `community:private:filters:${groupChatId}:${safePage - 1}`)]],
+    );
+    return;
+  }
+
+  const keyboard: TelegramButton[][] = visibleRules.map((rule) => {
+    const phrase = rule.phrase.length > 48 ? `${rule.phrase.slice(0, 45)}...` : rule.phrase;
+    return [{
+      text: `Remove · ${phrase}`,
+      callback_data: `community:private:remove:${groupChatId}:${rule.id}:${safePage}`,
+    }];
+  });
+  const navigation: TelegramButton[] = [];
+  if (safePage > 0) {
+    navigation.push(
+      callbackButton("Previous", `community:private:filters:${groupChatId}:${safePage - 1}`),
+    );
+  }
+  if (rules.length > PRIVATE_COMMUNITY_PAGE_SIZE) {
+    navigation.push(
+      callbackButton("Next", `community:private:filters:${groupChatId}:${safePage + 1}`),
+    );
+  }
+  if (navigation.length) keyboard.push(navigation);
+  keyboard.push([
+    callbackButton("Add phrase", `community:private:add:${groupChatId}`),
+    callbackButton("Group controls", `community:private:select:${groupChatId}`),
+  ]);
+  await sendTelegramMessage(
+    privateChatId,
+    `<b>Saved phrase filters</b> · ${escapeTelegramHtml(context.chatTitle)}\n\nProtection is <b>${context.spamProtectionEnabled ? "ON" : "OFF"}</b>. Select a filter to remove it.`,
+    keyboard,
+  );
+}
+
+function parsePrivateCommunityPage(value: string | undefined): number | null {
+  if (!value || !/^\d+$/.test(value)) return null;
+  const page = Number(value);
+  return Number.isSafeInteger(page) && page <= 10_000 ? page : null;
+}
+
+async function handlePrivateCommunityPhraseInput(
+  privateChatId: number,
+  groupChatId: number,
+  identity: TelegramIdentity,
+  phrase: string,
+) {
+  const context = await requireTelegramCommunityOwner(groupChatId, identity, privateChatId);
+  if (!context) return;
+  const result = await addTelegramCommunityKeywordRule({
+    chatId: String(groupChatId),
+    telegramUserId: identity.id,
+    phrase,
+  });
+  if (result.status === "invalid_phrase") {
+    requestPrivateCommunityPhrase(identity.id, groupChatId);
+    await sendTelegramMessage(
+      privateChatId,
+      "That phrase is invalid. Send a phrase from 2–80 characters without control characters, or /cancel to stop.",
+    );
+    return;
+  }
+  if (result.status === "already_exists") {
+    await sendTelegramMessage(
+      privateChatId,
+      "That exact-word or exact-phrase filter is already saved.",
+    );
+    await showPrivateCommunityFilters(privateChatId, groupChatId, identity);
+    return;
+  }
+  if (result.status === "not_owner") {
+    await sendTelegramMessage(
+      privateChatId,
+      "Your organisation access changed. Reopen /community and try again.",
+    );
+    return;
+  }
+
+  logger.info({
+    chatId: groupChatId,
+    organisationId: result.context.organisationId,
+    actorUserId: result.context.ownerUserId,
+    ruleId: result.ruleId,
+  }, "Telegram community phrase filter added from private chat");
+  await sendTelegramMessage(
+    privateChatId,
+    `Added filter <code>${escapeTelegramHtml(phrase)}</code>${result.context.spamProtectionEnabled ? ". It is active now." : ". It is saved but inactive until phrase protection is on."}`,
+  );
+  await showPrivateCommunityFilters(privateChatId, groupChatId, identity);
+}
+
+async function handlePrivateCommunityCallback(
+  privateChatId: number,
+  callback: string,
+  identity: TelegramIdentity,
+) {
+  const [action, rawChatId, rawValue, rawPage] = callback
+    .slice("community:private:".length)
+    .split(":");
+  if (action === "list") {
+    const page = parsePrivateCommunityPage(rawChatId);
+    if (page === null) {
+      await sendTelegramMessage(privateChatId, "That group-list page is invalid. Use /community to reopen the list.");
+      return;
+    }
+    await sendPrivateCommunityList(privateChatId, identity, page);
+    return;
+  }
+
+  const groupChatId = parseGroupChatId(rawChatId);
+  if (groupChatId === null) {
+    await sendTelegramMessage(privateChatId, "That group selection is invalid. Use /community to reopen the list.");
+    return;
+  }
+
+  if (action === "select") {
+    await showPrivateCommunityControls(privateChatId, groupChatId, identity);
+    return;
+  }
+  if (action === "toggle") {
+    if (rawValue !== "on" && rawValue !== "off") {
+      await sendTelegramMessage(privateChatId, "That protection setting is invalid. Reopen /community and try again.");
+      return;
+    }
+    const context = await requireTelegramCommunityOwner(groupChatId, identity, privateChatId);
+    if (!context) return;
+    const enabled = rawValue === "on";
+    if (enabled && !(await botCanDeleteMessages(groupChatId))) {
+      await sendTelegramMessage(
+        privateChatId,
+        "Phrase protection was not enabled. Make the Experiences.fun bot a group admin with permission to delete messages, then try again.",
+      );
+      return;
+    }
+    const updated = await setTelegramCommunitySpamProtection({
+      chatId: String(groupChatId),
+      telegramUserId: identity.id,
+      enabled,
+    });
+    if (!updated) {
+      await sendTelegramMessage(
+        privateChatId,
+        "Your organisation access changed. Reopen /community and try again.",
+      );
+      return;
+    }
+    logger.info({
+      chatId: groupChatId,
+      organisationId: updated.organisationId,
+      actorUserId: updated.ownerUserId,
+      enabled,
+    }, "Telegram community phrase protection updated from private chat");
+    await sendTelegramMessage(
+      privateChatId,
+      `Phrase protection is now <b>${enabled ? "ON" : "OFF"}</b> for ${escapeTelegramHtml(updated.chatTitle)}.`,
+    );
+    await showPrivateCommunityControls(privateChatId, groupChatId, identity);
+    return;
+  }
+  if (action === "add") {
+    const context = await requireTelegramCommunityOwner(groupChatId, identity, privateChatId);
+    if (!context) return;
+    requestPrivateCommunityPhrase(identity.id, groupChatId);
+    await sendTelegramMessage(
+      privateChatId,
+      `Send the phrase to save for <b>${escapeTelegramHtml(context.chatTitle)}</b> in your next message. Use 2–80 characters. Send /cancel to stop.`,
+    );
+    return;
+  }
+  if (action === "filters") {
+    const page = parsePrivateCommunityPage(rawValue);
+    if (page === null) {
+      await sendTelegramMessage(privateChatId, "That filter-list page is invalid. Reopen the group's controls and try again.");
+      return;
+    }
+    await showPrivateCommunityFilters(privateChatId, groupChatId, identity, page);
+    return;
+  }
+  if (action === "remove") {
+    const ruleId = Number(rawValue);
+    const page = parsePrivateCommunityPage(rawPage);
+    if (!Number.isSafeInteger(ruleId) || ruleId <= 0 || page === null) {
+      await sendTelegramMessage(privateChatId, "That filter selection is invalid. Reopen the saved filters and try again.");
+      return;
+    }
+    const context = await requireTelegramCommunityOwner(groupChatId, identity, privateChatId);
+    if (!context) return;
+    const result = await removeTelegramCommunityKeywordRuleById({
+      chatId: String(groupChatId),
+      telegramUserId: identity.id,
+      ruleId,
+    });
+    if (result.status !== "removed") {
+      await sendTelegramMessage(
+        privateChatId,
+        result.status === "not_found"
+          ? "That saved filter is no longer available."
+          : "Your organisation access changed. Reopen /community and try again.",
+      );
+    } else {
+      logger.info({
+        chatId: groupChatId,
+        organisationId: result.context.organisationId,
+        actorUserId: result.context.ownerUserId,
+        ruleId: result.ruleId,
+      }, "Telegram community phrase filter removed from private chat");
+      await sendTelegramMessage(privateChatId, "Phrase filter removed.");
+    }
+    await showPrivateCommunityFilters(privateChatId, groupChatId, identity, page);
+    return;
+  }
+  if (action === "disconnect") {
+    const context = await requireTelegramCommunityOwner(groupChatId, identity, privateChatId);
+    if (!context) return;
+    await sendTelegramMessage(
+      privateChatId,
+      `<b>Disconnect ${escapeTelegramHtml(context.chatTitle)}?</b>\n\nPhrase protection will stop, and this group's saved phrase filters will be permanently deleted. Community XP history will be kept.`,
+      [[
+        callbackButton("Disconnect group", `community:private:disconnect-confirm:${groupChatId}`),
+        callbackButton("Cancel", `community:private:disconnect-cancel:${groupChatId}`),
+      ]],
+    );
+    return;
+  }
+  if (action === "disconnect-confirm") {
+    const disconnected = await handleCommunityDisconnectCallback(
+      groupChatId,
+      identity,
+      privateChatId,
+    );
+    if (disconnected) await sendPrivateCommunityList(privateChatId, identity);
+    return;
+  }
+  if (action === "disconnect-cancel") {
+    await sendTelegramMessage(privateChatId, "Disconnect canceled. The group and its settings are unchanged.");
+    await showPrivateCommunityControls(privateChatId, groupChatId, identity);
+    return;
+  }
+
+  await sendTelegramMessage(privateChatId, "That group-management action is no longer available. Use /community to reopen the controls.");
 }
 
 async function handleCommunityConnectionCallback(
@@ -1093,7 +1501,7 @@ async function handleCommunityConnectionCallback(
   await sendTelegramMessage(
     chatId,
     result.status === "connected"
-      ? `<b>Group connected</b>\n\nThis group is now linked to <b>${escapeTelegramHtml(result.organisationName)}</b>. Phrase protection is off by default. An owner who is also a group admin can enable it with <code>/spam on</code>.`
+      ? `<b>Group connected</b>\n\nThis group is now linked to <b>${escapeTelegramHtml(result.organisationName)}</b>. Phrase protection is off by default. An owner who is also a group admin can enable it with <code>/spam on</code> here or manage it privately with <code>/community</code>.`
       : `This group is already connected to <b>${escapeTelegramHtml(result.organisationName)}</b>.`,
   );
 }
@@ -1101,10 +1509,14 @@ async function handleCommunityConnectionCallback(
 async function handleCommunityDisconnectCallback(
   chatId: number,
   identity: TelegramIdentity,
-) {
+  responseChatId = chatId,
+): Promise<boolean> {
   if (!(await isTelegramChatAdmin(chatId, identity.id))) {
-    await sendTelegramMessage(chatId, "Only a Telegram group admin can disconnect this group.");
-    return;
+    await sendTelegramMessage(
+      responseChatId,
+      "Only a Telegram group admin can disconnect this group.",
+    );
+    return false;
   }
   const context = await disconnectTelegramCommunity({
     chatId: String(chatId),
@@ -1112,10 +1524,10 @@ async function handleCommunityDisconnectCallback(
   });
   if (!context) {
     await sendTelegramMessage(
-      chatId,
+      responseChatId,
       "This group is no longer connected to an organisation you own. Run /community to check its current status.",
     );
-    return;
+    return false;
   }
   logger.warn({
     chatId,
@@ -1123,24 +1535,26 @@ async function handleCommunityDisconnectCallback(
     actorUserId: context.ownerUserId,
   }, "Telegram community disconnected by its organisation owner");
   await sendTelegramMessage(
-    chatId,
+    responseChatId,
     "<b>Group disconnected.</b>\n\nPhrase protection is off and saved phrase filters for this group were deleted. Community XP history was kept.",
   );
+  return true;
 }
 
 async function requireTelegramCommunityOwner(
   chatId: number,
   identity: TelegramIdentity,
+  responseChatId = chatId,
 ) {
   if (!(await isTelegramChatAdmin(chatId, identity.id))) {
-    await sendTelegramMessage(chatId, "A Telegram group admin must run this command.");
+    await sendTelegramMessage(responseChatId, "A Telegram group admin must run this command.");
     return null;
   }
   const context = await getTelegramCommunityManagementContext(String(chatId), identity.id);
   if (!context) {
     const community = await getTelegramCommunity(String(chatId));
     await sendTelegramMessage(
-      chatId,
+      responseChatId,
       community
         ? "Only the organisation owner linked to this group can change its settings. Telegram group-admin status alone is not enough."
         : "This group is not connected yet. A Telegram group admin can start with /community.",
@@ -1347,6 +1761,39 @@ async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
   const identity = message.from;
   if (!text || !identity || identity.is_bot) return;
 
+  if (message.chat.type === "private" && message.chat.id === identity.id) {
+    const pending = pendingPrivateCommunityPhrases.get(identity.id);
+    if (pending && pending.expiresAt <= Date.now()) {
+      pendingPrivateCommunityPhrases.delete(identity.id);
+      if (!text.trim().startsWith("/")) {
+        await sendTelegramMessage(
+          message.chat.id,
+          "The add-filter request expired. Use /community to reopen your group controls.",
+        );
+        return;
+      }
+    } else if (pending) {
+      if (text.trim().toLowerCase() === "/cancel") {
+        pendingPrivateCommunityPhrases.delete(identity.id);
+        await sendTelegramMessage(message.chat.id, "Add-filter request canceled.");
+        return;
+      }
+      if (!text.trim().startsWith("/")) {
+        pendingPrivateCommunityPhrases.delete(identity.id);
+        await runCommunityControlsSafely(message.chat.id, "add_private_phrase_filter", () =>
+          handlePrivateCommunityPhraseInput(
+            message.chat.id,
+            pending.chatId,
+            identity,
+            text,
+          ),
+        );
+        return;
+      }
+      pendingPrivateCommunityPhrases.delete(identity.id);
+    }
+  }
+
   if (text.trim().startsWith("/")) {
     await handleCommand(message.chat.id, message.chat.type, identity, text, message.chat.title);
     return;
@@ -1415,6 +1862,20 @@ async function handleCallback(update: NonNullable<TelegramUpdate["callback_query
   if (chatType && chatType !== "private" && !isGroupChat(chatType)) return;
   const chatId = update.message?.chat.id ?? update.from.id;
   const callback = update.data ?? "";
+  const privateCommunityPrefix = "community:private:";
+  if (callback.startsWith(privateCommunityPrefix)) {
+    if (
+      chatType !== "private" ||
+      !update.message ||
+      update.message.chat.id !== update.from.id
+    ) {
+      return;
+    }
+    await runCommunityControlsSafely(update.from.id, "private_community_management", () =>
+      handlePrivateCommunityCallback(update.from.id, callback, update.from),
+    );
+    return;
+  }
   const communityConnectPrefix = "community:connect:";
   if (callback.startsWith(communityConnectPrefix)) {
     if (!update.message || !isGroupChat(chatType)) return;
@@ -1440,9 +1901,9 @@ async function handleCallback(update: NonNullable<TelegramUpdate["callback_query
   }
   if (callback === "community:disconnect:confirm") {
     if (!update.message || !isGroupChat(chatType)) return;
-    await runCommunityControlsSafely(chatId, "disconnect_group", () =>
-      handleCommunityDisconnectCallback(chatId, update.from),
-    );
+    await runCommunityControlsSafely(chatId, "disconnect_group", async () => {
+      await handleCommunityDisconnectCallback(chatId, update.from);
+    });
     return;
   }
   if (callback === "menu:open") {
