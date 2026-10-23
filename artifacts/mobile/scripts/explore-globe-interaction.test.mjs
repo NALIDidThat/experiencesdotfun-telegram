@@ -1237,9 +1237,9 @@ test("Google Maps and nearby Places work with the configured browser key", {
   try {
     await waitForValue(
       client,
-      `Boolean(document.querySelector('[data-testid="explore-map"]') && document.querySelector('.gm-style'))`,
+      `Boolean(document.querySelector('[data-testid="explore-map"]') && document.querySelector('#explore-google-map .gm-style'))`,
       Boolean,
-      "the rendered Google map",
+      "the rendered 2D Google road map",
       45_000,
     );
     await waitForValue(
@@ -1283,26 +1283,84 @@ test("Google Maps and nearby Places work with the configured browser key", {
     45_000,
   );
   assert.equal(placesApiRequested, true, "The browser should request Places API (New).");
-  const requestsBeforeCameraMove = placesApiRequestCount;
-  const cameraCanMove = await client.evaluate(`(() => {
-    const map = document.querySelector('gmp-map-3d');
-    if (!map?.center) return false;
-    const center = map.center;
-    map.center = { lat: center.lat + 0.15, lng: center.lng + 0.15, altitude: center.altitude ?? 0 };
-    return true;
+  const placeListState = await client.evaluate(`(() => {
+    const list = document.querySelector('[data-testid="explore-nearby-place-list"]');
+    const rows = [...document.querySelectorAll('[data-testid^="explore-nearby-place-"]')]
+      .filter((element) => /^explore-nearby-place-\\d+$/.test(element.getAttribute('data-testid') ?? ''));
+    return { listVisible: Boolean(list), rowCount: rows.length, firstPlace: rows[0]?.innerText ?? '' };
   })()`);
-  assert.equal(cameraCanMove, true, "The 3D map should expose a camera for the panning regression check.");
+  assert.equal(placeListState.listVisible, true, "The nearby panel should display the Google places list.");
+  assert.ok(placeListState.rowCount > 0, "Every returned nearby place should have a selectable list row.");
+  assert.ok(placeListState.firstPlace.trim(), "The first Google place row should include visible business information.");
+  const requestsBeforePlaceDetails = placesApiRequestCount;
+  await tapTestId(client, "explore-nearby-place-0");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="explore-nearby-place-details-loaded"]'))`,
+    Boolean,
+    "Google Place details for the selected business",
+    45_000,
+  );
+  assert.ok(
+    placesApiRequestCount > requestsBeforePlaceDetails,
+    "Selecting a business should request its details only after the user opens it.",
+  );
+
+  const requestsBeforeCameraMove = placesApiRequestCount;
+  await tapTestId(client, "explore-map-tools-close");
+  const mapPoint = await client.evaluate(`(() => {
+    const map = document.querySelector('#explore-google-map');
+    if (!map) return null;
+    const rect = map.getBoundingClientRect();
+    return {
+      x: Math.round(rect.left + rect.width * 0.5),
+      y: Math.round(rect.top + rect.height * 0.48),
+      width: rect.width,
+      height: rect.height,
+    };
+  })()`);
+  assert.ok(mapPoint && mapPoint.width > 0 && mapPoint.height > 0, "The road map should have a draggable viewport.");
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: mapPoint.x,
+    y: mapPoint.y,
+    button: "left",
+    buttons: 1,
+    clickCount: 1,
+  });
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: mapPoint.x - 70,
+    y: mapPoint.y + 25,
+    button: "left",
+    buttons: 1,
+  });
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: mapPoint.x - 120,
+    y: mapPoint.y + 45,
+    button: "left",
+    buttons: 1,
+  });
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: mapPoint.x - 120,
+    y: mapPoint.y + 45,
+    button: "left",
+    clickCount: 1,
+  });
   await new Promise((resolve) => setTimeout(resolve, 1_500));
   assert.equal(
     placesApiRequestCount,
     requestsBeforeCameraMove,
-    "Moving the map should not automatically issue another paid nearby Places search.",
+    "Panning the map should not automatically issue another nearby Places search.",
   );
+  await tapTestId(client, "explore-map-tools-toggle");
   await tapTestId(client, "explore-map-search-area");
   await new Promise((resolve) => setTimeout(resolve, 1_500));
   assert.ok(
     placesApiRequestCount > requestsBeforeCameraMove,
-    "The Search nearby action should issue a fresh Places search at the new map centre.",
+    "The Search nearby action should issue a fresh Places search at the latest map centre.",
   );
   assert.equal(interceptionError, undefined, "Application API interception should complete without errors.");
 });
