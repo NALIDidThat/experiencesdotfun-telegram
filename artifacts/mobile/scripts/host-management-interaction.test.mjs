@@ -1293,3 +1293,120 @@ test("publishing an experience opens its host-management detail screen", async (
   );
   assert.deepEqual(unexpectedApiRequests, [], "The publish and handoff flow should only request mocked APIs.");
 });
+
+test("organisations can start setup for another Telegram community", async (t) => {
+  const appUrl = getAppPreviewUrl("The Telegram community add preview test");
+  const appOrigin = new URL(appUrl).origin;
+  const client = await launchBrowser(t);
+  const { user } = makeFixtures();
+  const community = {
+    chatId: "-100123456789",
+    chatTitle: "EXP’s Private Beta Phase",
+    organisationName: user.organisation.name,
+    spamProtectionEnabled: true,
+    xpAwardedToday: 65,
+    dailyXpLimit: 1000,
+    dailyXpRemaining: 935,
+    memberXpLimit: 2000,
+    totalXpAwarded: 650,
+    membersWithXp: 12,
+    xpEarnersToday: 4,
+    trackedMembers: 20,
+    qualifyingMessagesToday: 30,
+    resetTimezone: "UTC",
+  };
+  const apiTraffic = [];
+
+  client.on("Fetch.requestPaused", ({ params }) => {
+    void (async () => {
+      try {
+        const url = new URL(params.request.url);
+        if (!url.pathname.startsWith("/api/")) {
+          await client.send("Fetch.continueRequest", { requestId: params.requestId });
+          return;
+        }
+        const method = params.request.method;
+        apiTraffic.push(`${method} ${url.pathname}`);
+        if (method === "OPTIONS") {
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 204,
+            responseHeaders: [
+              ...apiResponseHeaders(params.request, appOrigin),
+              { name: "Access-Control-Allow-Methods", value: "GET, POST, PATCH, OPTIONS" },
+              {
+                name: "Access-Control-Allow-Headers",
+                value: params.request.headers["Access-Control-Request-Headers"]
+                  ?? params.request.headers["access-control-request-headers"]
+                  ?? "authorization,content-type",
+              },
+            ],
+            body: "",
+          });
+          return;
+        }
+
+        let status = 200;
+        let response = {};
+        if (url.pathname === "/api/me" && method === "GET") {
+          response = user;
+        } else if (url.pathname === "/api/community/manage" && method === "GET") {
+          response = { communities: [community] };
+        } else if (url.pathname === "/api/friends" && method === "GET") {
+          response = [];
+        } else if (url.pathname === "/api/friends/notifications" && method === "GET") {
+          response = { notifications: [], unreadCount: 0 };
+        } else if (url.pathname === "/api/organisations/verification" && method === "GET") {
+          response = { status: "unsubmitted" };
+        } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
+          status = 202;
+          response = { accepted: true };
+        }
+
+        await client.send("Fetch.fulfillRequest", {
+          requestId: params.requestId,
+          responseCode: status,
+          responseHeaders: apiResponseHeaders(params.request, appOrigin),
+          body: Buffer.from(JSON.stringify(response)).toString("base64"),
+        });
+      } catch {
+        await client.send("Fetch.failRequest", {
+          requestId: params.requestId,
+          errorReason: "Failed",
+        }).catch(() => {});
+      }
+    })();
+  });
+
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
+  await client.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: "localStorage.setItem('@experiences/auth-token', 'email_telegram-community-test'); window.__telegramShareLinks = []; window.Telegram = { WebApp: { openTelegramLink: (url) => window.__telegramShareLinks.push(url) } };",
+  });
+  await setViewport(client);
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=telegram-communities` });
+
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="telegram-community--100123456789"]')) && Boolean(document.querySelector('[data-testid="telegram-community-add"]'))`,
+    Boolean,
+    "the linked Telegram group and its add-community action",
+  );
+  const addCommunityPlacement = await client.evaluate(`(() => {
+    const group = document.querySelector('[data-testid="telegram-community--100123456789"]')?.getBoundingClientRect();
+    const add = document.querySelector('[data-testid="telegram-community-add"]')?.getBoundingClientRect();
+    return group && add ? { groupBottom: group.bottom, addTop: add.top } : null;
+  })()`);
+  assert.ok(
+    addCommunityPlacement && addCommunityPlacement.addTop >= addCommunityPlacement.groupBottom,
+    `The add-community action should appear below the linked group. Bounds: ${JSON.stringify(addCommunityPlacement)}`,
+  );
+
+  await tapTestId(client, "telegram-community-add");
+  const addCommunityLaunch = await client.evaluate(`window.__telegramShareLinks?.at(-1) ?? ''`);
+  assert.equal(
+    new URL(addCommunityLaunch).searchParams.get("start"),
+    "community",
+    "Add community should launch the existing Telegram group setup flow.",
+  );
+  assert.ok(apiTraffic.includes("GET /api/community/manage"), "The screen should load the organisation’s linked groups.");
+});
