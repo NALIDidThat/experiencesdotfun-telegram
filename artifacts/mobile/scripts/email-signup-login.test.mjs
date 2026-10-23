@@ -218,6 +218,26 @@ async function tapTestId(client, testId) {
   });
 }
 
+async function swipeTestId(client, testId, direction) {
+  const selector = JSON.stringify(`[data-testid="${testId}"]`);
+  const bounds = await client.evaluate(`(() => {
+    const element = document.querySelector(${selector});
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+  })()`);
+  assert.ok(bounds && bounds.width > 0 && bounds.height > 0, `Expected swipe surface "${testId}" to be present.`);
+
+  const y = Math.round(bounds.y + bounds.height * 0.48);
+  const fromX = Math.round(bounds.x + bounds.width * (direction === "left" ? 0.82 : 0.18));
+  const toX = Math.round(bounds.x + bounds.width * (direction === "left" ? 0.18 : 0.82));
+  const point = (x) => ({ id: 1, x, y, radiusX: 2, radiusY: 2, force: 1 });
+  await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point(fromX)] });
+  await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [point(Math.round((fromX + toX) / 2))] });
+  await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [point(toX)] });
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+}
+
 async function enterText(client, testId, value) {
   await tapTestId(client, testId);
   await client.send("Input.insertText", { text: value });
@@ -853,11 +873,125 @@ test("organisation signup requires a supported subtype before sign-in", async (t
     `document.querySelector('[data-testid="organisation-type-continue"]')?.scrollIntoView({ block: "center" })`,
   );
   await tapTestId(client, "organisation-type-continue");
+  await delay(500);
+  const afterOrganisationContinue = await client.evaluate(`(() => ({
+    text: document.body.innerText.slice(0, 700),
+    ids: [...document.querySelectorAll('[data-testid]')]
+      .map((element) => element.getAttribute('data-testid'))
+      .filter((id) => id?.includes('organisation') || id?.includes('login-choice')),
+  }))()`);
+  console.log("Organisation flow after subtype Continue:", afterOrganisationContinue);
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-walkthrough"]'))`,
+    Boolean,
+    "the organisation introduction after selecting an organisation subtype",
+  );
+
+  const supportedTypeHeadlines = [
+    ["charity", "Turn your mission into action."],
+    ["nonprofit", "Turn your mission into local action."],
+    ["school", "Take learning beyond the classroom."],
+    ["community_centre", "Make your hub the meeting point."],
+    ["library", "Make your library a local connector."],
+    ["business", "Put your support into action."],
+  ];
+  for (const [index, [type, expectedHeadline]] of supportedTypeHeadlines.entries()) {
+    if (index > 0) {
+      await tapTestId(client, "organisation-walkthrough-back");
+      await waitForValue(
+        client,
+        `Boolean(document.querySelector('[data-testid="organisation-type-selection"]'))`,
+        Boolean,
+        "the organisation type choices after going back from the introduction",
+      );
+      await tapTestId(client, `organisation-type-${type}`);
+      await client.evaluate(
+        `document.querySelector('[data-testid="organisation-type-continue"]')?.scrollIntoView({ block: "center" })`,
+      );
+      await tapTestId(client, "organisation-type-continue");
+      await waitForValue(
+        client,
+        `Boolean(document.querySelector('[data-testid="organisation-walkthrough-page-1"]'))`,
+        Boolean,
+        `the introduction for ${type}`,
+      );
+    }
+
+    const headline = await client.evaluate(
+      `document.querySelector('[data-testid="organisation-walkthrough-title"]')?.textContent?.trim()`,
+    );
+    assert.equal(headline, expectedHeadline, `The introduction should use the ${type} copy.`);
+
+    if (index < supportedTypeHeadlines.length - 1) {
+      await tapTestId(client, "organisation-walkthrough-back");
+      await waitForValue(
+        client,
+        `Boolean(document.querySelector('[data-testid="organisation-type-selection"]'))`,
+        Boolean,
+        "the organisation type choices after returning from page one",
+      );
+      const selectionPersisted = await client.evaluate(
+        `document.querySelector('[data-testid="organisation-type-${type}"]')?.getAttribute('aria-checked')`,
+      );
+      assert.equal(selectionPersisted, "true", `The ${type} selection should remain selected when returning.`);
+    }
+  }
+
+  await swipeTestId(client, "organisation-walkthrough-illustration", "left");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-walkthrough-page-2"]'))`,
+    Boolean,
+    "swiping forward to page two",
+  );
+  const pageTwoHeadline = await client.evaluate(
+    `document.querySelector('[data-testid="organisation-walkthrough-title"]')?.textContent?.trim()`,
+  );
+  assert.equal(pageTwoHeadline, "Show up where it matters.");
+
+  await swipeTestId(client, "organisation-walkthrough-illustration", "right");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-walkthrough-page-1"]'))`,
+    Boolean,
+    "swiping back to page one",
+  );
+  await tapTestId(client, "organisation-walkthrough-next");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-walkthrough-page-2"]'))`,
+    Boolean,
+    "the next introduction page",
+  );
+  await tapTestId(client, "organisation-walkthrough-next");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-walkthrough-page-3"]'))`,
+    Boolean,
+    "the final introduction page",
+  );
+  await tapTestId(client, "organisation-walkthrough-back");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-walkthrough-page-2"]'))`,
+    Boolean,
+    "the previous introduction page",
+  );
+  await tapTestId(client, "organisation-walkthrough-next");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-walkthrough-page-3"]'))`,
+    Boolean,
+    "the final introduction page after moving forward",
+  );
+
+  await tapTestId(client, "organisation-walkthrough-skip");
   await waitForValue(
     client,
     `Boolean(document.querySelector('[data-testid="login-choice-email"]'))`,
     Boolean,
-    "the sign-in choices after selecting an organisation subtype",
+    "the sign-in choices after skipping the introduction",
   );
   await tapTestId(client, "login-choice-email");
   await waitForValue(
@@ -871,4 +1005,11 @@ test("organisation signup requires a supported subtype before sign-in", async (t
   assert.match(organisationLoginText, /Welcome back/);
   assert.match(organisationLoginText, /Email or username/);
   assert.match(organisationLoginText, /Password/);
+  await tapTestId(client, "email-auth-mode-switch");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="email-signup-name"]'))`,
+    Boolean,
+    "the organisation email signup form",
+  );
 });

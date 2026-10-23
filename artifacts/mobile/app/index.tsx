@@ -105,6 +105,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useMotionPreferences } from '@/context/MotionContext';
 import { useColors } from '@/hooks/useColors';
+import { OrganisationOnboardingWalkthrough } from '@/components/onboarding/OrganisationOnboardingWalkthrough';
 import { AccountabilityPartnerScreen } from '@/components/AccountabilitySection';
 import { OrganisationPartnershipsSection } from '@/components/OrganisationPartnershipsSection';
 import { ContributionHistoryScreen } from '@/components/fundraising/ContributionHistoryScreen';
@@ -8787,7 +8788,7 @@ export default function App() {
   const analyticsMutation = useTrackAnalyticsEvent();
   const analyticsMutationRef = useRef(analyticsMutation);
   analyticsMutationRef.current = analyticsMutation;
-  const [entryStage, setEntryStage] = useState<'start' | 'account-type' | 'organisation-type' | 'login'>('start');
+  const [entryStage, setEntryStage] = useState<'start' | 'account-type' | 'organisation-type' | 'organisation-introduction' | 'login'>('start');
   const [selectedAccountType, setSelectedAccountType] = useState<UserType | null>(null);
   const [selectedOrganisationType, setSelectedOrganisationType] = useState<OrganisationType | null>(null);
   const [accountAuthType, setAccountAuthType] = useState<UserType | null>(null);
@@ -8996,8 +8997,20 @@ export default function App() {
             setEntryStage('start');
           }}
           onContinue={() => {
-            if (selectedOrganisationType) setEntryStage('login');
+            if (selectedOrganisationType) setEntryStage('organisation-introduction');
           }}
+        />
+      </AppShell>
+    );
+  }
+
+  if (accountAuthType && entryStage === 'organisation-introduction' && selectedOrganisationType) {
+    return (
+      <AppShell showFeedbackBanner={false}>
+        <OrganisationOnboardingWalkthrough
+          organisationType={selectedOrganisationType}
+          onBackToOrganisationType={() => setEntryStage('organisation-type')}
+          onContinueToSignIn={() => setEntryStage('login')}
         />
       </AppShell>
     );
@@ -9022,14 +9035,20 @@ export default function App() {
   if (!user) {
     return (
       <AppShell showFeedbackBanner={false}>
-        {entryStage === 'organisation-type' ? (
+        {entryStage === 'organisation-introduction' && selectedOrganisationType ? (
+          <OrganisationOnboardingWalkthrough
+            organisationType={selectedOrganisationType}
+            onBackToOrganisationType={() => setEntryStage('organisation-type')}
+            onContinueToSignIn={() => setEntryStage('login')}
+          />
+        ) : entryStage === 'organisation-type' || entryStage === 'organisation-introduction' ? (
           <OrganisationTypeSelection
             selectedType={selectedOrganisationType}
             onSelect={setSelectedOrganisationType}
             onBack={() => setEntryStage('account-type')}
             onContinue={() => {
               if (!selectedOrganisationType) return;
-              setEntryStage('login');
+              setEntryStage('organisation-introduction');
             }}
           />
         ) : entryStage === 'start' ? (
