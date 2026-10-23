@@ -238,6 +238,62 @@ async function swipeTestId(client, testId, direction) {
   await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
 }
 
+async function assertOrganisationWalkthroughLayout(client, page) {
+  const layout = await client.evaluate(`(() => {
+    const rect = (testId) => {
+      const element = document.querySelector('[data-testid="' + testId + '"]');
+      if (!element) return null;
+      const bounds = element.getBoundingClientRect();
+      return {
+        top: bounds.top,
+        bottom: bounds.bottom,
+        left: bounds.left,
+        right: bounds.right,
+        width: bounds.width,
+        height: bounds.height,
+      };
+    };
+    return {
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      activePage: Boolean(document.querySelector('[data-testid="organisation-walkthrough-page-${page}"]')),
+      main: rect("organisation-walkthrough-main"),
+      page: rect("organisation-walkthrough-page-${page}"),
+      sheet: rect("organisation-walkthrough-sheet"),
+      progress: rect("organisation-walkthrough-progress"),
+      illustration: rect("organisation-walkthrough-illustration"),
+      title: rect("organisation-walkthrough-title"),
+      footer: rect("organisation-walkthrough-footer"),
+    };
+  })()`);
+
+  assert.ok(layout.activePage, `Expected page ${page} to be active during layout verification.`);
+  assert.ok(layout.main && layout.page && layout.sheet && layout.progress && layout.illustration && layout.title && layout.footer);
+  assert.ok(Math.abs(layout.sheet.bottom - layout.viewportHeight) <= 2, "The copy card should be flush with the bottom edge.");
+  assert.ok(layout.sheet.left <= 1 && layout.sheet.right >= layout.viewportWidth - 1, "The copy card should span the screen width.");
+  assert.ok(layout.title.top >= layout.sheet.top, "The copy should sit inside the bottom card.");
+  assert.ok(layout.footer.bottom <= layout.sheet.bottom - 24, "The footer should remain above the bottom safe area.");
+  assert.ok(layout.illustration.bottom < layout.sheet.top, "The illustration should remain above the copy card.");
+  const illustrationCenterX = (layout.illustration.left + layout.illustration.right) / 2;
+  const sheetCenterX = (layout.sheet.left + layout.sheet.right) / 2;
+  assert.ok(
+    Math.abs(illustrationCenterX - sheetCenterX) <= 2,
+    `The illustration should remain horizontally centered. ${JSON.stringify({
+      viewportWidth: layout.viewportWidth,
+      main: layout.main,
+      page: layout.page,
+      sheet: layout.sheet,
+      illustration: layout.illustration,
+    })}`,
+  );
+  const illustrationCenter = (layout.illustration.top + layout.illustration.bottom) / 2;
+  const upperAreaCenter = (layout.progress.bottom + layout.sheet.top) / 2;
+  assert.ok(
+    Math.abs(illustrationCenter - upperAreaCenter) <= 32,
+    "The illustration should stay centered in the space above the bottom card.",
+  );
+}
+
 async function enterText(client, testId, value) {
   await tapTestId(client, testId);
   await client.send("Input.insertText", { text: value });
@@ -873,20 +929,13 @@ test("organisation signup requires a supported subtype before sign-in", async (t
     `document.querySelector('[data-testid="organisation-type-continue"]')?.scrollIntoView({ block: "center" })`,
   );
   await tapTestId(client, "organisation-type-continue");
-  await delay(500);
-  const afterOrganisationContinue = await client.evaluate(`(() => ({
-    text: document.body.innerText.slice(0, 700),
-    ids: [...document.querySelectorAll('[data-testid]')]
-      .map((element) => element.getAttribute('data-testid'))
-      .filter((id) => id?.includes('organisation') || id?.includes('login-choice')),
-  }))()`);
-  console.log("Organisation flow after subtype Continue:", afterOrganisationContinue);
   await waitForValue(
     client,
     `Boolean(document.querySelector('[data-testid="organisation-walkthrough"]'))`,
     Boolean,
     "the organisation introduction after selecting an organisation subtype",
   );
+  await assertOrganisationWalkthroughLayout(client, 1);
 
   const supportedTypeHeadlines = [
     ["charity", "Turn your mission into action."],
@@ -898,12 +947,8 @@ test("organisation signup requires a supported subtype before sign-in", async (t
   ];
   for (const [index, [type, expectedHeadline]] of supportedTypeHeadlines.entries()) {
     if (index > 0) {
-      await tapTestId(client, "organisation-walkthrough-back");
-      await waitForValue(
-        client,
-        `Boolean(document.querySelector('[data-testid="organisation-type-selection"]'))`,
-        Boolean,
-        "the organisation type choices after going back from the introduction",
+      await client.evaluate(
+        `document.querySelector('[data-testid="organisation-type-${type}"]')?.scrollIntoView({ block: "center" })`,
       );
       await tapTestId(client, `organisation-type-${type}`);
       await client.evaluate(
@@ -945,6 +990,7 @@ test("organisation signup requires a supported subtype before sign-in", async (t
     Boolean,
     "swiping forward to page two",
   );
+  await assertOrganisationWalkthroughLayout(client, 2);
   const pageTwoHeadline = await client.evaluate(
     `document.querySelector('[data-testid="organisation-walkthrough-title"]')?.textContent?.trim()`,
   );
@@ -971,6 +1017,13 @@ test("organisation signup requires a supported subtype before sign-in", async (t
     Boolean,
     "the final introduction page",
   );
+  await assertOrganisationWalkthroughLayout(client, 3);
+
+  await setViewport(client, 667);
+  await delay(250);
+  await assertOrganisationWalkthroughLayout(client, 3);
+  await setViewport(client, viewport.height);
+
   await tapTestId(client, "organisation-walkthrough-back");
   await waitForValue(
     client,
@@ -1012,4 +1065,145 @@ test("organisation signup requires a supported subtype before sign-in", async (t
     Boolean,
     "the organisation email signup form",
   );
+});
+
+test("completing the organisation introduction reaches Telegram sign-in unchanged", async (t) => {
+  const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the organisation Telegram flow test.");
+
+  const client = await launchBrowser(t);
+  const telegramInitData = "auth_date=1700000000&hash=organisation-test-signature";
+  const telegramRequests = [];
+  let interceptionError;
+
+  client.on("Fetch.requestPaused", ({ params }) => {
+    void (async () => {
+      try {
+        const url = new URL(params.request.url);
+        if (params.request.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
+          const origin = params.request.headers.Origin ?? `https://${domain}`;
+          const requestedHeaders = params.request.headers["Access-Control-Request-Headers"]
+            ?? params.request.headers["access-control-request-headers"]
+            ?? "authorization,content-type";
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 204,
+            responseHeaders: [
+              { name: "Access-Control-Allow-Origin", value: origin },
+              { name: "Access-Control-Allow-Methods", value: "POST, OPTIONS" },
+              { name: "Access-Control-Allow-Headers", value: requestedHeaders },
+            ],
+            body: "",
+          });
+          return;
+        }
+
+        if (url.pathname.endsWith("/api/auth/telegram") && params.request.method === "POST") {
+          telegramRequests.push(await getRequestBody(client, params));
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 401,
+            responseHeaders: apiResponseHeaders(params.request, domain),
+            body: Buffer.from(JSON.stringify({ message: "Mock organisation Telegram failure." })).toString("base64"),
+          });
+          return;
+        }
+
+        if (url.pathname.startsWith("/api/")) {
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: url.pathname.endsWith("/analytics/events") ? 202 : 200,
+            responseHeaders: apiResponseHeaders(params.request, domain),
+            body: Buffer.from(JSON.stringify(
+              url.pathname.endsWith("/analytics/events") ? { accepted: true } : [],
+            )).toString("base64"),
+          });
+          return;
+        }
+
+        await client.send("Fetch.continueRequest", { requestId: params.requestId });
+      } catch (error) {
+        interceptionError ??= error;
+        await client.send("Fetch.failRequest", {
+          requestId: params.requestId,
+          errorReason: "Failed",
+        }).catch(() => {});
+      }
+    })();
+  });
+
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
+  await client.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `window.Telegram = { WebApp: { initData: ${JSON.stringify(telegramInitData)}, ready() {}, expand() {} } };`,
+  });
+  await setViewport(client, viewport.height);
+  await client.send("Page.navigate", { url: `https://${domain}/` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="welcome-start"]'))`,
+    Boolean,
+    "the signed-out welcome screen",
+  );
+
+  await tapTestId(client, "welcome-start");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="account-type-organisation"]'))`,
+    Boolean,
+    "the organisation account choice",
+  );
+  await tapTestId(client, "account-type-organisation");
+  await tapTestId(client, "account-type-continue");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-type-selection"]'))`,
+    Boolean,
+    "the organisation type choices",
+  );
+  await tapTestId(client, "organisation-type-charity");
+  await client.evaluate(
+    `document.querySelector('[data-testid="organisation-type-continue"]')?.scrollIntoView({ block: "center" })`,
+  );
+  await tapTestId(client, "organisation-type-continue");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-walkthrough-page-1"]'))`,
+    Boolean,
+    "the first organisation introduction page",
+  );
+
+  await tapTestId(client, "organisation-walkthrough-next");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-walkthrough-page-2"]'))`,
+    Boolean,
+    "the second organisation introduction page",
+  );
+  await tapTestId(client, "organisation-walkthrough-next");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-walkthrough-page-3"]'))`,
+    Boolean,
+    "the final organisation introduction page",
+  );
+  await tapTestId(client, "organisation-walkthrough-next");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="login-choice-telegram"]'))`,
+    Boolean,
+    "the Telegram sign-in choice after completing the introduction",
+  );
+  await tapTestId(client, "login-choice-telegram");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes("Mock organisation Telegram failure.")`,
+    Boolean,
+    "the mocked organisation Telegram authentication response",
+  );
+
+  assert.ifError(interceptionError);
+  assert.deepEqual(telegramRequests, [{
+    initData: telegramInitData,
+    userType: "organisation",
+  }]);
 });
