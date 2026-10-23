@@ -3034,7 +3034,44 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.muted }}>
+      <View
+        testID="experience-detail-toolbar"
+        style={[
+          styles.experienceDetailToolbar,
+          { backgroundColor: colors.muted, borderBottomColor: colors.border },
+        ]}
+      >
+        <Pressable
+          testID="experience-details-back"
+          accessibilityRole="button"
+          accessibilityLabel="Go back to experiences"
+          onPress={() => { triggerHaptic(); go('explore'); }}
+          style={styles.experienceDetailToolbarButton}
+        >
+          <Feather name="arrow-left" size={20} color={colors.foreground} />
+        </Pressable>
+        <Text accessibilityRole="header" numberOfLines={1} style={[styles.experienceDetailToolbarTitle, { color: colors.foreground }]}>
+          Experience details
+        </Text>
+        {canEditExperience ? (
+          <Pressable
+            testID="experience-edit-details"
+            accessibilityRole="button"
+            accessibilityLabel="Edit experience details"
+            onPress={() => {
+              triggerHaptic();
+              go('create', { id: String(id), step: String(createExperienceQuestions.length + 1) });
+            }}
+            style={styles.experienceDetailToolbarButton}
+          >
+            <Feather name="edit-2" size={17} color={colors.foreground} />
+          </Pressable>
+        ) : (
+          <View style={styles.experienceDetailToolbarButton} />
+        )}
+      </View>
       <ScrollView
+        testID="experience-detail-scroll"
         style={{ flex: 1, backgroundColor: colors.muted }}
         contentContainerStyle={[
           styles.detailScrollContent,
@@ -3044,39 +3081,9 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
         nestedScrollEnabled
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.detailToolbar}>
-          <Pressable
-            testID="profile-metric-hosted"
-            accessibilityRole="button"
-            accessibilityLabel="Go back to experiences"
-            onPress={() => { triggerHaptic(); go('explore'); }}
-            style={[styles.detailToolbarButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-          >
-            <Feather name="arrow-left" size={20} color={colors.foreground} />
-          </Pressable>
-          <Text style={[styles.detailToolbarTitle, { color: colors.foreground }]}>Experience details</Text>
-          {canEditExperience ? (
-            <Pressable
-              testID="experience-edit-details"
-              accessibilityRole="button"
-              accessibilityLabel="Edit experience details"
-              onPress={() => {
-                triggerHaptic();
-                go('create', { id: String(id), step: String(createExperienceQuestions.length + 1) });
-              }}
-              style={[styles.detailToolbarButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-            >
-              <Feather name="edit-2" size={17} color={colors.foreground} />
-            </Pressable>
-          ) : (
-            <View style={styles.detailToolbarSpacer} />
-          )}
-        </View>
-
         {/*
-         * Keep the participant detail summary aligned with the organization
-         * management screen. Participant-specific join and completion actions
-         * remain in the persistent action area below.
+         * Keep the participant detail page focused on event essentials.
+         * Join and completion actions remain in the persistent area below.
          */}
         <View testID="participant-detail-hero" style={[styles.hostDetailHero, { borderRadius: colors.radius + 4 }]}>
           {item.category === 'community' ? (
@@ -3107,58 +3114,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
             <Text numberOfLines={2} style={styles.hostDetailHeroDescription}>
               {item.description || 'Join this experience and meet your community.'}
             </Text>
-            <View style={styles.hostDetailHeroMeta}>
-              <View style={styles.hostDetailHeroMetaItem}>
-                <Feather name={categoryIcon[item.category]} size={12} color="#FFFFFF" />
-                <Text numberOfLines={1} style={styles.hostDetailHeroMetaText}>{categoryLabel[item.category]}</Text>
-              </View>
-              <View style={styles.hostDetailHeroMetaItem}>
-                <Feather name="map-pin" size={12} color="#FFFFFF" />
-                <Text numberOfLines={1} style={styles.hostDetailHeroMetaText}>{item.city}</Text>
-              </View>
-              <View style={styles.hostDetailHeroMetaItem}>
-                <Feather name="calendar" size={12} color="#FFFFFF" />
-                <Text numberOfLines={1} style={styles.hostDetailHeroMetaText}>{dateLabel(item.date)} · {item.startTime}–{item.endTime}</Text>
-              </View>
-            </View>
           </View>
-        </View>
-
-        <View testID="participant-detail-summary" style={styles.hostDetailSummaryGrid}>
-          {[
-            { label: 'Places filled', value: `${item.participantCount} / ${item.capacity}`, icon: 'users' as const, detail: 'Capacity', accent: colors.primary },
-            { label: 'Places left', value: item.availablePlaces, icon: 'clock' as const, detail: acceptsParticipants ? (item.availablePlaces === 0 ? 'Full' : 'Available to join') : 'Registration closed', accent: colors.secondary },
-            { label: 'Reward per person', value: `${item.xpReward} XP`, icon: 'award' as const, detail: item.monetaryRewardPence ? money(item.monetaryRewardPence) : 'Experience reward', accent: colors.accent },
-            { label: 'Participants', value: item.participantCount, icon: 'users' as const, detail: 'Joined so far', accent: colors.primary },
-          ].map((metric, index) => (
-            <View
-              key={metric.label}
-              style={[styles.hostDetailSummaryCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
-            >
-              <View style={[styles.hostDetailSummaryIcon, { backgroundColor: metric.accent + '12' }]}>
-                <Feather name={metric.icon} size={17} color={metric.accent} />
-              </View>
-              <View style={styles.hostDetailSummaryCopy}>
-                <Text style={[styles.hostDetailSummaryValue, { color: colors.foreground }]}>{metric.value}</Text>
-                <Text numberOfLines={1} style={[styles.hostDetailSummaryLabel, { color: colors.mutedForeground }]}>{metric.label}</Text>
-                {index === 0 ? (
-                  <View style={[styles.hostDetailProgressTrack, { backgroundColor: colors.border, marginTop: 7 }]}>
-                    <View
-                      style={[
-                        styles.hostDetailProgressFill,
-                        {
-                          width: `${item.capacity > 0 ? Math.min(100, Math.round((item.participantCount / item.capacity) * 100)) : 0}%`,
-                          backgroundColor: colors.primary,
-                        },
-                      ]}
-                    />
-                  </View>
-                ) : (
-                  <Text numberOfLines={1} style={[styles.hostDetailSummaryDetail, { color: colors.mutedForeground }]}>{metric.detail}</Text>
-                )}
-              </View>
-            </View>
-          ))}
         </View>
 
         <View testID="participant-detail-facts" style={styles.hostDetailFacts}>
@@ -3194,7 +3150,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           </View>
         ) : null}
 
-        <View style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
+        <View testID="experience-host-details" style={[styles.infoBlock, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}>
           <Pressable
             testID="experience-section-toggle-host"
             accessibilityRole="button"
@@ -3222,6 +3178,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
         </View>
 
         <View
+          testID="participant-detail-rewards"
           style={[
             styles.rewardPanel,
             {
@@ -3234,6 +3191,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           <View style={styles.rewardCol}>
             <Text style={[styles.metaLabel, { color: colors.mutedForeground }]} numberOfLines={1}>YOU'LL EARN</Text>
             <Text style={[styles.detailReward, { color: colors.primary }]} numberOfLines={1}>+{item.xpReward} XP</Text>
+            <Text style={[styles.rewardHelper, { color: colors.mutedForeground }]} numberOfLines={2}>After host verification</Text>
           </View>
           {money(item.monetaryRewardPence) ? (
             <>
@@ -3241,6 +3199,7 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
               <View style={styles.rewardCol}>
                 <Text style={[styles.metaLabel, { color: colors.mutedForeground }]} numberOfLines={1}>REWARD</Text>
                 <Text style={[styles.detailReward, { color: colors.teal }]} numberOfLines={1}>{money(item.monetaryRewardPence)}</Text>
+                <Text style={[styles.rewardHelper, { color: colors.mutedForeground }]} numberOfLines={1}>Per person</Text>
               </View>
             </>
           ) : null}
@@ -3248,6 +3207,13 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
           <View style={styles.rewardCol}>
             <Text style={[styles.metaLabel, { color: colors.mutedForeground }]} numberOfLines={1}>PLACES LEFT</Text>
             <Text style={[styles.detailReward, { color: colors.foreground }]} numberOfLines={1}>{item.availablePlaces}</Text>
+            <Text style={[styles.rewardHelper, { color: colors.mutedForeground }]} numberOfLines={2}>
+              {item.status === 'cancelled'
+                ? 'Registration closed'
+                : item.availablePlaces === 0
+                  ? 'Waitlist open'
+                  : `${item.participantCount} of ${item.capacity} joined`}
+            </Text>
           </View>
         </View>
 
@@ -3522,10 +3488,6 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
                   />
                 )}
               </View>
-            ) : hasConfiguredMilestones && ['joined', 'attended'].includes(participation.status) ? (
-              <Text style={[styles.joinedSub, { color: colors.mutedForeground, marginTop: 10 }]}>
-                Submit milestones from the timeline above. Each verified step releases its XP award.
-              </Text>
             ) : ['joined', 'attended', 'rejected'].includes(participation.status) ? (
               <>
               {participation.status === 'attended' || participation.status === 'rejected' ? (
@@ -9193,7 +9155,7 @@ export default function App() {
   }
 
   const content = (() => {
-    if (screen === 'experience') return <Detail id={Number(experienceId)} go={go} />;
+    if (screen === 'experience') return <Detail key={`experience-detail-${experienceId ?? 'missing'}`} id={Number(experienceId)} go={go} />;
     if (screen === 'host-detail') return <HostExperienceDetail experienceId={Number(experienceId)} go={go} initialFocus={params.focus === 'review' || params.focus === 'waitlisted' ? params.focus : undefined} />;
     if (screen === 'messages') {
       return (
@@ -9848,10 +9810,9 @@ const styles = StyleSheet.create({
   
   // Detail
   detailScrollContent: { paddingHorizontal: 14, paddingTop: 6, paddingBottom: 28 },
-  detailToolbar: { height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  detailToolbarButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  detailToolbarTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  detailToolbarSpacer: { width: 42 },
+  experienceDetailToolbar: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingTop: 4, paddingBottom: 6, borderBottomWidth: StyleSheet.hairlineWidth },
+  experienceDetailToolbarButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  experienceDetailToolbarTitle: { flex: 1, minWidth: 0, textAlign: 'center', fontSize: 15, fontFamily: 'Inter_600SemiBold' },
   detailHero: { height: 182, marginBottom: 12, overflow: 'hidden' },
   detailCoverFill: { flex: 1, justifyContent: 'flex-end' },
   detailCoverBottom: { padding: 16 },
@@ -9889,6 +9850,7 @@ const styles = StyleSheet.create({
   rewardCol: { flex: 1, minWidth: 0, justifyContent: 'center', gap: 7, paddingHorizontal: 7 },
   rewardDivider: { width: StyleSheet.hairlineWidth, marginVertical: 2 },
   detailReward: { fontSize: 15, lineHeight: 19, fontFamily: 'Inter_700Bold' },
+  rewardHelper: { fontSize: 10, lineHeight: 13, fontFamily: 'Inter_400Regular' },
   infoBlock: { borderWidth: 1, padding: 14, marginBottom: 10 },
   infoBlockHeading: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   infoBlockIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },

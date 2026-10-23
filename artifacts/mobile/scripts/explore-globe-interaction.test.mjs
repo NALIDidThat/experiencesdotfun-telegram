@@ -431,7 +431,7 @@ const friends = [
   { id: 903, name: "Casey Reed", username: "casey", avatarUrl: null, city: "Springfield" },
 ];
 
-test("Participant experience details mirror the management summary and preserve role-aware actions", async (t) => {
+test("Participant experience details keep navigation visible and present concise event information", async (t) => {
   const appUrl = getAppPreviewUrl("The Explore map fallback test");
   const appOrigin = new URL(appUrl).origin;
   const mapsConfigured = Boolean(process.env.Google_Maps_API || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY);
@@ -990,20 +990,53 @@ Object.defineProperty(navigator, 'geolocation', {
     "the detail page opened by the verified location pin",
   );
   }
-  assert.equal(
-    await client.evaluate(`(() => {
-      const hero = document.querySelector('[data-testid="participant-detail-hero"]')?.getBoundingClientRect();
-      const summary = document.querySelector('[data-testid="participant-detail-summary"]')?.getBoundingClientRect();
-      const facts = document.querySelector('[data-testid="participant-detail-facts"]')?.getBoundingClientRect();
-      return Boolean(hero && summary && facts && hero.top < summary.top && summary.top < facts.top);
-    })()`),
-    true,
-    "Participant details should use the organization screen’s hero, summary cards, and date/location facts in the same order.",
+  const detailLayout = await client.evaluate(`(() => {
+    const rect = (selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const bounds = element.getBoundingClientRect();
+      return { top: bounds.top, bottom: bounds.bottom };
+    };
+    return {
+      toolbar: rect('[data-testid="experience-detail-toolbar"]'),
+      hero: rect('[data-testid="participant-detail-hero"]'),
+      facts: rect('[data-testid="participant-detail-facts"]'),
+      host: rect('[data-testid="experience-host-details"]'),
+      rewards: rect('[data-testid="participant-detail-rewards"]'),
+    };
+  })()`);
+  assert.ok(
+    detailLayout.toolbar
+      && detailLayout.hero
+      && detailLayout.facts
+      && detailLayout.host
+      && detailLayout.rewards
+      && detailLayout.toolbar.bottom <= detailLayout.hero.top
+      && detailLayout.hero.top < detailLayout.facts.top
+      && detailLayout.facts.top < detailLayout.host.top
+      && detailLayout.host.top < detailLayout.rewards.top,
+    `Participant details should keep navigation visible and show facts, host, and rewards in order. Layout: ${JSON.stringify(detailLayout)}`,
   );
-  assert.match(
-    await client.evaluate(`document.body.innerText.replace(/\\s+/g, ' ')`),
-    /Places filled.*Places left.*Reward per person.*Participants.*Date & time.*Location/,
-    "Participants should see the same key experience summary as the organization management screen.",
+  const toolbarScrollCheck = await client.evaluate(`(() => {
+    const toolbar = document.querySelector('[data-testid="experience-detail-toolbar"]');
+    const scroll = document.querySelector('[data-testid="experience-detail-scroll"]');
+    if (!toolbar || !scroll) return { scrolled: false, stayedVisible: false };
+    const topBefore = toolbar.getBoundingClientRect().top;
+    scroll.scrollTop = Math.min(320, scroll.scrollHeight - scroll.clientHeight);
+    scroll.dispatchEvent(new Event('scroll', { bubbles: true }));
+    return new Promise((resolve) => requestAnimationFrame(() => {
+      const topAfter = toolbar.getBoundingClientRect().top;
+      const scrolled = scroll.scrollTop > 0;
+      scroll.scrollTop = 0;
+      resolve({ scrolled, stayedVisible: Math.abs(topAfter - topBefore) < 1 });
+    }));
+  })()`);
+  assert.equal(toolbarScrollCheck.scrolled, true, "Experience details should have a scrollable content area.");
+  assert.equal(toolbarScrollCheck.stayedVisible, true, "The back and edit toolbar should remain visible while details scroll.");
+  assert.equal(
+    await client.evaluate(`document.querySelectorAll('[data-testid="participant-detail-rewards"]')?.length ?? 0`),
+    1,
+    "Reward details should appear once instead of being repeated in a second summary grid.",
   );
   assert.equal(
     await client.evaluate(`Boolean(document.querySelector('[data-testid="experience-edit-details"]'))`),
@@ -1091,8 +1124,8 @@ Object.defineProperty(navigator, 'geolocation', {
   );
   assert.ok(
     await client.evaluate(`(() => {
-      const summary = document.querySelector('[data-testid="participant-detail-summary"]')?.innerText ?? '';
-      return summary.includes('Registration closed') && !summary.includes('Available to join');
+      const rewards = document.querySelector('[data-testid="participant-detail-rewards"]')?.innerText ?? '';
+      return rewards.includes('Registration closed') && !rewards.includes('Available to join');
     })()`),
     "A cancelled experience should not imply that its remaining places are available to join.",
   );
