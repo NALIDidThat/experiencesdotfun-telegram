@@ -21,6 +21,7 @@ type NearbyPlaceDetails = {
   websiteURI?: string | null;
   internationalPhoneNumber?: string | null;
 };
+type PlacesLibrary = NonNullable<ReturnType<typeof useMapsLibrary<'places'>>>;
 type GoogleMapInstance = NonNullable<ReturnType<typeof useMap>>;
 type SearchPlace = {
   id?: string;
@@ -46,15 +47,19 @@ const point = (value?: { latitude: number; longitude: number } | null): Point | 
 );
 
 function NearbySearch({
-  center, category, token, onStatus, onResults,
+  center, category, token, onStatus, onResults, onLibrary,
 }: {
   center: Point;
   category: ExploreMapCategory;
   token: number;
   onStatus: (status: 'loading' | 'ready' | 'empty' | 'error') => void;
   onResults: (places: NearbyPlace[]) => void;
+  onLibrary: (library: PlacesLibrary | null) => void;
 }) {
   const library = useMapsLibrary('places');
+  useEffect(() => {
+    onLibrary(library);
+  }, [library, onLibrary]);
   useEffect(() => {
     if (!library || !token) return;
     let cancelled = false;
@@ -111,7 +116,7 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
   const [searchToken, setSearchToken] = useState(0);
   const [locationMessage, setLocationMessage] = useState('');
   const [mapToolsOpen, setMapToolsOpen] = useState(false);
-  const placesLibrary = useMapsLibrary('places');
+  const [placesLibrary, setPlacesLibrary] = useState<PlacesLibrary | null>(null);
   const resetCenter = point(props.profileCityCenter) ?? { lat: 20, lng: 0 };
   const initialCenter = point(props.profileCityCenter) ?? point(props.selectedCityCoordinates) ?? resetCenter;
   const initialSearchCenter = point(props.profileCityCenter);
@@ -212,7 +217,8 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
     }
 
     try {
-      const { place: details } = await new placesLibrary.Place({ id: place.id }).fetchFields({
+      const details = new placesLibrary.Place({ id: place.id });
+      await details.fetchFields({
         fields: ['businessStatus', 'rating', 'userRatingCount', 'websiteURI', 'internationalPhoneNumber'],
       });
       if (placeDetailsRequestId.current !== place.id) return;
@@ -224,7 +230,8 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
         internationalPhoneNumber: details.internationalPhoneNumber,
       });
       setPlaceDetailsStatus('ready');
-    } catch {
+    } catch (error) {
+      if (__DEV__) console.error('Could not load Google Place details', error);
       if (placeDetailsRequestId.current === place.id) setPlaceDetailsStatus('error');
     }
   }, [placesLibrary]);
@@ -416,6 +423,7 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
             token={searchToken}
             onStatus={setNearbyStatus}
             onResults={updateNearby}
+            onLibrary={setPlacesLibrary}
           />
         ) : null}
         <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
@@ -692,6 +700,7 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
               : 'Open nearby places and map tools'}
             accessibilityHint="Nearby search, location, and map reset controls"
             accessibilityState={{ expanded: mapToolsOpen }}
+            aria-expanded={mapToolsOpen}
             testID="explore-map-tools-toggle"
             onPress={() => setMapToolsOpen((open) => !open)}
             style={[

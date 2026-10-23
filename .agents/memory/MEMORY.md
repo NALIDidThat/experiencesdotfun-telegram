@@ -31,3 +31,4 @@
 - [Nearby Places search centre](google-maps-nearby-search.md) — capture the camera centre on initial profile search or explicit search, not on pan events.
 - [Expo Router platform routes](expo-router-platform-routes.md) — platform-suffixed route files need an unsuffixed sibling route in this Expo Router version.
 - [Telegram community roadmap](telegram-community-roadmap.md) — treat the attached roadmap as product guidance for incremental community work, not a mandate to implement every item at once.
+- [Google Places details](google-maps-place-details.md) — call the Places hook inside `APIProvider`; `Place.fetchFields()` populates its instance rather than returning details.

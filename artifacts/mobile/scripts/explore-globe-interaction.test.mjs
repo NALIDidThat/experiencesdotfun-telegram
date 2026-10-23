@@ -1146,6 +1146,7 @@ test("Google Maps and nearby Places work with the configured browser key", {
 
   const client = await launchBrowser(t);
   const browserErrors = [];
+  const placesResponses = [];
   let mapsApiRequested = false;
   let placesApiRequested = false;
   let placesApiRequestCount = 0;
@@ -1156,6 +1157,16 @@ test("Google Maps and nearby Places work with the configured browser key", {
   client.on("Runtime.consoleAPICalled", ({ params }) => {
     if (params.type === "error") {
       browserErrors.push(params.args.map((arg) => arg.value ?? arg.description ?? "").join(" "));
+    }
+  });
+  client.on("Network.responseReceived", ({ params }) => {
+    try {
+      const url = new URL(params.response.url);
+      if (url.hostname === "places.googleapis.com") {
+        placesResponses.push({ status: params.response.status, path: url.pathname });
+      }
+    } catch {
+      // Ignore non-URL browser events.
     }
   });
   client.on("Fetch.requestPaused", ({ params }) => {
@@ -1227,6 +1238,7 @@ test("Google Maps and nearby Places work with the configured browser key", {
     })();
   });
 
+  await client.send("Network.enable");
   await client.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
   await client.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `localStorage.setItem('@experiences/auth-token', '${sessionToken}');`,
@@ -1296,10 +1308,27 @@ test("Google Maps and nearby Places work with the configured browser key", {
   await tapTestId(client, "explore-nearby-place-0");
   await waitForValue(
     client,
-    `Boolean(document.querySelector('[data-testid="explore-nearby-place-details-loaded"]'))`,
+    `Boolean(document.querySelector('[data-testid="explore-nearby-place-details"]'))`,
     Boolean,
-    "Google Place details for the selected business",
-    45_000,
+    "the selected business detail card",
+    10_000,
+  );
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="explore-nearby-place-details-loaded"]') || document.querySelector('[data-testid="explore-nearby-place-details-error"]'))`,
+    Boolean,
+    "the Place Details response or its visible fallback",
+    15_000,
+  );
+  const selectedPlaceState = await client.evaluate(`(() => ({
+    card: document.querySelector('[data-testid="explore-nearby-place-details"]')?.innerText ?? '',
+    loaded: Boolean(document.querySelector('[data-testid="explore-nearby-place-details-loaded"]')),
+    error: Boolean(document.querySelector('[data-testid="explore-nearby-place-details-error"]')),
+  }))()`);
+  assert.equal(
+    selectedPlaceState.loaded,
+    true,
+    `The selected Google business should show its details. State: ${JSON.stringify(selectedPlaceState)}; Places responses: ${JSON.stringify(placesResponses)}; Browser errors: ${JSON.stringify(browserErrors)}`,
   );
   assert.ok(
     placesApiRequestCount > requestsBeforePlaceDetails,
