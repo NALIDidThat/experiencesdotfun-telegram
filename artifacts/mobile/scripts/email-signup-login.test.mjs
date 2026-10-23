@@ -606,6 +606,22 @@ test("signup creates an authenticated session without production data", async (t
           return;
         }
 
+        if (url.pathname === "/api/explore/activity" && params.request.method === "GET") {
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 200,
+            responseHeaders: apiResponseHeaders(params.request, domain),
+            body: Buffer.from(JSON.stringify({
+              windowDays: 30,
+              cities: [
+                { city: "London", verifiedCompletions: 2 },
+                { city: "Nairobi", verifiedCompletions: 1 },
+              ],
+            })).toString("base64"),
+          });
+          return;
+        }
+
         if (url.pathname.startsWith("/api/")) {
           await client.send("Fetch.fulfillRequest", {
             requestId: params.requestId,
@@ -638,6 +654,14 @@ test("signup creates an authenticated session without production data", async (t
     Boolean,
     "the signed-out welcome screen",
   );
+  const welcomeActivity = await waitForValue(
+    client,
+    `document.querySelector('[data-testid="welcome-activity-london"]')?.textContent`,
+    (value) => value?.includes("London") && value.includes("2 verified"),
+    "the real city-level welcome activity popup",
+  );
+  assert.match(welcomeActivity, /London/);
+  assert.match(welcomeActivity, /2 verified/);
 
   await tapTestId(client, "welcome-start");
   await waitForValue(

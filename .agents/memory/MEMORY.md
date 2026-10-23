@@ -7,6 +7,7 @@
 - [Telegram polling ownership](telegram-polling-ownership.md) — run only one Telegram long-polling bot instance; local and deployed pollers conflict.
 - [Telegram group bot compatibility](telegram-group-keyboards.md) — group replies cannot use inline Web App buttons; keep personal actions private.
 - [Query invalidation cancellation](query-invalidation-cancellation.md) — treat expected AbortErrors from mutation-triggered query refreshes as cancellation, not app failure.
+- [Public API cache revalidation](public-api-cache-revalidation.md) — generated fetch clients that reject non-2xx responses need request-level no-store when browser revalidation returns 304.
 - [Build-first UI iteration](build-first-ui.md) — implement mobile visual references in the app directly; make substantial layout changes when the reference calls for them.
 - [Auth unit-test boundaries](auth-unit-test-boundaries.md) — keep Telegram init-data verification testable without importing database-bound API modules into Node's test runner.
 - [Node TypeScript test imports](node-typescript-test-imports.md) — direct Node tests of TypeScript helpers fail on extensionless runtime imports; keep helpers self-contained or inject values.
@@ -32,3 +33,4 @@
 - [Expo Router platform routes](expo-router-platform-routes.md) — platform-suffixed route files need an unsuffixed sibling route in this Expo Router version.
 - [Telegram community roadmap](telegram-community-roadmap.md) — treat the attached roadmap as product guidance for incremental community work, not a mandate to implement every item at once.
 - [Google Places details](google-maps-place-details.md) — call the Places hook inside `APIProvider`; `Place.fetchFields()` populates its instance rather than returning details.
+- [Welcome globe motion](welcome-globe-motion.md) — keep the welcome globe spinning continuously as requested; other globe views remain reduced-motion aware.

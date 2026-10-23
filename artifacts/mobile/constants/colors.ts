@@ -23,7 +23,7 @@ const colors = {
     inkSoft: '#666666',
     success: '#05727D',
     welcome: {
-      background: '#080B16',
+      background: '#04050A',
       foreground: '#F7F8FC',
       muted: '#C7CAD4',
       subdued: '#9A9EAD',

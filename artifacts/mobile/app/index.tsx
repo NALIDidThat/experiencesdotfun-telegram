@@ -130,7 +130,7 @@ import { DirectMessagesScreen } from '@/components/DirectMessagesScreen';
 import { AiAssistantScreen } from '@/components/AiAssistantScreen';
 import { ExperienceChallengesScreen } from '@/components/ExperienceChallengesScreen';
 import { MemoryGameScreen } from '@/components/MemoryGameScreen';
-import { ExploreGlobe, type GlobeCity, type GlobeExperienceLocation, type GlobeFriend, type GlobeMode } from '@/components/ExploreGlobe';
+import { ExploreGlobe, type GlobeCity, type GlobeExperienceLocation, type GlobeFriend, type GlobeMode, type WelcomeGlobeActivityCity } from '@/components/ExploreGlobe';
 import ExploreMap from '@/components/ExploreMap';
 import type { ExploreMapHandle } from '@/components/ExploreMap.types';
 import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
@@ -1053,6 +1053,23 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   const colors = useColors();
   const { height: screenHeight } = useWindowDimensions();
   const welcome = colors.welcome;
+  const activityQuery = useListExploreActivity({ request: { cache: 'no-store' } });
+  const welcomeActivityCities = useMemo<WelcomeGlobeActivityCity[]>(() => (
+    (activityQuery.data?.cities ?? [])
+      .flatMap((activity) => {
+        const coordinates = exploreCityCoordinates[normalizeExploreCityName(activity.city)];
+        return coordinates
+          ? [{ city: activity.city, ...coordinates, verifiedCompletions: activity.verifiedCompletions }]
+          : [];
+      })
+      .sort((left, right) => right.verifiedCompletions - left.verifiedCompletions)
+      .slice(0, 10)
+  ), [activityQuery.data]);
+  const activityStatus: 'loading' | 'ready' | 'error' = activityQuery.isLoading
+    ? 'loading'
+    : activityQuery.isError
+      ? 'error'
+      : 'ready';
   const isWeb = Platform.OS === 'web';
   const topInset = isWeb ? 8 : insets.top;
   const bottomInset = isWeb ? 24 : Math.max(insets.bottom, 16);
@@ -1060,30 +1077,10 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
   const heroStageHeight = isCompactWelcome
     ? Math.max(248, screenHeight * 0.37)
     : Math.min(screenHeight * 0.46, 390);
-  const heroImageHeight = screenHeight;
 
   return (
     <View style={[styles.talentScreen, { backgroundColor: welcome.background }]}>
       <StatusBar barStyle="light-content" backgroundColor={welcome.background} />
-      <Image
-        source={require('../assets/images/welcome-panorama.png')}
-        resizeMode="cover"
-        accessible={false}
-        style={[styles.welcomeBackdrop, { height: heroImageHeight }]}
-      />
-      <View style={[styles.welcomeOverlay, { height: heroImageHeight, pointerEvents: 'none' }]}>
-        <LinearGradient
-          colors={[welcome.overlayTop, welcome.overlayMid, welcome.overlayBottom, welcome.background]}
-          locations={[0, 0.43, 0.8, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-        <LinearGradient
-          colors={[welcome.overlayLeft, welcome.overlayRight]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </View>
 
       <ScrollView
         bounces={false}
@@ -1091,7 +1088,7 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
         style={styles.welcomeScroll}
         contentContainerStyle={[
           styles.welcomeScrollContent,
-          { minHeight: Math.max(0, screenHeight - topInset - bottomInset), paddingTop: topInset, paddingBottom: bottomInset },
+          { minHeight: Math.max(0, screenHeight - topInset), paddingTop: topInset, paddingBottom: 0 },
         ]}
       >
         <View style={[styles.welcomeHeader, { paddingHorizontal: 26 }]}>
@@ -1102,7 +1099,20 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
           <View style={{ width: 54 }} />
         </View>
 
-        <View style={[styles.welcomeHeroStage, { height: heroStageHeight, marginHorizontal: 26 }]}>
+        <View style={[styles.welcomeHeroStage, { height: heroStageHeight }]}>
+          <ExploreGlobe
+            welcomeMode
+            welcomeActivityCities={welcomeActivityCities}
+            welcomeActivityWindowDays={activityQuery.data?.windowDays ?? 30}
+            welcomeActivityCityCount={activityQuery.data?.cities?.length ?? 0}
+            cities={[]}
+            mode="activity"
+            selectedCity={null}
+            status={activityStatus}
+            onSelectCity={() => {}}
+            onExploreCity={() => {}}
+            onResetCity={() => {}}
+          />
           <View style={[styles.welcomeXpCard, { backgroundColor: welcome.surface, borderColor: welcome.border }]}>
             <View style={[styles.welcomeMedal, { backgroundColor: colors.primary }]}>
               <Feather name="award" size={19} color={welcome.gold} />
@@ -1114,12 +1124,24 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
           </View>
         </View>
 
-        <View style={styles.welcomeContent}>
-          <Text style={[styles.welcomeTitle, { color: welcome.foreground }]}>
+        <View
+          testID="welcome-content-sheet"
+          style={[
+            styles.welcomeContent,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              borderTopLeftRadius: colors.radius + 16,
+              borderTopRightRadius: colors.radius + 16,
+              paddingBottom: bottomInset + 8,
+            },
+          ]}
+        >
+          <Text style={[styles.welcomeTitle, { color: colors.foreground }]}>
             Find your people.{'\n'}<Text style={{ color: colors.primary }}>Make a difference.</Text>
           </Text>
           <View style={styles.welcomeDetails}>
-            <Text style={[styles.welcomeDescription, { color: welcome.muted }]}>
+            <Text style={[styles.welcomeDescription, { color: colors.mutedForeground }]}>
               Discover local experiences, get involved in your community, and see the impact you make.
             </Text>
 
@@ -1130,12 +1152,12 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
                   { initials: 'J', backgroundColor: colors.secondary },
                   { initials: 'M', backgroundColor: colors.primary },
                 ].map((avatar) => (
-                  <View key={avatar.initials} style={[styles.welcomeAvatar, { backgroundColor: avatar.backgroundColor, borderColor: welcome.background }]}>
+                  <View key={avatar.initials} style={[styles.welcomeAvatar, { backgroundColor: avatar.backgroundColor, borderColor: colors.card }]}>
                     <Text style={[styles.welcomeAvatarInitial, { color: colors.primaryForeground }]}>{avatar.initials}</Text>
                   </View>
                 ))}
               </View>
-              <Text style={[styles.welcomeSocialText, { color: welcome.muted }]}>
+              <Text style={[styles.welcomeSocialText, { color: colors.mutedForeground }]}>
                 Join a growing community making change, together.
               </Text>
             </View>
@@ -1164,12 +1186,12 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
               </Pressable>
             </View>
 
-            <Text style={[styles.welcomeTelegramNote, { color: welcome.muted }]}>
+            <Text style={[styles.welcomeTelegramNote, { color: colors.mutedForeground }]}>
               Choose Participant or Organisation to get started.
             </Text>
+            {isWeb ? <View style={[styles.welcomeHomeIndicator, { backgroundColor: colors.mutedForeground }]} /> : null}
           </View>
         </View>
-        {isWeb ? <View style={[styles.welcomeHomeIndicator, { backgroundColor: welcome.foreground }]} /> : null}
       </ScrollView>
     </View>
   );
@@ -9460,8 +9482,6 @@ const styles = StyleSheet.create({
   talentArtworkLineShort: { width: 54, height: 7, borderRadius: 4 },
   talentArtworkPill: { position: 'absolute', left: 16, bottom: 14, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10 },
   talentArtworkPillText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
-  welcomeBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, width: '100%', zIndex: 0 },
-  welcomeOverlay: { position: 'absolute', top: 0, left: 0, right: 0, width: '100%', zIndex: 0 },
   welcomeScroll: { flex: 1, zIndex: 1 },
   welcomeScrollContent: { flexGrow: 1, alignItems: 'center' },
   welcomeHeader: { width: '100%', height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -9469,12 +9489,12 @@ const styles = StyleSheet.create({
   welcomeSkipButton: { minWidth: 54, minHeight: 32, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: 16, zIndex: 1 },
   welcomeSkipText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
   welcomeHeroStage: { width: '100%', position: 'relative' },
-  welcomeXpCard: { position: 'absolute', right: 0, bottom: 32, minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderRadius: 15 },
+  welcomeXpCard: { position: 'absolute', right: 0, bottom: 20, zIndex: 6, minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderRadius: 15 },
   welcomeMedal: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   welcomeXpCopy: { gap: 2 },
   welcomeXpValue: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   welcomeXpLabel: { fontSize: 8, fontFamily: 'Inter_500Medium' },
-  welcomeContent: { width: '100%', maxWidth: 540, flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: 26, paddingBottom: 8 },
+  welcomeContent: { width: '100%', alignSelf: 'stretch', flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: 26, paddingTop: 26, paddingBottom: 8, borderTopWidth: StyleSheet.hairlineWidth },
   welcomeTitle: { fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', letterSpacing: -0.85 },
   welcomeDetails: { paddingTop: 14, gap: 12 },
   welcomeDescription: { fontSize: 14, lineHeight: 21, fontFamily: 'Inter_400Regular' },

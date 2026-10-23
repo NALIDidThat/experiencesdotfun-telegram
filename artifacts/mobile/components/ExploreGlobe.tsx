@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, PanResponder, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { Svg, Circle, ClipPath, Defs, Ellipse, G, Line, Path, RadialGradient, Stop, SvgText } from '@/components/SvgCompat';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
@@ -40,6 +41,13 @@ export type GlobeExperienceLocation = {
   precision: 'city' | 'neighborhood' | 'venue_area';
 };
 
+export type WelcomeGlobeActivityCity = {
+  city: string;
+  latitude: number;
+  longitude: number;
+  verifiedCompletions: number;
+};
+
 type Props = {
   cities: GlobeCity[];
   friends?: GlobeFriend[];
@@ -54,6 +62,10 @@ type Props = {
   sheetExpanded?: boolean;
   locationPicker?: boolean;
   showFriends?: boolean;
+  welcomeMode?: boolean;
+  welcomeActivityCities?: WelcomeGlobeActivityCity[];
+  welcomeActivityWindowDays?: number;
+  welcomeActivityCityCount?: number;
   onSelectCity: (city: string) => void;
   onSelectFriend?: (friendId: number) => void;
   onSelectExperience?: (experienceId: number) => void;
@@ -110,6 +122,9 @@ const STAR_FIELD: Array<[number, number, number]> = [
   [314, 75, 0.8], [287, 130, 1.1], [309, 198, 0.8], [292, 250, 1.2], [22, 164, 0.7],
   [73, 24, 0.7], [260, 18, 0.8], [80, 274, 0.8], [252, 277, 1], [12, 92, 0.7],
   [328, 155, 0.7], [272, 96, 0.8], [57, 80, 0.9], [307, 282, 0.7], [41, 229, 0.8],
+  [6, 18, 1.2], [337, 44, 1.1], [8, 214, 1], [334, 235, 1.2], [116, 10, 0.8],
+  [225, 8, 1], [5, 286, 0.8], [335, 286, 0.9], [105, 292, 0.7], [233, 291, 0.8],
+  [25, 129, 0.8], [320, 110, 0.9],
 ];
 
 function project(latitude: number, longitude: number, rotation: number, tilt: number, radius: number) {
@@ -152,6 +167,10 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
   sheetExpanded = false,
   locationPicker = false,
   showFriends = false,
+  welcomeMode = false,
+  welcomeActivityCities = [],
+  welcomeActivityWindowDays = 30,
+  welcomeActivityCityCount = 0,
   onSelectCity,
   onSelectFriend,
   onSelectExperience,
@@ -159,6 +178,9 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
   onResetCity,
 }: Props, ref) {
   const colors = useColors();
+  const welcomeColors = colors.welcome;
+  const isEarthGlobe = locationPicker || welcomeMode;
+  const hasWelcomeGlass = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
   const space = {
     background: colors.background,
     foreground: colors.foreground,
@@ -272,10 +294,10 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
     return () => cancelAnimationFrame(frame);
   }, [locationPicker, locationTarget, reduceMotion]);
   React.useEffect(() => {
-    if (!locationPicker || locationTarget || globeInteracting || reduceMotion) return;
-    const timer = setInterval(() => setRotation((current) => current + 0.12), 40);
+    if ((!locationPicker && !welcomeMode) || locationTarget || globeInteracting || (reduceMotion && !welcomeMode)) return;
+    const timer = setInterval(() => setRotation((current) => current + 0.18), 40);
     return () => clearInterval(timer);
-  }, [locationPicker, locationTarget, globeInteracting, reduceMotion]);
+  }, [locationPicker, welcomeMode, locationTarget, globeInteracting, reduceMotion]);
   React.useEffect(() => {
     if (!locationPicker || !locationTarget || reduceMotion) {
       markerPulse.setValue(1);
@@ -297,7 +319,20 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
     });
     return counts;
   }, [friends]);
-  const radius = (locationPicker ? 154 : fullScreen ? FULLSCREEN_RADIUS : BASE_RADIUS) * zoom;
+  const radius = (locationPicker ? 154 : fullScreen || welcomeMode ? FULLSCREEN_RADIUS : BASE_RADIUS) * zoom;
+  const projectedWelcomeActivityCities = useMemo(
+    () => welcomeMode
+      ? welcomeActivityCities
+        .map((activity) => ({
+          activity,
+          point: project(activity.latitude, activity.longitude, rotation, tilt, radius),
+        }))
+        .filter(({ point }) => point.z > 0.02)
+        .sort((left, right) => right.activity.verifiedCompletions - left.activity.verifiedCompletions)
+        .slice(0, 2)
+      : [],
+    [welcomeMode, welcomeActivityCities, rotation, tilt, radius],
+  );
   const projectedCities = useMemo(
     () => cities
       .map((city) => ({ city, point: project(city.latitude, city.longitude, rotation, tilt, radius) }))
@@ -348,17 +383,26 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
     : 0;
   const globeOffsetX = (stageSize.width - WIDTH * globeScale) / 2;
   const globeOffsetY = (stageSize.height - HEIGHT * globeScale) / 2;
+  const welcomeActivityStatusText = status === 'loading'
+    ? 'Loading verified city activity…'
+    : status === 'error'
+      ? 'Verified city activity is temporarily unavailable.'
+      : welcomeActivityCityCount === 0
+        ? `No host-verified completions in the last ${welcomeActivityWindowDays} days yet.`
+        : 'Verified activity is available, but no supported city location is mapped yet.';
 
   return (
     <View
-      testID={locationPicker ? 'create-location-globe' : fullScreen ? 'explore-globe-map' : 'explore-globe-card'}
-      style={locationPicker
+      testID={welcomeMode ? 'welcome-globe' : locationPicker ? 'create-location-globe' : fullScreen ? 'explore-globe-map' : 'explore-globe-card'}
+      style={welcomeMode
+        ? styles.welcomeRoot
+        : locationPicker
         ? styles.locationPickerShell
         : fullScreen
         ? [styles.fullScreenRoot, { backgroundColor: space.background }]
         : [styles.shell, { backgroundColor: space.background, borderColor: space.border }]}
     >
-      {!fullScreen && !locationPicker ? (
+      {!fullScreen && !locationPicker && !welcomeMode ? (
         <>
           <View style={styles.headingRow}>
             <View>
@@ -376,7 +420,13 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
 
       <View
         testID="explore-globe-stage"
-        style={locationPicker ? styles.locationPickerStage : fullScreen ? styles.fullScreenStage : styles.globeStage}
+        style={welcomeMode
+          ? styles.welcomeGlobeStage
+          : locationPicker
+            ? styles.locationPickerStage
+            : fullScreen
+              ? styles.fullScreenStage
+              : styles.globeStage}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
           setStageSize((current) => current.width === width && current.height === height ? current : { width, height });
@@ -422,25 +472,32 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
         <Svg width="100%" height="100%" viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
           <Defs>
             <RadialGradient id="planet" cx="35%" cy="31%" rx="76%" ry="76%">
-              <Stop offset="0" stopColor={locationPicker ? EARTH_PALETTE.oceanLight : colors.muted} />
-              <Stop offset="0.42" stopColor={locationPicker ? EARTH_PALETTE.oceanMid : space.background} />
-              <Stop offset="0.82" stopColor={locationPicker ? EARTH_PALETTE.oceanDeep : space.background} />
-              <Stop offset="1" stopColor={locationPicker ? EARTH_PALETTE.oceanDeep : colors.violet} stopOpacity={locationPicker ? 1 : 0.18} />
+              <Stop offset="0" stopColor={isEarthGlobe ? EARTH_PALETTE.oceanLight : colors.muted} />
+              <Stop offset="0.42" stopColor={isEarthGlobe ? EARTH_PALETTE.oceanMid : space.background} />
+              <Stop offset="0.82" stopColor={isEarthGlobe ? EARTH_PALETTE.oceanDeep : space.background} />
+              <Stop offset="1" stopColor={isEarthGlobe ? EARTH_PALETTE.oceanDeep : colors.violet} stopOpacity={isEarthGlobe ? 1 : 0.18} />
             </RadialGradient>
             <RadialGradient id="land" cx="40%" cy="30%" rx="80%" ry="82%">
-              <Stop offset="0" stopColor={locationPicker ? EARTH_PALETTE.landGreen : colors.accent} stopOpacity={locationPicker ? 0.98 : 0.24} />
-              <Stop offset="0.62" stopColor={locationPicker ? EARTH_PALETTE.landWarm : colors.muted} stopOpacity="0.9" />
-              <Stop offset="1" stopColor={locationPicker ? EARTH_PALETTE.landHigh : space.background} stopOpacity={locationPicker ? 0.9 : 0.96} />
+              <Stop offset="0" stopColor={isEarthGlobe ? EARTH_PALETTE.landGreen : colors.accent} stopOpacity={isEarthGlobe ? 0.98 : 0.24} />
+              <Stop offset="0.62" stopColor={isEarthGlobe ? EARTH_PALETTE.landWarm : colors.muted} stopOpacity="0.9" />
+              <Stop offset="1" stopColor={isEarthGlobe ? EARTH_PALETTE.landHigh : space.background} stopOpacity={isEarthGlobe ? 0.9 : 0.96} />
             </RadialGradient>
             <ClipPath id="globeClip"><Circle cx={CENTER_X} cy={CENTER_Y} r={radius} /></ClipPath>
           </Defs>
           {!locationPicker ? STAR_FIELD.map(([x, y, size], index) => (
-            <Circle key={`star-${index}`} cx={x} cy={y} r={size} fill={index % 4 === 0 ? colors.primary : colors.accent} fillOpacity={index % 3 === 0 ? 0.45 : 0.25} />
+            <Circle
+              key={`star-${index}`}
+              cx={x}
+              cy={y}
+              r={welcomeMode ? size * 1.25 : size}
+              fill={index % 4 === 0 ? colors.primary : colors.accent}
+              fillOpacity={welcomeMode ? index % 3 === 0 ? 0.78 : 0.56 : index % 3 === 0 ? 0.45 : 0.25}
+            />
           )) : null}
-          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 17} fill="none" stroke={locationPicker ? EARTH_PALETTE.atmosphere : colors.violet} strokeOpacity={locationPicker ? 0.12 : 0.13} strokeWidth="0.8" />
-          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 10} fill="none" stroke={locationPicker ? EARTH_PALETTE.atmosphere : colors.primary} strokeOpacity={locationPicker ? 0.23 : 0.22} strokeWidth="1.2" />
-          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 5} fill="none" stroke={locationPicker ? EARTH_PALETTE.atmosphere : colors.teal} strokeOpacity={locationPicker ? 0.14 : 0.18} strokeWidth="0.8" />
-          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius} fill="url(#planet)" stroke={locationPicker ? EARTH_PALETTE.atmosphere : colors.primary} strokeOpacity={locationPicker ? 0.58 : 0.68} strokeWidth="1.2" />
+          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 17} fill="none" stroke={isEarthGlobe ? EARTH_PALETTE.atmosphere : colors.violet} strokeOpacity={isEarthGlobe ? 0.12 : 0.13} strokeWidth="0.8" />
+          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 10} fill="none" stroke={isEarthGlobe ? EARTH_PALETTE.atmosphere : colors.primary} strokeOpacity={isEarthGlobe ? 0.23 : 0.22} strokeWidth="1.2" />
+          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius + 5} fill="none" stroke={isEarthGlobe ? EARTH_PALETTE.atmosphere : colors.teal} strokeOpacity={isEarthGlobe ? 0.14 : 0.18} strokeWidth="0.8" />
+          <Circle cx={CENTER_X} cy={CENTER_Y} r={radius} fill="url(#planet)" stroke={isEarthGlobe ? EARTH_PALETTE.atmosphere : colors.primary} strokeOpacity={isEarthGlobe ? 0.58 : 0.68} strokeWidth="1.2" />
           <G clipPath="url(#globeClip)">
             {!locationPicker ? (
               <>
@@ -457,10 +514,10 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
                   key={`land-${index}`}
                   d={path}
                   fill="url(#land)"
-                  fillOpacity={locationPicker ? 0.96 : 0.86}
-                  stroke={locationPicker ? EARTH_PALETTE.coast : colors.accent}
-                  strokeOpacity={locationPicker ? 0.36 : 0.52}
-                  strokeWidth={locationPicker ? 0.48 : 0.95}
+                  fillOpacity={isEarthGlobe ? 0.96 : 0.86}
+                  stroke={isEarthGlobe ? EARTH_PALETTE.coast : colors.accent}
+                  strokeOpacity={isEarthGlobe ? 0.36 : 0.52}
+                  strokeWidth={isEarthGlobe ? 0.48 : 0.95}
                   strokeLinejoin="round"
                 />
               ) : null;
@@ -474,6 +531,13 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
                 </G>
               ) : null;
             }) : null}
+            {welcomeMode ? projectedWelcomeActivityCities.map(({ activity, point }) => (
+              <G key={`welcome-city-${activity.city}`}>
+                <Circle cx={point.x} cy={point.y} r="13" fill={colors.primary} fillOpacity="0.16" />
+                <Circle cx={point.x} cy={point.y} r="5.2" fill={colors.primary} stroke={welcomeColors.foreground} strokeOpacity="0.9" strokeWidth="1.3" />
+                <Circle cx={point.x} cy={point.y} r="1.6" fill={welcomeColors.foreground} />
+              </G>
+            )) : null}
             {projectedCities.map(({ city, point }) => {
               const active = selectedCity === city.city;
               const cityKey = city.city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
@@ -525,15 +589,92 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
             ) : null}
           </G>
           <Circle cx={CENTER_X} cy={CENTER_Y} r={radius} fill="none" stroke={space.subdued} strokeOpacity="0.32" strokeWidth="0.8" />
-          {!fullScreen && !locationPicker ? (
+          {!fullScreen && !locationPicker && !welcomeMode ? (
             <>
               <Line x1="18" y1="266" x2="58" y2="266" stroke={colors.primary} strokeOpacity="0.6" strokeWidth="1" />
               <SvgText x="65" y="269" fill={space.subdued} fontSize="8" letterSpacing="1.1">APPROX. CITY</SvgText>
             </>
           ) : null}
-          <SvgText testID="explore-globe-rotation" x="322" y="269" fill={space.subdued} fontSize="8" textAnchor="end">{Math.round(rotation % 360)}°</SvgText>
+          {!welcomeMode ? (
+            <SvgText testID="explore-globe-rotation" x="322" y="269" fill={space.subdued} fontSize="8" textAnchor="end">{Math.round(rotation % 360)}°</SvgText>
+          ) : null}
         </Svg>
         <View style={[styles.markerLayer, { pointerEvents: 'box-none' }]}>
+          {welcomeMode && globeScale > 0 ? projectedWelcomeActivityCities.map(({ activity, point }) => {
+            const cardWidth = 142;
+            const cardHeight = 54;
+            const pointX = globeOffsetX + point.x * globeScale;
+            const pointY = globeOffsetY + point.y * globeScale;
+            const preferredLeft = point.x <= CENTER_X ? pointX + 10 : pointX - cardWidth - 10;
+            const left = Math.max(6, Math.min(stageSize.width - cardWidth - 6, preferredLeft));
+            const top = Math.max(6, Math.min(stageSize.height - cardHeight - 6, pointY - cardHeight - 8));
+            return (
+              <View
+                key={`welcome-activity-${activity.city}`}
+                testID={`welcome-activity-${activity.city.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                accessible
+                accessibilityLabel={`${activity.city}: ${activity.verifiedCompletions} host-verified completions in the last ${welcomeActivityWindowDays} days.`}
+                style={[
+                  styles.welcomeActivityPopover,
+                  {
+                    pointerEvents: 'none',
+                    left,
+                    top,
+                    width: cardWidth,
+                    minHeight: cardHeight,
+                    borderColor: `${welcomeColors.foreground}38`,
+                    shadowColor: welcomeColors.background,
+                  },
+                ]}
+              >
+                <View style={[StyleSheet.absoluteFill, styles.welcomeActivityGlassClip]}>
+                  {hasWelcomeGlass ? (
+                    <GlassView
+                      glassEffectStyle="regular"
+                      tintColor={`${colors.primary}24`}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  ) : (
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: `${welcomeColors.surface}E8` }]} />
+                  )}
+                </View>
+                <View style={[styles.welcomeActivityIcon, { backgroundColor: `${colors.primary}28` }]}>
+                  <Feather name="users" size={15} color={colors.primary} />
+                </View>
+                <View style={styles.welcomeActivityCopy}>
+                  <Text numberOfLines={1} style={[styles.welcomeActivityCity, { color: welcomeColors.foreground }]}>
+                    {activity.city}
+                  </Text>
+                  <Text numberOfLines={1} style={[styles.welcomeActivityMetric, { color: welcomeColors.muted }]}>
+                    {activity.verifiedCompletions} verified · {welcomeActivityWindowDays}d
+                  </Text>
+                </View>
+              </View>
+            );
+          }) : null}
+          {welcomeMode && welcomeActivityCities.length === 0 ? (
+            <View
+              accessible
+              accessibilityLabel={welcomeActivityStatusText}
+              style={[
+                styles.welcomeActivityStatus,
+                {
+                  pointerEvents: 'none',
+                  backgroundColor: `${welcomeColors.surface}E8`,
+                  borderColor: `${welcomeColors.foreground}30`,
+                },
+              ]}
+            >
+              <Feather
+                name={status === 'error' ? 'alert-circle' : 'activity'}
+                size={14}
+                color={status === 'error' ? colors.primary : colors.teal}
+              />
+              <Text numberOfLines={2} style={[styles.welcomeActivityStatusText, { color: welcomeColors.muted }]}>
+                {welcomeActivityStatusText}
+              </Text>
+            </View>
+          ) : null}
           {locationPicker && visibleSelectedSearchPoint && globeScale > 0 && !reduceMotion ? (
             <Animated.View
               pointerEvents="none"
@@ -643,7 +784,7 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
           locationPicker && styles.locationPickerAtmosphere,
           { pointerEvents: 'none', backgroundColor: colors.violet },
         ]} />
-        {!locationPicker && !sheetExpanded ? <View style={[
+        {!locationPicker && !welcomeMode && !sheetExpanded ? <View style={[
           styles.zoomControls,
           fullScreen && styles.fullScreenZoomControls,
           !fullScreen && { top: 18 },
@@ -663,7 +804,7 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
           </Pressable>
         </View> : null}
       </View>
-      {locationPicker ? (
+      {welcomeMode ? null : locationPicker ? (
         <View style={styles.locationPickerCaption}>
           <Feather name={selectedCity ? 'map-pin' : 'move'} size={13} color={selectedCity ? colors.primary : space.muted} />
           <Text style={{ color: space.muted, fontSize: 11, fontFamily: 'Inter_500Medium' }}>
@@ -725,6 +866,46 @@ export const ExploreGlobe = React.forwardRef<ExploreGlobeHandle, Props>(function
 });
 
 const styles = StyleSheet.create({
+  welcomeRoot: { flex: 1, height: '100%', width: '100%', position: 'relative', overflow: 'visible', pointerEvents: 'none' },
+  welcomeGlobeStage: { flex: 1, height: '100%', width: '100%', position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  welcomeActivityPopover: {
+    position: 'absolute',
+    zIndex: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderRadius: 17,
+    overflow: 'hidden',
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 7,
+  },
+  welcomeActivityGlassClip: { borderRadius: 17, overflow: 'hidden' },
+  welcomeActivityIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  welcomeActivityCopy: { flex: 1, minWidth: 0, gap: 2 },
+  welcomeActivityCity: { fontSize: 11, lineHeight: 14, fontFamily: 'Inter_700Bold' },
+  welcomeActivityMetric: { fontSize: 9, lineHeight: 12, fontFamily: 'Inter_500Medium' },
+  welcomeActivityStatus: {
+    position: 'absolute',
+    top: 10,
+    left: 12,
+    right: 12,
+    zIndex: 5,
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderRadius: 16,
+  },
+  welcomeActivityStatusText: { flexShrink: 1, fontSize: 10, lineHeight: 14, fontFamily: 'Inter_500Medium' },
   locationPickerShell: { width: '100%', borderWidth: 0, borderRadius: 0, overflow: 'visible', padding: 0, marginTop: -8, marginBottom: 0 },
   locationPickerStage: { width: '100%', height: 326, position: 'relative', alignItems: 'center', justifyContent: 'center' },
   locationPickerAtmosphere: { width: '100%', height: 84, bottom: 32, opacity: 0.08 },
