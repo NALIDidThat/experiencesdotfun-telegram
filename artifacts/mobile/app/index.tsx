@@ -3,6 +3,7 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
+  BackHandler,
   Easing,
   Image,
   ImageBackground,
@@ -145,6 +146,26 @@ import {
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
 type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'contributions' | 'telegram-communities' | 'telegram-community-dashboard' | 'email';
+type ScreenRouteParams = {
+  id?: string;
+  friendId?: string;
+  chatId?: string;
+  category?: string;
+  step?: string;
+  focus?: string;
+  experienceId?: string;
+  experienceTitle?: string;
+};
+type ScreenHistoryEntry = { screen: Screen; params: ScreenRouteParams };
+type TelegramWebAppBackButton = {
+  show: () => void;
+  hide: () => void;
+  onClick: (handler: () => void) => void;
+  offClick: (handler: () => void) => void;
+};
+type TelegramWindow = Window & {
+  Telegram?: { WebApp?: { BackButton?: TelegramWebAppBackButton } };
+};
 type IconName = keyof typeof Feather.glyphMap;
 type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'assistant' | 'challenges' | 'accountability' | 'memory-game' | 'telegram-communities';
 type HostExperienceFilter = 'all' | Experience['status'];
@@ -156,6 +177,75 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
 const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'campaigns', 'contributions', 'telegram-communities', 'telegram-community-dashboard', 'email'];
+
+function routeParamString(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function createScreenHistoryEntry(screen: Screen, params: ScreenRouteParams = {}): ScreenHistoryEntry {
+  const screenUsesExperienceId = screen === 'experience'
+    || screen === 'host-detail'
+    || (screen === 'create' && Boolean(params.id));
+  const routeId = screenUsesExperienceId || screen === 'direct-message' || screen === 'campaigns'
+    ? params.id
+    : undefined;
+  return {
+    screen,
+    params: {
+      id: routeId,
+      friendId: screen === 'friend-profile' ? params.friendId : undefined,
+      chatId: screen === 'telegram-community-dashboard' ? params.chatId : undefined,
+      category: screen === 'explore' ? params.category : undefined,
+      step: screen === 'create' ? params.step : undefined,
+      focus: screen === 'host-detail' ? params.focus : undefined,
+      experienceId: screen === 'funds' ? params.experienceId : undefined,
+      experienceTitle: screen === 'funds' ? params.experienceTitle : undefined,
+    },
+  };
+}
+
+function screenHistoryKey(entry: ScreenHistoryEntry) {
+  return JSON.stringify(entry);
+}
+
+function isPrimaryNavigationScreen(screen: Screen, userType?: string | null, isCharity = false) {
+  if (userType === 'organisation') {
+    return ['home', 'host', 'experiences', 'profile'].includes(screen)
+      || (isCharity ? screen === 'funds' : screen === 'explore');
+  }
+  return ['home', 'explore', 'activity', 'profile'].includes(screen);
+}
+
+function defaultBackEntry(entry: ScreenHistoryEntry): ScreenHistoryEntry {
+  switch (entry.screen) {
+    case 'experience':
+      return createScreenHistoryEntry('explore');
+    case 'host-detail':
+      return createScreenHistoryEntry('host');
+    case 'create':
+      return entry.params.id
+        ? createScreenHistoryEntry('host-detail', { id: entry.params.id })
+        : createScreenHistoryEntry('host');
+    case 'direct-message':
+      return createScreenHistoryEntry('messages');
+    case 'friend-profile':
+      return createScreenHistoryEntry('friends');
+    case 'telegram-community-dashboard':
+      return createScreenHistoryEntry('telegram-communities');
+    case 'campaigns':
+      return createScreenHistoryEntry('funds');
+    case 'funds':
+      return entry.params.experienceId
+        ? createScreenHistoryEntry('host-detail', { id: entry.params.experienceId })
+        : createScreenHistoryEntry('profile');
+    case 'email':
+    case 'messages':
+    case 'memory-game':
+      return createScreenHistoryEntry('home');
+    default:
+      return createScreenHistoryEntry('profile');
+  }
+}
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -2925,7 +3015,15 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   );
 }
 
-function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<string, string>) => void }) {
+function Detail({
+  id,
+  go,
+  onBack,
+}: {
+  id: number;
+  go: (screen: Screen, params?: Record<string, string>) => void;
+  onBack: () => void;
+}) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -3014,13 +3112,13 @@ function Detail({ id, go }: { id: number; go: (screen: Screen, params?: Record<s
   };
 
   if (!Number.isSafeInteger(id) || id <= 0) {
-    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Experience" onBack={() => go('explore')} /><EmptyState title="This experience link is invalid" body="Return to Explore and choose an available experience." actionLabel="Explore experiences" onAction={() => go('explore')} /></View>;
+    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Experience" onBack={onBack} /><EmptyState title="This experience link is invalid" body="Return to Explore and choose an available experience." actionLabel="Explore experiences" onAction={() => go('explore')} /></View>;
   }
   if (query.isLoading && !item) {
-    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Experience" onBack={() => go('explore')} /><LoadingState /></View>;
+    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Experience" onBack={onBack} /><LoadingState /></View>;
   }
   if (!item) {
-    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Experience" onBack={() => go('explore')} /><EmptyState title={query.isError ? 'Experience couldn’t be loaded' : 'Experience unavailable'} body={query.isError ? 'Check your connection and try again.' : 'This experience may have been archived.'} actionLabel={query.isError ? 'Try again' : 'Explore experiences'} onAction={query.isError ? () => { void query.refetch(); } : () => go('explore')} /></View>;
+    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Experience" onBack={onBack} /><EmptyState title={query.isError ? 'Experience couldn’t be loaded' : 'Experience unavailable'} body={query.isError ? 'Check your connection and try again.' : 'This experience may have been archived.'} actionLabel={query.isError ? 'Try again' : 'Explore experiences'} onAction={query.isError ? () => { void query.refetch(); } : () => go('explore')} /></View>;
   }
 
   const participation = item.participation as Participation | null;
@@ -6016,10 +6114,12 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
 function HostExperienceDetail({
   experienceId,
   go,
+  onBack,
   initialFocus,
 }: {
   experienceId: number;
   go: (screen: Screen, params?: Record<string, string>) => void;
+  onBack: () => void;
   initialFocus?: 'review' | 'waitlisted';
 }) {
   const colors = useColors();
@@ -6181,7 +6281,7 @@ function HostExperienceDetail({
       keyboardDismissMode="none"
       keyboardShouldPersistTaps="handled"
     >
-      <Header title="Manage experience" subtitle="Host tools" onBack={() => go('host')} />
+      <Header title="Manage experience" subtitle="Host tools" onBack={onBack} />
       {experiences.isLoading && !experience ? <LoadingState /> : null}
       {experiences.isError && !experience ? (
         <EmptyState
@@ -7293,10 +7393,12 @@ const createExperienceReviewSections: Array<{ title: string; keys: Array<keyof E
 
 function Create({
   go,
+  onBack = () => go('host'),
   initialStep = 1,
   editExperienceId,
 }: {
   go: (screen: Screen, params?: Record<string, string>) => void;
+  onBack?: () => void;
   initialStep?: number;
   editExperienceId?: number;
 }) {
@@ -7321,12 +7423,12 @@ function Create({
     return <CreateExperienceForm go={go} initialStep={initialStep} />;
   }
   if (experience.isLoading || milestones.isLoading) {
-    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Edit experience" onBack={() => go('host')} /><LoadingState /></View>;
+    return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Edit experience" onBack={onBack} /><LoadingState /></View>;
   }
   if (experience.isError || milestones.isError || !experience.data || !milestones.data) {
     return (
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
-        <Header title="Edit experience" onBack={() => go('host-detail', { id: String(id) })} />
+        <Header title="Edit experience" onBack={onBack} />
         <EmptyState
           title="Experience details couldn’t be loaded"
           body="Check your connection and try again. Only the organisation that owns this experience can edit it."
@@ -7339,7 +7441,7 @@ function Create({
   if (!['published', 'full'].includes(experience.data.status)) {
     return (
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
-        <Header title="Edit experience" onBack={() => go('host-detail', { id: String(id) })} />
+      <Header title="Edit experience" onBack={onBack} />
         <EmptyState
           title="This experience can’t be edited"
           body="Only active experiences can be changed."
@@ -8820,6 +8922,20 @@ export default function App() {
     ? params.screen as Screen
     : 'home';
   const [screen, setScreen] = useState<Screen>(initialScreen);
+  const initialRouteEntry = createScreenHistoryEntry(initialScreen, {
+    id: routeParamString(params.id),
+    friendId: routeParamString(params.friendId),
+    chatId: routeParamString(params.chatId),
+    category: routeParamString(params.category),
+    step: routeParamString(params.step),
+    focus: routeParamString(params.focus),
+    experienceId: routeParamString(params.experienceId),
+    experienceTitle: routeParamString(params.experienceTitle),
+  });
+  const screenHistoryRef = useRef<ScreenHistoryEntry[]>([]);
+  const currentRouteRef = useRef<ScreenHistoryEntry>(initialRouteEntry);
+  const goBackHandlerRef = useRef<((fallback?: Screen, fallbackParams?: Record<string, string>) => void) | null>(null);
+  const [navigationDepth, setNavigationDepth] = useState(0);
   const [accountabilityReturnScreen, setAccountabilityReturnScreen] = useState<Screen>('profile');
   const [experienceId, setExperienceId] = useState(params.id);
   const [feedComposerRequest, setFeedComposerRequest] = useState<number | null>(null);
@@ -8836,13 +8952,40 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
-    const routeScreen = params.screen;
-    if (routeScreen && screenNames.includes(routeScreen as Screen)) {
-      setScreen(routeScreen as Screen);
+    const routeScreen = routeParamString(params.screen);
+    if (!routeScreen || !screenNames.includes(routeScreen as Screen)) return;
+
+    const routeEntry = createScreenHistoryEntry(routeScreen as Screen, {
+      id: routeParamString(params.id),
+      friendId: routeParamString(params.friendId),
+      chatId: routeParamString(params.chatId),
+      category: routeParamString(params.category),
+      step: routeParamString(params.step),
+      focus: routeParamString(params.focus),
+      experienceId: routeParamString(params.experienceId),
+      experienceTitle: routeParamString(params.experienceTitle),
+    });
+    if (screenHistoryKey(routeEntry) !== screenHistoryKey(currentRouteRef.current)) {
+      screenHistoryRef.current = [];
+      setNavigationDepth(0);
+      currentRouteRef.current = routeEntry;
+      setScreen(routeEntry.screen);
     }
-    if (routeScreen === 'experience' || routeScreen === 'host-detail' || (routeScreen === 'create' && params.id)) setExperienceId(params.id);
-    else if (routeScreen) setExperienceId(undefined);
-  }, [params.screen, params.id]);
+    const screenUsesExperienceId = routeEntry.screen === 'experience'
+      || routeEntry.screen === 'host-detail'
+      || (routeEntry.screen === 'create' && Boolean(routeEntry.params.id));
+    setExperienceId(screenUsesExperienceId ? routeEntry.params.id : undefined);
+  }, [
+    params.screen,
+    params.id,
+    params.friendId,
+    params.chatId,
+    params.category,
+    params.step,
+    params.focus,
+    params.experienceId,
+    params.experienceTitle,
+  ]);
 
   useEffect(() => {
     if (!user) return;
@@ -8861,27 +9004,104 @@ export default function App() {
     });
   }, [screen, user?.id]);
 
-  const go = (next: Screen, nextParams?: Record<string, string>) => {
+  const applyScreenRoute = (entry: ScreenHistoryEntry) => {
     Keyboard.dismiss();
+    currentRouteRef.current = entry;
+    setScreen(entry.screen);
+    const screenUsesExperienceId = entry.screen === 'experience'
+      || entry.screen === 'host-detail'
+      || (entry.screen === 'create' && Boolean(entry.params.id));
+    setExperienceId(screenUsesExperienceId ? entry.params.id : undefined);
+    const routeId = screenUsesExperienceId || entry.screen === 'direct-message' || entry.screen === 'campaigns'
+      ? entry.params.id
+      : undefined;
+    router.setParams({
+      screen: entry.screen,
+      id: routeId,
+      friendId: entry.params.friendId,
+      category: entry.params.category,
+      step: entry.params.step,
+      focus: entry.params.focus,
+      experienceId: entry.params.experienceId,
+      experienceTitle: entry.params.experienceTitle,
+      chatId: entry.params.chatId,
+    });
+  };
+  const go = (next: Screen, nextParams?: Record<string, string>) => {
     if (next === 'accountability') {
       setAccountabilityReturnScreen(screen === 'accountability' ? 'profile' : screen);
     }
-    setScreen(next);
-    const screenUsesExperienceId = next === 'experience' || next === 'host-detail' || (next === 'create' && Boolean(nextParams?.id));
-    setExperienceId(screenUsesExperienceId ? nextParams?.id : undefined);
-    const routeId = screenUsesExperienceId || next === 'direct-message' || next === 'campaigns' ? nextParams?.id : undefined;
-    router.setParams({
-      screen: next,
-      id: routeId,
-      friendId: next === 'friend-profile' ? nextParams?.friendId : undefined,
-      category: next === 'explore' ? nextParams?.category : undefined,
-      step: next === 'create' ? nextParams?.step : undefined,
-      focus: next === 'host-detail' ? nextParams?.focus : undefined,
-      experienceId: next === 'funds' ? nextParams?.experienceId : undefined,
-      experienceTitle: next === 'funds' ? nextParams?.experienceTitle : undefined,
-      chatId: next === 'telegram-community-dashboard' ? nextParams?.chatId : undefined,
-    });
+    const nextEntry = createScreenHistoryEntry(next, nextParams);
+    const sameRoute = screenHistoryKey(currentRouteRef.current) === screenHistoryKey(nextEntry);
+    const isFundsDetail = next === 'funds' && Boolean(nextParams?.experienceId);
+    const isPrimaryDestination = isPrimaryNavigationScreen(
+      next,
+      user?.userType,
+      user?.userType === 'organisation' && user.organisation?.type === 'charity',
+    ) && !isFundsDetail;
+
+    if (isPrimaryDestination) {
+      screenHistoryRef.current = [];
+    } else if (!sameRoute) {
+      const existingRouteIndex = screenHistoryRef.current.findIndex(
+        (entry) => screenHistoryKey(entry) === screenHistoryKey(nextEntry),
+      );
+      if (existingRouteIndex >= 0) {
+        screenHistoryRef.current = screenHistoryRef.current.slice(0, existingRouteIndex);
+      } else {
+        screenHistoryRef.current.push(currentRouteRef.current);
+      }
+    }
+    setNavigationDepth(screenHistoryRef.current.length);
+    applyScreenRoute(nextEntry);
   };
+  const goBack = (fallback?: Screen, fallbackParams?: Record<string, string>) => {
+    const previous = screenHistoryRef.current.pop();
+    setNavigationDepth(screenHistoryRef.current.length);
+    applyScreenRoute(previous ?? (fallback
+      ? createScreenHistoryEntry(fallback, fallbackParams)
+      : defaultBackEntry(currentRouteRef.current)));
+  };
+  goBackHandlerRef.current = goBack;
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      const currentRoute = currentRouteRef.current;
+      const canGoBack = screenHistoryRef.current.length > 0
+        || !isPrimaryNavigationScreen(
+          currentRoute.screen,
+          user?.userType,
+          user?.userType === 'organisation' && user.organisation?.type === 'charity',
+        );
+      if (!canGoBack) return false;
+      goBackHandlerRef.current?.();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [user?.userType, user?.organisation?.type]);
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const backButton = (window as TelegramWindow).Telegram?.WebApp?.BackButton;
+    if (!backButton) return;
+    const currentRoute = currentRouteRef.current;
+    const canGoBack = navigationDepth > 0
+      || !isPrimaryNavigationScreen(
+        currentRoute.screen,
+        user?.userType,
+        user?.userType === 'organisation' && user.organisation?.type === 'charity',
+      );
+    if (!canGoBack) {
+      backButton.hide();
+      return;
+    }
+    const handleBack = () => goBackHandlerRef.current?.();
+    backButton.onClick(handleBack);
+    backButton.show();
+    return () => {
+      backButton.offClick(handleBack);
+      backButton.hide();
+    };
+  }, [screen, navigationDepth, user?.userType, user?.organisation?.type]);
   const requestFeedComposer = () => {
     feedComposerRequestSequence.current += 1;
     setFeedComposerRequest(feedComposerRequestSequence.current);
@@ -8927,8 +9147,7 @@ export default function App() {
     if (!authenticated) return;
     setAccountAuthType(null);
     setShowSignupCongratulations(false);
-    setScreen('home');
-    router.setParams({ screen: 'home' });
+    go('home');
   };
 
   const organisationProfileIncomplete = user?.userType === 'organisation'
@@ -8990,18 +9209,17 @@ export default function App() {
           onBack={() => {
             clearAuthError();
             if (accountAuthType) {
-              go('accounts');
+              setAccountAuthType(null);
+              goBack('accounts');
               return;
             }
-            setScreen('home');
+            goBack('home');
             setEntryStage('login');
-            router.setParams({ screen: 'home' });
           }}
           onSuccess={(justSignedUp) => {
             setAccountAuthType(null);
-            setScreen('home');
+            go('home');
             setShowSignupCongratulations(justSignedUp);
-            router.setParams({ screen: 'home' });
           }}
         />
       </AppShell>
@@ -9196,12 +9414,12 @@ export default function App() {
   }
 
   const content = (() => {
-    if (screen === 'experience') return <Detail key={`experience-detail-${experienceId ?? 'missing'}`} id={Number(experienceId)} go={go} />;
-    if (screen === 'host-detail') return <HostExperienceDetail experienceId={Number(experienceId)} go={go} initialFocus={params.focus === 'review' || params.focus === 'waitlisted' ? params.focus : undefined} />;
+    if (screen === 'experience') return <Detail key={`experience-detail-${experienceId ?? 'missing'}`} id={Number(experienceId)} go={go} onBack={() => goBack('explore')} />;
+    if (screen === 'host-detail') return <HostExperienceDetail experienceId={Number(experienceId)} go={go} onBack={() => goBack('host')} initialFocus={params.focus === 'review' || params.focus === 'waitlisted' ? params.focus : undefined} />;
     if (screen === 'messages') {
       return (
         <DirectMessagesScreen
-          onBack={() => go('home')}
+          onBack={() => goBack('home')}
           onOpenConversation={(conversationId) => go('direct-message', { id: String(conversationId) })}
         />
       );
@@ -9210,7 +9428,7 @@ export default function App() {
       return (
         <DirectMessagesScreen
           conversationId={Number(params.id)}
-          onBack={() => go('messages')}
+          onBack={() => goBack('messages')}
           onOpenConversation={(conversationId) => go('direct-message', { id: String(conversationId) })}
         />
       );
@@ -9218,7 +9436,7 @@ export default function App() {
     if (screen === 'accounts') {
       return (
         <AccountsCenterScreen
-          onBack={() => go('profile')}
+          onBack={() => goBack('profile')}
           onAddAccount={() => {
             const accountType = user.userType ?? 'participant';
             clearAuthError();
@@ -9234,12 +9452,12 @@ export default function App() {
         />
       );
     }
-    if (screen === 'friend-profile') return <FriendProfileScreen friendId={Number(params.friendId)} onBack={() => go('friends')} />;
+    if (screen === 'friend-profile') return <FriendProfileScreen friendId={Number(params.friendId)} onBack={() => goBack('friends')} />;
     if (screen === 'friends') return <FriendsOverviewScreen go={go} />;
     if (screen === 'memory-game') {
       return (
         <MemoryGameScreen
-          onBack={() => go('home')}
+          onBack={() => goBack('home')}
           onFindPeople={() => go('friends')}
         />
       );
@@ -9247,7 +9465,7 @@ export default function App() {
     if (screen === 'accountability') {
       return user.userType === 'participant' ? (
         <AccountabilityPartnerScreen
-          onBack={() => go(accountabilityReturnScreen)}
+          onBack={() => goBack(accountabilityReturnScreen)}
           onOpenMessages={() => go('messages')}
         />
       ) : (
@@ -9262,7 +9480,7 @@ export default function App() {
     if (screen === 'notifications') {
       return (
         <NotificationsScreen
-          onBack={() => go('profile')}
+          onBack={() => goBack('profile')}
           onOpenFriends={() => go('friends')}
         />
       );
@@ -9297,7 +9515,7 @@ export default function App() {
       return user.userType === 'organisation'
         ? (
           <TelegramCommunityManagementScreen
-            onBack={() => go('profile')}
+            onBack={() => goBack('profile')}
             onOpenCommunity={(chatId) => go('telegram-community-dashboard', { chatId })}
             onOpenBot={(startPayload) => openTelegramBot(undefined, startPayload ?? 'community')}
           />
@@ -9316,7 +9534,7 @@ export default function App() {
         ? (
           <TelegramCommunityDashboardScreen
             chatId={params.chatId}
-            onBack={() => go('telegram-communities')}
+            onBack={() => goBack('telegram-communities')}
             onOpenBot={(startPayload) => openTelegramBot(undefined, startPayload ?? 'community')}
           />
         )
@@ -9330,20 +9548,20 @@ export default function App() {
         );
     }
     if (screen === 'host') return <Host go={go} />;
-    if (screen === 'create') return <Create go={go} initialStep={Number(params.step) || 1} editExperienceId={experienceId ? Number(experienceId) : undefined} />;
+    if (screen === 'create') return <Create go={go} onBack={() => goBack(experienceId ? 'host-detail' : 'host', experienceId ? { id: String(experienceId) } : undefined)} initialStep={Number(params.step) || 1} editExperienceId={experienceId ? Number(experienceId) : undefined} />;
     if (screen === 'funds') return user.userType === 'organisation' && user.organisation?.type === 'charity'
       ? <OrganisationFundsScreen
           organisationUserId={user.id}
           initialExperienceId={Number(params.experienceId) > 0 ? Number(params.experienceId) : undefined}
           initialExperienceTitle={params.experienceTitle}
-          onBack={() => params.experienceId ? go('host-detail', { id: params.experienceId }) : go('profile')}
+          onBack={() => goBack(params.experienceId ? 'host-detail' : 'profile', params.experienceId ? { id: params.experienceId } : undefined)}
           onOpenCampaign={(fundId) => go('campaigns', fundId ? { id: String(fundId) } : undefined)}
         />
       : <EmptyState title="Charity account required" body="Only charity organisation profiles can launch funds." actionLabel="Back to profile" onAction={() => go('profile')} />;
     if (screen === 'campaigns') return user.userType === 'organisation' && user.organisation?.type === 'charity'
-      ? <OrganisationFundsScreen organisationUserId={user.id} initialView="campaigns" initialFundId={Number(params.id) > 0 ? Number(params.id) : undefined} onBack={() => go('funds')} />
+      ? <OrganisationFundsScreen organisationUserId={user.id} initialView="campaigns" initialFundId={Number(params.id) > 0 ? Number(params.id) : undefined} onBack={() => goBack('funds')} />
       : <EmptyState title="Charity account required" body="Only charity organisation profiles can track fundraising campaigns." actionLabel="Back to profile" onAction={() => go('profile')} />;
-    if (screen === 'contributions') return <ContributionHistoryScreen onBack={() => go('profile')} />;
+    if (screen === 'contributions') return <ContributionHistoryScreen onBack={() => goBack('profile')} />;
     return user.userType === 'organisation'
       ? <OrganisationHomeScreen user={user} go={go} />
       : (
