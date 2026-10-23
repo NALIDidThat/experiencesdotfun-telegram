@@ -136,12 +136,13 @@ import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSlide
 import { ExperienceLocationPicker, type ResolvedLocation } from '@/components/ExperienceLocationPicker';
 import { TimeWheelPicker } from '@/components/TimeWheelPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
-import { openTelegramBot } from '@/lib/telegram';
+import { openTelegramBot, shareToTelegram } from '@/lib/telegram';
+import { TelegramCommunityManagementScreen } from '@/components/TelegramCommunityManagementScreen';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'contributions' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'contributions' | 'telegram-communities' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
-type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'assistant' | 'challenges' | 'accountability' | 'memory-game';
+type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'assistant' | 'challenges' | 'accountability' | 'memory-game' | 'telegram-communities';
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
 const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
@@ -150,7 +151,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'campaigns', 'contributions', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'campaigns', 'contributions', 'telegram-communities', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -6363,6 +6364,30 @@ function HostExperienceDetail({
           {['published', 'full'].includes(experience.status) ? (
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel={`Share ${experience.title} to Telegram`}
+              testID="host-share-telegram"
+              onPress={() => shareToTelegram(
+                `Join this experience: ${experience.title}\n${dateLabel(experience.date)} · ${experience.city}`,
+                `https://experiences.fun/?screen=experience&id=${experience.id}`,
+              )}
+              style={({ pressed }) => [
+                styles.hostShareTelegram,
+                {
+                  backgroundColor: colors.primary + '10',
+                  borderColor: colors.primary + '35',
+                  borderRadius: colors.radius - 5,
+                  opacity: pressed ? 0.72 : 1,
+                },
+              ]}
+            >
+              <Feather name="send" size={16} color={colors.primary} />
+              <Text style={[styles.hostShareTelegramText, { color: colors.primary }]}>Share in Telegram</Text>
+              <Feather name="arrow-up-right" size={15} color={colors.primary} />
+            </Pressable>
+          ) : null}
+          {['published', 'full'].includes(experience.status) ? (
+            <Pressable
+              accessibilityRole="button"
               testID="host-cancel-experience"
               accessibilityLabel="Cancel experience"
               onPress={() => setConfirmingCancellation(true)}
@@ -8287,6 +8312,11 @@ function BottomNav({
           label: 'Create an experience',
           description: 'Set up a new community experience.',
           icon: 'calendar' as const,
+        }, {
+          id: 'telegram-communities' as const,
+          label: 'Manage Telegram groups',
+          description: 'Check group protection and Community XP budgets.',
+          icon: 'message-circle' as const,
         }]
       : []),
     ...(userType === 'organisation' && canLaunchFunds
@@ -8470,7 +8500,7 @@ function BottomNav({
         accessibilityLabel="Quick actions"
         accessibilityHint={userType === 'participant'
           ? 'Open Assistant, Memory Game, Challenges, accountability, feed posting, and progress actions.'
-          : canLaunchFunds ? 'Post to the feed, create an experience, launch a charity fund, or view progress.' : 'Post to the feed, create an experience, or view progress.'}
+          : canLaunchFunds ? 'Post to the feed, create an experience, manage Telegram groups, launch a charity fund, or view progress.' : 'Post to the feed, create an experience, manage Telegram groups, or view progress.'}
         accessibilityState={{ expanded: quickActionsOpen }}
         testID="bottom-nav-quick-button"
         onPress={openQuickActions}
@@ -8831,7 +8861,7 @@ export default function App() {
     const platform = Platform.OS === "ios" || Platform.OS === "android"
       ? Platform.OS
       : "web";
-    const analyticsScreen = screen === 'accounts' || screen === 'contributions' || screen === 'accountability' || screen === 'campaigns'
+    const analyticsScreen = screen === 'accounts' || screen === 'contributions' || screen === 'accountability' || screen === 'campaigns' || screen === 'telegram-communities'
       ? 'profile'
       : screen === 'host-detail'
         ? 'host'
@@ -8868,6 +8898,10 @@ export default function App() {
     setFeedComposerRequest(feedComposerRequestSequence.current);
   };
   const handleBottomNavQuickAction = (action: BottomNavQuickAction) => {
+    if (action === 'telegram-communities') {
+      if (user?.userType === 'organisation') go('telegram-communities');
+      return;
+    }
     if (action === 'post') {
       if (screen !== 'home') go('home');
       requestFeedComposer();
@@ -9252,6 +9286,23 @@ export default function App() {
     }
     if (screen === 'experiences') return user.userType === 'organisation' ? <Host go={go} /> : <Experiences go={go} />;
     if (screen === 'profile') return <Profile user={user} go={go} />;
+    if (screen === 'telegram-communities') {
+      return user.userType === 'organisation'
+        ? (
+          <TelegramCommunityManagementScreen
+            onBack={() => go('profile')}
+            onOpenBot={(startPayload) => openTelegramBot(undefined, startPayload ?? 'community')}
+          />
+        )
+        : (
+          <EmptyState
+            title="Organisation account required"
+            body="Telegram group management is available from an organisation profile."
+            actionLabel="Back to profile"
+            onAction={() => go('profile')}
+          />
+        );
+    }
     if (screen === 'host') return <Host go={go} />;
     if (screen === 'create') return <Create go={go} initialStep={Number(params.step) || 1} editExperienceId={experienceId ? Number(experienceId) : undefined} />;
     if (screen === 'funds') return user.userType === 'organisation' && user.organisation?.type === 'charity'
@@ -9288,7 +9339,7 @@ export default function App() {
     ? 'host'
     : screen === 'experiences'
       ? 'home'
-    : screen === 'contributions' || screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts' || screen === 'accountability'
+    : screen === 'contributions' || screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts' || screen === 'accountability' || screen === 'telegram-communities'
       ? 'profile'
       : screen === 'messages' || screen === 'direct-message'
         ? 'home'
@@ -10153,6 +10204,8 @@ const styles = StyleSheet.create({
   hostDetailMoneyReward: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
   hostDetailActions: { flexDirection: 'row', alignItems: 'stretch', gap: 8, marginBottom: 12 },
   hostDetailEditAction: { flex: 1, minWidth: 0 },
+  hostShareTelegram: { minHeight: 44, alignItems: 'center', flexDirection: 'row', gap: 8, justifyContent: 'center', borderWidth: 1, paddingHorizontal: 12, marginBottom: 12 },
+  hostShareTelegramText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   hostDetailCancelAction: { width: 104 },
   hostDetailCancelLink: { minHeight: 38, alignSelf: 'center', alignItems: 'center', flexDirection: 'row', gap: 6, justifyContent: 'center', marginBottom: 9, paddingHorizontal: 12 },
   hostDetailCancelLinkText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },

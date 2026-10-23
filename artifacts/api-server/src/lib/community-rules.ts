@@ -2,7 +2,8 @@ export const COMMUNITY_XP_CONFIG = {
   xpPerMessage: 1,
   minimumWords: 7,
   maxQualifyingMessagesPerMinute: 20,
-  maxDailyXp: 100,
+  maxXpPerMember: 250,
+  maxDailyXpPerCommunity: 1_000,
   duplicateWindowSeconds: 60,
   leaderboardSize: 10,
   recentContributionLimit: 10,
@@ -30,7 +31,8 @@ export type CommunityMessageReason =
   | "too_short"
   | "duplicate_content"
   | "rate_limited"
-  | "daily_cap";
+  | "member_lifetime_cap"
+  | "community_daily_cap";
 
 export function normalizePublicTelegramGroupUsername(value: string): string | null {
   let candidate = value.trim();
@@ -120,7 +122,8 @@ export function getMessageQualification(input: {
 export function decideMessageAward(input: {
   isDuplicate: boolean;
   qualifyingMessagesInLastMinute: number;
-  xpToday: number;
+  memberXp: number;
+  communityXpToday: number;
 }): { xpAwarded: number; reason: CommunityMessageReason } {
   if (input.isDuplicate) return { xpAwarded: 0, reason: "duplicate_content" };
   if (
@@ -129,8 +132,14 @@ export function decideMessageAward(input: {
   ) {
     return { xpAwarded: 0, reason: "rate_limited" };
   }
-  if (input.xpToday + COMMUNITY_XP_CONFIG.xpPerMessage > COMMUNITY_XP_CONFIG.maxDailyXp) {
-    return { xpAwarded: 0, reason: "daily_cap" };
+  if (input.memberXp + COMMUNITY_XP_CONFIG.xpPerMessage > COMMUNITY_XP_CONFIG.maxXpPerMember) {
+    return { xpAwarded: 0, reason: "member_lifetime_cap" };
+  }
+  if (
+    input.communityXpToday + COMMUNITY_XP_CONFIG.xpPerMessage >
+    COMMUNITY_XP_CONFIG.maxDailyXpPerCommunity
+  ) {
+    return { xpAwarded: 0, reason: "community_daily_cap" };
   }
   return { xpAwarded: COMMUNITY_XP_CONFIG.xpPerMessage, reason: "qualified" };
 }
@@ -151,12 +160,20 @@ export function parseAdminRewardAmount(text: string): number | null {
 
 export type AdminRewardDecision =
   | { allowed: true }
-  | { allowed: false; reason: "invalid_amount" | "per_admin_daily_limit" | "community_daily_cap" };
+  | {
+      allowed: false;
+      reason:
+        | "invalid_amount"
+        | "per_admin_daily_limit"
+        | "member_lifetime_cap"
+        | "community_daily_cap";
+    };
 
 export function decideAdminReward(input: {
   amount: number;
   adminXpToday: number;
-  recipientXpToday: number;
+  recipientLifetimeXp: number;
+  communityXpToday: number;
 }): AdminRewardDecision {
   if (
     !Number.isSafeInteger(input.amount) ||
@@ -171,7 +188,16 @@ export function decideAdminReward(input: {
   ) {
     return { allowed: false, reason: "per_admin_daily_limit" };
   }
-  if (input.recipientXpToday + input.amount > COMMUNITY_XP_CONFIG.maxDailyXp) {
+  if (
+    input.recipientLifetimeXp + input.amount >
+    COMMUNITY_XP_CONFIG.maxXpPerMember
+  ) {
+    return { allowed: false, reason: "member_lifetime_cap" };
+  }
+  if (
+    input.communityXpToday + input.amount >
+    COMMUNITY_XP_CONFIG.maxDailyXpPerCommunity
+  ) {
     return { allowed: false, reason: "community_daily_cap" };
   }
   return { allowed: true };

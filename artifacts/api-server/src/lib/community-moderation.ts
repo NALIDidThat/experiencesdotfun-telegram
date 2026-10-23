@@ -1,12 +1,16 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
+  communityContributionsTable,
   organisationsTable,
   telegramCommunitiesTable,
   telegramCommunityKeywordRulesTable,
   usersTable,
 } from "@workspace/db/schema";
-import { normalizeCommunityModerationPhrase } from "./community-rules";
+import {
+  COMMUNITY_XP_CONFIG,
+  normalizeCommunityModerationPhrase,
+} from "./community-rules";
 
 export type OwnedTelegramOrganisation = {
   id: number;
@@ -83,6 +87,42 @@ export async function listTelegramOwnedCommunities(
     .orderBy(asc(telegramCommunitiesTable.chatTitle), asc(telegramCommunitiesTable.id))
     .limit(Math.max(1, Math.min(101, Math.floor(limit))))
     .offset(Math.max(0, Math.floor(offset)));
+}
+
+export async function listTelegramOwnedCommunitiesForManagement(
+  telegramUserId: number,
+  now = new Date(),
+) {
+  const communities = await listTelegramOwnedCommunities(telegramUserId, 100, 0);
+  if (!communities.length) return [];
+
+  const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const totals = await db
+    .select({
+      chatId: communityContributionsTable.chatId,
+      xpAwarded: sql<number>`coalesce(sum(${communityContributionsTable.xpAwarded}), 0)`,
+    })
+    .from(communityContributionsTable)
+    .where(
+      and(
+        inArray(communityContributionsTable.chatId, communities.map(({ chatId }) => chatId)),
+        gte(communityContributionsTable.createdAt, dayStart),
+      ),
+    )
+    .groupBy(communityContributionsTable.chatId);
+  const dailyTotals = new Map(totals.map(({ chatId, xpAwarded }) => [chatId, Number(xpAwarded)]));
+
+  return communities.map((community) => {
+    const xpAwardedToday = dailyTotals.get(community.chatId) ?? 0;
+    return {
+      ...community,
+      xpAwardedToday,
+      dailyXpLimit: COMMUNITY_XP_CONFIG.maxDailyXpPerCommunity,
+      dailyXpRemaining: Math.max(0, COMMUNITY_XP_CONFIG.maxDailyXpPerCommunity - xpAwardedToday),
+      memberXpLimit: COMMUNITY_XP_CONFIG.maxXpPerMember,
+      resetTimezone: "UTC",
+    };
+  });
 }
 
 export async function getTelegramCommunityManagementContext(

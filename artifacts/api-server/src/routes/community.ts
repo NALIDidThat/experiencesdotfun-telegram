@@ -9,6 +9,7 @@ import {
   getMyCommunities,
 } from "../lib/contribution";
 import { verifyTelegramCommunityMembership } from "../lib/telegram";
+import { listTelegramOwnedCommunitiesForManagement } from "../lib/community-moderation";
 
 const router: IRouter = Router();
 router.use(requireTelegramUser);
@@ -16,6 +17,22 @@ router.use(requireTelegramUser);
 router.get("/community/me", async (req, res) => {
   const user = currentUser(req);
   res.json({ communities: await getMyCommunities(user.id) });
+});
+
+router.get("/community/manage", async (req, res) => {
+  const user = currentUser(req);
+  if (user.userType !== "organisation") {
+    res.status(403).json({ message: "Organisation accounts can manage linked Telegram groups." });
+    return;
+  }
+  const telegramUserId = Number(user.telegramId);
+  if (!Number.isSafeInteger(telegramUserId) || telegramUserId <= 0) {
+    res.status(400).json({ message: "This organisation profile needs a linked Telegram identity." });
+    return;
+  }
+  res.json({
+    communities: await listTelegramOwnedCommunitiesForManagement(telegramUserId),
+  });
 });
 
 router.post("/community/me", async (req, res) => {

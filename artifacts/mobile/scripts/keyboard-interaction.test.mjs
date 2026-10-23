@@ -1024,4 +1024,18 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
     (value) => value === "create",
     "the organisation experience-creation action",
   );
+  await tapTestId(client, "bottom-nav-quick-button");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="bottom-nav-action-telegram-communities"]'))`,
+    Boolean,
+    "the organisation Telegram group management action",
+  );
+  await tapTestId(client, "bottom-nav-action-telegram-communities");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="nav-test-quick-action"]')?.textContent?.trim() ?? ''`,
+    (value) => value === "telegram-communities",
+    "the organisation Telegram group management action",
+  );
 });

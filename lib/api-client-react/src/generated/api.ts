@@ -144,6 +144,7 @@ import type {
   SocialInviteCreateInput,
   SyncCharityContributionLedger200,
   TelegramAuthInput,
+  TelegramCommunityManagementResponse,
   TopFriendsInput,
   UnauthorizedResponse,
   UpdateFeedPreferencesInput,
@@ -1174,7 +1175,7 @@ export const getUpdateOrganisationFundUrl = (fundId: number,) => {
 }
 
 /**
- * @summary Edit or close an owned campaign without removing its ledger
+ * @summary Edit campaign details or goal, or close an owned campaign without removing its ledger
  */
 export const updateOrganisationFund = async (fundId: number,
     organisationFundUpdateInput: OrganisationFundUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationFund> => {
@@ -1241,7 +1242,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateOrganisationFundMutationVariables = {fundId: number;data: BodyType<OrganisationFundUpdateInput>}
 
     /**
- * @summary Edit or close an owned campaign without removing its ledger
+ * @summary Edit campaign details or goal, or close an owned campaign without removing its ledger
  */
 export const useUpdateOrganisationFund = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganisationFund>>, TError,UpdateOrganisationFundMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -5175,6 +5176,83 @@ export const useAddMyCommunity = <TError = ErrorType<BadRequestResponse | Unauth
       > => {
       return useMutation(getAddMyCommunityMutationOptions(options));
     }
+
+export const getGetTelegramCommunityManagementUrl = () => {
+
+
+
+
+  return `/api/community/manage`
+}
+
+/**
+ * @summary List linked Telegram groups owned by the current organisation profile
+ */
+export const getTelegramCommunityManagement = async ( options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityManagementResponse> => {
+
+  return customFetch<TelegramCommunityManagementResponse>(getGetTelegramCommunityManagementUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTelegramCommunityManagementQueryKey = () => {
+    return [
+    `/api/community/manage`
+    ] as const;
+    }
+
+
+export const getGetTelegramCommunityManagementQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramCommunityManagement>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityManagement>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTelegramCommunityManagementQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramCommunityManagement>>> = ({ signal }) => getTelegramCommunityManagement({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityManagement>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTelegramCommunityManagementQueryResult = NonNullable<Awaited<ReturnType<typeof getTelegramCommunityManagement>>>
+export type GetTelegramCommunityManagementQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List linked Telegram groups owned by the current organisation profile
+ */
+
+export function useGetTelegramCommunityManagement<TData = Awaited<ReturnType<typeof getTelegramCommunityManagement>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityManagement>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTelegramCommunityManagementQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetCommunityDetailsUrl = (chatId: string,) => {
 

@@ -1416,6 +1416,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /community/manage:
+    get:
+      operationId: getTelegramCommunityManagement
+      tags: [community]
+      summary: List linked Telegram groups owned by the current organisation profile
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Linked groups, moderation status, and current UTC-day XP budget
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityManagementResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /community/{chatId}:
     get:
       operationId: getCommunityDetails
@@ -3988,6 +4005,36 @@ components:
           items:
             $ref: "#/components/schemas/CommunitySummary"
       required: [communities]
+    TelegramCommunityManagementResponse:
+      type: object
+      properties:
+        communities:
+          type: array
+          items:
+            $ref: "#/components/schemas/TelegramManagedCommunity"
+      required: [communities]
+    TelegramManagedCommunity:
+      type: object
+      properties:
+        chatId: { type: string }
+        chatTitle: { type: string }
+        organisationName: { type: string }
+        spamProtectionEnabled: { type: boolean }
+        xpAwardedToday: { type: integer }
+        dailyXpLimit: { type: integer }
+        dailyXpRemaining: { type: integer }
+        memberXpLimit: { type: integer }
+        resetTimezone: { type: string, enum: [UTC] }
+      required:
+        - chatId
+        - chatTitle
+        - organisationName
+        - spamProtectionEnabled
+        - xpAwardedToday
+        - dailyXpLimit
+        - dailyXpRemaining
+        - memberXpLimit
+        - resetTimezone
     AddCommunityInput:
       type: object
       properties:

@@ -31,22 +31,51 @@ test("commands, bots, private chats, and short messages are not eligible", () =>
   assert.equal(getMessageQualification({ text, isGroup: true, isBot: false }).qualifies, true);
 });
 
-test("message award decisions enforce duplicate, minute, and UTC-day limits", () => {
+test("message award decisions enforce duplicate, minute, lifetime member, and community daily limits", () => {
   assert.deepEqual(
-    decideMessageAward({ isDuplicate: true, qualifyingMessagesInLastMinute: 0, xpToday: 0 }),
+    decideMessageAward({
+      isDuplicate: true,
+      qualifyingMessagesInLastMinute: 0,
+      memberXp: 0,
+      communityXpToday: 0,
+    }),
     { xpAwarded: 0, reason: "duplicate_content" },
   );
   assert.deepEqual(
-    decideMessageAward({ isDuplicate: false, qualifyingMessagesInLastMinute: 20, xpToday: 0 }),
+    decideMessageAward({
+      isDuplicate: false,
+      qualifyingMessagesInLastMinute: 20,
+      memberXp: 0,
+      communityXpToday: 0,
+    }),
     { xpAwarded: 0, reason: "rate_limited" },
   );
   assert.deepEqual(
-    decideMessageAward({ isDuplicate: false, qualifyingMessagesInLastMinute: 19, xpToday: 99 }),
+    decideMessageAward({
+      isDuplicate: false,
+      qualifyingMessagesInLastMinute: 19,
+      memberXp: 249,
+      communityXpToday: 999,
+    }),
     { xpAwarded: 1, reason: "qualified" },
   );
   assert.deepEqual(
-    decideMessageAward({ isDuplicate: false, qualifyingMessagesInLastMinute: 0, xpToday: 100 }),
-    { xpAwarded: 0, reason: "daily_cap" },
+    decideMessageAward({
+      isDuplicate: false,
+      qualifyingMessagesInLastMinute: 0,
+      memberXp: 250,
+      communityXpToday: 0,
+    }),
+    { xpAwarded: 0, reason: "member_lifetime_cap" },
+  );
+  assert.deepEqual(
+    decideMessageAward({
+      isDuplicate: false,
+      qualifyingMessagesInLastMinute: 0,
+      memberXp: 0,
+      communityXpToday: 1_000,
+    }),
+    { xpAwarded: 0, reason: "community_daily_cap" },
   );
 });
 
@@ -58,21 +87,50 @@ test("admin recognition accepts only exact bounded +integer commands", () => {
   }
 });
 
-test("admin recognition enforces per-admin and community daily caps", () => {
+test("admin recognition enforces per-admin, member lifetime, and community daily caps", () => {
   assert.deepEqual(
-    decideAdminReward({ amount: 10, adminXpToday: 10, recipientXpToday: 20 }),
+    decideAdminReward({
+      amount: 10,
+      adminXpToday: 10,
+      recipientLifetimeXp: 200,
+      communityXpToday: 700,
+    }),
     { allowed: true },
   );
   assert.deepEqual(
-    decideAdminReward({ amount: 1, adminXpToday: 20, recipientXpToday: 20 }),
+    decideAdminReward({
+      amount: 1,
+      adminXpToday: 20,
+      recipientLifetimeXp: 20,
+      communityXpToday: 20,
+    }),
     { allowed: false, reason: "per_admin_daily_limit" },
   );
   assert.deepEqual(
-    decideAdminReward({ amount: 10, adminXpToday: 0, recipientXpToday: 95 }),
+    decideAdminReward({
+      amount: 10,
+      adminXpToday: 0,
+      recipientLifetimeXp: 0,
+      communityXpToday: 995,
+    }),
     { allowed: false, reason: "community_daily_cap" },
   );
   assert.deepEqual(
-    decideAdminReward({ amount: 21, adminXpToday: 0, recipientXpToday: 0 }),
+    decideAdminReward({
+      amount: 10,
+      adminXpToday: 0,
+      recipientLifetimeXp: 245,
+      communityXpToday: 0,
+    }),
+    { allowed: false, reason: "member_lifetime_cap" },
+  );
+  assert.deepEqual(
+    decideAdminReward({
+      amount: 21,
+      adminXpToday: 0,
+      recipientLifetimeXp: 0,
+      communityXpToday: 0,
+    }),
     { allowed: false, reason: "invalid_amount" },
   );
 });

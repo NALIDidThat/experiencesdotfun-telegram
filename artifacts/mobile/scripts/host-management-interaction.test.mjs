@@ -660,7 +660,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
 
   await client.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
   await client.send("Page.addScriptToEvaluateOnNewDocument", {
-    source: "localStorage.setItem('@experiences/auth-token', 'email_host-management-test');",
+    source: "localStorage.setItem('@experiences/auth-token', 'email_host-management-test'); window.__telegramShareLinks = []; window.Telegram = { WebApp: { openTelegramLink: (url) => window.__telegramShareLinks.push(url) } };",
   });
   await setViewport(client);
   await client.send("Page.navigate", { url: `${appBaseUrl}/?screen=profile` });
@@ -708,6 +708,22 @@ test("organisation hosts can manage experience participants from a phone-sized d
     `Boolean(document.querySelector('[data-testid="host-detail-tab-participants"]'))`,
     Boolean,
     "the host experience detail screen opened from organisation activity",
+  );
+  await tapTestId(client, "host-share-telegram");
+  const telegramShare = await client.evaluate(`(() => {
+    const raw = window.__telegramShareLinks?.at(-1) ?? '';
+    if (!raw) return null;
+    const link = new URL(raw);
+    return { url: link.searchParams.get('url'), text: link.searchParams.get('text') };
+  })()`);
+  assert.equal(
+    telegramShare?.url,
+    `https://experiences.fun/?screen=experience&id=${experience.id}`,
+    "The share action should open Telegram's chooser with the published experience link.",
+  );
+  assert.ok(
+    telegramShare?.text?.includes(experience.title),
+    "The Telegram share text should identify the experience.",
   );
   await tapTestId(client, "host-detail-tab-participants");
   await waitForValue(

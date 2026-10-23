@@ -1216,6 +1216,29 @@ export interface MyCommunitiesResponse {
   communities: CommunitySummary[];
 }
 
+export type TelegramManagedCommunityResetTimezone = typeof TelegramManagedCommunityResetTimezone[keyof typeof TelegramManagedCommunityResetTimezone];
+
+
+export const TelegramManagedCommunityResetTimezone = {
+  UTC: 'UTC',
+} as const;
+
+export interface TelegramManagedCommunity {
+  chatId: string;
+  chatTitle: string;
+  organisationName: string;
+  spamProtectionEnabled: boolean;
+  xpAwardedToday: number;
+  dailyXpLimit: number;
+  dailyXpRemaining: number;
+  memberXpLimit: number;
+  resetTimezone: TelegramManagedCommunityResetTimezone;
+}
+
+export interface TelegramCommunityManagementResponse {
+  communities: TelegramManagedCommunity[];
+}
+
 export interface AddCommunityInput {
   /**
      * Public Telegram group username or t.me link

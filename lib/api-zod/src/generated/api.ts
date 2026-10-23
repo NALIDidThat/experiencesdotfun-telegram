@@ -336,7 +336,7 @@ export const SyncCharityContributionLedgerResponse = zod.object({
 
 
 /**
- * @summary Edit or close an owned campaign without removing its ledger
+ * @summary Edit campaign details or goal, or close an owned campaign without removing its ledger
  */
 
 
@@ -2125,6 +2125,24 @@ export const AddMyCommunityResponse = zod.object({
   "level": zod.string(),
   "levelProgress": zod.number(),
   "nextLevelXp": zod.number().int().nullable()
+})
+
+
+/**
+ * @summary List linked Telegram groups owned by the current organisation profile
+ */
+export const GetTelegramCommunityManagementResponse = zod.object({
+  "communities": zod.array(zod.object({
+  "chatId": zod.string(),
+  "chatTitle": zod.string(),
+  "organisationName": zod.string(),
+  "spamProtectionEnabled": zod.boolean(),
+  "xpAwardedToday": zod.number().int(),
+  "dailyXpLimit": zod.number().int(),
+  "dailyXpRemaining": zod.number().int(),
+  "memberXpLimit": zod.number().int(),
+  "resetTimezone": zod.enum(['UTC'])
+}))
 })
 
 

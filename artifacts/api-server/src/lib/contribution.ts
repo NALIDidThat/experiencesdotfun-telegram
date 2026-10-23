@@ -26,13 +26,12 @@ function utcDayStart(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
-async function lockCommunityMember(
+async function lockCommunityXpPool(
   transaction: Parameters<Parameters<typeof db.transaction>[0]>[0],
   chatId: string,
-  userId: number,
 ) {
   await transaction.execute(
-    sql`select pg_advisory_xact_lock(hashtext(${chatId}), ${userId})`,
+    sql`select pg_advisory_xact_lock(hashtext(${chatId}), 0)`,
   );
 }
 
@@ -98,7 +97,9 @@ export async function processCommunityMessage(input: {
   const messageHash = hashMessage(input.text);
 
   const result = await db.transaction(async (transaction) => {
-    await lockCommunityMember(transaction, input.chatId, input.user.id);
+    // Serialize awards per group so simultaneous updates cannot overspend the
+    // shared daily pool or push a member beyond their lifetime ceiling.
+    await lockCommunityXpPool(transaction, input.chatId);
 
     const [alreadyProcessed] = await transaction
       .select({ id: communityContributionsTable.id })
@@ -145,7 +146,18 @@ export async function processCommunityMessage(input: {
         ),
       );
 
-    const [dailyXp] = await transaction
+    const [member] = await transaction
+      .select({ communityXp: communityMembersTable.communityXp })
+      .from(communityMembersTable)
+      .where(
+        and(
+          eq(communityMembersTable.chatId, input.chatId),
+          eq(communityMembersTable.userId, input.user.id),
+        ),
+      )
+      .limit(1);
+
+    const [communityDailyXp] = await transaction
       .select({
         total: sql<number>`coalesce(sum(${communityContributionsTable.xpAwarded}), 0)`,
       })
@@ -153,7 +165,6 @@ export async function processCommunityMessage(input: {
       .where(
         and(
           eq(communityContributionsTable.chatId, input.chatId),
-          eq(communityContributionsTable.userId, input.user.id),
           gte(communityContributionsTable.createdAt, dayStart),
         ),
       );
@@ -161,7 +172,8 @@ export async function processCommunityMessage(input: {
     const decision = decideMessageAward({
       isDuplicate: Boolean(recentDuplicate),
       qualifyingMessagesInLastMinute: Number(recentMessages?.total ?? 0),
-      xpToday: Number(dailyXp?.total ?? 0),
+      memberXp: Number(member?.communityXp ?? 0),
+      communityXpToday: Number(communityDailyXp?.total ?? 0),
     });
 
     const [event] = await transaction
@@ -257,7 +269,16 @@ export async function processAdminCommunityReward(input: {
   now?: Date;
 }): Promise<
   | { awarded: true; xpAwarded: number }
-  | { awarded: false; reason: "self_reward" | "already_processed" | "daily_limit" }
+  | {
+      awarded: false;
+      reason:
+        | "self_reward"
+        | "already_processed"
+        | "invalid_amount"
+        | "daily_limit"
+        | "member_lifetime_cap"
+        | "community_daily_cap";
+    }
 > {
   if (hasSameTelegramIdentity(input.admin, input.recipient)) {
     return { awarded: false, reason: "self_reward" };
@@ -267,7 +288,7 @@ export async function processAdminCommunityReward(input: {
   const dayStart = utcDayStart(now);
 
   return db.transaction(async (transaction) => {
-    await lockCommunityMember(transaction, input.chatId, input.recipient.id);
+    await lockCommunityXpPool(transaction, input.chatId);
 
     const [alreadyProcessed] = await transaction
       .select({ id: communityContributionsTable.id })
@@ -296,7 +317,18 @@ export async function processAdminCommunityReward(input: {
         ),
       );
 
-    const [recipientXp] = await transaction
+    const [recipient] = await transaction
+      .select({ communityXp: communityMembersTable.communityXp })
+      .from(communityMembersTable)
+      .where(
+        and(
+          eq(communityMembersTable.chatId, input.chatId),
+          eq(communityMembersTable.userId, input.recipient.id),
+        ),
+      )
+      .limit(1);
+
+    const [communityDailyXp] = await transaction
       .select({
         total: sql<number>`coalesce(sum(${communityContributionsTable.xpAwarded}), 0)`,
       })
@@ -304,7 +336,6 @@ export async function processAdminCommunityReward(input: {
       .where(
         and(
           eq(communityContributionsTable.chatId, input.chatId),
-          eq(communityContributionsTable.userId, input.recipient.id),
           gte(communityContributionsTable.createdAt, dayStart),
         ),
       );
@@ -312,9 +343,15 @@ export async function processAdminCommunityReward(input: {
     const decision = decideAdminReward({
       amount: input.amount,
       adminXpToday: Number(adminXp?.total ?? 0),
-      recipientXpToday: Number(recipientXp?.total ?? 0),
+      recipientLifetimeXp: Number(recipient?.communityXp ?? 0),
+      communityXpToday: Number(communityDailyXp?.total ?? 0),
     });
-    if (!decision.allowed) return { awarded: false as const, reason: "daily_limit" as const };
+    if (!decision.allowed) {
+      return {
+        awarded: false as const,
+        reason: decision.reason === "per_admin_daily_limit" ? "daily_limit" : decision.reason,
+      };
+    }
 
     const [event] = await transaction
       .insert(communityContributionsTable)

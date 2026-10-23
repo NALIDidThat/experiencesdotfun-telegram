@@ -81,8 +81,11 @@ export function isTelegramMiniApp(): boolean {
   return typeof initData === 'string' && initData.trim().length > 0;
 }
 
-export function openTelegramBot(username?: string | null): void {
-  const url = `https://t.me/${username || TELEGRAM_BOT_USERNAME}?start=login`;
+export function openTelegramBot(
+  username?: string | null,
+  startPayload = 'login',
+): void {
+  const url = `https://t.me/${username || TELEGRAM_BOT_USERNAME}?start=${encodeURIComponent(startPayload)}`;
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     const webApp = (window as TelegramWindow).Telegram?.WebApp;
     if (webApp?.openTelegramLink) {
@@ -93,4 +96,18 @@ export function openTelegramBot(username?: string | null): void {
     return;
   }
   void Linking.openURL(url).catch(() => undefined);
+}
+
+export function shareToTelegram(text: string, url: string): void {
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const webApp = (window as TelegramWindow).Telegram?.WebApp;
+    if (webApp?.openTelegramLink) {
+      webApp.openTelegramLink(shareUrl);
+      return;
+    }
+    window.location.assign(shareUrl);
+    return;
+  }
+  void Linking.openURL(shareUrl).catch(() => undefined);
 }

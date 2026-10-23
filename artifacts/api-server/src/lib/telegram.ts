@@ -589,6 +589,16 @@ async function handleCommand(
   switch (command) {
     case "/start":
       await sendOnboarding(chatId);
+      if (chatType === "private" && args[0]?.startsWith("community")) {
+        const selectedGroup = /^community_(-?\d{1,20})$/.exec(args[0]);
+        await runCommunityControlsSafely(chatId, "private_community_start", async () => {
+          if (selectedGroup && Number.isSafeInteger(Number(selectedGroup[1])) && Number(selectedGroup[1]) < 0) {
+            await showPrivateCommunityControls(chatId, Number(selectedGroup[1]), identity);
+          } else {
+            await sendPrivateCommunityList(chatId, identity);
+          }
+        });
+      }
       if (socialInviteClaim?.outcome === "created") {
         await sendTelegramMessage(
           chatId,
@@ -1113,7 +1123,7 @@ async function sendPrivateCommunityList(
   if (!visible.length && safePage === 0) {
     await sendTelegramMessage(
       privateChatId,
-      "<b>Group management</b>\n\nYou do not have a linked Telegram group yet. Connect one by running <code>/community</code> inside the group as its admin and organisation owner. Then return here to manage its protection and phrase filters.",
+        "<b>Group management</b>\n\nYou do not have a linked Telegram group yet. Add the Experiences.fun bot to your group, make it an admin with permission to delete messages, and run <code>/community</code> there using the same Telegram account that owns your organisation profile. Then return here to manage phrase protection and filters.",
     );
     return;
   }
@@ -1828,10 +1838,20 @@ async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
         message.chat.id,
         `<b>Community recognition</b>\n${escapeTelegramHtml(recipientName)} received +${result.xpAwarded} Community XP.`,
       );
+    } else if (result.reason === "member_lifetime_cap") {
+      await sendTelegramMessage(
+        message.chat.id,
+        "That member has reached the 250 XP lifetime limit for this community.",
+      );
+    } else if (result.reason === "community_daily_cap") {
+      await sendTelegramMessage(
+        message.chat.id,
+        "This community has used its 1,000 XP daily budget. It resets at 00:00 UTC.",
+      );
     } else if (result.reason === "daily_limit") {
       await sendTelegramMessage(
         message.chat.id,
-        "That reward would exceed today's Community XP limit.",
+        "This admin has already awarded the maximum recognition XP to this member today.",
       );
     }
     return;
