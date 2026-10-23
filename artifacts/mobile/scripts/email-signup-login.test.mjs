@@ -239,6 +239,7 @@ async function swipeTestId(client, testId, direction) {
 }
 
 async function assertOrganisationWalkthroughLayout(client, page) {
+  await delay(260);
   const layout = await client.evaluate(`(() => {
     const rect = (testId) => {
       const element = document.querySelector('[data-testid="' + testId + '"]');
@@ -260,6 +261,17 @@ async function assertOrganisationWalkthroughLayout(client, page) {
       main: rect("organisation-walkthrough-main"),
       page: rect("organisation-walkthrough-page-${page}"),
       sheet: rect("organisation-walkthrough-sheet"),
+      sheetRadii: (() => {
+        const element = document.querySelector('[data-testid="organisation-walkthrough-sheet"]');
+        if (!element) return null;
+        const style = getComputedStyle(element);
+        return {
+          topLeft: parseFloat(style.borderTopLeftRadius),
+          topRight: parseFloat(style.borderTopRightRadius),
+          bottomLeft: parseFloat(style.borderBottomLeftRadius),
+          bottomRight: parseFloat(style.borderBottomRightRadius),
+        };
+      })(),
       progress: rect("organisation-walkthrough-progress"),
       illustration: rect("organisation-walkthrough-illustration"),
       title: rect("organisation-walkthrough-title"),
@@ -269,6 +281,9 @@ async function assertOrganisationWalkthroughLayout(client, page) {
 
   assert.ok(layout.activePage, `Expected page ${page} to be active during layout verification.`);
   assert.ok(layout.main && layout.page && layout.sheet && layout.progress && layout.illustration && layout.title && layout.footer);
+  assert.ok(layout.sheetRadii?.topLeft >= 30 && layout.sheetRadii?.topRight >= 30, "The bottom card should have rounded top corners.");
+  assert.equal(layout.sheetRadii?.bottomLeft, 0, "The card should remain flush to the bottom edge.");
+  assert.equal(layout.sheetRadii?.bottomRight, 0, "The card should remain flush to the bottom edge.");
   assert.ok(Math.abs(layout.sheet.bottom - layout.viewportHeight) <= 2, "The copy card should be flush with the bottom edge.");
   assert.ok(layout.sheet.left <= 1 && layout.sheet.right >= layout.viewportWidth - 1, "The copy card should span the screen width.");
   assert.ok(layout.title.top >= layout.sheet.top, "The copy should sit inside the bottom card.");

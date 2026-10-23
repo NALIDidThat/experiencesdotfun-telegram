@@ -317,9 +317,10 @@ const styles = StyleSheet.create({
   headerSpacer: { width: 42 },
   progress: { minHeight: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   progressDot: { height: 7, borderRadius: 5 },
-  page: { flex: 1, justifyContent: "center", alignItems: "stretch", paddingHorizontal: 22 },
+  page: { flex: 1, justifyContent: "center", alignItems: "stretch" },
   illustration: {
-    width: "100%",
+    alignSelf: "stretch",
+    marginHorizontal: 22,
     borderRadius: 30,
     overflow: "hidden",
     alignItems: "center",
