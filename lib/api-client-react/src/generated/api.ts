@@ -144,6 +144,7 @@ import type {
   SocialInviteCreateInput,
   SyncCharityContributionLedger200,
   TelegramAuthInput,
+  TelegramCommunityLiveInfo,
   TelegramCommunityManagementResponse,
   TopFriendsInput,
   UnauthorizedResponse,
@@ -5242,6 +5243,83 @@ export function useGetTelegramCommunityManagement<TData = Awaited<ReturnType<typ
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetTelegramCommunityManagementQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTelegramCommunityLiveInfoUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/live-info`
+}
+
+/**
+ * @summary Check the linked group’s live Telegram connection and member count
+ */
+export const getTelegramCommunityLiveInfo = async (chatId: string, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityLiveInfo> => {
+
+  return customFetch<TelegramCommunityLiveInfo>(getGetTelegramCommunityLiveInfoUrl(chatId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTelegramCommunityLiveInfoQueryKey = (chatId: string,) => {
+    return [
+    `/api/community/manage/${chatId}/live-info`
+    ] as const;
+    }
+
+
+export const getGetTelegramCommunityLiveInfoQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramCommunityLiveInfo>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityLiveInfo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTelegramCommunityLiveInfoQueryKey(chatId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramCommunityLiveInfo>>> = ({ signal }) => getTelegramCommunityLiveInfo(chatId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: chatId !== null && chatId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityLiveInfo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTelegramCommunityLiveInfoQueryResult = NonNullable<Awaited<ReturnType<typeof getTelegramCommunityLiveInfo>>>
+export type GetTelegramCommunityLiveInfoQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Check the linked group’s live Telegram connection and member count
+ */
+
+export function useGetTelegramCommunityLiveInfo<TData = Awaited<ReturnType<typeof getTelegramCommunityLiveInfo>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+ chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityLiveInfo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTelegramCommunityLiveInfoQueryOptions(chatId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

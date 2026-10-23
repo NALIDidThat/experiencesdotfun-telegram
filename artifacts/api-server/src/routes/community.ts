@@ -8,8 +8,14 @@ import {
   getCommunityMemberSummary,
   getMyCommunities,
 } from "../lib/contribution";
-import { verifyTelegramCommunityMembership } from "../lib/telegram";
-import { listTelegramOwnedCommunitiesForManagement } from "../lib/community-moderation";
+import {
+  getTelegramCommunityLiveInfo,
+  verifyTelegramCommunityMembership,
+} from "../lib/telegram";
+import {
+  getTelegramCommunityManagementContext,
+  listTelegramOwnedCommunitiesForManagement,
+} from "../lib/community-moderation";
 
 const router: IRouter = Router();
 router.use(requireTelegramUser);
@@ -33,6 +39,33 @@ router.get("/community/manage", async (req, res) => {
   res.json({
     communities: await listTelegramOwnedCommunitiesForManagement(telegramUserId),
   });
+});
+
+router.get("/community/manage/:chatId/live-info", async (req, res) => {
+  const chatId = String(req.params.chatId);
+  if (!/^-?\d{1,20}$/.test(chatId) || Number(chatId) >= 0) {
+    res.status(400).json({ message: "That Telegram group identifier is invalid." });
+    return;
+  }
+
+  const user = currentUser(req);
+  if (user.userType !== "organisation") {
+    res.status(403).json({ message: "Organisation accounts can manage linked Telegram groups." });
+    return;
+  }
+  const telegramUserId = Number(user.telegramId);
+  if (!Number.isSafeInteger(telegramUserId) || telegramUserId <= 0) {
+    res.status(400).json({ message: "This organisation profile needs a linked Telegram identity." });
+    return;
+  }
+
+  const context = await getTelegramCommunityManagementContext(chatId, telegramUserId);
+  if (!context) {
+    res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+    return;
+  }
+
+  res.json(await getTelegramCommunityLiveInfo(chatId));
 });
 
 router.post("/community/me", async (req, res) => {

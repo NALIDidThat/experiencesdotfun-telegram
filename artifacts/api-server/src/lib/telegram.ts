@@ -983,6 +983,93 @@ async function botCanDeleteMessages(chatId: number): Promise<boolean> {
   );
 }
 
+export async function getTelegramCommunityLiveInfo(chatId: string) {
+  const numericChatId = Number(chatId);
+  const unavailable = {
+    chatId,
+    chatTitle: "Telegram group",
+    description: null,
+    connectionStatus: "error" as const,
+    connectionMessage: "Telegram could not verify this group right now. Try again shortly.",
+    memberCount: null,
+    botCanDeleteMessages: null,
+  };
+  if (!Number.isSafeInteger(numericChatId) || numericChatId >= 0) return unavailable;
+
+  const [chat, memberCount] = await Promise.all([
+    telegramCall<TelegramCommunityChat & { description?: string }>("getChat", {
+      chat_id: numericChatId,
+    }),
+    telegramCall<number>("getChatMemberCount", { chat_id: numericChatId }),
+  ]);
+  if (!chat || !isGroupChat(chat.type)) return unavailable;
+
+  if (!botTelegramId) {
+    const bot = await telegramCall<{ id?: number }>("getMe", {});
+    if (!bot?.id || !Number.isSafeInteger(bot.id)) {
+      return {
+        ...unavailable,
+        chatTitle: chat.title?.trim() || "Telegram group",
+        description: chat.description?.trim() || null,
+      };
+    }
+    botTelegramId = bot.id;
+  }
+
+  const botMember = await telegramCall<{
+    status?: string;
+    is_member?: boolean;
+    can_delete_messages?: boolean;
+  }>("getChatMember", {
+    chat_id: numericChatId,
+    user_id: botTelegramId,
+  });
+  const chatTitle = chat.title?.trim() || "Telegram group";
+  const description = chat.description?.trim() || null;
+  const safeMemberCount = Number.isSafeInteger(memberCount) && Number(memberCount) >= 0
+    ? Number(memberCount)
+    : null;
+
+  if (!botMember) {
+    return {
+      chatId,
+      chatTitle,
+      description,
+      connectionStatus: "error" as const,
+      connectionMessage: "Telegram could not confirm the bot’s group permissions.",
+      memberCount: safeMemberCount,
+      botCanDeleteMessages: null,
+    };
+  }
+  if (botMember.status === "left" || botMember.status === "kicked" || botMember.is_member === false) {
+    return {
+      chatId,
+      chatTitle,
+      description,
+      connectionStatus: "disconnected" as const,
+      connectionMessage: "The Experiences.fun bot is no longer a member of this group.",
+      memberCount: safeMemberCount,
+      botCanDeleteMessages: false,
+    };
+  }
+
+  const isAdmin = botMember.status === "creator" || botMember.status === "administrator";
+  const canDeleteMessages = botMember.status === "creator"
+    || (botMember.status === "administrator" && botMember.can_delete_messages === true);
+  const connectionStatus = isAdmin && canDeleteMessages ? "connected" as const : "permission_issue" as const;
+  return {
+    chatId,
+    chatTitle,
+    description,
+    connectionStatus,
+    connectionMessage: connectionStatus === "connected"
+      ? null
+      : "Make the Experiences.fun bot a group admin with permission to delete messages.",
+    memberCount: safeMemberCount,
+    botCanDeleteMessages: canDeleteMessages,
+  };
+}
+
 async function runCommunityControlsSafely(
   chatId: number,
   action: string,

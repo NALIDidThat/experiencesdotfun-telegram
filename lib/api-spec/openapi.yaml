@@ -1433,6 +1433,32 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /community/manage/{chatId}/live-info:
+    get:
+      operationId: getTelegramCommunityLiveInfo
+      tags: [community]
+      summary: Check the linked group’s live Telegram connection and member count
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      responses:
+        "200":
+          description: Live group details and a verified bot permission status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityLiveInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /community/{chatId}:
     get:
       operationId: getCommunityDetails
@@ -4027,6 +4053,8 @@ components:
         totalXpAwarded: { type: integer, description: Total Community XP awarded in this group to date. }
         membersWithXp: { type: integer, description: Number of distinct members who have earned Community XP in this group. }
         xpEarnersToday: { type: integer, description: Number of distinct members awarded Community XP since 00:00 UTC. }
+        trackedMembers: { type: integer, description: Number of member profiles recorded in the Experiences.fun community XP system; this is not the Telegram group size. }
+        qualifyingMessagesToday: { type: integer, description: Number of text messages recorded by the community XP system since 00:00 UTC; this is not a count of all Telegram messages. }
         resetTimezone: { type: string, enum: [UTC] }
       required:
         - chatId
@@ -4040,7 +4068,29 @@ components:
         - totalXpAwarded
         - membersWithXp
         - xpEarnersToday
+        - trackedMembers
+        - qualifyingMessagesToday
         - resetTimezone
+    TelegramCommunityLiveInfo:
+      type: object
+      properties:
+        chatId: { type: string }
+        chatTitle: { type: string }
+        description: { type: [string, "null"] }
+        connectionStatus:
+          type: string
+          enum: [connected, disconnected, permission_issue, error]
+        connectionMessage: { type: [string, "null"] }
+        memberCount: { type: [integer, "null"] }
+        botCanDeleteMessages: { type: [boolean, "null"] }
+      required:
+        - chatId
+        - chatTitle
+        - description
+        - connectionStatus
+        - connectionMessage
+        - memberCount
+        - botCanDeleteMessages
     AddCommunityInput:
       type: object
       properties:

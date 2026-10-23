@@ -2144,8 +2144,31 @@ export const GetTelegramCommunityManagementResponse = zod.object({
   "totalXpAwarded": zod.number().int().describe('Total Community XP awarded in this group to date.'),
   "membersWithXp": zod.number().int().describe('Number of distinct members who have earned Community XP in this group.'),
   "xpEarnersToday": zod.number().int().describe('Number of distinct members awarded Community XP since 00:00 UTC.'),
+  "trackedMembers": zod.number().int().describe('Number of member profiles recorded in the Experiences.fun community XP system; this is not the Telegram group size.'),
+  "qualifyingMessagesToday": zod.number().int().describe('Number of text messages recorded by the community XP system since 00:00 UTC; this is not a count of all Telegram messages.'),
   "resetTimezone": zod.enum(['UTC'])
 }))
+})
+
+
+/**
+ * @summary Check the linked group’s live Telegram connection and member count
+ */
+export const getTelegramCommunityLiveInfoPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const GetTelegramCommunityLiveInfoParams = zod.object({
+  "chatId": zod.coerce.string().regex(getTelegramCommunityLiveInfoPathChatIdRegExp)
+})
+
+export const GetTelegramCommunityLiveInfoResponse = zod.object({
+  "chatId": zod.string(),
+  "chatTitle": zod.string(),
+  "description": zod.string().nullable(),
+  "connectionStatus": zod.enum(['connected', 'disconnected', 'permission_issue', 'error']),
+  "connectionMessage": zod.string().nullable(),
+  "memberCount": zod.number().int().nullable(),
+  "botCanDeleteMessages": zod.boolean().nullable()
 })
 
 

@@ -1,6 +1,8 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import {
+  useGetTelegramCommunityLiveInfo,
   useGetTelegramCommunityManagement,
   type TelegramManagedCommunity,
 } from '@workspace/api-client-react';
@@ -129,7 +131,8 @@ function GroupStats({ community }: { community: TelegramManagedCommunity }) {
     { label: 'Lifetime cap per member', value: `${community.memberXpLimit.toLocaleString()} XP` },
     { label: 'Lifetime XP awarded', value: community.totalXpAwarded.toLocaleString() },
     { label: 'Members with XP', value: community.membersWithXp.toLocaleString() },
-    { label: 'XP earners today', value: community.xpEarnersToday.toLocaleString() },
+    { label: 'Tracked profiles', value: community.trackedMembers.toLocaleString() },
+    { label: 'Members with XP activity today', value: community.xpEarnersToday.toLocaleString() },
   ];
   return (
     <View testID={`telegram-community-stats-${community.chatId}`} style={styles.statsGrid}>
@@ -287,6 +290,37 @@ export function TelegramCommunityManagementScreen({ onBack, onOpenCommunity, onO
   );
 }
 
+type HealthMetricKey = 'active-members' | 'messages' | 'moderation' | 'xp';
+
+function ConnectionBadge({
+  status,
+}: {
+  status: 'connected' | 'disconnected' | 'permission_issue' | 'error' | 'checking';
+}) {
+  const colors = useColors();
+  const labels = {
+    connected: 'Connected',
+    disconnected: 'Disconnected',
+    permission_issue: 'Permission issue',
+    error: 'Status unavailable',
+    checking: 'Checking Telegram',
+  } as const;
+  const color = status === 'connected'
+    ? colors.success
+    : status === 'disconnected' || status === 'permission_issue'
+      ? colors.destructive
+      : colors.mutedForeground;
+  return (
+    <View
+      accessibilityLabel={`Telegram ${labels[status]}`}
+      style={[styles.connectionBadge, { backgroundColor: `${color}16` }]}
+    >
+      <View style={[styles.protectionDot, { backgroundColor: color }]} />
+      <Text style={[styles.connectionText, { color }]}>{labels[status]}</Text>
+    </View>
+  );
+}
+
 export function TelegramCommunityDashboardScreen({
   chatId,
   onBack,
@@ -297,8 +331,72 @@ export function TelegramCommunityDashboardScreen({
   onOpenBot: (startPayload?: string) => void;
 }) {
   const colors = useColors();
+  const [selectedMetric, setSelectedMetric] = useState<HealthMetricKey | null>(null);
   const management = useGetTelegramCommunityManagement();
+  const liveInfo = useGetTelegramCommunityLiveInfo(chatId ?? '', {
+    query: {
+      queryKey: ['/api/community/manage', chatId, 'live-info'],
+      enabled: Boolean(chatId),
+    },
+  });
   const community = management.data?.communities.find((item) => item.chatId === chatId);
+  const displayedTitle = liveInfo.data?.connectionStatus !== 'error' && liveInfo.data?.chatTitle
+    ? liveInfo.data.chatTitle
+    : community?.chatTitle ?? liveInfo.data?.chatTitle ?? 'Group dashboard';
+  const connectionStatus = liveInfo.isLoading
+    ? 'checking'
+    : liveInfo.data?.connectionStatus ?? 'error';
+  const healthMetrics: Array<{
+    key: HealthMetricKey;
+    label: string;
+    value: string;
+    icon: keyof typeof Feather.glyphMap;
+  }> = community
+    ? [
+        {
+          key: 'active-members',
+          label: 'Members with XP activity today',
+          value: community.xpEarnersToday.toLocaleString(),
+          icon: 'users',
+        },
+        {
+          key: 'messages',
+          label: 'Qualifying messages today',
+          value: community.qualifyingMessagesToday.toLocaleString(),
+          icon: 'message-circle',
+        },
+        {
+          key: 'moderation',
+          label: 'Pending reviews',
+          value: 'Not tracked',
+          icon: 'shield',
+        },
+        {
+          key: 'xp',
+          label: 'XP distributed today',
+          value: community.xpAwardedToday.toLocaleString(),
+          icon: 'award',
+        },
+      ]
+    : [];
+  const selectedMetricCopy: Record<HealthMetricKey, { title: string; body: string }> = {
+    'active-members': {
+      title: 'Members with XP activity today',
+      body: 'This counts tracked group profiles with a Community XP contribution since 00:00 UTC. Members who chatted without earning or receiving XP are not included.',
+    },
+    messages: {
+      title: 'Qualifying messages today',
+      body: 'This counts text messages recorded by the Community XP system after meeting its message-length rule. It is not a count of every message sent in Telegram.',
+    },
+    moderation: {
+      title: 'Moderation reviews',
+      body: 'A saved review inbox is not available yet. Phrase protection currently removes configured matches automatically when the bot has Telegram permission to delete messages.',
+    },
+    xp: {
+      title: 'XP distributed today',
+      body: `${community?.xpAwardedToday.toLocaleString() ?? '0'} of ${community?.dailyXpLimit.toLocaleString() ?? '0'} XP used. ${community?.dailyXpRemaining.toLocaleString() ?? '0'} XP remains before the 00:00 UTC reset.`,
+    },
+  };
 
   return (
     <ScrollView
@@ -322,14 +420,38 @@ export function TelegramCommunityDashboardScreen({
         <View style={styles.headingCopy}>
           <Text style={[styles.eyebrow, { color: colors.primary }]}>GROUP OVERVIEW</Text>
           <Text numberOfLines={2} style={[styles.title, { color: colors.foreground }]}>
-            {community?.chatTitle ?? 'Group dashboard'}
+            {displayedTitle}
           </Text>
           {community ? (
             <Text numberOfLines={1} style={[styles.subtitle, { color: colors.mutedForeground }]}>
               {community.organisationName}
             </Text>
           ) : null}
+          {community ? (
+            <View style={styles.connectionRow}>
+              <ConnectionBadge status={connectionStatus} />
+              <Text style={[styles.memberCountText, { color: colors.mutedForeground }]}>
+                {liveInfo.isLoading
+                  ? 'Checking member count…'
+                  : liveInfo.data?.memberCount !== null && liveInfo.data?.memberCount !== undefined
+                    ? `${liveInfo.data.memberCount.toLocaleString()} Telegram members`
+                    : 'Telegram member count unavailable'}
+              </Text>
+            </View>
+          ) : null}
         </View>
+        {community ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${displayedTitle} group settings in Telegram`}
+            testID="telegram-community-dashboard-settings"
+            onPress={() => onOpenBot(`community_${community.chatId}`)}
+            hitSlop={8}
+            style={({ pressed }) => [styles.settingsShortcut, { opacity: pressed ? 0.72 : 1 }]}
+          >
+            <Feather name="settings" size={19} color={colors.primary} />
+          </Pressable>
+        ) : null}
       </View>
 
       {management.isLoading ? (
@@ -373,6 +495,126 @@ export function TelegramCommunityDashboardScreen({
         </View>
       ) : (
         <View style={styles.dashboardSections}>
+          {liveInfo.data?.description ? (
+            <Text style={[styles.communityDescription, { color: colors.mutedForeground }]}>
+              {liveInfo.data.description}
+            </Text>
+          ) : null}
+          {liveInfo.data?.connectionMessage ? (
+            <View
+              accessibilityRole="alert"
+              style={[
+                styles.connectionNotice,
+                { backgroundColor: colors.primary + '0B', borderColor: colors.primary + '32', borderRadius: colors.radius },
+              ]}
+            >
+              <Feather
+                name={liveInfo.data.connectionStatus === 'error' ? 'alert-circle' : 'info'}
+                size={16}
+                color={liveInfo.data.connectionStatus === 'error' ? colors.destructive : colors.primary}
+              />
+              <Text style={[styles.connectionNoticeText, { color: colors.foreground }]}>
+                {liveInfo.data.connectionMessage}
+              </Text>
+              {liveInfo.data.connectionStatus === 'error' ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry Telegram connection check"
+                  onPress={() => { void liveInfo.refetch(); }}
+                  hitSlop={8}
+                >
+                  <Feather name="refresh-cw" size={16} color={colors.primary} />
+                </Pressable>
+              ) : null}
+            </View>
+          ) : liveInfo.isError ? (
+            <View
+              accessibilityRole="alert"
+              style={[
+                styles.connectionNotice,
+                { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: colors.radius },
+              ]}
+            >
+              <Feather name="alert-circle" size={16} color={colors.mutedForeground} />
+              <Text style={[styles.connectionNoticeText, { color: colors.foreground }]}>
+                Telegram status could not be checked. Your saved XP and protection settings are still shown below.
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Retry Telegram connection check"
+                onPress={() => { void liveInfo.refetch(); }}
+                hitSlop={8}
+              >
+                <Feather name="refresh-cw" size={16} color={colors.primary} />
+              </Pressable>
+            </View>
+          ) : null}
+
+          <View>
+            <View style={styles.sectionHeadingRow}>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Community health</Text>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  Today’s recorded activity and reviews
+                </Text>
+              </View>
+            </View>
+            <View style={styles.healthGrid}>
+              {healthMetrics.map((metric) => {
+                const selected = selectedMetric === metric.key;
+                return (
+                  <Pressable
+                    key={metric.key}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${metric.label}: ${metric.value}. ${selected ? 'Hide' : 'View'} metric details`}
+                    accessibilityState={{ expanded: selected }}
+                    testID={`telegram-community-health-${metric.key}`}
+                    onPress={() => setSelectedMetric(selected ? null : metric.key)}
+                    style={({ pressed }) => [
+                      styles.healthMetric,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: selected ? colors.primary : colors.border,
+                        borderRadius: colors.radius,
+                        opacity: pressed ? 0.82 : 1,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.healthIcon, { backgroundColor: colors.primary + '12' }]}>
+                      <Feather name={metric.icon} size={15} color={colors.primary} />
+                    </View>
+                    <Text style={[styles.healthLabel, { color: colors.mutedForeground }]}>{metric.label}</Text>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.healthValue,
+                        { color: metric.key === 'moderation' ? colors.mutedForeground : colors.foreground },
+                      ]}
+                    >
+                      {metric.value}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {selectedMetric ? (
+              <View
+                testID="telegram-community-health-detail"
+                style={[
+                  styles.healthDetail,
+                  { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+                ]}
+              >
+                <Text style={[styles.healthDetailTitle, { color: colors.foreground }]}>
+                  {selectedMetricCopy[selectedMetric].title}
+                </Text>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  {selectedMetricCopy[selectedMetric].body}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
           <View
             style={[
               styles.dashboardCard,
@@ -472,6 +714,22 @@ const styles = StyleSheet.create({
   communityTitleCopy: { flex: 1, minWidth: 0, gap: 3 },
   communityTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 },
   organisationName: { fontFamily: 'Inter_400Regular', fontSize: 11 },
+  connectionRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 7, marginTop: 8 },
+  connectionBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 20 },
+  connectionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  memberCountText: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
+  settingsShortcut: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  communityDescription: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, marginTop: -8, marginBottom: 2 },
+  connectionNotice: { flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, padding: 11 },
+  connectionNoticeText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17 },
+  sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  healthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  healthMetric: { width: '48%', minHeight: 110, borderWidth: 1, padding: 11 },
+  healthIcon: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 9, marginBottom: 7 },
+  healthLabel: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 14, minHeight: 28 },
+  healthValue: { fontFamily: 'Inter_700Bold', fontSize: 17, marginTop: 2 },
+  healthDetail: { borderWidth: 1, padding: 12, marginTop: 8, gap: 5 },
+  healthDetailTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   protectionBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
   compactProtectionBadge: { paddingHorizontal: 7, paddingVertical: 5 },
   protectionDot: { width: 6, height: 6, borderRadius: 3 },

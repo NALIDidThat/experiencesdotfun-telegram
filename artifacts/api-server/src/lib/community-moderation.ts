@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   communityContributionsTable,
@@ -104,6 +104,7 @@ export async function listTelegramOwnedCommunitiesForManagement(
       .select({
         chatId: communityContributionsTable.chatId,
         xpAwarded: sql<number>`coalesce(sum(${communityContributionsTable.xpAwarded}), 0)`,
+        qualifyingMessages: sql<number>`count(*) filter (where ${communityContributionsTable.contributionType} = 'telegram_message')`,
       })
       .from(communityContributionsTable)
       .where(
@@ -116,6 +117,7 @@ export async function listTelegramOwnedCommunitiesForManagement(
     db
       .select({
         chatId: communityMembersTable.chatId,
+        trackedMembers: count(),
         totalXpAwarded: sql<number>`coalesce(sum(${communityMembersTable.communityXp}), 0)`,
         membersWithXp: sql<number>`count(*) filter (where ${communityMembersTable.communityXp} > 0)`,
         xpEarnersToday: sql<number>`count(*) filter (where ${communityMembersTable.communityXp} > 0 and ${communityMembersTable.lastContributionAt} >= ${dayStart})`,
@@ -124,11 +126,20 @@ export async function listTelegramOwnedCommunitiesForManagement(
       .where(inArray(communityMembersTable.chatId, chatIds))
       .groupBy(communityMembersTable.chatId),
   ]);
-  const dailyTotals = new Map(totals.map(({ chatId, xpAwarded }) => [chatId, Number(xpAwarded)]));
+  const dailyTotals = new Map(
+    totals.map(({ chatId, xpAwarded, qualifyingMessages }) => [
+      chatId,
+      {
+        xpAwarded: Number(xpAwarded),
+        qualifyingMessages: Number(qualifyingMessages),
+      },
+    ]),
+  );
   const statsByCommunity = new Map(
     memberStats.map((stats) => [
       stats.chatId,
       {
+        trackedMembers: Number(stats.trackedMembers),
         totalXpAwarded: Number(stats.totalXpAwarded),
         membersWithXp: Number(stats.membersWithXp),
         xpEarnersToday: Number(stats.xpEarnersToday),
@@ -137,7 +148,8 @@ export async function listTelegramOwnedCommunitiesForManagement(
   );
 
   return communities.map((community) => {
-    const xpAwardedToday = dailyTotals.get(community.chatId) ?? 0;
+    const todayStats = dailyTotals.get(community.chatId);
+    const xpAwardedToday = todayStats?.xpAwarded ?? 0;
     const stats = statsByCommunity.get(community.chatId);
     return {
       ...community,
@@ -148,6 +160,8 @@ export async function listTelegramOwnedCommunitiesForManagement(
       totalXpAwarded: stats?.totalXpAwarded ?? 0,
       membersWithXp: stats?.membersWithXp ?? 0,
       xpEarnersToday: stats?.xpEarnersToday ?? 0,
+      trackedMembers: stats?.trackedMembers ?? 0,
+      qualifyingMessagesToday: todayStats?.qualifyingMessages ?? 0,
       resetTimezone: "UTC",
     };
   });

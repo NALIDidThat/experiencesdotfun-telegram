@@ -224,6 +224,8 @@ export * from './socialInviteKind';
 export * from './socialLinks';
 export * from './syncCharityContributionLedger200';
 export * from './telegramAuthInput';
+export * from './telegramCommunityLiveInfo';
+export * from './telegramCommunityLiveInfoConnectionStatus';
 export * from './telegramCommunityManagementResponse';
 export * from './telegramManagedCommunity';
 export * from './telegramManagedCommunityResetTimezone';

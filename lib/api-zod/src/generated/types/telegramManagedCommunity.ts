@@ -22,5 +22,9 @@ export interface TelegramManagedCommunity {
   membersWithXp: number;
   /** Number of distinct members awarded Community XP since 00:00 UTC. */
   xpEarnersToday: number;
+  /** Number of member profiles recorded in the Experiences.fun community XP system; this is not the Telegram group size. */
+  trackedMembers: number;
+  /** Number of text messages recorded by the community XP system since 00:00 UTC; this is not a count of all Telegram messages. */
+  qualifyingMessagesToday: number;
   resetTimezone: TelegramManagedCommunityResetTimezone;
 }
