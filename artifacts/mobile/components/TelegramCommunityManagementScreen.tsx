@@ -283,6 +283,25 @@ export function TelegramCommunityManagementScreen({ onBack, onOpenCommunity, onO
               onOpen={() => onOpenCommunity(community.chatId)}
             />
           ))}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add another Telegram community"
+            accessibilityHint="Opens the bot setup in Telegram to link another group."
+            testID="telegram-community-add"
+            onPress={() => onOpenBot('community')}
+            style={({ pressed }) => [
+              styles.addCommunityButton,
+              {
+                backgroundColor: colors.primary + '08',
+                borderColor: colors.primary + '55',
+                borderRadius: colors.radius,
+                opacity: pressed ? 0.78 : 1,
+              },
+            ]}
+          >
+            <Feather name="plus-circle" size={18} color={colors.primary} />
+            <Text style={[styles.addCommunityButtonText, { color: colors.primary }]}>Add community</Text>
+          </Pressable>
         </View>
       )}
       <View style={{ height: 40 }} />
@@ -709,6 +728,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 17 },
   count: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   communityCard: { borderWidth: 1, padding: 14, marginBottom: 1 },
+  addCommunityButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, paddingHorizontal: 14 },
+  addCommunityButtonText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   communityHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48 },
   groupIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   communityTitleCopy: { flex: 1, minWidth: 0, gap: 3 },
