@@ -137,10 +137,13 @@ import { ExperienceLocationPicker, type ResolvedLocation } from '@/components/Ex
 import { TimeWheelPicker } from '@/components/TimeWheelPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
 import { openTelegramBot, shareToTelegram } from '@/lib/telegram';
-import { TelegramCommunityManagementScreen } from '@/components/TelegramCommunityManagementScreen';
+import {
+  TelegramCommunityDashboardScreen,
+  TelegramCommunityManagementScreen,
+} from '@/components/TelegramCommunityManagementScreen';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'contributions' | 'telegram-communities' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'contributions' | 'telegram-communities' | 'telegram-community-dashboard' | 'email';
 type IconName = keyof typeof Feather.glyphMap;
 type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'assistant' | 'challenges' | 'accountability' | 'memory-game' | 'telegram-communities';
 type HostExperienceFilter = 'all' | Experience['status'];
@@ -151,7 +154,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'campaigns', 'contributions', 'telegram-communities', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'campaigns', 'contributions', 'telegram-communities', 'telegram-community-dashboard', 'email'];
 
 const categories: Array<{ key: ExperienceCategory | 'all'; label: string; icon: IconName }> = [
   { key: 'all', label: 'All', icon: 'grid' },
@@ -8815,7 +8818,7 @@ function BottomNavInteractionHarness({ userType = 'participant' }: { userType?: 
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; category?: string; step?: string; focus?: string; experienceId?: string; experienceTitle?: string; keyboardTest?: string; navTest?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; chatId?: string; category?: string; step?: string; focus?: string; experienceId?: string; experienceTitle?: string; keyboardTest?: string; navTest?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -8861,7 +8864,7 @@ export default function App() {
     const platform = Platform.OS === "ios" || Platform.OS === "android"
       ? Platform.OS
       : "web";
-    const analyticsScreen = screen === 'accounts' || screen === 'contributions' || screen === 'accountability' || screen === 'campaigns' || screen === 'telegram-communities'
+    const analyticsScreen = screen === 'accounts' || screen === 'contributions' || screen === 'accountability' || screen === 'campaigns' || screen === 'telegram-communities' || screen === 'telegram-community-dashboard'
       ? 'profile'
       : screen === 'host-detail'
         ? 'host'
@@ -8891,6 +8894,7 @@ export default function App() {
       focus: next === 'host-detail' ? nextParams?.focus : undefined,
       experienceId: next === 'funds' ? nextParams?.experienceId : undefined,
       experienceTitle: next === 'funds' ? nextParams?.experienceTitle : undefined,
+      chatId: next === 'telegram-community-dashboard' ? nextParams?.chatId : undefined,
     });
   };
   const requestFeedComposer = () => {
@@ -9291,6 +9295,7 @@ export default function App() {
         ? (
           <TelegramCommunityManagementScreen
             onBack={() => go('profile')}
+            onOpenCommunity={(chatId) => go('telegram-community-dashboard', { chatId })}
             onOpenBot={(startPayload) => openTelegramBot(undefined, startPayload ?? 'community')}
           />
         )
@@ -9298,6 +9303,24 @@ export default function App() {
           <EmptyState
             title="Organisation account required"
             body="Telegram group management is available from an organisation profile."
+            actionLabel="Back to profile"
+            onAction={() => go('profile')}
+          />
+        );
+    }
+    if (screen === 'telegram-community-dashboard') {
+      return user.userType === 'organisation'
+        ? (
+          <TelegramCommunityDashboardScreen
+            chatId={params.chatId}
+            onBack={() => go('telegram-communities')}
+            onOpenBot={(startPayload) => openTelegramBot(undefined, startPayload ?? 'community')}
+          />
+        )
+        : (
+          <EmptyState
+            title="Organisation account required"
+            body="Telegram group dashboards are available from an organisation profile."
             actionLabel="Back to profile"
             onAction={() => go('profile')}
           />
@@ -9339,7 +9362,7 @@ export default function App() {
     ? 'host'
     : screen === 'experiences'
       ? 'home'
-    : screen === 'contributions' || screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts' || screen === 'accountability' || screen === 'telegram-communities'
+    : screen === 'contributions' || screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts' || screen === 'accountability' || screen === 'telegram-communities' || screen === 'telegram-community-dashboard'
       ? 'profile'
       : screen === 'messages' || screen === 'direct-message'
         ? 'home'
@@ -9348,6 +9371,8 @@ export default function App() {
     ? params.id
     : screen === 'friend-profile'
       ? params.friendId
+      : screen === 'telegram-community-dashboard'
+        ? params.chatId
       : undefined;
   return (
     <AppShell

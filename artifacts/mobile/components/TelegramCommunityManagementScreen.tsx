@@ -1,5 +1,4 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import {
   useGetTelegramCommunityManagement,
@@ -9,38 +8,36 @@ import { useColors } from '@/hooks/useColors';
 
 type Props = {
   onBack: () => void;
+  onOpenCommunity: (chatId: string) => void;
   onOpenBot: (startPayload?: string) => void;
 };
 
 function CommunityCard({
   community,
-  onManage,
+  onOpen,
 }: {
   community: TelegramManagedCommunity;
-  onManage: () => void;
+  onOpen: () => void;
 }) {
   const colors = useColors();
-  const [expanded, setExpanded] = useState(false);
   const progress = community.dailyXpLimit
     ? Math.min(100, Math.round((community.xpAwardedToday / community.dailyXpLimit) * 100))
     : 0;
 
   return (
-    <View
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${community.chatTitle}, ${community.organisationName}. ${community.xpAwardedToday.toLocaleString()} of ${community.dailyXpLimit.toLocaleString()} Community XP used today. ${community.spamProtectionEnabled ? 'Phrase protection on.' : 'Phrase protection off.'} Open group dashboard`}
+      accessibilityHint="Opens this linked group's Community XP and protection dashboard"
       testID={`telegram-community-${community.chatId}`}
-      style={[
+      onPress={onOpen}
+      style={({ pressed }) => [
         styles.communityCard,
-        { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+        { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.82 : 1 },
       ]}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${community.chatTitle}, ${community.organisationName}. Phrase protection ${community.spamProtectionEnabled ? 'on' : 'off'}. ${expanded ? 'Hide' : 'View'} group stats`}
-        accessibilityState={{ expanded }}
-        accessibilityHint="Shows this group's Community XP usage and limits"
-        testID={`telegram-community-toggle-${community.chatId}`}
-        onPress={() => setExpanded((value) => !value)}
-        style={({ pressed }) => [styles.communityHeader, { opacity: pressed ? 0.76 : 1 }]}
+      <View
+        style={styles.communityHeader}
       >
         <View style={[styles.groupIcon, { backgroundColor: colors.primary + '12' }]}>
           <Feather name="users" size={18} color={colors.primary} />
@@ -53,102 +50,130 @@ function CommunityCard({
             {community.organisationName}
           </Text>
         </View>
+        <ProtectionBadge community={community} compact />
+        <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+      </View>
+
+      <View style={styles.cardBudget}>
+        <View style={styles.budgetHeader}>
+          <Text style={[styles.budgetLabel, { color: colors.foreground }]}>Community XP today</Text>
+          <Text style={[styles.budgetValue, { color: colors.foreground }]}>
+            {community.xpAwardedToday.toLocaleString()} / {community.dailyXpLimit.toLocaleString()}
+          </Text>
+        </View>
         <View
-          accessibilityLabel={`Phrase protection ${community.spamProtectionEnabled ? 'on' : 'off'}`}
-          style={[
-            styles.protectionBadge,
-            {
-              backgroundColor: community.spamProtectionEnabled ? colors.success + '16' : colors.muted,
-            },
-          ]}
+          accessibilityRole="progressbar"
+          accessibilityLabel={`Daily Community XP budget used for ${community.chatTitle}`}
+          accessibilityValue={{ min: 0, max: community.dailyXpLimit, now: community.xpAwardedToday }}
+          style={[styles.progressTrack, { backgroundColor: colors.border }]}
         >
           <View
             style={[
-              styles.protectionDot,
-              { backgroundColor: community.spamProtectionEnabled ? colors.success : colors.mutedForeground },
+              styles.progressFill,
+              { width: `${progress}%`, backgroundColor: progress >= 100 ? colors.accent : colors.primary },
             ]}
           />
-          <Text
-            style={[
-              styles.protectionText,
-              { color: community.spamProtectionEnabled ? colors.success : colors.mutedForeground },
-            ]}
-          >
-            {community.spamProtectionEnabled ? 'Protection on' : 'Protection off'}
-          </Text>
         </View>
-        <Feather name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.mutedForeground} />
-      </Pressable>
+      </View>
+      <View style={styles.openDashboard}>
+        <Text style={[styles.openDashboardText, { color: colors.primary }]}>Open group dashboard</Text>
+        <Feather name="arrow-up-right" size={15} color={colors.primary} />
+      </View>
+    </Pressable>
+  );
+}
 
-      {expanded ? (
-        <View testID={`telegram-community-stats-${community.chatId}`} style={styles.communityDetails}>
-          <View style={styles.budgetHeader}>
-            <Text style={[styles.budgetLabel, { color: colors.foreground }]}>Community XP today</Text>
-            <Text style={[styles.budgetValue, { color: colors.foreground }]}>
-              {community.xpAwardedToday.toLocaleString()} / {community.dailyXpLimit.toLocaleString()}
-            </Text>
-          </View>
-          <View
-            accessibilityRole="progressbar"
-            accessibilityLabel="Daily Community XP budget used"
-            accessibilityValue={{ min: 0, max: community.dailyXpLimit, now: community.xpAwardedToday }}
-            style={[styles.progressTrack, { backgroundColor: colors.border }]}
-          >
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${progress}%`, backgroundColor: progress >= 100 ? colors.accent : colors.primary },
-              ]}
-            />
-          </View>
-          <Text style={[styles.statsHeading, { color: colors.foreground }]}>Community statistics</Text>
-          <View style={styles.statsGrid}>
-            <View style={[styles.statCell, { backgroundColor: colors.muted }]}>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>XP remaining today</Text>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>{community.dailyXpRemaining.toLocaleString()}</Text>
-            </View>
-            <View style={[styles.statCell, { backgroundColor: colors.muted }]}>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Lifetime cap per member</Text>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>{community.memberXpLimit.toLocaleString()} XP</Text>
-            </View>
-            <View style={[styles.statCell, { backgroundColor: colors.muted }]}>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Lifetime XP awarded</Text>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>{community.totalXpAwarded.toLocaleString()}</Text>
-            </View>
-            <View style={[styles.statCell, { backgroundColor: colors.muted }]}>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Members with XP</Text>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>{community.membersWithXp.toLocaleString()}</Text>
-            </View>
-            <View style={[styles.statCell, { backgroundColor: colors.muted }]}>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>XP earners today</Text>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>{community.xpEarnersToday.toLocaleString()}</Text>
-            </View>
-          </View>
-          <Text style={[styles.budgetNote, { color: colors.mutedForeground }]}>
-            Daily budget resets at 00:00 {community.resetTimezone}.
-          </Text>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Manage ${community.chatTitle} in Telegram`}
-            testID={`telegram-community-manage-${community.chatId}`}
-            onPress={onManage}
-            style={({ pressed }) => [
-              styles.manageButton,
-              { backgroundColor: colors.primary, borderRadius: colors.radius - 5, opacity: pressed ? 0.78 : 1 },
-            ]}
-          >
-            <Feather name="send" size={16} color={colors.primaryForeground} />
-            <Text style={[styles.manageButtonText, { color: colors.primaryForeground }]}>Manage in Telegram</Text>
-            <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />
-          </Pressable>
-        </View>
-      ) : null}
+function ProtectionBadge({
+  community,
+  compact = false,
+}: {
+  community: TelegramManagedCommunity;
+  compact?: boolean;
+}) {
+  const colors = useColors();
+  return (
+    <View
+      accessibilityLabel={`Phrase protection ${community.spamProtectionEnabled ? 'on' : 'off'}`}
+      style={[
+        styles.protectionBadge,
+        compact && styles.compactProtectionBadge,
+        {
+          backgroundColor: community.spamProtectionEnabled ? colors.success + '16' : colors.muted,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.protectionDot,
+          { backgroundColor: community.spamProtectionEnabled ? colors.success : colors.mutedForeground },
+        ]}
+      />
+      <Text
+        style={[
+          styles.protectionText,
+          { color: community.spamProtectionEnabled ? colors.success : colors.mutedForeground },
+        ]}
+      >
+        {compact
+          ? community.spamProtectionEnabled ? 'Protection on' : 'Protection off'
+          : community.spamProtectionEnabled ? 'On' : 'Off'}
+      </Text>
     </View>
   );
 }
 
-export function TelegramCommunityManagementScreen({ onBack, onOpenBot }: Props) {
+function GroupStats({ community }: { community: TelegramManagedCommunity }) {
+  const colors = useColors();
+  const stats = [
+    { label: 'XP remaining today', value: community.dailyXpRemaining.toLocaleString() },
+    { label: 'Lifetime cap per member', value: `${community.memberXpLimit.toLocaleString()} XP` },
+    { label: 'Lifetime XP awarded', value: community.totalXpAwarded.toLocaleString() },
+    { label: 'Members with XP', value: community.membersWithXp.toLocaleString() },
+    { label: 'XP earners today', value: community.xpEarnersToday.toLocaleString() },
+  ];
+  return (
+    <View testID={`telegram-community-stats-${community.chatId}`} style={styles.statsGrid}>
+      {stats.map(({ label, value }) => (
+        <View key={label} style={[styles.statCell, { backgroundColor: colors.muted }]}>
+          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{label}</Text>
+          <Text style={[styles.statValue, { color: colors.foreground }]}>{value}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function CommunityBudget({ community }: { community: TelegramManagedCommunity }) {
+  const colors = useColors();
+  const progress = community.dailyXpLimit
+    ? Math.min(100, Math.round((community.xpAwardedToday / community.dailyXpLimit) * 100))
+    : 0;
+  return (
+    <View>
+      <View style={styles.budgetHeader}>
+        <Text style={[styles.budgetLabel, { color: colors.foreground }]}>Community XP today</Text>
+        <Text style={[styles.budgetValue, { color: colors.foreground }]}>
+          {community.xpAwardedToday.toLocaleString()} / {community.dailyXpLimit.toLocaleString()}
+        </Text>
+      </View>
+      <View
+        accessibilityRole="progressbar"
+        accessibilityLabel="Daily Community XP budget used"
+        accessibilityValue={{ min: 0, max: community.dailyXpLimit, now: community.xpAwardedToday }}
+        style={[styles.progressTrack, { backgroundColor: colors.border }]}
+      >
+        <View
+          style={[
+            styles.progressFill,
+            { width: `${progress}%`, backgroundColor: progress >= 100 ? colors.accent : colors.primary },
+          ]}
+        />
+      </View>
+    </View>
+  );
+}
+
+export function TelegramCommunityManagementScreen({ onBack, onOpenCommunity, onOpenBot }: Props) {
   const colors = useColors();
   const management = useGetTelegramCommunityManagement();
   const communities = management.data?.communities ?? [];
@@ -252,9 +277,164 @@ export function TelegramCommunityManagementScreen({ onBack, onOpenBot }: Props) 
             <CommunityCard
               key={community.chatId}
               community={community}
-              onManage={() => onOpenBot(`community_${community.chatId}`)}
+              onOpen={() => onOpenCommunity(community.chatId)}
             />
           ))}
+        </View>
+      )}
+      <View style={{ height: 40 }} />
+    </ScrollView>
+  );
+}
+
+export function TelegramCommunityDashboardScreen({
+  chatId,
+  onBack,
+  onOpenBot,
+}: {
+  chatId?: string;
+  onBack: () => void;
+  onOpenBot: (startPayload?: string) => void;
+}) {
+  const colors = useColors();
+  const management = useGetTelegramCommunityManagement();
+  const community = management.data?.communities.find((item) => item.chatId === chatId);
+
+  return (
+    <ScrollView
+      testID="telegram-community-dashboard-screen"
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.topBar}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back to linked groups"
+          testID="telegram-community-dashboard-back"
+          onPress={onBack}
+          hitSlop={8}
+          style={styles.backButton}
+        >
+          <Feather name="arrow-left" size={20} color={colors.foreground} />
+        </Pressable>
+        <View style={styles.headingCopy}>
+          <Text style={[styles.eyebrow, { color: colors.primary }]}>GROUP OVERVIEW</Text>
+          <Text numberOfLines={2} style={[styles.title, { color: colors.foreground }]}>
+            {community?.chatTitle ?? 'Group dashboard'}
+          </Text>
+          {community ? (
+            <Text numberOfLines={1} style={[styles.subtitle, { color: colors.mutedForeground }]}>
+              {community.organisationName}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+
+      {management.isLoading ? (
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[styles.stateText, { color: colors.mutedForeground }]}>Loading group dashboard…</Text>
+        </View>
+      ) : management.isError ? (
+        <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <Feather name="alert-circle" size={22} color={colors.destructive} />
+          <Text style={[styles.stateTitle, { color: colors.foreground }]}>Dashboard couldn’t be loaded</Text>
+          <Text style={[styles.stateText, { color: colors.mutedForeground }]}>
+            Check your connection and try again.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            testID="telegram-community-dashboard-retry"
+            onPress={() => { void management.refetch(); }}
+            style={[styles.secondaryButton, { borderColor: colors.border, borderRadius: colors.radius - 5 }]}
+          >
+            <Feather name="refresh-cw" size={15} color={colors.primary} />
+            <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Try again</Text>
+          </Pressable>
+        </View>
+      ) : !community ? (
+        <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <Feather name="users" size={22} color={colors.mutedForeground} />
+          <Text style={[styles.stateTitle, { color: colors.foreground }]}>Group not found</Text>
+          <Text style={[styles.stateText, { color: colors.mutedForeground }]}>
+            This group may have been disconnected from the organisation.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            testID="telegram-community-dashboard-back-to-list"
+            onPress={onBack}
+            style={[styles.secondaryButton, { borderColor: colors.border, borderRadius: colors.radius - 5 }]}
+          >
+            <Feather name="arrow-left" size={15} color={colors.primary} />
+            <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Back to linked groups</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.dashboardSections}>
+          <View
+            style={[
+              styles.dashboardCard,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+            ]}
+          >
+            <View style={styles.dashboardSectionHeader}>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={[styles.statsHeading, { color: colors.foreground, marginTop: 0 }]}>Community XP today</Text>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  Daily budget and remaining allowance
+                </Text>
+              </View>
+              <ProtectionBadge community={community} />
+            </View>
+            <CommunityBudget community={community} />
+            <GroupStats community={community} />
+            <Text style={[styles.budgetNote, { color: colors.mutedForeground }]}>
+              Daily budget resets at 00:00 {community.resetTimezone}.
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.dashboardCard,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+            ]}
+          >
+            <View style={styles.dashboardSectionHeader}>
+              <View style={[styles.setupIcon, { backgroundColor: community.spamProtectionEnabled ? colors.success + '16' : colors.muted }]}>
+                <Feather
+                  name="shield"
+                  size={18}
+                  color={community.spamProtectionEnabled ? colors.success : colors.mutedForeground}
+                />
+              </View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                  Phrase protection {community.spamProtectionEnabled ? 'on' : 'off'}
+                </Text>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  {community.spamProtectionEnabled
+                    ? 'The group’s phrase protection is active.'
+                    : 'Phrase protection is currently disabled for this group.'}
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Manage ${community.chatTitle} in Telegram`}
+              testID={`telegram-community-manage-${community.chatId}`}
+              onPress={() => onOpenBot(`community_${community.chatId}`)}
+              style={({ pressed }) => [
+                styles.manageButton,
+                { backgroundColor: colors.primary, borderRadius: colors.radius - 5, opacity: pressed ? 0.78 : 1 },
+              ]}
+            >
+              <Feather name="send" size={16} color={colors.primaryForeground} />
+              <Text style={[styles.manageButtonText, { color: colors.primaryForeground }]}>Manage in Telegram</Text>
+              <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />
+            </Pressable>
+          </View>
         </View>
       )}
       <View style={{ height: 40 }} />
@@ -293,9 +473,12 @@ const styles = StyleSheet.create({
   communityTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 },
   organisationName: { fontFamily: 'Inter_400Regular', fontSize: 11 },
   protectionBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
+  compactProtectionBadge: { paddingHorizontal: 7, paddingVertical: 5 },
   protectionDot: { width: 6, height: 6, borderRadius: 3 },
   protectionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
-  communityDetails: { marginTop: 14 },
+  cardBudget: { marginTop: 12 },
+  openDashboard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
+  openDashboardText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   budgetHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginBottom: 8 },
   budgetLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   budgetValue: { fontFamily: 'Inter_700Bold', fontSize: 12 },
@@ -309,4 +492,9 @@ const styles = StyleSheet.create({
   budgetNote: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 8, marginBottom: 13 },
   manageButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
   manageButtonText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  dashboardSections: { gap: 12 },
+  dashboardCard: { borderWidth: 1, padding: 14 },
+  dashboardSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  sectionTitleCopy: { flex: 1, minWidth: 0, gap: 4 },
+  sectionDescription: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
 });
