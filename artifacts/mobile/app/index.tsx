@@ -1339,9 +1339,7 @@ const organisationTypeOptions: Array<{
   { value: 'school', title: 'School / Educational Institution', description: 'A school, college or learning provider.', icon: 'book-open' },
   { value: 'community_centre', title: 'Community Centre', description: 'A local hub bringing people together.', icon: 'home' },
   { value: 'library', title: 'Library', description: 'A public, school or community library.', icon: 'book' },
-  { value: 'youth_organisation', title: 'Youth Organisation', description: 'A group supporting young people.', icon: 'users' },
   { value: 'business', title: 'Business / Sponsor', description: 'A business supporting community activity.', icon: 'briefcase' },
-  { value: 'other', title: 'Other Organisation', description: 'Another community or social organisation.', icon: 'grid' },
 ];
 
 function OrganisationTypeSelection({
@@ -1376,7 +1374,7 @@ function OrganisationTypeSelection({
           Choose the closest match. Fundraising access is reviewed separately.
         </Text>
 
-        <View style={styles.organisationTypeOptions}>
+        <View testID="organisation-type-options" style={styles.organisationTypeOptions}>
           {organisationTypeOptions.map((option) => {
             const selected = selectedType === option.value;
             return (
@@ -1399,8 +1397,10 @@ function OrganisationTypeSelection({
                 <View style={[styles.organisationTypeIcon, { backgroundColor: selected ? colors.primary + '14' : colors.muted }]}>
                   <Feather name={option.icon} size={18} color={selected ? colors.primary : colors.mutedForeground} />
                 </View>
-                <Text style={[styles.organisationTypeTitle, { color: colors.foreground }]}>{option.title}</Text>
-                <Text style={[styles.organisationTypeDescription, { color: colors.mutedForeground }]}>{option.description}</Text>
+                <View style={styles.organisationTypeCopy}>
+                  <Text style={[styles.organisationTypeTitle, { color: colors.foreground }]}>{option.title}</Text>
+                  <Text style={[styles.organisationTypeDescription, { color: colors.mutedForeground }]}>{option.description}</Text>
+                </View>
                 <View style={[styles.organisationTypeRadio, { borderColor: selected ? colors.primary : colors.border }]}>
                   {selected ? <View style={[styles.accountTypeRadioInner, { backgroundColor: colors.primary }]} /> : null}
                 </View>
@@ -9590,12 +9590,13 @@ const styles = StyleSheet.create({
   flowDescription: { fontSize: 14, lineHeight: 22, fontFamily: 'Inter_400Regular', marginBottom: 25 },
   accountTypeOptions: { gap: 12, marginTop: 2 },
   accountTypeCard: { minHeight: 106, flexDirection: 'row', alignItems: 'center', gap: 13, padding: 16, borderWidth: 1.5, borderRadius: 22 },
-  organisationTypeOptions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 9, marginTop: 4 },
-  organisationTypeCard: { width: '48%', minHeight: 132, alignItems: 'flex-start', padding: 12, borderWidth: 1.5, borderRadius: 18, position: 'relative' },
-  organisationTypeIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginBottom: 7 },
-  organisationTypeTitle: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_700Bold', paddingRight: 16 },
-  organisationTypeDescription: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular', marginTop: 4 },
-  organisationTypeRadio: { position: 'absolute', top: 12, right: 11, width: 18, height: 18, borderWidth: 1.5, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  organisationTypeOptions: { gap: 10, marginTop: 4 },
+  organisationTypeCard: { width: '100%', minHeight: 84, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1.5, borderRadius: 18 },
+  organisationTypeIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  organisationTypeCopy: { flex: 1, minWidth: 0, gap: 3 },
+  organisationTypeTitle: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_700Bold' },
+  organisationTypeDescription: { fontSize: 11, lineHeight: 15, fontFamily: 'Inter_400Regular' },
+  organisationTypeRadio: { width: 21, height: 21, borderWidth: 1.5, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   accountTypeIcon: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   accountTypeCopy: { flex: 1 },
   accountTypeTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: -0.2 },

@@ -808,10 +808,30 @@ test("organisation signup requires a supported subtype before sign-in", async (t
     "the organisation subtype choices",
   );
   const initialState = await client.evaluate(`(() => ({
-    cards: document.querySelectorAll('[data-testid^="organisation-type-"][role="radio"]').length,
+    values: [...document.querySelectorAll('[data-testid^="organisation-type-"][role="radio"]')]
+      .map((card) => card.getAttribute('data-testid')?.replace('organisation-type-', '')),
     continueDisabled: document.querySelector('[data-testid="organisation-type-continue"]')?.disabled,
+    youthVisible: Boolean(document.querySelector('[data-testid="organisation-type-youth_organisation"]')),
+    otherVisible: Boolean(document.querySelector('[data-testid="organisation-type-other"]')),
   }))()`);
-  assert.equal(initialState.cards, 8);
+  assert.equal(initialState.values.length, 6);
+  assert.deepEqual(
+    initialState.values,
+    ["charity", "nonprofit", "school", "community_centre", "library", "business"],
+  );
+  assert.equal(initialState.youthVisible, false, "Youth Organisation should no longer be an onboarding option.");
+  assert.equal(initialState.otherVisible, false, "Other Organisation should no longer be an onboarding option.");
+  const cardLayout = await client.evaluate(`(() => {
+    const options = document.querySelector('[data-testid="organisation-type-options"]');
+    const cards = [...document.querySelectorAll('[data-testid^="organisation-type-"][role="radio"]')];
+    const containerWidth = options?.getBoundingClientRect().width ?? 0;
+    return {
+      allHorizontal: cards.every((card) => getComputedStyle(card).flexDirection === 'row'),
+      allFullWidth: containerWidth > 0 && cards.every((card) => card.getBoundingClientRect().width >= containerWidth * 0.95),
+    };
+  })()`);
+  assert.equal(cardLayout.allHorizontal, true, "Organisation type cards should use horizontal layouts.");
+  assert.equal(cardLayout.allFullWidth, true, "Each organisation type card should span the available row.");
   assert.equal(initialState.continueDisabled, true, "users must choose a subtype before continuing");
 
   const unselectedBorder = await client.evaluate(
