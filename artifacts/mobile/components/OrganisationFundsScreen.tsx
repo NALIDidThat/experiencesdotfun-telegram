@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, GestureResponderEvent, Image, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, GestureResponderEvent, Image, Keyboard, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
@@ -679,6 +679,7 @@ export function OrganisationFundsScreen({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [goalSol, setGoalSol] = useState("");
+  const [createStep, setCreateStep] = useState(1);
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [treasuryAddress, setTreasuryAddress] = useState("");
@@ -720,7 +721,7 @@ export function OrganisationFundsScreen({
   const hostedExperiencesQuery = useListHostExperiences({
     query: {
       queryKey: getListHostExperiencesQueryKey(),
-      enabled: expandedMetric === "participants" || expandedMetric === "experiences",
+      enabled: stage === "create" || expandedMetric === "participants" || expandedMetric === "experiences",
     },
   });
   const payoutParams = payoutBefore ? { before: payoutBefore } : undefined;
@@ -744,7 +745,7 @@ export function OrganisationFundsScreen({
   const create = useCreateOrganisationFund({ mutation: { onSuccess: () => {
     void queryClient.invalidateQueries({ queryKey: getListOrganisationFundsQueryKey(organisationUserId) });
   } } });
-  const field = (label: string, value: string, setValue: (next: string) => void, placeholder: string, multiline = false) => (
+  const field = (label: string, value: string, setValue: (next: string) => void, placeholder: string, multiline = false, keyboardType: "default" | "decimal-pad" = "default", testID?: string) => (
     <View style={{ gap: 6 }}>
       <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 13 }}>{label}</Text>
       <TextInput
@@ -753,14 +754,17 @@ export function OrganisationFundsScreen({
         placeholder={placeholder}
         placeholderTextColor={colors.mutedForeground}
         multiline={multiline}
+        keyboardType={keyboardType}
         accessibilityLabel={label}
+        testID={testID}
         style={{ minHeight: multiline ? 112 : 50, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius - 6, paddingHorizontal: 14, paddingVertical: 12, color: colors.foreground, backgroundColor: colors.card, textAlignVertical: multiline ? "top" : "center" }}
       />
     </View>
   );
-  const button = (label: string, action: () => void, secondary = false, disabled = false, icon?: keyof typeof Feather.glyphMap, compact = false) => (
+  const button = (label: string, action: () => void, secondary = false, disabled = false, icon?: keyof typeof Feather.glyphMap, compact = false, testID?: string) => (
     <Pressable
       accessibilityRole="button"
+      testID={testID}
       disabled={disabled}
       onPress={action}
       style={{ minHeight: compact ? 44 : 50, borderRadius: colors.radius - 4, paddingHorizontal: compact ? 12 : 16, backgroundColor: secondary ? colors.card : colors.primary, borderWidth: secondary ? 1 : 0, borderColor: colors.border, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: compact ? 6 : 8, opacity: disabled ? 0.55 : 1 }}
@@ -790,6 +794,12 @@ export function OrganisationFundsScreen({
     ? "—"
     : `${formatCampaignSol(totalCampaignRaisedSol)} SOL`;
   const returnToStage = initialView === "campaigns" ? "campaigns" : "dashboard";
+  const openFundCreation = (clearExperience = false) => {
+    setCreateStep(1);
+    setError(null);
+    if (clearExperience) setExperienceIdToAttach(undefined);
+    setStage("create");
+  };
 
   const copyTreasuryAddress = async () => {
     const address = treasuryQuery.data?.treasury.walletAddress;
@@ -878,10 +888,79 @@ export function OrganisationFundsScreen({
   }
 
   if (stage === "create") {
+    const validateCampaignDetails = () => {
+      if (!title.trim() || title.trim().length < 3 || !description.trim() || description.trim().length < 10) {
+        return "Add a fund name and a description of at least 10 characters.";
+      }
+      return null;
+    };
+    const validateGoal = () => {
+      const goal = Number(goalSol);
+      return Number.isFinite(goal) && goal > 0 && Number(goal.toFixed(9)) === goal
+        ? null
+        : "Enter a positive SOL goal with up to 9 decimal places.";
+    };
+    const goToCreateStep = (nextStep: number) => {
+      Keyboard.dismiss();
+      setError(null);
+      setCreateStep(nextStep);
+    };
+    const continueCreateStep = () => {
+      const validationError = createStep === 1 ? validateCampaignDetails() : validateGoal();
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+      goToCreateStep(Math.min(3, createStep + 1));
+    };
+    const attachedExperience = hostedExperiencesQuery.data?.find((experience) => experience.id === experienceIdToAttach);
+    const attachedExperienceName = attachedExperience?.title
+      ?? (experienceIdToAttach === initialExperienceId ? initialExperienceTitle : undefined)
+      ?? (experienceIdToAttach ? `Experience #${experienceIdToAttach}` : "");
+    const stepNames = ["Campaign", "Goal", "Review"];
+    const reviewRow = (label: string, value: string, editStep: number, multiline = false) => (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Edit ${label}`}
+        testID={`fund-review-edit-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+        onPress={() => goToCreateStep(editStep)}
+        style={{ minHeight: 62, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}
+      >
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.35 }}>{label.toUpperCase()}</Text>
+          <Text style={{ color: colors.foreground, fontSize: 14, lineHeight: multiline ? 21 : 19 }} numberOfLines={multiline ? 5 : 2}>{value}</Text>
+        </View>
+        <Feather name="edit-2" size={15} color={colors.primary} />
+      </Pressable>
+    );
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-        {header("Launch a fund", "Create a new campaign for your community.", () => { setError(null); setStage(returnToStage); }, "Back to campaign tracker")}
-        <KeyboardAwareScrollViewCompat style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 34, gap: 17 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" bottomOffset={60}>
+        {header("Launch a fund", "A clear plan helps your community act together.", () => {
+          if (createStep > 1) goToCreateStep(createStep - 1);
+          else { Keyboard.dismiss(); setError(null); setStage(returnToStage); }
+        }, createStep > 1 ? "Previous step" : "Back to campaign tracker")}
+        <KeyboardAwareScrollViewCompat style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 34, gap: 18 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" bottomOffset={60} showsVerticalScrollIndicator={false}>
+          <View style={{ gap: 10 }} testID="fund-create-progress">
+            <View accessibilityRole="progressbar" accessibilityLabel={`Step ${createStep} of 3: ${stepNames[createStep - 1]}`} accessibilityValue={{ min: 1, max: 3, now: createStep }} style={{ height: 5, backgroundColor: colors.muted, borderRadius: 999, overflow: "hidden" }}>
+              <View style={{ width: `${Math.round((createStep / 3) * 100)}%`, height: "100%", backgroundColor: colors.primary, borderRadius: 999 }} />
+            </View>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.7 }}>{`STEP 0${createStep} · ${stepNames[createStep - 1].toUpperCase()}`}</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>{createStep} of 3</Text>
+            </View>
+          </View>
+          <View style={{ gap: 6 }}>
+            <Text testID="fund-create-step-heading" style={{ color: colors.foreground, fontSize: 24, lineHeight: 30, fontFamily: "Inter_700Bold" }}>
+              {createStep === 1 ? "What are you bringing people together for?" : createStep === 2 ? "Set a clear fundraising goal" : "Check everything before launch"}
+            </Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>
+              {createStep === 1
+                ? "Give the campaign a specific name and describe the outcomes donations will support."
+                : createStep === 2
+                  ? "Choose a goal in SOL and link an Experience if this campaign supports one."
+                  : "Your campaign will direct donations to the registered shared charity treasury. Check the details below."}
+            </Text>
+          </View>
           <View style={{ borderRadius: colors.radius, backgroundColor: colors.primary + "10", padding: 14, flexDirection: "row", gap: 10 }}>
             <Feather name="info" size={17} color={colors.primary} />
             <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>Donations go to your registered shared charity treasury. Experiences.fun never holds funds or controls wallet keys.</Text>
@@ -894,38 +973,109 @@ export function OrganisationFundsScreen({
             </View>
           ) : (
             <>
-          {experienceIdToAttach ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, borderRadius: colors.radius - 4, backgroundColor: colors.primary + "10", padding: 12 }}>
-              <Feather name="calendar" size={15} color={colors.primary} />
-              <Text numberOfLines={2} style={{ flex: 1, color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>This fundraiser will be attached to {initialExperienceTitle || "your selected Experience"}.</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Remove Experience from fundraiser" onPress={() => setExperienceIdToAttach(undefined)} hitSlop={8}>
-                <Feather name="x" size={16} color={colors.mutedForeground} />
-              </Pressable>
-            </View>
-          ) : null}
-          {field("Fund name", title, setTitle, "e.g. Community garden supplies")}
-          {field("Short description", description, setDescription, "Explain what donations will support; list outcomes on separate lines.", true)}
-          <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16, marginTop: -10 }}>Each non-empty line appears as a separate campaign detail. Use organizer-provided facts only.</Text>
-          {field("Goal amount (SOL)", goalSol, setGoalSol, "e.g. 10")}
-          {error ? <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 12, lineHeight: 18 }}>{error}</Text> : null}
-          {button(create.isPending ? "Creating fund…" : "Create fund", () => {
-            const goal = Number(goalSol);
-            if (!title.trim() || title.trim().length < 3 || !description.trim() || description.trim().length < 10 || !Number.isFinite(goal) || goal <= 0 || Number(goal.toFixed(9)) !== goal) {
-              setError("Add a fund name, a description of at least 10 characters, and a positive SOL goal (up to 9 decimal places).");
-              return;
-            }
-            setError(null);
-             void create.mutateAsync({ data: { title: title.trim(), description: description.trim(), goalSol: goal, ...(experienceIdToAttach ? { experienceId: experienceIdToAttach } : {}) } })
-              .then((fund) => {
-                setCreatedFund(fund);
-                setSelectedFund(fund);
-                setTitle("");
-                setDescription("");
-                setGoalSol("");
-                setStage("success");
-              })
-              .catch((cause) => setError((cause as { data?: { message?: string } })?.data?.message ?? "The fund could not be launched. Please try again."));
-          }, false, create.isPending || !treasuryQuery.data, "arrow-right")}
+              {createStep === 1 ? (
+                <>
+                  {field("Fund name", title, setTitle, "e.g. Community garden supplies", false, "default", "fund-field-name")}
+                  {field("Campaign details & outcomes", description, setDescription, "Explain what donations will support; list outcomes on separate lines.", true, "default", "fund-field-description")}
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16, marginTop: -10 }}>Each non-empty line appears as a separate campaign detail. Use organizer-provided facts only.</Text>
+                </>
+              ) : null}
+              {createStep === 2 ? (
+                <>
+                  {field("Goal amount (SOL)", goalSol, setGoalSol, "e.g. 10", false, "decimal-pad", "fund-field-goal")}
+                  <View style={{ gap: 9, marginTop: 3 }}>
+                    <View style={{ gap: 3 }}>
+                      <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 13 }}>Attached Experience · optional</Text>
+                      <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>Link a real activity this campaign supports. You can leave this unset.</Text>
+                    </View>
+                    {experienceIdToAttach ? (
+                      <View style={{ minHeight: 56, flexDirection: "row", alignItems: "center", gap: 10, borderRadius: colors.radius - 4, borderWidth: 1, borderColor: colors.primary + "55", backgroundColor: colors.primary + "0D", paddingHorizontal: 13, paddingVertical: 10 }}>
+                        <Feather name="calendar" size={16} color={colors.primary} />
+                        <Text numberOfLines={2} style={{ flex: 1, color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{attachedExperienceName}</Text>
+                        <Pressable accessibilityRole="button" accessibilityLabel="Remove Experience from fundraiser" testID="fund-experience-remove" onPress={() => setExperienceIdToAttach(undefined)} hitSlop={8} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}>
+                          <Feather name="x" size={17} color={colors.mutedForeground} />
+                        </Pressable>
+                      </View>
+                    ) : hostedExperiencesQuery.isLoading ? (
+                      <View accessibilityRole="progressbar" style={{ minHeight: 54, justifyContent: "center", paddingHorizontal: 14, backgroundColor: colors.card, borderRadius: colors.radius - 4 }}>
+                        <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Loading your Experiences…</Text>
+                      </View>
+                    ) : hostedExperiencesQuery.isError ? (
+                      <View style={{ gap: 8 }}>
+                        <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Your Experiences could not be loaded. You can continue without attaching one.</Text>
+                        {button("Try again", () => { void hostedExperiencesQuery.refetch(); }, true, hostedExperiencesQuery.isFetching, "refresh-cw", true)}
+                      </View>
+                    ) : hostedExperiencesQuery.data?.length ? (
+                      <View style={{ gap: 8 }}>
+                        {hostedExperiencesQuery.data.map((experience) => (
+                          <Pressable
+                            key={experience.id}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: experienceIdToAttach === experience.id }}
+                            accessibilityLabel={`Attach ${experience.title}`}
+                            testID={`fund-experience-${experience.id}`}
+                            onPress={() => { setExperienceIdToAttach(experience.id); setError(null); }}
+                            style={{ minHeight: 54, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 13, borderRadius: colors.radius - 4, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card }}
+                          >
+                            <Feather name={experienceIdToAttach === experience.id ? "check-circle" : "circle"} size={17} color={experienceIdToAttach === experience.id ? colors.primary : colors.mutedForeground} />
+                            <Text numberOfLines={2} style={{ flex: 1, color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>{experience.title}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18, paddingVertical: 6 }}>No hosted Experiences available to attach right now.</Text>
+                    )}
+                    {!experienceIdToAttach && initialExperienceId ? (
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Keep attached Experience ${initialExperienceTitle || initialExperienceId}`} testID="fund-experience-keep-pre-attached" onPress={() => setExperienceIdToAttach(initialExperienceId)} style={{ minHeight: 48, justifyContent: "center" }}>
+                        <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Keep {initialExperienceTitle || "the pre-attached Experience"}</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </>
+              ) : null}
+              {createStep === 3 ? (
+                <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius, paddingHorizontal: 15, paddingTop: 2 }}>
+                  {reviewRow("Campaign name", title.trim(), 1)}
+                  {reviewRow("Description & outcomes", description.trim(), 1, true)}
+                  {reviewRow("SOL goal", `${goalSol} SOL`, 2)}
+                  {reviewRow("Attached Experience", attachedExperienceName || "No Experience attached", 2)}
+                  <View style={{ paddingVertical: 14, gap: 8 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Feather name="shield" size={16} color={colors.primary} />
+                      <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>Registered shared charity treasury</Text>
+                    </View>
+                    <Text selectable style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>{treasuryQuery.data?.treasury.walletAddress}</Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>Donations are sent to this charity-controlled wallet. Experiences.fun does not reserve, hold, or control the funds.</Text>
+                  </View>
+                </View>
+              ) : null}
+              {error ? <Text accessibilityRole="alert" testID="fund-create-error" style={{ color: colors.destructive, fontSize: 12, lineHeight: 18 }}>{error}</Text> : null}
+              {createStep < 3
+                ? button("Continue", continueCreateStep, false, create.isPending, "arrow-right", false, "fund-create-continue")
+                : button(create.isPending ? "Launching fund…" : "Launch fund", () => {
+                  const detailsError = validateCampaignDetails();
+                  const goalError = validateGoal();
+                  if (detailsError || goalError) {
+                    setError(detailsError ?? goalError);
+                    goToCreateStep(detailsError ? 1 : 2);
+                    return;
+                  }
+                  setError(null);
+                  const goal = Number(goalSol);
+                  void create.mutateAsync({ data: { title: title.trim(), description: description.trim(), goalSol: goal, ...(experienceIdToAttach ? { experienceId: experienceIdToAttach } : {}) } })
+                    .then((fund) => {
+                      setCreatedFund(fund);
+                      setSelectedFund(fund);
+                      setTitle("");
+                      setDescription("");
+                      setGoalSol("");
+                      setCreateStep(1);
+                      setStage("success");
+                    })
+                    .catch((cause) => setError((cause as { data?: { message?: string } })?.data?.message ?? "The fund could not be launched. Please try again."));
+                }, false, create.isPending || !treasuryQuery.data, "arrow-right", false, "fund-create-submit")
+              }
+              {createStep > 1 ? button("Back", () => goToCreateStep(createStep - 1), true, create.isPending, "arrow-left", false, "fund-create-back") : null}
             </>
           )}
         </KeyboardAwareScrollViewCompat>
@@ -946,7 +1096,7 @@ export function OrganisationFundsScreen({
               <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Campaigns</Text>
               <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{activeCount} active · {campaigns.length} total</Text>
             </View>
-            {button("Launch a fund", () => { setError(null); setStage("create"); }, false, false, "plus", true)}
+            {button("Launch a fund", () => openFundCreation(), false, false, "plus", true, "fund-launch-tracker-header")}
           </View>
           <View style={{ flexDirection: "row", gap: 7 }}>
             {(["active", "all", "closed"] as const).map((filter) => (
@@ -967,7 +1117,7 @@ export function OrganisationFundsScreen({
               <Feather name="target" size={25} color={colors.primary} />
               <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold" }}>{campaignFilter === "active" ? "No active campaigns" : campaignFilter === "closed" ? "No closed campaigns" : "No campaigns yet"}</Text>
               <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18, textAlign: "center" }}>Launch a fundraiser when your organisation is ready to raise support.</Text>
-              {campaignFilter !== "active" ? null : button("Launch a fund", () => { setError(null); setStage("create"); }, false, false, "plus", true)}
+              {campaignFilter !== "active" ? null : button("Launch a fund", () => openFundCreation(), false, false, "plus", true, "fund-launch-tracker-empty")}
             </View>
           )}
           <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15 }}>Progress includes recorded, finalized campaign deposits only. Transfers to the shared treasury may not be attributable to a campaign.</Text>
@@ -1367,7 +1517,7 @@ export function OrganisationFundsScreen({
                 {fundsQuery.data?.length ? <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{fundsQuery.data.filter((fund) => fund.status === "active").length} active</Text> : null}
               </View>
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>{button("Launch a fund", () => { setExperienceIdToAttach(undefined); setError(null); setStage("create"); }, false, false, "plus", true)}</View>
+                <View style={{ flex: 1 }}>{button("Launch a fund", () => openFundCreation(true), false, false, "plus", true, "fund-launch-start")}</View>
                 <View style={{ flex: 1 }}>{button("Track campaigns", () => onOpenCampaign ? onOpenCampaign() : setStage("campaigns"), true, false, "bar-chart-2")}</View>
               </View>
               {fundsQuery.isLoading ? <Text style={{ color: colors.mutedForeground, fontSize: 13, paddingVertical: 10 }}>Loading your campaigns…</Text> :
@@ -1495,7 +1645,7 @@ export function OrganisationFundsScreen({
                   void queryClient.invalidateQueries({ queryKey: getGetOrganisationTreasuryQueryKey() });
                   void queryClient.invalidateQueries({ queryKey: getListOrganisationFundsQueryKey(organisationUserId) });
                   if (initialExperienceId) {
-                    setStage("create");
+                    openFundCreation();
                   }
                 },
                 onError: (cause) => setError((cause as { data?: { message?: string } })?.data?.message ?? "The treasury could not be registered."),

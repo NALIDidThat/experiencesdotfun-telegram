@@ -1891,3 +1891,236 @@ test("charity treasury dashboard shows live values and supports private balance 
   assert.deepEqual(unexpectedApiRequests, [], "The treasury and proposal flow should only call the expected APIs.");
   assert.ok(apiTraffic.includes("GET /api/funds/treasury"), "The dashboard should load the registered charity treasury.");
 });
+
+test("charities can review and launch a fund with an attached Experience", async (t) => {
+  const appBaseUrl = process.env.HOST_MANAGEMENT_APP_URL ?? getAppPreviewUrl("The charity fund creation preview test");
+  const appOrigin = new URL(appBaseUrl).origin;
+  const client = await launchBrowser(t);
+  const { user: fixtureUser, experience } = makeFixtures();
+  const user = {
+    ...fixtureUser,
+    organisation: { ...fixtureUser.organisation, type: "charity" },
+  };
+  const walletAddress = "7YWHMfk9JZe0LM0g1Z8cL3cQW4zVg2oJx7kVhV9zT4x8";
+  const treasuryDashboard = {
+    treasury: {
+      organisationId: user.organisation.id,
+      organisationUserId: user.id,
+      walletAddress,
+      cluster: "devnet",
+      createdAt: "2026-10-01T10:00:00.000Z",
+      updatedAt: "2026-10-01T10:00:00.000Z",
+    },
+    balanceSol: "0.000000000",
+    transactions: [],
+    nextCursor: null,
+    hasMore: false,
+    checkedAt: "2026-10-24T10:00:00.000Z",
+  };
+  const apiTraffic = [];
+  const unexpectedApiRequests = [];
+  let createdFundBody;
+
+  client.on("Fetch.requestPaused", ({ params }) => {
+    void (async () => {
+      try {
+        const url = new URL(params.request.url);
+        if (!url.pathname.startsWith("/api/")) {
+          await client.send("Fetch.continueRequest", { requestId: params.requestId });
+          return;
+        }
+        const method = params.request.method;
+        apiTraffic.push(`${method} ${url.pathname}`);
+        if (method === "OPTIONS") {
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 204,
+            responseHeaders: [
+              ...apiResponseHeaders(params.request, appOrigin),
+              { name: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
+              {
+                name: "Access-Control-Allow-Headers",
+                value: params.request.headers["Access-Control-Request-Headers"]
+                  ?? params.request.headers["access-control-request-headers"]
+                  ?? "authorization,content-type",
+              },
+            ],
+            body: "",
+          });
+          return;
+        }
+
+        let status = 200;
+        let response = {};
+        if (url.pathname === "/api/me" && method === "GET") {
+          response = user;
+        } else if (url.pathname === "/api/friends" && method === "GET") {
+          response = [];
+        } else if (url.pathname === "/api/friends/notifications" && method === "GET") {
+          response = { notifications: [], unreadCount: 0 };
+        } else if (url.pathname === "/api/organisations/verification" && method === "GET") {
+          response = { status: "unsubmitted" };
+        } else if (url.pathname === "/api/host/overview" && method === "GET") {
+          response = {
+            organisation: user.organisation,
+            upcomingExperiences: 0,
+            participantCount: 0,
+            waitlistCount: 0,
+            monthlyVerifiedCompletions: 0,
+            pendingVerifications: 0,
+            pendingCompletionReviews: 0,
+            pendingMilestoneReviews: 0,
+            totalExperiences: 0,
+          };
+        } else if (url.pathname === "/api/funds/treasury" && method === "GET") {
+          response = treasuryDashboard;
+        } else if (url.pathname === `/api/funds/${user.id}` && method === "GET") {
+          response = [];
+        } else if (url.pathname === "/api/funds" && method === "POST") {
+          createdFundBody = JSON.parse(params.request.postData ?? "{}");
+          status = 201;
+          response = {
+            id: 812,
+            organisationId: user.organisation.id,
+            organisationUserId: user.id,
+            organisationName: user.organisation.name,
+            creatorUsername: user.username,
+            title: createdFundBody.title,
+            description: createdFundBody.description,
+            experienceId: createdFundBody.experienceId ?? null,
+            experienceTitle: createdFundBody.experienceId ? experience.title : null,
+            walletAddress,
+            cluster: "devnet",
+            goalSol: createdFundBody.goalSol,
+            raisedSol: "0.000000000",
+            contributionCount: 0,
+            status: "active",
+            createdAt: "2026-10-24T10:00:00.000Z",
+          };
+        } else if (url.pathname === "/api/funds/payout-candidates" && method === "GET") {
+          response = [];
+        } else if (url.pathname === "/api/funds/payouts" && method === "GET") {
+          response = [];
+        } else if (url.pathname === "/api/host/experiences" && method === "GET") {
+          response = [experience];
+        } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
+          status = 202;
+          response = { accepted: true };
+        } else {
+          unexpectedApiRequests.push(`${method} ${url.pathname}`);
+          status = 404;
+          response = { message: "Unexpected API request in charity fund creation test." };
+        }
+
+        await client.send("Fetch.fulfillRequest", {
+          requestId: params.requestId,
+          responseCode: status,
+          responseHeaders: apiResponseHeaders(params.request, appOrigin),
+          body: status === 204 ? "" : Buffer.from(JSON.stringify(response)).toString("base64"),
+        });
+      } catch (error) {
+        unexpectedApiRequests.push(error.message);
+        await client.send("Fetch.failRequest", {
+          requestId: params.requestId,
+          errorReason: "Failed",
+        }).catch(() => {});
+      }
+    })();
+  });
+
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
+  await client.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `localStorage.setItem('@experiences/auth-token', 'email_fund-creation-test');`,
+  });
+  await setViewport(client);
+  await client.send("Page.navigate", { url: `${appBaseUrl}/?screen=funds` });
+
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="fund-launch-start"]'))`,
+    Boolean,
+    "the charity dashboard's fund launch action",
+  );
+  await tapTestId(client, "fund-launch-start");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="fund-create-step-heading"]')?.innerText?.includes('What are you bringing people together for?') ?? false`,
+    Boolean,
+    "the campaign details step",
+  );
+  await tapTestId(client, "fund-create-continue");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="fund-create-error"]')?.innerText?.includes('description of at least 10 characters') ?? false`,
+    Boolean,
+    "required campaign details validation",
+  );
+
+  await replaceInput(client, "fund-field-name", "Community garden fund");
+  await replaceInput(client, "fund-field-description", "Garden beds and native plants for the community growing space.");
+  await tapTestId(client, "fund-create-continue");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="fund-create-step-heading"]')?.innerText?.includes('Set a clear fundraising goal') ?? false`,
+    Boolean,
+    "the fundraising goal step",
+  );
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="fund-experience-${experience.id}"]'))`,
+    Boolean,
+    "the available hosted Experience",
+  );
+  await replaceInput(client, "fund-field-goal", "5");
+  await tapTestId(client, `fund-experience-${experience.id}`);
+  await tapTestId(client, "fund-create-continue");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="fund-create-step-heading"]')?.innerText?.includes('Check everything before launch') ?? false`,
+    Boolean,
+    "the final review step",
+  );
+
+  const reviewText = await client.evaluate(`document.body?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`);
+  assert.ok(reviewText.includes("Community garden fund"), "The review should show the campaign name.");
+  assert.ok(reviewText.includes("5 SOL"), "The review should show the SOL goal.");
+  assert.ok(reviewText.includes(experience.title), "The review should show the linked Experience.");
+  assert.ok(reviewText.includes(walletAddress), "The review should show the registered shared treasury.");
+  assert.ok(reviewText.includes("does not reserve, hold, or control the funds"), "The review should explain the shared-treasury custody boundary.");
+
+  await tapTestId(client, "fund-review-edit-campaign-name");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="fund-field-name"]')?.value === 'Community garden fund'`,
+    Boolean,
+    "the campaign name to remain when editing from review",
+  );
+  await tapTestId(client, "fund-create-continue");
+  await tapTestId(client, "fund-create-continue");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="fund-create-submit"]'))`,
+    Boolean,
+    "the final launch action after returning from review",
+  );
+  await tapTestId(client, "fund-create-submit");
+  await waitForValue(
+    client,
+    `document.body?.innerText?.includes('Fund created!') ?? false`,
+    Boolean,
+    "the fund creation success screen",
+  );
+
+  assert.deepEqual(
+    createdFundBody,
+    {
+      title: "Community garden fund",
+      description: "Garden beds and native plants for the community growing space.",
+      goalSol: 5,
+      experienceId: experience.id,
+    },
+    "The wizard should submit only the existing fund API fields.",
+  );
+  assert.ok(apiTraffic.includes("POST /api/funds"), "The existing charity fund creation API should receive the campaign.");
+  assert.deepEqual(unexpectedApiRequests, [], "The fund creation flow should call only expected APIs.");
+});
