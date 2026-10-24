@@ -659,6 +659,7 @@ export function OrganisationFundsScreen({
   organisationUserId,
   onBack,
   onOpenCampaign,
+  onNewPayoutProposal,
   initialView = "treasury",
   initialExperienceId,
   initialExperienceTitle,
@@ -667,6 +668,7 @@ export function OrganisationFundsScreen({
   organisationUserId: number;
   onBack: () => void;
   onOpenCampaign?: (fundId?: number) => void;
+  onNewPayoutProposal: () => void;
   initialView?: "treasury" | "campaigns";
   initialExperienceId?: number;
   initialExperienceTitle?: string;
@@ -1499,7 +1501,7 @@ export function OrganisationFundsScreen({
             }, false, register.isPending, "arrow-right")}
           </View>
         )}
-        <CharityPayoutsSection funds={fundsQuery.data ?? []} />
+        <CharityPayoutsSection onNewProposal={onNewPayoutProposal} />
       </KeyboardAwareScrollViewCompat>
       <TreasuryMetricDetailsSheet
         metric={expandedMetric as TreasuryMetric | null}

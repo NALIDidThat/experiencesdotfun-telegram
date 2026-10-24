@@ -1,17 +1,22 @@
 import { ReactNode, useState } from "react";
-import { Image, Text, TextInput, View } from "react-native";
+import { Image, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  getListOrganisationFundsQueryKey,
   getListFundPayoutsQueryKey,
   useCancelFundPayout,
   useCreateFundPayout,
   useListCharityPayoutCandidates,
+  useListOrganisationFunds,
   useListFundPayouts,
   useVerifyFundPayout,
 } from "@workspace/api-client-react";
-import type { FundPayout, OrganisationFund } from "@workspace/api-client-react";
+import type { FundPayout } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import {
   Btn, Card, ErrorBlock, Field, Notice, NetworkBadge, SectionTitle, Skeleton, apiErrorMessage,
   dateLabel, explorerUrl, openExternal, refreshFundData, shareText,
@@ -174,27 +179,66 @@ export function PayoutCard({ payout: p, role }: { payout: FundPayout; role: "own
   );
 }
 
-export function CharityPayoutsSection({ funds }: { funds: OrganisationFund[] }) {
+export function CharityPayoutsSection({
+  onNewProposal,
+}: {
+  onNewProposal: () => void;
+}) {
+  return (
+    <View style={{ gap: 10 }} testID="charity-payouts">
+      <SectionTitle title="Volunteer payouts" hint="Record a proposal for your external multisig. Recording does not approve, reserve or send funds." />
+      <Btn label="New payout proposal" icon="plus" variant="secondary" testID="payout-new" onPress={onNewProposal} />
+      <PayoutPages role="owner" empty={<PayoutEmptyState />} />
+    </View>
+  );
+}
+
+export function PayoutProposalScreen({
+  organisationUserId,
+  onBack,
+}: {
+  organisationUserId: number;
+  onBack: () => void;
+}) {
   const colors = useColors();
   const queryClient = useQueryClient();
   const candidates = useListCharityPayoutCandidates();
   const create = useCreateFundPayout();
-  const [open, setOpen] = useState(false);
+  const insets = useSafeAreaInsets();
   const [recipient, setRecipient] = useState("");
+  const [candidateSearch, setCandidateSearch] = useState("");
   const [wallet, setWallet] = useState("");
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [fundId, setFundId] = useState<number | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<FundPayout | null>(null);
+  const fundsQuery = useListOrganisationFunds(organisationUserId, {
+    query: {
+      queryKey: getListOrganisationFundsQueryKey(organisationUserId),
+      enabled: Number.isSafeInteger(organisationUserId) && organisationUserId > 0,
+    },
+  });
+  const allCandidates = candidates.data ?? [];
+  const searchTerm = candidateSearch.trim().toLocaleLowerCase();
+  const visibleCandidates = allCandidates
+    .filter((candidate) => !searchTerm
+      || `${candidate.name} ${candidate.username} ${candidate.id}`.toLocaleLowerCase().includes(searchTerm))
+    .slice(0, 8);
+  const topInset = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top + 12;
+  const bottomInset = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
-  const input = (label: string, value: string, set: (v: string) => void, placeholder: string, extra?: object) => (
-    <View style={{ gap: 5 }}>
-      <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{label}</Text>
-      <TextInput accessibilityLabel={label} value={value} onChangeText={(v) => { set(v); setError(null); }} placeholder={placeholder} placeholderTextColor={colors.mutedForeground} autoCapitalize="none" autoCorrect={false}
-        style={{ minHeight: 48, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius - 5, paddingHorizontal: 12, paddingVertical: 10, color: colors.foreground, backgroundColor: colors.background, fontSize: 13 }} {...extra} />
-    </View>
-  );
+  const inputStyle = {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: colors.radius - 5,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: colors.foreground,
+    backgroundColor: colors.background,
+    fontSize: 13,
+  } as const;
 
   const submit = () => {
     const id = Number(recipient.trim());
@@ -203,46 +247,280 @@ export function CharityPayoutsSection({ funds }: { funds: OrganisationFund[] }) 
     if (!/^\d+(?:\.\d{1,9})?$/.test(amount.trim()) || Number(amount) <= 0) { setError("Enter an exact SOL amount with up to 9 decimal places."); return; }
     if (reason.trim().length < 5 || reason.trim().length > 300) { setError("Add a reason of 5–300 characters."); return; }
     create.mutate({ data: { recipientUserId: id, walletAddress: wallet.trim(), amountSol: amount.trim(), reason: reason.trim(), ...(fundId ? { fundId } : {}) } }, {
-      onSuccess: (p) => { setCreated(p); setOpen(false); setRecipient(""); setWallet(""); setAmount(""); setReason(""); setFundId(undefined); void refreshFundData(queryClient); },
+      onSuccess: (p) => { setCreated(p); void refreshFundData(queryClient); },
       onError: (e) => setError(apiErrorMessage(e, "The proposal could not be recorded.")),
     });
   };
 
+  const header = (title: string, subtitle: string) => (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 18, paddingTop: topInset, paddingBottom: 14 }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Back to payouts"
+        testID="payout-proposal-back"
+        onPress={onBack}
+        style={{ width: 44, height: 44, justifyContent: "center" }}
+      >
+        <Feather name="arrow-left" size={20} color={colors.foreground} />
+      </Pressable>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text accessibilityRole="header" style={{ color: colors.foreground, fontSize: 21, fontFamily: "Inter_700Bold" }}>{title}</Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{subtitle}</Text>
+      </View>
+    </View>
+  );
+
+  if (created) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }} testID="payout-proposal-success-screen">
+        {header("Proposal recorded", "Ready to share with your multisig signers")}
+        <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 18, paddingBottom: bottomInset + 24, gap: 15 }}>
+          <View style={{ alignItems: "center", gap: 8, paddingVertical: 8 }}>
+            <View style={{ width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.success + "16" }}>
+              <Feather name="check-circle" size={28} color={colors.success} />
+            </View>
+            <Text style={{ color: colors.foreground, fontSize: 19, fontFamily: "Inter_700Bold" }}>Proposal recorded</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18, textAlign: "center" }}>
+              No funds have been approved, reserved or sent.
+            </Text>
+          </View>
+          <Card tone="primary">
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>{created.amountSol} SOL</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>To {created.recipientName}</Text>
+            </View>
+            <Field label="Reason" value={created.reason} mono={false} />
+            <Field label="Exact memo for the transfer" value={created.memo} />
+            {created.fundId ? <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Linked to the selected campaign.</Text> : null}
+          </Card>
+          <Notice text="Share the exact memo with your external multisig signers. They must approve and execute the transfer in their own wallet tooling." />
+          <Btn
+            label="Share proposal details"
+            icon="share-2"
+            variant="secondary"
+            testID="payout-proposal-share"
+            onPress={() => shareText(proposalText(created), () => setError("Sharing is unavailable. You can select and copy the memo above."))}
+          />
+          {error ? <Notice tone="error" text={error} /> : null}
+          <Btn label="Back to payouts" icon="arrow-left" testID="payout-proposal-done" onPress={onBack} />
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <View style={{ gap: 10 }} testID="charity-payouts">
-      <SectionTitle title="Volunteer payouts" hint="Record a proposal for your external multisig. Recording does not approve, reserve or send funds." />
-      {created ? <Notice tone="success" text={`Proposal recorded. Memo: ${created.memo}. Share the details with your signers below.`} /> : null}
-      {open ? (
+    <View style={{ flex: 1, backgroundColor: colors.background }} testID="payout-proposal-screen">
+      {header("New payout proposal", "Record a request for your external multisig")}
+      <KeyboardAwareScrollViewCompat
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 6, paddingBottom: bottomInset + 36, gap: 14 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        bottomOffset={70}
+      >
+        <Card tone="primary">
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
+            <Feather name="shield" size={16} color={colors.primary} />
+            <Text style={{ flex: 1, color: colors.foreground, fontSize: 13, lineHeight: 19, fontFamily: "Inter_600SemiBold" }}>
+              This records a proposal only. It does not approve, reserve or send funds.
+            </Text>
+          </View>
+        </Card>
+
+        <View style={{ gap: 6 }}>
+          <Text style={{ color: colors.primary, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.6 }}>RECIPIENT</Text>
+          <Text style={{ color: colors.foreground, fontSize: 17, fontFamily: "Inter_700Bold" }}>Who is receiving this payout?</Text>
+        </View>
         <Card>
-          <Notice text="Confirm the wallet address with the volunteer before proposing a payout. A profile selection does not prove they control that wallet." />
-          <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Suggested volunteers</Text>
+          <Notice text="Confirm the wallet address with the volunteer. Selecting a profile does not prove they control that wallet." />
           {candidates.isLoading ? <Skeleton height={48} /> : candidates.isError ? (
             <Notice tone="error" text={apiErrorMessage(candidates.error, "Volunteer suggestions could not be loaded. Enter a profile id instead.")} />
-          ) : candidates.data?.length ? (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-              {candidates.data.map((c) => (
-                <Btn key={c.id} label={`${c.name} @${c.username}`} variant={recipient === String(c.id) ? "primary" : "secondary"} testID={`payout-candidate-${c.id}`} onPress={() => { setRecipient(String(c.id)); setError(null); }} />
-              ))}
-            </View>
-          ) : <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>No volunteers found yet. Enter a profile id below.</Text>}
-          {input("Participant profile id (manual)", recipient, setRecipient, "e.g. 42", { keyboardType: "number-pad" })}
-          {input("Recipient wallet address", wallet, setWallet, "Solana address")}
-          {input("Amount (SOL)", amount, setAmount, "e.g. 0.25", { keyboardType: "decimal-pad" })}
-          {input("Reason", reason, setReason, "What the volunteer is being paid for", { autoCapitalize: "sentences" })}
-          <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Campaign (optional)</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-            {[{ id: undefined as number | undefined, title: "None" }, ...funds.map((f) => ({ id: f.id as number | undefined, title: f.title }))].map((f) => (
-              <Btn key={f.id ?? "none"} label={f.title.length > 22 ? `${f.title.slice(0, 21)}…` : f.title} variant={fundId === f.id ? "primary" : "secondary"} onPress={() => setFundId(f.id)} />
-            ))}
+          ) : allCandidates.length ? (
+            <>
+              <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Find a participant</Text>
+              <TextInput
+                accessibilityLabel="Find a participant"
+                testID="payout-candidate-search"
+                value={candidateSearch}
+                onChangeText={setCandidateSearch}
+                placeholder="Search name, username or profile id"
+                placeholderTextColor={colors.mutedForeground}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={inputStyle}
+              />
+              {visibleCandidates.length ? (
+                <View style={{ gap: 7 }}>
+                  {visibleCandidates.map((candidate) => {
+                    const selected = recipient === String(candidate.id);
+                    return (
+                      <Pressable
+                        key={candidate.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${candidate.name}, @${candidate.username}, profile ${candidate.id}`}
+                        accessibilityState={{ selected }}
+                        testID={`payout-candidate-${candidate.id}`}
+                        onPress={() => {
+                          const nextRecipient = String(candidate.id);
+                          if (recipient !== nextRecipient) setWallet("");
+                          setRecipient(nextRecipient);
+                          setError(null);
+                        }}
+                        style={{
+                          minHeight: 46,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 9,
+                          borderWidth: 1,
+                          borderColor: selected ? colors.primary : colors.border,
+                          borderRadius: colors.radius - 5,
+                          backgroundColor: selected ? colors.primary + "0D" : colors.background,
+                          paddingHorizontal: 11,
+                        }}
+                      >
+                        <View style={{ width: 28, height: 28, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: selected ? colors.primary + "1B" : colors.muted }}>
+                          <Feather name={selected ? "check" : "user"} size={14} color={selected ? colors.primary : colors.mutedForeground} />
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text numberOfLines={1} style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{candidate.name}</Text>
+                          <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>@{candidate.username} · ID {candidate.id}</Text>
+                        </View>
+                        {selected ? <Feather name="check-circle" size={16} color={colors.primary} /> : null}
+                      </Pressable>
+                    );
+                  })}
+                  {allCandidates.length > visibleCandidates.length && !searchTerm ? (
+                    <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Search to find another participant, or enter their profile id below.</Text>
+                  ) : null}
+                </View>
+              ) : (
+                <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>No matches. Enter a participant profile id below.</Text>
+              )}
+            </>
+          ) : (
+            <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>No volunteers found yet. Enter a participant profile id below.</Text>
+          )}
+          <View style={{ gap: 5 }}>
+            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Participant profile ID</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Used to keep payout history connected to the right profile.</Text>
+            <TextInput
+              accessibilityLabel="Participant profile ID"
+              testID="payout-recipient-id"
+              value={recipient}
+              onChangeText={(value) => {
+                if (value !== recipient) setWallet("");
+                setRecipient(value);
+                setError(null);
+              }}
+              placeholder="e.g. 42"
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="number-pad"
+              style={inputStyle}
+            />
           </View>
-          {error ? <Notice tone="error" text={error} /> : null}
-          <Btn label="Record proposal" icon="file-text" busy={create.isPending} testID="payout-create" onPress={submit} />
-          <Btn label="Cancel" variant="secondary" onPress={() => { setOpen(false); setError(null); }} />
+          <View style={{ gap: 5 }}>
+            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Recipient wallet address</Text>
+            <TextInput
+              accessibilityLabel="Recipient wallet address"
+              testID="payout-recipient-wallet"
+              value={wallet}
+              onChangeText={(value) => { setWallet(value); setError(null); }}
+              placeholder="Paste the confirmed Solana address"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={inputStyle}
+            />
+          </View>
         </Card>
-      ) : (
-        <Btn label="New payout proposal" icon="plus" variant="secondary" testID="payout-new" onPress={() => { setOpen(true); setCreated(null); }} />
-      )}
-      <PayoutPages role="owner" empty={<PayoutEmptyState />} />
+
+        <View style={{ gap: 6, marginTop: 2 }}>
+          <Text style={{ color: colors.primary, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.6 }}>PAYOUT DETAILS</Text>
+          <Text style={{ color: colors.foreground, fontSize: 17, fontFamily: "Inter_700Bold" }}>How much, and why?</Text>
+        </View>
+        <Card>
+          <View style={{ gap: 5 }}>
+            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Amount</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <TextInput
+                accessibilityLabel="Amount in SOL"
+                testID="payout-amount"
+                value={amount}
+                onChangeText={(value) => { setAmount(value); setError(null); }}
+                placeholder="0.00"
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="decimal-pad"
+                style={[inputStyle, { flex: 1, fontSize: 17, fontFamily: "Inter_700Bold" }]}
+              />
+              <View style={{ minHeight: 48, justifyContent: "center", borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius - 5, backgroundColor: colors.muted, paddingHorizontal: 14 }}>
+                <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_700Bold" }}>SOL</Text>
+              </View>
+            </View>
+            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Enter the exact amount, up to 9 decimal places.</Text>
+          </View>
+          <View style={{ gap: 5 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Reason</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>{reason.trim().length}/300</Text>
+            </View>
+            <TextInput
+              accessibilityLabel="Reason for payout"
+              testID="payout-reason"
+              value={reason}
+              onChangeText={(value) => { setReason(value); setError(null); }}
+              placeholder="What the volunteer is being paid for"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="sentences"
+              maxLength={300}
+              multiline
+              textAlignVertical="top"
+              style={[inputStyle, { minHeight: 100, paddingTop: 12 }]}
+            />
+            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Add a clear reason so your signers can review the request.</Text>
+          </View>
+          <View style={{ gap: 8 }}>
+            <View style={{ gap: 3 }}>
+              <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Campaign</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Optional · link this payout to a campaign.</Text>
+            </View>
+            {fundsQuery.isLoading ? <Skeleton height={44} /> : fundsQuery.isError ? (
+              <Notice tone="error" text={apiErrorMessage(fundsQuery.error, "Campaigns could not be loaded. You can continue without linking one.")} />
+            ) : (
+              <View style={{ gap: 7 }}>
+                {[{ id: undefined as number | undefined, title: "No campaign" }, ...(fundsQuery.data ?? []).map((fund) => ({ id: fund.id as number | undefined, title: fund.title }))].map((fund) => {
+                  const selected = fundId === fund.id;
+                  return (
+                    <Pressable
+                      key={fund.id ?? "none"}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      testID={`payout-fund-${fund.id ?? "none"}`}
+                      onPress={() => { setFundId(fund.id); setError(null); }}
+                      style={{
+                        minHeight: 44,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        borderWidth: 1,
+                        borderColor: selected ? colors.primary : colors.border,
+                        borderRadius: colors.radius - 5,
+                        backgroundColor: selected ? colors.primary + "0D" : colors.background,
+                        paddingHorizontal: 11,
+                      }}
+                    >
+                      <Text numberOfLines={1} style={{ flex: 1, color: colors.foreground, fontSize: 12, fontFamily: selected ? "Inter_600SemiBold" : "Inter_400Regular" }}>{fund.title}</Text>
+                      {selected ? <Feather name="check-circle" size={16} color={colors.primary} /> : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </Card>
+        {error ? <Notice tone="error" text={error} /> : null}
+        <Btn label="Record proposal" icon="file-text" busy={create.isPending} testID="payout-create" onPress={submit} />
+      </KeyboardAwareScrollViewCompat>
     </View>
   );
 }

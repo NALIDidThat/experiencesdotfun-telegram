@@ -1590,6 +1590,7 @@ test("charity treasury dashboard shows live values and supports private balance 
   };
   const apiTraffic = [];
   const unexpectedApiRequests = [];
+  let createdPayoutBody;
 
   client.on("Fetch.requestPaused", ({ params }) => {
     void (async () => {
@@ -1646,11 +1647,31 @@ test("charity treasury dashboard shows live values and supports private balance 
           response = treasuryDashboard;
         } else if (url.pathname === `/api/funds/${user.id}` && method === "GET") {
           response = [];
-        } else if (
-          (url.pathname === "/api/funds/payouts" || url.pathname === "/api/funds/payout-candidates")
-          && method === "GET"
-        ) {
+        } else if (url.pathname === "/api/funds/payout-candidates" && method === "GET") {
+          response = [{ id: 42, name: "Taylor Volunteer", username: "taylor" }];
+        } else if (url.pathname === "/api/funds/payouts" && method === "GET") {
           response = [];
+        } else if (url.pathname === "/api/funds/payouts" && method === "POST") {
+          createdPayoutBody = JSON.parse(params.request.postData ?? "{}");
+          status = 201;
+          response = {
+            id: "payout-flow-test-1",
+            recipientUserId: createdPayoutBody.recipientUserId,
+            recipientName: "Taylor Volunteer",
+            organisationName: user.organisation.name,
+            walletAddress: createdPayoutBody.walletAddress,
+            treasuryAddress: walletAddress,
+            amountSol: createdPayoutBody.amountSol,
+            reason: createdPayoutBody.reason,
+            fundId: createdPayoutBody.fundId ?? null,
+            cluster: "devnet",
+            memo: "Experiences.fun payout payout-flow-test-1",
+            status: "proposed",
+            signature: null,
+            createdAt: "2026-10-24T10:00:00.000Z",
+            paidAt: null,
+            verificationMessage: null,
+          };
         } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
           status = 202;
           response = { accepted: true };
@@ -1743,6 +1764,101 @@ test("charity treasury dashboard shows live values and supports private balance 
     Boolean,
     "the treasury address to be copied",
   );
-  assert.deepEqual(unexpectedApiRequests, [], "The dashboard should only call the read-only APIs needed by the screen.");
+  await tapTestId(client, "payout-new");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="payout-proposal-screen"]')) && Boolean(document.querySelector('[data-testid="payout-recipient-id"]')) && Boolean(document.querySelector('[data-testid="payout-amount"]'))`,
+    Boolean,
+    "the dedicated payout proposal screen",
+  );
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="bottom-nav-tabs"]'))`),
+    false,
+    "The proposal form should use the full screen rather than an expanded treasury panel.",
+  );
+  if (process.env.PAYOUT_PROPOSAL_SCREENSHOT_PATH) {
+    await delay(240);
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
+    await writeFile(
+      process.env.PAYOUT_PROPOSAL_SCREENSHOT_PATH,
+      Buffer.from(screenshot.data, "base64"),
+    );
+  }
+  if (process.env.PAYOUT_PROPOSAL_BOTTOM_SCREENSHOT_PATH) {
+    await client.evaluate(`document.querySelector('[data-testid="payout-reason"]')?.scrollIntoView({ block: "center" })`);
+    await delay(240);
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(
+      process.env.PAYOUT_PROPOSAL_BOTTOM_SCREENSHOT_PATH,
+      Buffer.from(screenshot.data, "base64"),
+    );
+  }
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="payout-candidate-42"]'))`,
+    Boolean,
+    "the suggested volunteer to load",
+  );
+  await tapTestId(client, "payout-create");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes("Enter the participant's numeric profile id.")`,
+    Boolean,
+    "the required recipient validation",
+  );
+  await tapTestId(client, "payout-candidate-42");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="payout-recipient-id"]')?.value === "42"`,
+    Boolean,
+    "the selected volunteer profile id to be filled in",
+  );
+  await replaceInput(client, "payout-recipient-wallet", "11111111111111111111111111111111");
+  await replaceInput(client, "payout-recipient-id", "43");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="payout-recipient-wallet"]')?.value === ""`,
+    Boolean,
+    "the wallet address to clear when the selected participant changes",
+  );
+  await tapTestId(client, "payout-candidate-42");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="payout-recipient-id"]')?.value === "42"`,
+    Boolean,
+    "the selected participant profile id to restore",
+  );
+  await replaceInput(client, "payout-recipient-wallet", "11111111111111111111111111111111");
+  await replaceInput(client, "payout-amount", "0.25");
+  await replaceInput(client, "payout-reason", "Community transport costs");
+  await tapTestId(client, "payout-create");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="payout-proposal-success-screen"]')) && document.body.innerText.includes('Experiences.fun payout payout-flow-test-1')`,
+    Boolean,
+    "the recorded proposal confirmation",
+  );
+  assert.deepEqual(
+    createdPayoutBody,
+    {
+      recipientUserId: 42,
+      walletAddress: "11111111111111111111111111111111",
+      amountSol: "0.25",
+      reason: "Community transport costs",
+    },
+    "The dedicated flow should submit the selected recipient and exact payout details.",
+  );
+  assert.ok(
+    apiTraffic.includes("POST /api/funds/payouts"),
+    "The form should use the existing payout proposal API.",
+  );
+  await tapTestId(client, "payout-proposal-done");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="charity-payouts"]')) && Boolean(document.querySelector('[data-testid="payout-new"]'))`,
+    Boolean,
+    "the treasury payout list after finishing the proposal flow",
+  );
+  assert.deepEqual(unexpectedApiRequests, [], "The treasury and proposal flow should only call the expected APIs.");
   assert.ok(apiTraffic.includes("GET /api/funds/treasury"), "The dashboard should load the registered charity treasury.");
 });

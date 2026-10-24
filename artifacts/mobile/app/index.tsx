@@ -110,6 +110,7 @@ import { OrganisationOnboardingWalkthrough } from '@/components/onboarding/Organ
 import { AccountabilityPartnerScreen } from '@/components/AccountabilitySection';
 import { OrganisationPartnershipsSection } from '@/components/OrganisationPartnershipsSection';
 import { ContributionHistoryScreen } from '@/components/fundraising/ContributionHistoryScreen';
+import { PayoutProposalScreen } from '@/components/fundraising/Payouts';
 import { OrganisationFundsScreen, OrganisationFundraiserSection } from '@/components/OrganisationFundsScreen';
 import { SocialFeed } from '@/components/SocialFeed';
 import {
@@ -146,7 +147,7 @@ import {
 } from '@/components/TelegramCommunityManagementScreen';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'contributions' | 'telegram-communities' | 'telegram-community-dashboard' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-community-dashboard' | 'email';
 type ScreenRouteParams = {
   id?: string;
   friendId?: string;
@@ -177,7 +178,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'campaigns', 'contributions', 'telegram-communities', 'telegram-community-dashboard', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'campaigns', 'payout-proposal', 'contributions', 'telegram-communities', 'telegram-community-dashboard', 'email'];
 
 function routeParamString(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -234,6 +235,8 @@ function defaultBackEntry(entry: ScreenHistoryEntry): ScreenHistoryEntry {
     case 'telegram-community-dashboard':
       return createScreenHistoryEntry('telegram-communities');
     case 'campaigns':
+      return createScreenHistoryEntry('funds');
+    case 'payout-proposal':
       return createScreenHistoryEntry('funds');
     case 'funds':
       return entry.params.experienceId
@@ -9071,6 +9074,8 @@ export default function App() {
       : "web";
     const analyticsScreen = screen === 'accounts' || screen === 'contributions' || screen === 'accountability' || screen === 'campaigns' || screen === 'telegram-communities' || screen === 'telegram-community-dashboard'
       ? 'profile'
+      : screen === 'payout-proposal'
+        ? 'funds'
       : screen === 'host-detail'
         ? 'host'
       : screen === 'activity'
@@ -9465,7 +9470,7 @@ export default function App() {
     );
   }
 
-  if (user.userType !== 'organisation' && (screen === 'host' || screen === 'host-detail' || screen === 'create' || screen === 'funds' || screen === 'campaigns')) {
+  if (user.userType !== 'organisation' && (screen === 'host' || screen === 'host-detail' || screen === 'create' || screen === 'funds' || screen === 'campaigns' || screen === 'payout-proposal')) {
     return (
       <AppShell>
         <EmptyState
@@ -9633,11 +9638,15 @@ export default function App() {
           initialExperienceTitle={params.experienceTitle}
           onBack={() => goBack(params.experienceId ? 'host-detail' : 'profile', params.experienceId ? { id: params.experienceId } : undefined)}
           onOpenCampaign={(fundId) => go('campaigns', fundId ? { id: String(fundId) } : undefined)}
+          onNewPayoutProposal={() => go('payout-proposal')}
         />
       : <EmptyState title="Charity account required" body="Only charity organisation profiles can launch funds." actionLabel="Back to profile" onAction={() => go('profile')} />;
     if (screen === 'campaigns') return user.userType === 'organisation' && user.organisation?.type === 'charity'
-      ? <OrganisationFundsScreen organisationUserId={user.id} initialView="campaigns" initialFundId={Number(params.id) > 0 ? Number(params.id) : undefined} onBack={() => goBack('funds')} />
+      ? <OrganisationFundsScreen organisationUserId={user.id} initialView="campaigns" initialFundId={Number(params.id) > 0 ? Number(params.id) : undefined} onBack={() => goBack('funds')} onNewPayoutProposal={() => go('payout-proposal')} />
       : <EmptyState title="Charity account required" body="Only charity organisation profiles can track fundraising campaigns." actionLabel="Back to profile" onAction={() => go('profile')} />;
+    if (screen === 'payout-proposal') return user.userType === 'organisation' && user.organisation?.type === 'charity'
+      ? <PayoutProposalScreen organisationUserId={user.id} onBack={() => goBack('funds')} />
+      : <EmptyState title="Charity account required" body="Only charity organisation profiles can record volunteer payout proposals." actionLabel="Back to funds" onAction={() => go('funds')} />;
     if (screen === 'contributions') return <ContributionHistoryScreen onBack={() => goBack('profile')} />;
     return user.userType === 'organisation'
       ? <OrganisationHomeScreen user={user} go={go} />
@@ -9653,8 +9662,8 @@ export default function App() {
       );
   })();
 
-  const noNav = ['experience', 'host-detail', 'create', 'direct-message', 'memory-game'].includes(screen);
-  const navActive = screen === 'funds' || screen === 'campaigns'
+  const noNav = ['experience', 'host-detail', 'create', 'direct-message', 'memory-game', 'payout-proposal'].includes(screen);
+  const navActive = screen === 'funds' || screen === 'campaigns' || screen === 'payout-proposal'
     ? user.userType === 'organisation' && user.organisation?.type === 'charity' ? 'funds' : 'profile'
     : user.userType === 'organisation' && screen === 'experiences'
     ? 'host'
@@ -9674,7 +9683,7 @@ export default function App() {
       : undefined;
   return (
     <AppShell
-      showFeedbackBanner={screen !== 'funds'}
+      showFeedbackBanner={screen !== 'funds' && screen !== 'payout-proposal'}
       screenTransitionKey={`${screen}:${transitionEntityId ?? ''}`}
       bottomNav={!noNav
         ? (
