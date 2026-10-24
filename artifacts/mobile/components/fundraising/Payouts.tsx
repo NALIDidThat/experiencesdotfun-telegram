@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { Text, TextInput, View } from "react-native";
+import { Image, Text, TextInput, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getListFundPayoutsQueryKey,
@@ -13,11 +13,55 @@ import type { FundPayout, OrganisationFund } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import {
-  Btn, Card, EmptyBlock, ErrorBlock, Field, Notice, NetworkBadge, SectionTitle, Skeleton, apiErrorMessage,
+  Btn, Card, ErrorBlock, Field, Notice, NetworkBadge, SectionTitle, Skeleton, apiErrorMessage,
   dateLabel, explorerUrl, openExternal, refreshFundData, shareText,
 } from "./shared";
 
 const SQUADS_URL = "https://app.squads.so/";
+
+function PayoutEmptyState() {
+  const colors = useColors();
+  return (
+    <View
+      testID="payout-empty-state"
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: colors.radius + 4,
+        backgroundColor: colors.card,
+        padding: 12,
+      }}
+    >
+      <View style={{
+        width: 78,
+        height: 72,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: colors.radius + 2,
+        backgroundColor: colors.secondary + "0D",
+        borderWidth: 1,
+        borderColor: colors.secondary + "18",
+      }}>
+        <Image
+          testID="payout-empty-artwork"
+          source={require("../../assets/images/category-community.png")}
+          resizeMode="contain"
+          accessible={false}
+          style={{ width: 70, height: 70 }}
+        />
+      </View>
+      <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
+        <Text style={{ color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 13 }}>No payout proposals yet</Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
+          Recorded proposals will appear here with their verification status.
+        </Text>
+      </View>
+    </View>
+  );
+}
 
 export function usePayoutList(before?: string) {
   const { user } = useAuth();
@@ -198,7 +242,7 @@ export function CharityPayoutsSection({ funds }: { funds: OrganisationFund[] }) 
       ) : (
         <Btn label="New payout proposal" icon="plus" variant="secondary" testID="payout-new" onPress={() => { setOpen(true); setCreated(null); }} />
       )}
-      <PayoutPages role="owner" empty={<EmptyBlock icon="send" title="No payout proposals" body="Proposals you record for volunteers will appear here with their verification status." />} />
+      <PayoutPages role="owner" empty={<PayoutEmptyState />} />
     </View>
   );
 }
