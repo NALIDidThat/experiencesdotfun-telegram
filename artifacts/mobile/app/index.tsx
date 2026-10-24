@@ -125,6 +125,7 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { UserAvatar } from '@/components/UserAvatar';
+import { ExperienceCategoryArtwork } from '@/components/ExperienceCategoryArtwork';
 import { MotionPressable } from '@/components/MotionPressable';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { DirectMessagesScreen } from '@/components/DirectMessagesScreen';
@@ -293,12 +294,6 @@ const exploreCityCoordinates: Record<string, { latitude: number; longitude: numb
 function normalizeExploreCityName(city: string) {
   return city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
 }
-
-const categoryIcon: Record<ExperienceCategory, IconName> = {
-  environmental: 'feather',
-  education: 'book-open',
-  community: 'users',
-};
 
 const categoryLabel: Record<ExperienceCategory, string> = {
   environmental: 'Environmental',
@@ -534,10 +529,16 @@ function Header({
 
 function EmptyState({ title, body, icon = 'compass', onAction, actionLabel }: { title: string; body: string; icon?: IconName; onAction?: () => void; actionLabel?: string }) {
   const colors = useColors();
+  const categoryArtwork: Partial<Record<IconName, ExperienceCategory>> = {
+    feather: 'environmental',
+    'book-open': 'education',
+    users: 'community',
+  };
+  const artworkCategory = categoryArtwork[icon];
   return (
     <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-      <View style={[styles.emptyIcon, { backgroundColor: colors.muted }]}>
-        <Feather name={icon} size={28} color={colors.primary} />
+      <View style={[styles.emptyIcon, artworkCategory ? styles.emptyIconArtwork : null, { backgroundColor: artworkCategory ? 'transparent' : colors.muted }]}>
+        {artworkCategory ? <ExperienceCategoryArtwork category={artworkCategory} size={76} /> : <Feather name={icon} size={28} color={colors.primary} />}
       </View>
       <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</Text>
       <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>{body}</Text>
@@ -588,7 +589,6 @@ function TelegramConnectCard() {
 function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => void }) {
   const colors = useColors();
   const { reduceMotion } = useMotionPreferences();
-  const icon = categoryIcon[item.category];
   const gradient = categoryGradients[item.category] ?? categoryGradients.community;
   const entrance = useRef(new Animated.Value(0)).current;
   const availabilityColor = item.availablePlaces < 4 ? colors.primary : colors.mutedForeground;
@@ -633,26 +633,16 @@ function ExperienceCard({ item, onPress }: { item: Experience; onPress: () => vo
         style={[styles.experienceCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
       >
         <View style={styles.experienceCardArtwork}>
-          {item.category === 'community' ? (
-            <ImageBackground
-              source={require('../assets/images/community-cover.jpg')}
-              resizeMode="cover"
-              style={StyleSheet.absoluteFill}
-            />
-          ) : (
-            <LinearGradient colors={gradient} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-          )}
-          {item.category !== 'community' ? (
-            <View style={[StyleSheet.absoluteFill, styles.experienceCardFallback]}>
-              <Feather name={icon} size={34} color={colors.primaryForeground} style={{ opacity: 0.62 }} />
-            </View>
-          ) : null}
+          <LinearGradient colors={gradient} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+          <View style={[StyleSheet.absoluteFill, styles.experienceCardFallback]}>
+            <ExperienceCategoryArtwork category={item.category} size={76} />
+          </View>
         </View>
 
         <View style={styles.experienceCardContent}>
           <View style={styles.experienceCardArtworkTop}>
             <View style={styles.experienceCardCategory}>
-              <Feather name={icon} size={12} color={colors.primary} />
+              <ExperienceCategoryArtwork category={item.category} size={18} />
               <Text style={[styles.experienceCardCategoryText, { color: colors.mutedForeground }]} numberOfLines={1}>{categoryLabel[item.category]}</Text>
             </View>
             <View style={[styles.experienceCardXp, { backgroundColor: colors.muted }]}>
@@ -1826,8 +1816,8 @@ function Onboarding({
           },
         ]}
       >
-        <View style={[styles.interestIcon, { backgroundColor: selected ? colors.primary + '14' : colors.muted }]}>
-          <Feather name={item.icon} size={20} color={selected ? colors.primary : colors.mutedForeground} />
+        <View style={[styles.interestIcon, { backgroundColor: selected ? colors.primary + '08' : colors.muted }]}>
+          <ExperienceCategoryArtwork category={interest} size={42} />
         </View>
         <View style={styles.interestCopy}>
           <Text style={[styles.interestTitle, { color: colors.foreground }]}>{item.label}</Text>
@@ -2369,7 +2359,9 @@ function Home({
                     },
                   ]}
                 >
-                  <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+                  {item.key === 'all'
+                    ? <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+                    : <ExperienceCategoryArtwork category={item.key} size={21} />}
                   <Text style={[styles.dashboardCategoryText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
                 </Pressable>
               );
@@ -2504,7 +2496,7 @@ function Home({
           <View style={styles.dashboardEventPhoto}>
             {item.category === 'community' ? (
               <ImageBackground
-                source={require('../assets/images/community-cover.jpg')}
+                source={require('../assets/images/community-cover-v2.jpg')}
                 accessibilityLabel="Community experience category artwork"
                 resizeMode="cover"
                 style={StyleSheet.absoluteFill}
@@ -2517,18 +2509,21 @@ function Home({
                 />
               </ImageBackground>
             ) : (
-              <LinearGradient
-                colors={categoryGradients[item.category] || categoryGradients.community}
-                style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Feather name={categoryIcon[item.category]} size={58} color={colors.primaryForeground} style={{ opacity: 0.22 }} />
-              </LinearGradient>
+              <>
+                <LinearGradient
+                  colors={categoryGradients[item.category] || categoryGradients.community}
+                  style={StyleSheet.absoluteFill}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                />
+                <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.dashboardEventArtwork]}>
+                  <ExperienceCategoryArtwork category={item.category} size={154} />
+                </View>
+              </>
             )}
             <View style={styles.dashboardEventPhotoTop}>
               <View style={[styles.dashboardEventCategory, { backgroundColor: colors.card }]}>
-                <Feather name={categoryIcon[item.category]} size={13} color={colors.primary} />
+                <ExperienceCategoryArtwork category={item.category} size={19} />
                 <Text style={[styles.dashboardEventCategoryText, { color: colors.foreground }]}>{categoryLabel[item.category]}</Text>
               </View>
             </View>
@@ -2758,7 +2753,9 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
               },
             ]}
           >
-            <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+            {item.key === 'all'
+              ? <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+              : <ExperienceCategoryArtwork category={item.key} size={22} />}
             <Text style={[styles.filterText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
           </Pressable>
         );
@@ -3208,7 +3205,7 @@ function Detail({
          */}
         <View testID="participant-detail-hero" style={[styles.hostDetailHero, { borderRadius: colors.radius + 4 }]}>
           {item.category === 'community' ? (
-            <ImageBackground source={require('../assets/images/community-cover.jpg')} resizeMode="cover" style={StyleSheet.absoluteFill} />
+            <ImageBackground source={require('../assets/images/community-cover-v2.jpg')} resizeMode="cover" style={StyleSheet.absoluteFill} />
           ) : (
             <LinearGradient colors={categoryGradients[item.category]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
           )}
@@ -3221,13 +3218,13 @@ function Detail({
               <Text style={[styles.hostStatusText, { color: '#FFFFFF' }]}>{hostExperienceStatusLabels[item.status]}</Text>
             </View>
             <View style={styles.hostDetailHeroCategory}>
-              <Feather name={categoryIcon[item.category]} size={12} color="#FFFFFF" />
+              <ExperienceCategoryArtwork category={item.category} size={18} />
               <Text style={styles.hostDetailHeroCategoryText}>{categoryLabel[item.category]}</Text>
             </View>
           </View>
           {item.category !== 'community' ? (
             <View pointerEvents="none" style={styles.hostDetailHeroArtwork}>
-              <Feather name={categoryIcon[item.category]} size={68} color="#FFFFFF" />
+                <ExperienceCategoryArtwork category={item.category} size={156} />
             </View>
           ) : null}
           <View style={styles.hostDetailHeroCopy}>
@@ -3696,7 +3693,7 @@ function Experiences({ go }: { go: (screen: Screen, params?: Record<string, stri
         <Pressable key={item.id} onPress={() => { triggerHaptic(); go('experience', { id: String(item.experience.id) }); }} style={[styles.participationCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <View style={styles.cardTop}>
             <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '15' }]}>
-              <Feather name={categoryIcon[item.experience.category]} size={24} color={colors.primary} />
+              <ExperienceCategoryArtwork category={item.experience.category} size={48} />
             </View>
             <View style={styles.cardCategory}>
               <Text style={[styles.categoryText, { color: colors.mutedForeground }]}>{dateLabel(item.experience.date)}</Text>
@@ -5702,7 +5699,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
               const selected = interests.includes(item.key as ExperienceCategory);
               return (
                 <Pressable key={item.key} onPress={() => setInterests((currentInterests) => selected ? currentInterests.filter((value) => value !== item.key) : [...currentInterests, item.key as ExperienceCategory])} style={[styles.choiceCard, { backgroundColor: selected ? colors.primary + '10' : colors.background, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}>
-                  <Feather name={item.icon} size={20} color={selected ? colors.primary : colors.mutedForeground} />
+                  <ExperienceCategoryArtwork category={item.key as ExperienceCategory} size={42} />
                   <Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{item.label}</Text>
                   <Feather name={selected ? 'check-circle' : 'circle'} size={20} color={selected ? colors.primary : colors.border} />
                 </Pressable>
@@ -6025,7 +6022,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
           accessibilityLabel={`Open management for ${item.title}. ${hostExperienceStatusLabels[item.status]}, ${item.participantCount} of ${item.capacity} places filled, ${item.waitlistCount} waitlisted.`}
           testID={`host-experience-${item.id}`}
           artwork={item.category === 'environmental' || item.category === 'community' ? (
-            <ImageBackground source={require('../assets/images/community-cover.jpg')} resizeMode="cover" style={StyleSheet.absoluteFill} />
+            <ImageBackground source={require('../assets/images/community-cover-v2.jpg')} resizeMode="cover" style={StyleSheet.absoluteFill} />
           ) : (
             <LinearGradient colors={categoryGradients[item.category]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
           )}
@@ -6304,7 +6301,7 @@ function HostExperienceDetail({
         <>
           <View style={[styles.hostDetailHero, { borderRadius: colors.radius + 4 }]}>
             {experience.category === 'community' ? (
-              <ImageBackground source={require('../assets/images/community-cover.jpg')} resizeMode="cover" style={StyleSheet.absoluteFill} />
+              <ImageBackground source={require('../assets/images/community-cover-v2.jpg')} resizeMode="cover" style={StyleSheet.absoluteFill} />
             ) : (
               <LinearGradient colors={categoryGradients[experience.category]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
             )}
@@ -6317,13 +6314,13 @@ function HostExperienceDetail({
                 <Text style={[styles.hostStatusText, { color: '#FFFFFF' }]}>{hostExperienceStatusLabels[experience.status]}</Text>
               </View>
               <View style={styles.hostDetailHeroCategory}>
-                <Feather name={categoryIcon[experience.category]} size={12} color="#FFFFFF" />
+                <ExperienceCategoryArtwork category={experience.category} size={18} />
                 <Text style={styles.hostDetailHeroCategoryText}>{categoryLabel[experience.category]}</Text>
               </View>
             </View>
             {experience.category !== 'community' ? (
               <View pointerEvents="none" style={styles.hostDetailHeroArtwork}>
-                <Feather name={categoryIcon[experience.category]} size={68} color="#FFFFFF" />
+                  <ExperienceCategoryArtwork category={experience.category} size={156} />
               </View>
             ) : null}
             <View style={styles.hostDetailHeroCopy}>
@@ -6333,7 +6330,7 @@ function HostExperienceDetail({
               </Text>
               <View style={styles.hostDetailHeroMeta}>
                 <View style={styles.hostDetailHeroMetaItem}>
-                  <Feather name={categoryIcon[experience.category]} size={12} color="#FFFFFF" />
+                  <ExperienceCategoryArtwork category={experience.category} size={16} />
                   <Text numberOfLines={1} style={styles.hostDetailHeroMetaText}>{categoryLabel[experience.category]}</Text>
                 </View>
                 <View style={styles.hostDetailHeroMetaItem}>
@@ -7838,7 +7835,7 @@ function CreateExperienceForm({
                         ]}
                       >
                         <View style={[styles.createCategoryIcon, { backgroundColor: tint }]}>
-                          <Feather name={item.icon} size={22} color={selected ? iconColor : colors.mutedForeground} />
+                          <ExperienceCategoryArtwork category={item.key as ExperienceCategory} size={42} />
                         </View>
                         <Text style={[styles.createCategoryText, { color: selected ? iconColor : colors.mutedForeground }]}>{item.label}</Text>
                       </Pressable>
@@ -9645,6 +9642,7 @@ const styles = StyleSheet.create({
 
   emptyState: { padding: 32, alignItems: 'center', justifyContent: 'center', borderWidth: 1, marginVertical: 24 },
   emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  emptyIconArtwork: { width: 82, height: 82, marginBottom: 12 },
   emptyTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 8, textAlign: 'center' },
   emptyBody: { fontSize: 15, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 22 },
   inlineError: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, marginVertical: 8 },
@@ -9983,6 +9981,7 @@ const styles = StyleSheet.create({
   dashboardSeeAll: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   dashboardEventCard: { borderWidth: 1, overflow: 'hidden', marginBottom: 14 },
   dashboardEventPhoto: { height: 168, position: 'relative', overflow: 'hidden' },
+  dashboardEventArtwork: { alignItems: 'center', justifyContent: 'center' },
   dashboardEventPhotoTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: 12 },
   dashboardEventCategory: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999 },
   dashboardEventCategoryText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
@@ -10134,7 +10133,7 @@ const styles = StyleSheet.create({
   segmentText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   participationCard: { borderWidth: 1, marginBottom: 12, overflow: 'hidden' },
   cardTop: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.05)' },
-  categoryIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  categoryIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   cardCategory: { flex: 1, paddingHorizontal: 12 },
   categoryText: { fontSize: 12, fontFamily: 'Inter_500Medium', marginBottom: 2 },
   cardTitleSmall: { fontSize: 16, fontFamily: 'Inter_700Bold' },
@@ -10413,7 +10412,7 @@ const styles = StyleSheet.create({
   hostDetailStatusDot: { width: 7, height: 7, borderRadius: 4 },
   hostDetailHeroCategory: { alignItems: 'center', flexDirection: 'row', gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999, backgroundColor: '#10101A99' },
   hostDetailHeroCategoryText: { color: '#FFFFFF', fontSize: 10, fontFamily: 'Inter_600SemiBold' },
-  hostDetailHeroArtwork: { position: 'absolute', right: 28, top: 50, opacity: 0.22, transform: [{ rotate: '-12deg' }] },
+  hostDetailHeroArtwork: { position: 'absolute', right: -8, top: 30, opacity: 0.88 },
   hostDetailHeroCopy: { gap: 5, zIndex: 1 },
   hostDetailHeroTitle: { color: '#FFFFFF', fontSize: 21, lineHeight: 27, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
   hostDetailHeroDescription: { color: '#FFFFFFE8', fontSize: 12, lineHeight: 16, fontFamily: 'Inter_400Regular', maxWidth: '92%' },
@@ -10561,7 +10560,7 @@ const styles = StyleSheet.create({
   createTextArea: { height: 150, paddingTop: 14, textAlignVertical: 'top' },
   createCategoryGrid: { flexDirection: 'row', gap: 8 },
   createCategory: { flex: 1, minHeight: 112, borderWidth: 2, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  createCategoryIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  createCategoryIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   createCategoryText: { fontSize: 11, fontFamily: 'Inter_700Bold', textAlign: 'center' },
   createOptionalNote: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_500Medium' },
   createHint: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular' },
