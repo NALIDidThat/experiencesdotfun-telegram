@@ -1,5 +1,17 @@
-import { Router, type IRouter } from "express";
-import { AddMyCommunityBody } from "@workspace/api-zod";
+import { Router, type IRouter, type Request, type Response } from "express";
+import {
+  AddMyCommunityBody,
+  AddTelegramCommunityLinkBody,
+  AddTelegramCommunityLinkParams,
+  AddTelegramCommunityLinkResponse,
+  AddTelegramCommunityPhraseBody,
+  AddTelegramCommunityPhraseParams,
+  AddTelegramCommunityPhraseResponse,
+  DeleteTelegramCommunityLinkParams,
+  DeleteTelegramCommunityPhraseParams,
+  GetTelegramCommunityRulesParams,
+  GetTelegramCommunityRulesResponse,
+} from "@workspace/api-zod";
 import { db } from "@workspace/db";
 import { communityMembersTable } from "@workspace/db/schema";
 import { currentUser, requireTelegramUser } from "../lib/auth";
@@ -13,12 +25,32 @@ import {
   verifyTelegramCommunityMembership,
 } from "../lib/telegram";
 import {
+  addTelegramCommunityKeywordRule,
+  addTelegramCommunityLinkRule,
   getTelegramCommunityManagementContext,
+  listTelegramCommunityKeywordRules,
+  listTelegramCommunityLinkRules,
   listTelegramOwnedCommunitiesForManagement,
+  removeTelegramCommunityKeywordRuleById,
+  removeTelegramCommunityLinkRuleById,
 } from "../lib/community-moderation";
 
 const router: IRouter = Router();
 router.use(requireTelegramUser);
+
+function getOrganisationTelegramUserId(req: Request, res: Response): number | null {
+  const user = currentUser(req);
+  if (user.userType !== "organisation") {
+    res.status(403).json({ message: "Organisation accounts can manage linked Telegram groups." });
+    return null;
+  }
+  const telegramUserId = Number(user.telegramId);
+  if (!Number.isSafeInteger(telegramUserId) || telegramUserId <= 0) {
+    res.status(400).json({ message: "This organisation profile needs a linked Telegram identity." });
+    return null;
+  }
+  return telegramUserId;
+}
 
 router.get("/community/me", async (req, res) => {
   const user = currentUser(req);
@@ -39,6 +71,137 @@ router.get("/community/manage", async (req, res) => {
   res.json({
     communities: await listTelegramOwnedCommunitiesForManagement(telegramUserId),
   });
+});
+
+router.get("/community/manage/:chatId/rules", async (req, res) => {
+  const params = GetTelegramCommunityRulesParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: "That Telegram group identifier is invalid." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+
+  const context = await getTelegramCommunityManagementContext(params.data.chatId, telegramUserId);
+  if (!context) {
+    res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+    return;
+  }
+  const [phraseRules, linkRules] = await Promise.all([
+    listTelegramCommunityKeywordRules(params.data.chatId, 100),
+    listTelegramCommunityLinkRules(params.data.chatId, 100),
+  ]);
+  res.json(GetTelegramCommunityRulesResponse.parse({ phraseRules, linkRules }));
+});
+
+router.post("/community/manage/:chatId/rules/phrases", async (req, res) => {
+  const params = AddTelegramCommunityPhraseParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: "That Telegram group identifier is invalid." });
+    return;
+  }
+  const body = AddTelegramCommunityPhraseBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ message: "Enter a banned phrase between 2 and 80 characters." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+
+  const result = await addTelegramCommunityKeywordRule({
+    chatId: params.data.chatId,
+    telegramUserId,
+    phrase: body.data.phrase,
+  });
+  if (result.status === "not_owner") {
+    res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+    return;
+  }
+  if (result.status === "invalid_phrase") {
+    res.status(400).json({ message: "Enter a valid banned phrase between 2 and 80 characters." });
+    return;
+  }
+  if (result.status === "already_exists") {
+    res.status(409).json({ message: "That banned phrase is already saved." });
+    return;
+  }
+  res.status(201).json(AddTelegramCommunityPhraseResponse.parse(result.rule));
+});
+
+router.delete("/community/manage/:chatId/rules/phrases/:ruleId", async (req, res) => {
+  const params = DeleteTelegramCommunityPhraseParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: "That Telegram group or rule identifier is invalid." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+
+  const result = await removeTelegramCommunityKeywordRuleById({
+    chatId: params.data.chatId,
+    telegramUserId,
+    ruleId: params.data.ruleId,
+  });
+  if (result.status !== "removed") {
+    res.status(404).json({ message: "That banned phrase could not be found for this group." });
+    return;
+  }
+  res.status(204).send();
+});
+
+router.post("/community/manage/:chatId/rules/links", async (req, res) => {
+  const params = AddTelegramCommunityLinkParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: "That Telegram group identifier is invalid." });
+    return;
+  }
+  const body = AddTelegramCommunityLinkBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ message: "Enter a URL or domain to whitelist." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+
+  const result = await addTelegramCommunityLinkRule({
+    chatId: params.data.chatId,
+    telegramUserId,
+    link: body.data.link,
+  });
+  if (result.status === "not_owner") {
+    res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+    return;
+  }
+  if (result.status === "invalid_link") {
+    res.status(400).json({ message: "Enter a valid http or https URL or domain." });
+    return;
+  }
+  if (result.status === "already_exists") {
+    res.status(409).json({ message: "That link is already whitelisted." });
+    return;
+  }
+  res.status(201).json(AddTelegramCommunityLinkResponse.parse(result.rule));
+});
+
+router.delete("/community/manage/:chatId/rules/links/:ruleId", async (req, res) => {
+  const params = DeleteTelegramCommunityLinkParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: "That Telegram group or rule identifier is invalid." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+
+  const result = await removeTelegramCommunityLinkRuleById({
+    chatId: params.data.chatId,
+    telegramUserId,
+    ruleId: params.data.ruleId,
+  });
+  if (result.status !== "removed") {
+    res.status(404).json({ message: "That whitelisted link could not be found for this group." });
+    return;
+  }
+  res.status(204).send();
 });
 
 router.get("/community/manage/:chatId/live-info", async (req, res) => {

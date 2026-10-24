@@ -1249,6 +1249,42 @@ export interface TelegramCommunityManagementResponse {
   communities: TelegramManagedCommunity[];
 }
 
+export interface TelegramCommunityPhraseRule {
+  id: number;
+  /** @maxLength 80 */
+  phrase: string;
+  createdAt: string;
+}
+
+export interface TelegramCommunityLinkRule {
+  id: number;
+  /** @maxLength 2048 */
+  link: string;
+  createdAt: string;
+}
+
+export interface TelegramCommunityRulesResponse {
+  phraseRules: TelegramCommunityPhraseRule[];
+  linkRules: TelegramCommunityLinkRule[];
+}
+
+export interface TelegramCommunityPhraseInput {
+  /**
+     * @minLength 2
+     * @maxLength 80
+     */
+  phrase: string;
+}
+
+export interface TelegramCommunityLinkInput {
+  /**
+     * A URL or domain. A saved path also permits its child paths.
+     * @minLength 1
+     * @maxLength 2048
+     */
+  link: string;
+}
+
 export type TelegramCommunityLiveInfoConnectionStatus = typeof TelegramCommunityLiveInfoConnectionStatus[keyof typeof TelegramCommunityLiveInfoConnectionStatus];
 
 

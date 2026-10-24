@@ -6,10 +6,12 @@ import {
   organisationsTable,
   telegramCommunitiesTable,
   telegramCommunityKeywordRulesTable,
+  telegramCommunityLinkRulesTable,
   usersTable,
 } from "@workspace/db/schema";
 import {
   COMMUNITY_XP_CONFIG,
+  normalizeCommunityLink,
   normalizeCommunityModerationPhrase,
 } from "./community-rules";
 
@@ -325,6 +327,7 @@ export async function addTelegramCommunityKeywordRule(input: {
   | {
       status: "added";
       ruleId: number;
+      rule: { id: number; phrase: string; createdAt: Date };
       context: NonNullable<Awaited<ReturnType<typeof getTelegramCommunityManagementContext>>>;
     }
   | { status: "invalid_phrase" }
@@ -345,9 +348,13 @@ export async function addTelegramCommunityKeywordRule(input: {
       createdByUserId: context.ownerUserId,
     })
     .onConflictDoNothing()
-    .returning({ id: telegramCommunityKeywordRulesTable.id });
+    .returning({
+      id: telegramCommunityKeywordRulesTable.id,
+      phrase: telegramCommunityKeywordRulesTable.phrase,
+      createdAt: telegramCommunityKeywordRulesTable.createdAt,
+    });
   return inserted
-    ? { status: "added", ruleId: inserted.id, context }
+    ? { status: "added", ruleId: inserted.id, rule: inserted, context }
     : { status: "already_exists" };
 }
 
@@ -400,6 +407,94 @@ export async function removeTelegramCommunityKeywordRuleById(input: {
       ),
     )
     .returning({ id: telegramCommunityKeywordRulesTable.id });
+  return removed
+    ? { status: "removed" as const, ruleId: removed.id, context }
+    : { status: "not_found" as const };
+}
+
+export async function listTelegramCommunityLinkRules(
+  chatId: string,
+  limit = 100,
+  offset = 0,
+) {
+  return db
+    .select({
+      id: telegramCommunityLinkRulesTable.id,
+      link: telegramCommunityLinkRulesTable.link,
+      normalizedHost: telegramCommunityLinkRulesTable.normalizedHost,
+      normalizedPath: telegramCommunityLinkRulesTable.normalizedPath,
+      createdAt: telegramCommunityLinkRulesTable.createdAt,
+    })
+    .from(telegramCommunityLinkRulesTable)
+    .innerJoin(
+      telegramCommunitiesTable,
+      eq(telegramCommunitiesTable.id, telegramCommunityLinkRulesTable.communityId),
+    )
+    .where(eq(telegramCommunitiesTable.chatId, chatId))
+    .orderBy(
+      asc(telegramCommunityLinkRulesTable.createdAt),
+      asc(telegramCommunityLinkRulesTable.id),
+    )
+    .limit(Math.max(1, Math.min(101, Math.floor(limit))))
+    .offset(Math.max(0, Math.floor(offset)));
+}
+
+export async function addTelegramCommunityLinkRule(input: {
+  chatId: string;
+  telegramUserId: number;
+  link: string;
+}): Promise<
+  | {
+      status: "added";
+      ruleId: number;
+      rule: { id: number; link: string; createdAt: Date };
+      context: NonNullable<Awaited<ReturnType<typeof getTelegramCommunityManagementContext>>>;
+    }
+  | { status: "invalid_link" }
+  | { status: "already_exists" }
+  | { status: "not_owner" }
+> {
+  const context = await getTelegramCommunityManagementContext(input.chatId, input.telegramUserId);
+  if (!context) return { status: "not_owner" };
+  const normalized = normalizeCommunityLink(input.link);
+  if (!normalized) return { status: "invalid_link" };
+
+  const [inserted] = await db
+    .insert(telegramCommunityLinkRulesTable)
+    .values({
+      communityId: context.communityId,
+      link: normalized.canonicalLink,
+      normalizedHost: normalized.normalizedHost,
+      normalizedPath: normalized.normalizedPath,
+      createdByUserId: context.ownerUserId,
+    })
+    .onConflictDoNothing()
+    .returning({
+      id: telegramCommunityLinkRulesTable.id,
+      link: telegramCommunityLinkRulesTable.link,
+      createdAt: telegramCommunityLinkRulesTable.createdAt,
+    });
+  return inserted
+    ? { status: "added", ruleId: inserted.id, rule: inserted, context }
+    : { status: "already_exists" };
+}
+
+export async function removeTelegramCommunityLinkRuleById(input: {
+  chatId: string;
+  telegramUserId: number;
+  ruleId: number;
+}) {
+  const context = await getTelegramCommunityManagementContext(input.chatId, input.telegramUserId);
+  if (!context) return { status: "not_owner" as const };
+  const [removed] = await db
+    .delete(telegramCommunityLinkRulesTable)
+    .where(
+      and(
+        eq(telegramCommunityLinkRulesTable.communityId, context.communityId),
+        eq(telegramCommunityLinkRulesTable.id, input.ruleId),
+      ),
+    )
+    .returning({ id: telegramCommunityLinkRulesTable.id });
   return removed
     ? { status: "removed" as const, ruleId: removed.id, context }
     : { status: "not_found" as const };

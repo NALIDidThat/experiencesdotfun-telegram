@@ -4,12 +4,15 @@ import {
   compareCommunityRanks,
   decideAdminReward,
   decideMessageAward,
+  extractCommunityMessageLinks,
   getCommunityLevel,
   getMessageQualification,
+  isCommunityLinkWhitelisted,
   parseAdminRewardAmount,
   countWords,
   isTelegramChatMember,
   matchesCommunityModerationPhrase,
+  normalizeCommunityLink,
   normalizeCommunityModerationPhrase,
   normalizePublicTelegramGroupUsername,
 } from "./community-rules.ts";
@@ -202,4 +205,35 @@ test("community keyword phrases normalize safely and enforce whole-word boundari
   assert.equal(matchesCommunityModerationPhrase("freedom crypto", "free crypto"), false);
   assert.equal(matchesCommunityModerationPhrase("free cryptocurrencies", "free crypto"), false);
   assert.equal(matchesCommunityModerationPhrase("free (crypto) today", "(crypto)"), true);
+});
+
+test("community link rules normalize safely and enforce host and path boundaries", () => {
+  assert.deepEqual(normalizeCommunityLink(" Example.org/guides/ "), {
+    canonicalLink: "https://example.org/guides",
+    normalizedHost: "example.org",
+    normalizedPath: "/guides",
+  });
+  assert.equal(normalizeCommunityLink("ftp://example.org"), null);
+  assert.equal(normalizeCommunityLink("https://user:password@example.org"), null);
+  assert.equal(normalizeCommunityLink("not a link"), null);
+
+  const text = "See example.org/start, www.other.org and click here";
+  const hiddenLinkStart = text.indexOf("click here");
+  const links = extractCommunityMessageLinks(text, [{
+    type: "text_link",
+    offset: hiddenLinkStart,
+    length: "click here".length,
+    url: "https://hidden.example/path",
+  }]);
+  assert.deepEqual(links, [
+    "https://hidden.example/path",
+    "https://example.org/start",
+    "https://www.other.org/",
+  ]);
+
+  const allowed = [normalizeCommunityLink("example.org/guides")];
+  assert.equal(isCommunityLinkWhitelisted("https://sub.example.org/guides/entry?ref=chat", allowed), true);
+  assert.equal(isCommunityLinkWhitelisted("https://example.org/guides", allowed), true);
+  assert.equal(isCommunityLinkWhitelisted("https://example.org/guidelines", allowed), false);
+  assert.equal(isCommunityLinkWhitelisted("https://notexample.org/guides/entry", allowed), false);
 });

@@ -1316,6 +1316,10 @@ test("organisations can start setup for another Telegram community", async (t) =
     resetTimezone: "UTC",
   };
   const apiTraffic = [];
+  const phraseRules = [];
+  const linkRules = [];
+  const submittedRuleRequests = [];
+  let nextRuleId = 7001;
 
   client.on("Fetch.requestPaused", ({ params }) => {
     void (async () => {
@@ -1333,7 +1337,7 @@ test("organisations can start setup for another Telegram community", async (t) =
             responseCode: 204,
             responseHeaders: [
               ...apiResponseHeaders(params.request, appOrigin),
-              { name: "Access-Control-Allow-Methods", value: "GET, POST, PATCH, OPTIONS" },
+                { name: "Access-Control-Allow-Methods", value: "GET, POST, PATCH, DELETE, OPTIONS" },
               {
                 name: "Access-Control-Allow-Headers",
                 value: params.request.headers["Access-Control-Request-Headers"]
@@ -1352,6 +1356,36 @@ test("organisations can start setup for another Telegram community", async (t) =
           response = user;
         } else if (url.pathname === "/api/community/manage" && method === "GET") {
           response = { communities: [community] };
+        } else if (url.pathname === `/api/community/manage/${community.chatId}/rules` && method === "GET") {
+          response = { phraseRules, linkRules };
+        } else if (url.pathname === `/api/community/manage/${community.chatId}/rules/phrases` && method === "POST") {
+          const body = JSON.parse(params.request.postData ?? "{}");
+          submittedRuleRequests.push({ method, path: url.pathname, body });
+          const rule = { id: nextRuleId++, phrase: body.phrase, createdAt: "2026-10-24T12:00:00.000Z" };
+          phraseRules.push(rule);
+          status = 201;
+          response = rule;
+        } else if (url.pathname === `/api/community/manage/${community.chatId}/rules/links` && method === "POST") {
+          const body = JSON.parse(params.request.postData ?? "{}");
+          submittedRuleRequests.push({ method, path: url.pathname, body });
+          const rawLink = body.link.trim();
+          const link = /^https?:\/\//i.test(rawLink) ? rawLink : `https://${rawLink}`;
+          const rule = { id: nextRuleId++, link, createdAt: "2026-10-24T12:00:00.000Z" };
+          linkRules.push(rule);
+          status = 201;
+          response = rule;
+        } else if (/\/rules\/phrases\/\d+$/.test(url.pathname) && method === "DELETE") {
+          submittedRuleRequests.push({ method, path: url.pathname });
+          const ruleId = Number(url.pathname.split("/").at(-1));
+          const index = phraseRules.findIndex((rule) => rule.id === ruleId);
+          if (index >= 0) phraseRules.splice(index, 1);
+          status = 204;
+        } else if (/\/rules\/links\/\d+$/.test(url.pathname) && method === "DELETE") {
+          submittedRuleRequests.push({ method, path: url.pathname });
+          const ruleId = Number(url.pathname.split("/").at(-1));
+          const index = linkRules.findIndex((rule) => rule.id === ruleId);
+          if (index >= 0) linkRules.splice(index, 1);
+          status = 204;
         } else if (url.pathname === "/api/friends" && method === "GET") {
           response = [];
         } else if (url.pathname === "/api/friends/notifications" && method === "GET") {
@@ -1367,7 +1401,7 @@ test("organisations can start setup for another Telegram community", async (t) =
           requestId: params.requestId,
           responseCode: status,
           responseHeaders: apiResponseHeaders(params.request, appOrigin),
-          body: Buffer.from(JSON.stringify(response)).toString("base64"),
+          body: status === 204 ? "" : Buffer.from(JSON.stringify(response)).toString("base64"),
         });
       } catch {
         await client.send("Fetch.failRequest", {
@@ -1399,6 +1433,74 @@ test("organisations can start setup for another Telegram community", async (t) =
   assert.ok(
     addCommunityPlacement && addCommunityPlacement.addTop >= addCommunityPlacement.groupBottom,
     `The add-community action should appear below the linked group. Bounds: ${JSON.stringify(addCommunityPlacement)}`,
+  );
+
+  await tapTestId(client, "telegram-community--100123456789");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="telegram-community-dashboard-screen"]')) && Boolean(document.querySelector('[data-testid="telegram-community-phrase-input"]'))`,
+    Boolean,
+    "the linked group's phrase and link rule editors",
+  );
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('Unlisted links won’t be removed until you add one.')`,
+    Boolean,
+    "the safe empty-whitelist state",
+  );
+
+  await replaceInput(client, "telegram-community-phrase-input", "unlisted phrase");
+  await tapTestId(client, "telegram-community-phrase-add");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="telegram-community-phrase-remove-7001"]'))`,
+    Boolean,
+    "the newly saved banned phrase",
+  );
+
+  await replaceInput(client, "telegram-community-link-input", "trusted.example.org/resources");
+  await tapTestId(client, "telegram-community-link-add");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="telegram-community-link-remove-7002"]'))`,
+    Boolean,
+    "the newly saved whitelisted link",
+  );
+
+  await tapTestId(client, "telegram-community-phrase-remove-7001");
+  await waitForValue(
+    client,
+    `!document.querySelector('[data-testid="telegram-community-phrase-remove-7001"]')`,
+    Boolean,
+    "the banned phrase to be removed",
+  );
+  await tapTestId(client, "telegram-community-link-remove-7002");
+  await waitForValue(
+    client,
+    `!document.querySelector('[data-testid="telegram-community-link-remove-7002"]')`,
+    Boolean,
+    "the whitelisted link to be removed",
+  );
+
+  assert.deepEqual(
+    submittedRuleRequests.filter((request) => request.method === "POST").map((request) => request.body),
+    [{ phrase: "unlisted phrase" }, { link: "trusted.example.org/resources" }],
+    "The editors should submit the exact phrase and URL entered by the organisation owner.",
+  );
+  assert.ok(
+    submittedRuleRequests.some((request) => request.method === "DELETE" && request.path.endsWith("/phrases/7001")),
+    "The dashboard should send a phrase-delete request.",
+  );
+  assert.ok(
+    submittedRuleRequests.some((request) => request.method === "DELETE" && request.path.endsWith("/links/7002")),
+    "The dashboard should send a link-delete request.",
+  );
+  await tapTestId(client, "telegram-community-dashboard-back");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="telegram-community-add"]'))`,
+    Boolean,
+    "the linked group list after leaving its dashboard",
   );
 
   await tapTestId(client, "telegram-community-add");

@@ -101,6 +101,106 @@ export function matchesCommunityModerationPhrase(text: string, phrase: string): 
   return rule.test(normalizedText);
 }
 
+export type NormalizedCommunityLink = {
+  canonicalLink: string;
+  normalizedHost: string;
+  normalizedPath: string;
+};
+
+export type CommunityMessageEntity = {
+  type: string;
+  offset: number;
+  length: number;
+  url?: string;
+};
+
+export function normalizeCommunityLink(value: string): NormalizedCommunityLink | null {
+  const candidate = value.normalize("NFKC").trim();
+  if (
+    !candidate ||
+    candidate.length > 2_048 ||
+    /[\u0000-\u0020\u007F]/u.test(candidate)
+  ) {
+    return null;
+  }
+
+  const withScheme = /^[a-z][a-z\d+.-]*:\/\//iu.test(candidate)
+    ? candidate
+    : `https://${candidate}`;
+  try {
+    const url = new URL(withScheme);
+    if (
+      (url.protocol !== "http:" && url.protocol !== "https:") ||
+      !url.hostname ||
+      url.username ||
+      url.password
+    ) {
+      return null;
+    }
+
+    const normalizedHost = url.hostname.toLowerCase().replace(/\.$/u, "");
+    if (!normalizedHost || !normalizedHost.includes(".")) return null;
+    const normalizedPath = url.pathname.replace(/\/+$/u, "") || "/";
+    return {
+      canonicalLink: `https://${normalizedHost}${normalizedPath}`,
+      normalizedHost,
+      normalizedPath,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function extractCommunityMessageLinks(
+  text: string,
+  entities: readonly CommunityMessageEntity[] = [],
+): string[] {
+  const candidates: string[] = [];
+  for (const entity of entities) {
+    if (
+      (entity.type !== "url" && entity.type !== "text_link") ||
+      !Number.isSafeInteger(entity.offset) ||
+      !Number.isSafeInteger(entity.length) ||
+      entity.offset < 0 ||
+      entity.length <= 0
+    ) {
+      continue;
+    }
+    const visibleText = text.slice(entity.offset, entity.offset + entity.length);
+    candidates.push(entity.type === "text_link" ? entity.url ?? visibleText : visibleText);
+  }
+
+  const linkPattern = /(?:https?:\/\/|www\.)[^\s<>"'`]+|(?<![\w@])(?:[a-z\d](?:[a-z\d-]*[a-z\d])?\.)+[a-z]{2,}(?:\/[^\s<>"'`]*)?/giu;
+  for (const match of text.matchAll(linkPattern)) {
+    candidates.push(match[0]);
+  }
+
+  const normalizedLinks = new Set<string>();
+  for (const candidate of candidates) {
+    const cleaned = candidate.replace(/[.,!?;:)}\]]+$/u, "");
+    const normalized = normalizeCommunityLink(cleaned);
+    if (normalized) normalizedLinks.add(normalized.canonicalLink);
+  }
+  return [...normalizedLinks];
+}
+
+export function isCommunityLinkWhitelisted(
+  candidate: string,
+  allowedLinks: readonly Pick<NormalizedCommunityLink, "normalizedHost" | "normalizedPath">[],
+): boolean {
+  const normalized = normalizeCommunityLink(candidate);
+  if (!normalized) return false;
+
+  return allowedLinks.some((allowed) => {
+    const hostMatches = normalized.normalizedHost === allowed.normalizedHost
+      || normalized.normalizedHost.endsWith(`.${allowed.normalizedHost}`);
+    const pathMatches = allowed.normalizedPath === "/"
+      || normalized.normalizedPath === allowed.normalizedPath
+      || normalized.normalizedPath.startsWith(`${allowed.normalizedPath}/`);
+    return hostMatches && pathMatches;
+  });
+}
+
 export function getMessageQualification(input: {
   text: string;
   isGroup: boolean;

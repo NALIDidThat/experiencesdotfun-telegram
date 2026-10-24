@@ -2152,6 +2152,125 @@ export const GetTelegramCommunityManagementResponse = zod.object({
 
 
 /**
+ * @summary List a linked group's banned phrases and whitelisted links
+ */
+export const getTelegramCommunityRulesPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const GetTelegramCommunityRulesParams = zod.object({
+  "chatId": zod.coerce.string().regex(getTelegramCommunityRulesPathChatIdRegExp)
+})
+
+export const getTelegramCommunityRulesResponsePhraseRulesItemPhraseMax = 80;
+
+export const getTelegramCommunityRulesResponseLinkRulesItemLinkMax = 2048;
+
+
+
+export const GetTelegramCommunityRulesResponse = zod.object({
+  "phraseRules": zod.array(zod.object({
+  "id": zod.number().int(),
+  "phrase": zod.string().max(getTelegramCommunityRulesResponsePhraseRulesItemPhraseMax),
+  "createdAt": zod.coerce.date()
+})),
+  "linkRules": zod.array(zod.object({
+  "id": zod.number().int(),
+  "link": zod.string().max(getTelegramCommunityRulesResponseLinkRulesItemLinkMax),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Add a banned phrase to a linked Telegram group
+ */
+export const addTelegramCommunityPhrasePathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const AddTelegramCommunityPhraseParams = zod.object({
+  "chatId": zod.coerce.string().regex(addTelegramCommunityPhrasePathChatIdRegExp)
+})
+
+export const addTelegramCommunityPhraseBodyPhraseMin = 2;
+export const addTelegramCommunityPhraseBodyPhraseMax = 80;
+
+
+
+export const AddTelegramCommunityPhraseBody = zod.object({
+  "phrase": zod.string().min(addTelegramCommunityPhraseBodyPhraseMin).max(addTelegramCommunityPhraseBodyPhraseMax)
+})
+
+export const addTelegramCommunityPhraseResponsePhraseMax = 80;
+
+
+
+export const AddTelegramCommunityPhraseResponse = zod.object({
+  "id": zod.number().int(),
+  "phrase": zod.string().max(addTelegramCommunityPhraseResponsePhraseMax),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a banned phrase from a linked Telegram group
+ */
+export const deleteTelegramCommunityPhrasePathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+
+export const DeleteTelegramCommunityPhraseParams = zod.object({
+  "chatId": zod.coerce.string().regex(deleteTelegramCommunityPhrasePathChatIdRegExp),
+  "ruleId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteTelegramCommunityPhraseResponse = zod.void()
+
+
+/**
+ * @summary Add a whitelisted link to a linked Telegram group
+ */
+export const addTelegramCommunityLinkPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const AddTelegramCommunityLinkParams = zod.object({
+  "chatId": zod.coerce.string().regex(addTelegramCommunityLinkPathChatIdRegExp)
+})
+
+export const addTelegramCommunityLinkBodyLinkMax = 2048;
+
+
+
+export const AddTelegramCommunityLinkBody = zod.object({
+  "link": zod.string().min(1).max(addTelegramCommunityLinkBodyLinkMax).describe('A URL or domain. A saved path also permits its child paths.')
+})
+
+export const addTelegramCommunityLinkResponseLinkMax = 2048;
+
+
+
+export const AddTelegramCommunityLinkResponse = zod.object({
+  "id": zod.number().int(),
+  "link": zod.string().max(addTelegramCommunityLinkResponseLinkMax),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a whitelisted link from a linked Telegram group
+ */
+export const deleteTelegramCommunityLinkPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+
+export const DeleteTelegramCommunityLinkParams = zod.object({
+  "chatId": zod.coerce.string().regex(deleteTelegramCommunityLinkPathChatIdRegExp),
+  "ruleId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteTelegramCommunityLinkResponse = zod.void()
+
+
+/**
  * @summary Check the linked group’s live Telegram connection and member count
  */
 export const getTelegramCommunityLiveInfoPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');

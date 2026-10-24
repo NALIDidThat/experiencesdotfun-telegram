@@ -32,6 +32,7 @@ import {
   getTelegramCommunity,
   getTelegramCommunityManagementContext,
   listTelegramCommunityKeywordRules,
+  listTelegramCommunityLinkRules,
   listTelegramOwnedCommunities,
   listTelegramOwnedOrganisations,
   removeTelegramCommunityKeywordRule,
@@ -47,7 +48,9 @@ import {
   TELEGRAM_POLLING_CONFLICT_BACKOFF_MS,
 } from "./telegram-polling-policy";
 import {
+  extractCommunityMessageLinks,
   getMessageQualification,
+  isCommunityLinkWhitelisted,
   isTelegramChatMember,
   matchesCommunityModerationPhrase,
   normalizePublicTelegramGroupUsername,
@@ -82,6 +85,9 @@ type TelegramUpdate = {
     message_id: number;
     chat: { id: number; type?: string; title?: string };
     text?: string;
+    caption?: string;
+    entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
+    caption_entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
     from?: TelegramIdentity;
     reply_to_message?: {
       message_id: number;
@@ -115,7 +121,7 @@ const botCommands = [
   { command: "onboarding", description: "Finish setting up your profile" },
   { command: "help", description: "Show commands and quick guide" },
   { command: "community", description: "Connect or view this group's controls" },
-  { command: "spam", description: "Enable or disable phrase spam protection" },
+  { command: "spam", description: "Enable or disable group phrase and link protection" },
   { command: "filter", description: "Add or remove a blocked phrase" },
   { command: "filters", description: "List this group's active phrase filters" },
 ];
@@ -1122,7 +1128,7 @@ async function handleCommunityCommand(
     if (!context) return;
     await sendTelegramMessage(
       chatId,
-      `<b>Disconnect ${escapeTelegramHtml(context.chatTitle)}?</b>\n\nPhrase protection will stop, and this group's saved phrase filters will be permanently deleted. Community XP history will be kept.`,
+      `<b>Disconnect ${escapeTelegramHtml(context.chatTitle)}?</b>\n\nPhrase and link protection will stop, and this group's saved phrase filters and whitelisted links will be permanently deleted. Community XP history will be kept.`,
       [[
         callbackButton("Disconnect group", "community:disconnect:confirm"),
         callbackButton("Cancel", "community:disconnect:cancel"),
@@ -1526,7 +1532,7 @@ async function handlePrivateCommunityCallback(
     if (!context) return;
     await sendTelegramMessage(
       privateChatId,
-      `<b>Disconnect ${escapeTelegramHtml(context.chatTitle)}?</b>\n\nPhrase protection will stop, and this group's saved phrase filters will be permanently deleted. Community XP history will be kept.`,
+      `<b>Disconnect ${escapeTelegramHtml(context.chatTitle)}?</b>\n\nPhrase and link protection will stop, and this group's saved phrase filters and whitelisted links will be permanently deleted. Community XP history will be kept.`,
       [[
         callbackButton("Disconnect group", `community:private:disconnect-confirm:${groupChatId}`),
         callbackButton("Cancel", `community:private:disconnect-cancel:${groupChatId}`),
@@ -1598,7 +1604,7 @@ async function handleCommunityConnectionCallback(
   await sendTelegramMessage(
     chatId,
     result.status === "connected"
-      ? `<b>Group connected</b>\n\nThis group is now linked to <b>${escapeTelegramHtml(result.organisationName)}</b>. Phrase protection is off by default. An owner who is also a group admin can enable it with <code>/spam on</code> here or manage it privately with <code>/community</code>.`
+      ? `<b>Group connected</b>\n\nThis group is now linked to <b>${escapeTelegramHtml(result.organisationName)}</b>. Phrase protection is off by default. An owner who is also a group admin can enable it with <code>/spam on</code>. Edit banned phrases and whitelisted links from the app dashboard.`
       : `This group is already connected to <b>${escapeTelegramHtml(result.organisationName)}</b>.`,
   );
 }
@@ -1633,7 +1639,7 @@ async function handleCommunityDisconnectCallback(
   }, "Telegram community disconnected by its organisation owner");
   await sendTelegramMessage(
     responseChatId,
-    "<b>Group disconnected.</b>\n\nPhrase protection is off and saved phrase filters for this group were deleted. Community XP history was kept.",
+    "<b>Group disconnected.</b>\n\nPhrase protection is off and saved phrase filters and whitelisted links for this group were deleted. Community XP history was kept.",
   );
   return true;
 }
@@ -1707,8 +1713,8 @@ async function handleSpamCommand(
   await sendTelegramMessage(
     chatId,
     enabled
-      ? "<b>Phrase protection is on.</b>\n\nEnabled exact-word and exact-phrase filters will be removed automatically. Other spam signals, such as message floods and suspicious links, are not covered yet."
-      : "<b>Phrase protection is off.</b>\n\nYour saved filters remain available and can be re-enabled with <code>/spam on</code>.",
+      ? "<b>Phrase protection is on.</b>\n\nSaved phrase filters are removed automatically. If the dashboard has at least one whitelisted link, messages with other links are removed too. Message floods are not detected."
+      : "<b>Phrase protection is off.</b>\n\nYour saved phrase filters and link list remain available and can be re-enabled with <code>/spam on</code>.",
   );
 }
 
@@ -1819,13 +1825,50 @@ async function handleFiltersCommand(chatId: number, identity: TelegramIdentity) 
 async function moderateCommunityMessage(
   message: NonNullable<TelegramUpdate["message"]>,
 ): Promise<boolean> {
-  if (!message.text || !isGroupChat(message.chat.type)) return false;
+  const text = message.text ?? "";
+  const caption = message.caption ?? "";
+  if ((!text && !caption) || !isGroupChat(message.chat.type)) return false;
   try {
     const community = await getTelegramCommunity(String(message.chat.id));
     if (!community?.spamProtectionEnabled) return false;
-    const rules = await listTelegramCommunityKeywordRules(String(message.chat.id), 100);
-    const matched = rules.find((rule) => matchesCommunityModerationPhrase(message.text!, rule.phrase));
-    if (!matched) return false;
+
+    const phraseTexts = [text, caption].filter((value): value is string => Boolean(value));
+    if (phraseTexts.length) {
+      const phraseRules = await listTelegramCommunityKeywordRules(String(message.chat.id), 100);
+      const matchedPhrase = phraseRules.find((rule) =>
+        phraseTexts.some((phraseText) => matchesCommunityModerationPhrase(phraseText, rule.phrase)),
+      );
+      if (matchedPhrase) {
+        const deleted = await telegramCall<boolean>("deleteMessage", {
+          chat_id: message.chat.id,
+          message_id: message.message_id,
+        });
+        const logFields = {
+          chatId: message.chat.id,
+          messageId: message.message_id,
+          ruleId: matchedPhrase.id,
+          targetTelegramUserId: message.from?.id,
+          deletionSucceeded: deleted === true,
+        };
+        if (deleted === true) {
+          logger.info(logFields, "Community message removed by a phrase filter");
+        } else {
+          logger.warn(logFields, "Community phrase matched but the message could not be removed");
+        }
+        return true;
+      }
+    }
+
+    const links = [
+      ...extractCommunityMessageLinks(text, message.entities),
+      ...extractCommunityMessageLinks(caption, message.caption_entities),
+    ];
+    if (!links.length) return false;
+
+    const allowedLinks = await listTelegramCommunityLinkRules(String(message.chat.id), 100);
+    if (!allowedLinks.length) return false;
+    const unapprovedLink = links.find((link) => !isCommunityLinkWhitelisted(link, allowedLinks));
+    if (!unapprovedLink) return false;
 
     const deleted = await telegramCall<boolean>("deleteMessage", {
       chat_id: message.chat.id,
@@ -1834,20 +1877,20 @@ async function moderateCommunityMessage(
     const logFields = {
       chatId: message.chat.id,
       messageId: message.message_id,
-      ruleId: matched.id,
       targetTelegramUserId: message.from?.id,
+      unapprovedLink,
       deletionSucceeded: deleted === true,
     };
     if (deleted === true) {
-      logger.info(logFields, "Community message removed by a phrase filter");
+      logger.info(logFields, "Community message removed because it contained an unlisted link");
     } else {
-      logger.warn(logFields, "Community phrase matched but the message could not be removed");
+      logger.warn(logFields, "Community message with an unlisted link could not be removed");
     }
     return true;
   } catch (error) {
     logger.error(
       { err: error, chatId: message.chat.id, messageId: message.message_id },
-      "Community phrase moderation could not be checked",
+      "Community message moderation could not be checked",
     );
     return false;
   }
@@ -1856,9 +1899,10 @@ async function moderateCommunityMessage(
 async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
   const text = message.text;
   const identity = message.from;
-  if (!text || !identity || identity.is_bot) return;
+  if (!identity || identity.is_bot || (!text && !message.caption)) return;
 
   if (message.chat.type === "private" && message.chat.id === identity.id) {
+    if (!text) return;
     const pending = pendingPrivateCommunityPhrases.get(identity.id);
     if (pending && pending.expiresAt <= Date.now()) {
       pendingPrivateCommunityPhrases.delete(identity.id);
@@ -1891,12 +1935,13 @@ async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
     }
   }
 
-  if (text.trim().startsWith("/")) {
+  if (text && text.trim().startsWith("/")) {
     await handleCommand(message.chat.id, message.chat.type, identity, text, message.chat.title);
     return;
   }
   if (!isGroupChat(message.chat.type)) return;
   if (await moderateCommunityMessage(message)) return;
+  if (!text) return;
 
   const rewardAmount = parseAdminRewardAmount(text);
   const reply = message.reply_to_message;

@@ -144,8 +144,13 @@ import type {
   SocialInviteCreateInput,
   SyncCharityContributionLedger200,
   TelegramAuthInput,
+  TelegramCommunityLinkInput,
+  TelegramCommunityLinkRule,
   TelegramCommunityLiveInfo,
   TelegramCommunityManagementResponse,
+  TelegramCommunityPhraseInput,
+  TelegramCommunityPhraseRule,
+  TelegramCommunityRulesResponse,
   TopFriendsInput,
   UnauthorizedResponse,
   UpdateFeedPreferencesInput,
@@ -5254,6 +5259,413 @@ export function useGetTelegramCommunityManagement<TData = Awaited<ReturnType<typ
 
 
 
+
+export const getGetTelegramCommunityRulesUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/rules`
+}
+
+/**
+ * @summary List a linked group's banned phrases and whitelisted links
+ */
+export const getTelegramCommunityRules = async (chatId: string, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityRulesResponse> => {
+
+  return customFetch<TelegramCommunityRulesResponse>(getGetTelegramCommunityRulesUrl(chatId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTelegramCommunityRulesQueryKey = (chatId: string,) => {
+    return [
+    `/api/community/manage/${chatId}/rules`
+    ] as const;
+    }
+
+
+export const getGetTelegramCommunityRulesQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramCommunityRules>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityRules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTelegramCommunityRulesQueryKey(chatId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramCommunityRules>>> = ({ signal }) => getTelegramCommunityRules(chatId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: chatId !== null && chatId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityRules>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTelegramCommunityRulesQueryResult = NonNullable<Awaited<ReturnType<typeof getTelegramCommunityRules>>>
+export type GetTelegramCommunityRulesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary List a linked group's banned phrases and whitelisted links
+ */
+
+export function useGetTelegramCommunityRules<TData = Awaited<ReturnType<typeof getTelegramCommunityRules>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+ chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityRules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTelegramCommunityRulesQueryOptions(chatId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddTelegramCommunityPhraseUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/rules/phrases`
+}
+
+/**
+ * @summary Add a banned phrase to a linked Telegram group
+ */
+export const addTelegramCommunityPhrase = async (chatId: string,
+    telegramCommunityPhraseInput: TelegramCommunityPhraseInput, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityPhraseRule> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TelegramCommunityPhraseRule>(getAddTelegramCommunityPhraseUrl(chatId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(telegramCommunityPhraseInput)
+  }
+);}
+
+
+
+
+
+export const getAddTelegramCommunityPhraseMutationKey = () => ['addTelegramCommunityPhrase'] as const;
+
+export const getAddTelegramCommunityPhraseMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTelegramCommunityPhrase>>, TError,AddTelegramCommunityPhraseMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addTelegramCommunityPhrase>>, TError,AddTelegramCommunityPhraseMutationVariables, TContext> => {
+
+const mutationKey = getAddTelegramCommunityPhraseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addTelegramCommunityPhrase>>, AddTelegramCommunityPhraseMutationVariables> = (props) => {
+          const {chatId,data} = props ?? {};
+
+          return  addTelegramCommunityPhrase(chatId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddTelegramCommunityPhraseMutationResult = NonNullable<Awaited<ReturnType<typeof addTelegramCommunityPhrase>>>
+    export type AddTelegramCommunityPhraseMutationBody = BodyType<TelegramCommunityPhraseInput>
+    export type AddTelegramCommunityPhraseMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>
+    export type AddTelegramCommunityPhraseMutationVariables = {chatId: string;data: BodyType<TelegramCommunityPhraseInput>}
+
+    /**
+ * @summary Add a banned phrase to a linked Telegram group
+ */
+export const useAddTelegramCommunityPhrase = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTelegramCommunityPhrase>>, TError,AddTelegramCommunityPhraseMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addTelegramCommunityPhrase>>,
+        TError,
+        AddTelegramCommunityPhraseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddTelegramCommunityPhraseMutationOptions(options));
+    }
+
+export const getDeleteTelegramCommunityPhraseUrl = (chatId: string,
+    ruleId: number,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/rules/phrases/${ruleId}`
+}
+
+/**
+ * @summary Remove a banned phrase from a linked Telegram group
+ */
+export const deleteTelegramCommunityPhrase = async (chatId: string,
+    ruleId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteTelegramCommunityPhraseUrl(chatId,ruleId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteTelegramCommunityPhraseMutationKey = () => ['deleteTelegramCommunityPhrase'] as const;
+
+export const getDeleteTelegramCommunityPhraseMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTelegramCommunityPhrase>>, TError,DeleteTelegramCommunityPhraseMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTelegramCommunityPhrase>>, TError,DeleteTelegramCommunityPhraseMutationVariables, TContext> => {
+
+const mutationKey = getDeleteTelegramCommunityPhraseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTelegramCommunityPhrase>>, DeleteTelegramCommunityPhraseMutationVariables> = (props) => {
+          const {chatId,ruleId} = props ?? {};
+
+          return  deleteTelegramCommunityPhrase(chatId,ruleId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTelegramCommunityPhraseMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTelegramCommunityPhrase>>>
+
+    export type DeleteTelegramCommunityPhraseMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type DeleteTelegramCommunityPhraseMutationVariables = {chatId: string;ruleId: number}
+
+    /**
+ * @summary Remove a banned phrase from a linked Telegram group
+ */
+export const useDeleteTelegramCommunityPhrase = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTelegramCommunityPhrase>>, TError,DeleteTelegramCommunityPhraseMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTelegramCommunityPhrase>>,
+        TError,
+        DeleteTelegramCommunityPhraseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteTelegramCommunityPhraseMutationOptions(options));
+    }
+
+export const getAddTelegramCommunityLinkUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/rules/links`
+}
+
+/**
+ * @summary Add a whitelisted link to a linked Telegram group
+ */
+export const addTelegramCommunityLink = async (chatId: string,
+    telegramCommunityLinkInput: TelegramCommunityLinkInput, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityLinkRule> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TelegramCommunityLinkRule>(getAddTelegramCommunityLinkUrl(chatId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(telegramCommunityLinkInput)
+  }
+);}
+
+
+
+
+
+export const getAddTelegramCommunityLinkMutationKey = () => ['addTelegramCommunityLink'] as const;
+
+export const getAddTelegramCommunityLinkMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTelegramCommunityLink>>, TError,AddTelegramCommunityLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addTelegramCommunityLink>>, TError,AddTelegramCommunityLinkMutationVariables, TContext> => {
+
+const mutationKey = getAddTelegramCommunityLinkMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addTelegramCommunityLink>>, AddTelegramCommunityLinkMutationVariables> = (props) => {
+          const {chatId,data} = props ?? {};
+
+          return  addTelegramCommunityLink(chatId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddTelegramCommunityLinkMutationResult = NonNullable<Awaited<ReturnType<typeof addTelegramCommunityLink>>>
+    export type AddTelegramCommunityLinkMutationBody = BodyType<TelegramCommunityLinkInput>
+    export type AddTelegramCommunityLinkMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>
+    export type AddTelegramCommunityLinkMutationVariables = {chatId: string;data: BodyType<TelegramCommunityLinkInput>}
+
+    /**
+ * @summary Add a whitelisted link to a linked Telegram group
+ */
+export const useAddTelegramCommunityLink = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTelegramCommunityLink>>, TError,AddTelegramCommunityLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addTelegramCommunityLink>>,
+        TError,
+        AddTelegramCommunityLinkMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddTelegramCommunityLinkMutationOptions(options));
+    }
+
+export const getDeleteTelegramCommunityLinkUrl = (chatId: string,
+    ruleId: number,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/rules/links/${ruleId}`
+}
+
+/**
+ * @summary Remove a whitelisted link from a linked Telegram group
+ */
+export const deleteTelegramCommunityLink = async (chatId: string,
+    ruleId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteTelegramCommunityLinkUrl(chatId,ruleId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteTelegramCommunityLinkMutationKey = () => ['deleteTelegramCommunityLink'] as const;
+
+export const getDeleteTelegramCommunityLinkMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTelegramCommunityLink>>, TError,DeleteTelegramCommunityLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTelegramCommunityLink>>, TError,DeleteTelegramCommunityLinkMutationVariables, TContext> => {
+
+const mutationKey = getDeleteTelegramCommunityLinkMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTelegramCommunityLink>>, DeleteTelegramCommunityLinkMutationVariables> = (props) => {
+          const {chatId,ruleId} = props ?? {};
+
+          return  deleteTelegramCommunityLink(chatId,ruleId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTelegramCommunityLinkMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTelegramCommunityLink>>>
+
+    export type DeleteTelegramCommunityLinkMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type DeleteTelegramCommunityLinkMutationVariables = {chatId: string;ruleId: number}
+
+    /**
+ * @summary Remove a whitelisted link from a linked Telegram group
+ */
+export const useDeleteTelegramCommunityLink = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTelegramCommunityLink>>, TError,DeleteTelegramCommunityLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTelegramCommunityLink>>,
+        TError,
+        DeleteTelegramCommunityLinkMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteTelegramCommunityLinkMutationOptions(options));
+    }
 
 export const getGetTelegramCommunityLiveInfoUrl = (chatId: string,) => {
 

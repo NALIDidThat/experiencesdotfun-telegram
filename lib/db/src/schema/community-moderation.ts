@@ -59,3 +59,31 @@ export const telegramCommunityKeywordRulesTable = pgTable(
     ),
   }),
 );
+
+export const telegramCommunityLinkRulesTable = pgTable(
+  "telegram_community_link_rules",
+  {
+    id: serial("id").primaryKey(),
+    communityId: integer("community_id")
+      .notNull()
+      .references(() => telegramCommunitiesTable.id, { onDelete: "cascade" }),
+    link: text("link").notNull(),
+    normalizedHost: text("normalized_host").notNull(),
+    normalizedPath: text("normalized_path").notNull(),
+    createdByUserId: integer("created_by_user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    linkUnique: uniqueIndex("telegram_community_link_rules_unique_idx").on(
+      table.communityId,
+      table.normalizedHost,
+      table.normalizedPath,
+    ),
+    communityHostIndex: index("telegram_community_link_rules_host_idx").on(
+      table.communityId,
+      table.normalizedHost,
+    ),
+  }),
+);

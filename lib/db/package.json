@@ -13,7 +13,8 @@
     "migrate-supabase-data": "node ./scripts/migrate-supabase-data.mjs",
     "migrate:fundraising": "node ./scripts/apply-fundraising-ledger.mjs",
     "migrate:fund-experience-link": "node ./scripts/apply-fund-experience-link.mjs",
-    "migrate:telegram-community-moderation": "node ./scripts/apply-telegram-community-moderation.mjs"
+    "migrate:telegram-community-moderation": "node ./scripts/apply-telegram-community-moderation.mjs",
+    "migrate:telegram-community-link-rules": "node ./scripts/apply-telegram-community-link-rules.mjs"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",

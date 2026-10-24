@@ -1433,6 +1433,172 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /community/manage/{chatId}/rules:
+    get:
+      operationId: getTelegramCommunityRules
+      tags: [community]
+      summary: List a linked group's banned phrases and whitelisted links
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      responses:
+        "200":
+          description: Saved phrase and link rules for the linked group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityRulesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /community/manage/{chatId}/rules/phrases:
+    post:
+      operationId: addTelegramCommunityPhrase
+      tags: [community]
+      summary: Add a banned phrase to a linked Telegram group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramCommunityPhraseInput"
+      responses:
+        "201":
+          description: Phrase added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityPhraseRule"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: This phrase is already saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /community/manage/{chatId}/rules/phrases/{ruleId}:
+    delete:
+      operationId: deleteTelegramCommunityPhrase
+      tags: [community]
+      summary: Remove a banned phrase from a linked Telegram group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Phrase removed
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /community/manage/{chatId}/rules/links:
+    post:
+      operationId: addTelegramCommunityLink
+      tags: [community]
+      summary: Add a whitelisted link to a linked Telegram group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramCommunityLinkInput"
+      responses:
+        "201":
+          description: Link added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityLinkRule"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: This link is already saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /community/manage/{chatId}/rules/links/{ruleId}:
+    delete:
+      operationId: deleteTelegramCommunityLink
+      tags: [community]
+      summary: Remove a whitelisted link from a linked Telegram group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Link removed
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /community/manage/{chatId}/live-info:
     get:
       operationId: getTelegramCommunityLiveInfo
@@ -4071,6 +4237,51 @@ components:
         - trackedMembers
         - qualifyingMessagesToday
         - resetTimezone
+    TelegramCommunityRulesResponse:
+      type: object
+      properties:
+        phraseRules:
+          type: array
+          items:
+            $ref: "#/components/schemas/TelegramCommunityPhraseRule"
+        linkRules:
+          type: array
+          items:
+            $ref: "#/components/schemas/TelegramCommunityLinkRule"
+      required: [phraseRules, linkRules]
+    TelegramCommunityPhraseRule:
+      type: object
+      properties:
+        id: { type: integer }
+        phrase: { type: string, maxLength: 80 }
+        createdAt: { type: string, format: date-time }
+      required: [id, phrase, createdAt]
+    TelegramCommunityLinkRule:
+      type: object
+      properties:
+        id: { type: integer }
+        link: { type: string, maxLength: 2048 }
+        createdAt: { type: string, format: date-time }
+      required: [id, link, createdAt]
+    TelegramCommunityPhraseInput:
+      type: object
+      properties:
+        phrase:
+          type: string
+          minLength: 2
+          maxLength: 80
+      required: [phrase]
+      additionalProperties: false
+    TelegramCommunityLinkInput:
+      type: object
+      properties:
+        link:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          description: A URL or domain. A saved path also permits its child paths.
+      required: [link]
+      additionalProperties: false
     TelegramCommunityLiveInfo:
       type: object
       properties:

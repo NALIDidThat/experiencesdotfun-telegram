@@ -1,12 +1,38 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import {
+  getGetTelegramCommunityRulesQueryKey,
+  useAddTelegramCommunityLink,
+  useAddTelegramCommunityPhrase,
+  useDeleteTelegramCommunityLink,
+  useDeleteTelegramCommunityPhrase,
   useGetTelegramCommunityLiveInfo,
   useGetTelegramCommunityManagement,
+  useGetTelegramCommunityRules,
   type TelegramManagedCommunity,
 } from '@workspace/api-client-react';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
+
+type RuleFeedback = { message: string; tone: 'success' | 'error' };
+
+function errorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error !== null && 'data' in error) {
+    const message = (error as { data?: { message?: unknown } }).data?.message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return fallback;
+}
 
 type Props = {
   onBack: () => void;
@@ -350,7 +376,12 @@ export function TelegramCommunityDashboardScreen({
   onOpenBot: (startPayload?: string) => void;
 }) {
   const colors = useColors();
+  const queryClient = useQueryClient();
   const [selectedMetric, setSelectedMetric] = useState<HealthMetricKey | null>(null);
+  const [phraseDraft, setPhraseDraft] = useState('');
+  const [linkDraft, setLinkDraft] = useState('');
+  const [phraseFeedback, setPhraseFeedback] = useState<RuleFeedback | null>(null);
+  const [linkFeedback, setLinkFeedback] = useState<RuleFeedback | null>(null);
   const management = useGetTelegramCommunityManagement();
   const liveInfo = useGetTelegramCommunityLiveInfo(chatId ?? '', {
     query: {
@@ -358,6 +389,16 @@ export function TelegramCommunityDashboardScreen({
       enabled: Boolean(chatId),
     },
   });
+  const rules = useGetTelegramCommunityRules(chatId ?? '', {
+    query: {
+      queryKey: getGetTelegramCommunityRulesQueryKey(chatId ?? ''),
+      enabled: Boolean(chatId),
+    },
+  });
+  const addPhrase = useAddTelegramCommunityPhrase();
+  const removePhrase = useDeleteTelegramCommunityPhrase();
+  const addLink = useAddTelegramCommunityLink();
+  const removeLink = useDeleteTelegramCommunityLink();
   const community = management.data?.communities.find((item) => item.chatId === chatId);
   const displayedTitle = liveInfo.data?.connectionStatus !== 'error' && liveInfo.data?.chatTitle
     ? liveInfo.data.chatTitle
@@ -409,7 +450,7 @@ export function TelegramCommunityDashboardScreen({
     },
     moderation: {
       title: 'Moderation reviews',
-      body: 'A saved review inbox is not available yet. Phrase protection currently removes configured matches automatically when the bot has Telegram permission to delete messages.',
+      body: 'A saved review inbox is not available yet. Phrase and link rules remove matching messages automatically when the bot has Telegram permission to delete messages.',
     },
     xp: {
       title: 'XP distributed today',
@@ -417,12 +458,79 @@ export function TelegramCommunityDashboardScreen({
     },
   };
 
+  async function refreshRules() {
+    if (!chatId) return;
+    await queryClient.invalidateQueries({
+      queryKey: getGetTelegramCommunityRulesQueryKey(chatId),
+    });
+  }
+
+  async function savePhrase() {
+    const phrase = phraseDraft.trim().replace(/\s+/g, ' ');
+    if (!chatId || [...phrase].length < 2 || [...phrase].length > 80) {
+      setPhraseFeedback({ message: 'Enter a phrase between 2 and 80 characters.', tone: 'error' });
+      return;
+    }
+    setPhraseFeedback(null);
+    try {
+      await addPhrase.mutateAsync({ chatId, data: { phrase } });
+      setPhraseDraft('');
+      setPhraseFeedback({ message: 'Banned phrase added.', tone: 'success' });
+      await refreshRules();
+    } catch (error) {
+      setPhraseFeedback({ message: errorMessage(error, 'Could not add that phrase. Try again.'), tone: 'error' });
+    }
+  }
+
+  async function deletePhrase(ruleId: number) {
+    if (!chatId) return;
+    setPhraseFeedback(null);
+    try {
+      await removePhrase.mutateAsync({ chatId, ruleId });
+      setPhraseFeedback({ message: 'Banned phrase removed.', tone: 'success' });
+      await refreshRules();
+    } catch (error) {
+      setPhraseFeedback({ message: errorMessage(error, 'Could not remove that phrase. Try again.'), tone: 'error' });
+    }
+  }
+
+  async function saveLink() {
+    const link = linkDraft.trim();
+    if (!chatId || !link || link.length > 2048) {
+      setLinkFeedback({ message: 'Enter a URL or domain to whitelist.', tone: 'error' });
+      return;
+    }
+    setLinkFeedback(null);
+    try {
+      await addLink.mutateAsync({ chatId, data: { link } });
+      setLinkDraft('');
+      setLinkFeedback({ message: 'Whitelisted link added.', tone: 'success' });
+      await refreshRules();
+    } catch (error) {
+      setLinkFeedback({ message: errorMessage(error, 'Could not add that link. Try again.'), tone: 'error' });
+    }
+  }
+
+  async function deleteLink(ruleId: number) {
+    if (!chatId) return;
+    setLinkFeedback(null);
+    try {
+      await removeLink.mutateAsync({ chatId, ruleId });
+      setLinkFeedback({ message: 'Whitelisted link removed.', tone: 'success' });
+      await refreshRules();
+    } catch (error) {
+      setLinkFeedback({ message: errorMessage(error, 'Could not remove that link. Try again.'), tone: 'error' });
+    }
+  }
+
   return (
-    <ScrollView
+    <KeyboardAwareScrollViewCompat
       testID="telegram-community-dashboard-screen"
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="none"
+      bottomOffset={48}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.topBar}>
@@ -657,6 +765,249 @@ export function TelegramCommunityDashboardScreen({
           </View>
 
           <View
+            testID="telegram-community-phrase-rules"
+            style={[
+              styles.dashboardCard,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+            ]}
+          >
+            <View style={styles.dashboardSectionHeader}>
+              <View style={[styles.setupIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name="slash" size={17} color={colors.primary} />
+              </View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Banned phrases</Text>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  Matching messages are removed while phrase protection is on.
+                </Text>
+              </View>
+              <Text style={[styles.count, { color: colors.mutedForeground }]}>
+                {rules.data?.phraseRules.length ?? 0}
+              </Text>
+            </View>
+
+            {rules.isLoading ? (
+              <View style={styles.rulesLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>Loading saved phrases…</Text>
+              </View>
+            ) : rules.isError ? (
+              <View style={styles.rulesError}>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  Saved protection rules couldn’t be loaded.
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  testID="telegram-community-rules-retry"
+                  onPress={() => { void rules.refetch(); }}
+                  style={[styles.ruleRetryButton, { borderColor: colors.border, borderRadius: colors.radius - 5 }]}
+                >
+                  <Feather name="refresh-cw" size={14} color={colors.primary} />
+                  <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Try again</Text>
+                </Pressable>
+              </View>
+            ) : rules.data?.phraseRules.length ? (
+              <View style={styles.ruleList}>
+                {rules.data.phraseRules.map((rule) => (
+                  <View key={rule.id} style={[styles.ruleRow, { borderColor: colors.border }]}>
+                    <Text selectable style={[styles.ruleValue, { color: colors.foreground }]}>{rule.phrase}</Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove banned phrase ${rule.phrase}`}
+                      testID={`telegram-community-phrase-remove-${rule.id}`}
+                      disabled={removePhrase.isPending}
+                      onPress={() => { void deletePhrase(rule.id); }}
+                      hitSlop={6}
+                      style={({ pressed }) => [styles.removeRuleButton, { opacity: pressed || removePhrase.isPending ? 0.55 : 1 }]}
+                    >
+                      <Feather name="trash-2" size={15} color={colors.destructive} />
+                      <Text style={[styles.removeRuleText, { color: colors.destructive }]}>Remove</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={[styles.rulesEmpty, { color: colors.mutedForeground }]}>No banned phrases saved yet.</Text>
+            )}
+
+            <View style={styles.ruleInputRow}>
+              <TextInput
+                accessibilityLabel="New banned phrase"
+                testID="telegram-community-phrase-input"
+                value={phraseDraft}
+                onChangeText={(value) => { setPhraseDraft(value); setPhraseFeedback(null); }}
+                onSubmitEditing={() => { void savePhrase(); }}
+                placeholder="Add a phrase"
+                placeholderTextColor={colors.mutedForeground}
+                maxLength={80}
+                returnKeyType="done"
+                style={[
+                  styles.ruleInput,
+                  { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 5, color: colors.foreground },
+                ]}
+              />
+              <Pressable
+                accessibilityRole="button"
+                testID="telegram-community-phrase-add"
+                disabled={addPhrase.isPending || !phraseDraft.trim()}
+                onPress={() => { void savePhrase(); }}
+                style={({ pressed }) => [
+                  styles.ruleAddButton,
+                  {
+                    backgroundColor: colors.primary,
+                    borderRadius: colors.radius - 5,
+                    opacity: pressed || addPhrase.isPending ? 0.72 : !phraseDraft.trim() ? 0.48 : 1,
+                  },
+                ]}
+              >
+                {addPhrase.isPending
+                  ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                  : <Feather name="plus" size={16} color={colors.primaryForeground} />}
+                <Text style={[styles.ruleAddButtonText, { color: colors.primaryForeground }]}>
+                  {addPhrase.isPending ? 'Adding…' : 'Add'}
+                </Text>
+              </Pressable>
+            </View>
+            {phraseFeedback ? (
+              <Text
+                accessibilityRole={phraseFeedback.tone === 'error' ? 'alert' : 'text'}
+                testID="telegram-community-phrase-feedback"
+                style={[
+                  styles.ruleFeedback,
+                  { color: phraseFeedback.tone === 'error' ? colors.destructive : colors.success },
+                ]}
+              >
+                {phraseFeedback.message}
+              </Text>
+            ) : null}
+          </View>
+
+          <View
+            testID="telegram-community-link-rules"
+            style={[
+              styles.dashboardCard,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+            ]}
+          >
+            <View style={styles.dashboardSectionHeader}>
+              <View style={[styles.setupIcon, { backgroundColor: colors.success + '16' }]}>
+                <Feather name="link" size={17} color={colors.success} />
+              </View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Whitelisted links</Text>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  {community.spamProtectionEnabled
+                    ? 'Saved domains include subdomains, and saved paths include child pages. Other links are removed.'
+                    : 'Link filtering is paused while phrase protection is off.'}
+                </Text>
+              </View>
+              <Text style={[styles.count, { color: colors.mutedForeground }]}>
+                {rules.data?.linkRules.length ?? 0}
+              </Text>
+            </View>
+
+            {rules.isLoading ? (
+              <View style={styles.rulesLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>Loading trusted links…</Text>
+              </View>
+            ) : rules.isError ? (
+              <View style={styles.rulesError}>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  Saved protection rules couldn’t be loaded.
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  testID="telegram-community-link-rules-retry"
+                  onPress={() => { void rules.refetch(); }}
+                  style={[styles.ruleRetryButton, { borderColor: colors.border, borderRadius: colors.radius - 5 }]}
+                >
+                  <Feather name="refresh-cw" size={14} color={colors.primary} />
+                  <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Try again</Text>
+                </Pressable>
+              </View>
+            ) : rules.data?.linkRules.length ? (
+              <View style={styles.ruleList}>
+                {rules.data.linkRules.map((rule) => (
+                  <View key={rule.id} style={[styles.ruleRow, { borderColor: colors.border }]}>
+                    <Text selectable style={[styles.ruleValue, { color: colors.foreground }]}>{rule.link}</Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove whitelisted link ${rule.link}`}
+                      testID={`telegram-community-link-remove-${rule.id}`}
+                      disabled={removeLink.isPending}
+                      onPress={() => { void deleteLink(rule.id); }}
+                      hitSlop={6}
+                      style={({ pressed }) => [styles.removeRuleButton, { opacity: pressed || removeLink.isPending ? 0.55 : 1 }]}
+                    >
+                      <Feather name="trash-2" size={15} color={colors.destructive} />
+                      <Text style={[styles.removeRuleText, { color: colors.destructive }]}>Remove</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={[styles.rulesEmpty, { color: colors.mutedForeground }]}>
+                No trusted links saved. Unlisted links won’t be removed until you add one.
+              </Text>
+            )}
+
+            <View style={styles.ruleInputRow}>
+              <TextInput
+                accessibilityLabel="New whitelisted link"
+                testID="telegram-community-link-input"
+                value={linkDraft}
+                onChangeText={(value) => { setLinkDraft(value); setLinkFeedback(null); }}
+                onSubmitEditing={() => { void saveLink(); }}
+                placeholder="example.org or a page URL"
+                placeholderTextColor={colors.mutedForeground}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                maxLength={2048}
+                returnKeyType="done"
+                style={[
+                  styles.ruleInput,
+                  { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 5, color: colors.foreground },
+                ]}
+              />
+              <Pressable
+                accessibilityRole="button"
+                testID="telegram-community-link-add"
+                disabled={addLink.isPending || !linkDraft.trim()}
+                onPress={() => { void saveLink(); }}
+                style={({ pressed }) => [
+                  styles.ruleAddButton,
+                  {
+                    backgroundColor: colors.primary,
+                    borderRadius: colors.radius - 5,
+                    opacity: pressed || addLink.isPending ? 0.72 : !linkDraft.trim() ? 0.48 : 1,
+                  },
+                ]}
+              >
+                {addLink.isPending
+                  ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                  : <Feather name="plus" size={16} color={colors.primaryForeground} />}
+                <Text style={[styles.ruleAddButtonText, { color: colors.primaryForeground }]}>
+                  {addLink.isPending ? 'Adding…' : 'Add'}
+                </Text>
+              </Pressable>
+            </View>
+            {linkFeedback ? (
+              <Text
+                accessibilityRole={linkFeedback.tone === 'error' ? 'alert' : 'text'}
+                testID="telegram-community-link-feedback"
+                style={[
+                  styles.ruleFeedback,
+                  { color: linkFeedback.tone === 'error' ? colors.destructive : colors.success },
+                ]}
+              >
+                {linkFeedback.message}
+              </Text>
+            ) : null}
+          </View>
+
+          <View
             style={[
               styles.dashboardCard,
               { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
@@ -699,7 +1050,7 @@ export function TelegramCommunityDashboardScreen({
         </View>
       )}
       <View style={{ height: 40 }} />
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -775,5 +1126,19 @@ const styles = StyleSheet.create({
   dashboardCard: { borderWidth: 1, padding: 14 },
   dashboardSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
   sectionTitleCopy: { flex: 1, minWidth: 0, gap: 4 },
+  rulesLoading: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 8 },
+  rulesError: { gap: 9, paddingVertical: 3 },
+  ruleRetryButton: { minHeight: 36, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 7, borderWidth: 1, paddingHorizontal: 10 },
+  rulesEmpty: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, paddingVertical: 3 },
+  ruleList: { gap: 2 },
+  ruleRow: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 6 },
+  ruleValue: { flex: 1, minWidth: 0, fontFamily: 'Inter_500Medium', fontSize: 12, lineHeight: 17 },
+  removeRuleButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 3 },
+  removeRuleText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  ruleInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  ruleInput: { flex: 1, minWidth: 0, minHeight: 43, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 9, fontFamily: 'Inter_400Regular', fontSize: 13 },
+  ruleAddButton: { minWidth: 78, minHeight: 43, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 10 },
+  ruleAddButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  ruleFeedback: { fontFamily: 'Inter_500Medium', fontSize: 11, lineHeight: 16, marginTop: 8 },
   sectionDescription: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
 });
