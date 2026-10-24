@@ -3923,6 +3923,7 @@ function SocialProfileHeader({
 }) {
   const colors = useColors();
   const interests = user.interests?.map((interest) => categoryLabel[interest]).join(' · ');
+  const missionArtworkCategory = user.interests?.[0] ?? 'community';
   const joinedIn2026 = Boolean(user.createdAt && new Date(user.createdAt).getUTCFullYear() === 2026);
   const profileBadges: Array<{ key: string; label: string; icon: IconName }> = user.userType === 'organisation'
     ? [
@@ -4116,20 +4117,39 @@ function SocialProfileHeader({
         >
           <View style={[styles.organisationMissionAccent, { backgroundColor: colors.primary }]} />
           <View style={styles.organisationMissionContent}>
-            <Text style={[styles.profileTileOverline, { color: colors.primary }]}>OUR MISSION</Text>
-            <Text style={[styles.organisationMissionText, { color: colors.foreground }]}>
-              {user.organisation?.description || 'Add a short introduction so participants can understand the work you do.'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ flex: 1, minWidth: 0, gap: 7 }}>
+                <Text style={[styles.profileTileOverline, { color: colors.primary, fontSize: 10, letterSpacing: 0.85 }]}>OUR MISSION</Text>
+                <Text style={[styles.organisationMissionText, { color: colors.foreground }]}>
+                  {user.organisation?.description || 'Add a short introduction so participants can understand the work you do.'}
+                </Text>
+              </View>
+              <View
+                testID="organisation-mission-artwork"
+                style={{
+                  width: 68,
+                  height: 68,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: colors.radius + 2,
+                  backgroundColor: colors.primary + '0D',
+                  borderWidth: 1,
+                  borderColor: colors.primary + '18',
+                }}
+              >
+                <ExperienceCategoryArtwork category={missionArtworkCategory} size={62} />
+              </View>
+            </View>
             <View style={styles.organisationMetaRow}>
-              <View style={[styles.organisationMetaItem, { backgroundColor: colors.muted }]}>
+              <View style={[styles.organisationMetaItem, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                 <Feather name="map-pin" size={13} color={colors.primary} />
                 <Text numberOfLines={2} style={[styles.organisationMetaText, { color: colors.foreground }]}>
                   {user.organisation?.city || user.city || 'Location not set'}
                 </Text>
               </View>
               {interests ? (
-                <View style={[styles.organisationMetaItem, { backgroundColor: colors.muted }]}>
-                  <Feather name="heart" size={13} color={colors.primary} />
+                <View style={[styles.organisationMetaItem, { backgroundColor: colors.primary + '0A', borderColor: colors.primary + '20' }]}>
+                  <ExperienceCategoryArtwork category={missionArtworkCategory} size={18} />
                   <Text numberOfLines={2} style={[styles.organisationMetaText, { color: colors.foreground }]}>{interests}</Text>
                 </View>
               ) : null}
@@ -4143,11 +4163,11 @@ function SocialProfileHeader({
                 onPress={() => { triggerHaptic(); onOrganisationToolsPress(); }}
                 style={({ pressed }) => [
                   styles.organisationToolsLink,
-                  { borderColor: colors.border, opacity: pressed ? 0.68 : 1 },
+                  { backgroundColor: colors.primary, borderColor: colors.primary, opacity: pressed ? 0.82 : 1 },
                 ]}
               >
-                <Feather name="briefcase" size={14} color={colors.primary} />
-                <Text style={[styles.organisationToolsText, { color: colors.foreground }]}>Open organisation tools</Text>
+                <Feather name="briefcase" size={14} color={colors.primaryForeground} />
+                <Text style={[styles.organisationToolsText, { color: colors.primaryForeground }]}>Open organisation tools</Text>
               </Pressable>
             ) : null}
           </View>
@@ -10216,12 +10236,12 @@ const styles = StyleSheet.create({
   profileDetailText: { alignSelf: 'stretch', fontSize: 12, lineHeight: 16, fontFamily: 'Inter_600SemiBold' },
   organisationMission: { flexDirection: 'row', borderWidth: 1, overflow: 'hidden' },
   organisationMissionAccent: { width: 4 },
-  organisationMissionContent: { flex: 1, minWidth: 0, padding: 14, gap: 9 },
-  organisationMissionText: { fontSize: 14, lineHeight: 21, fontFamily: 'Inter_500Medium' },
+  organisationMissionContent: { flex: 1, minWidth: 0, padding: 15, gap: 12 },
+  organisationMissionText: { fontSize: 17, lineHeight: 22, fontFamily: 'Inter_700Bold' },
   organisationMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  organisationMetaItem: { flexGrow: 1, flexBasis: '46%', minWidth: 105, minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 11 },
+  organisationMetaItem: { flexGrow: 1, flexBasis: '46%', minWidth: 105, minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 9, paddingVertical: 7, borderWidth: 1, borderRadius: 12 },
   organisationMetaText: { flex: 1, minWidth: 0, fontSize: 11, lineHeight: 15, fontFamily: 'Inter_600SemiBold' },
-  organisationToolsLink: { alignSelf: 'flex-start', minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, marginTop: 2 },
+  organisationToolsLink: { alignSelf: 'stretch', minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14 },
   organisationToolsText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   profileMetricOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(16,16,22,0.48)' },
   profileMetricSheet: { height: '84%', maxHeight: '90%', paddingTop: 12, paddingHorizontal: 20, borderTopLeftRadius: 28, borderTopRightRadius: 28 },

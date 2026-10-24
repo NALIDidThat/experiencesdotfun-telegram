@@ -680,6 +680,16 @@ test("organisation hosts can manage experience participants from a phone-sized d
     })`);
     throw new Error(`${error.message} Browser state: ${JSON.stringify(browserState)}; API traffic: ${apiTraffic.join(", ")}; unexpected: ${unexpectedApiRequests.join(", ")}`);
   }
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-profile-mission"]')) && Boolean(document.querySelector('[data-testid="organisation-mission-artwork"]')) && Boolean(document.querySelector('[data-testid="organisation-tools-open"]'))`,
+    Boolean,
+    "the organisation mission card, relevant artwork, and tools action",
+  );
+  const missionCardText = await client.evaluate(`document.querySelector('[data-testid="organisation-profile-mission"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`);
+  assert.ok(missionCardText.includes("OUR MISSION"), "The organisation mission card should retain its label.");
+  assert.ok(missionCardText.includes("A temporary in-memory host fixture."), "The organisation mission card should show its current description.");
+  assert.ok(missionCardText.includes("Environmental"), "The organisation mission card should retain its cause category.");
   const organisationStats = await client.evaluate(`(() => ({
     stats: [...document.querySelectorAll('[data-testid^="organisation-activity-stat-"]')]
       .map((element) => element.innerText.replace(/[^\\x20-\\x7E]/g, ' ').replace(/\\s+/g, ' ').trim()),
@@ -696,6 +706,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
     "An organisation profile should not show participant XP metrics.",
   );
   if (process.env.ORGANISATION_PROFILE_SCREENSHOT_PATH) {
+    await client.evaluate(`document.querySelector('[data-testid="organisation-profile-mission"]')?.scrollIntoView({ block: "center" })`);
     const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
     await writeFile(
       process.env.ORGANISATION_PROFILE_SCREENSHOT_PATH,
