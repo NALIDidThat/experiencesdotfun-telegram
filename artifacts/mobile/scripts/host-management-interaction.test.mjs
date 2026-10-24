@@ -1582,7 +1582,7 @@ test("charity treasury dashboard shows live values and supports private balance 
       createdAt: "2026-10-01T10:00:00.000Z",
       updatedAt: "2026-10-01T10:00:00.000Z",
     },
-    balanceSol: "12.34",
+    balanceSol: "0.000000000",
     transactions: [],
     nextCursor: null,
     hasMore: false,
@@ -1721,7 +1721,36 @@ test("charity treasury dashboard shows live values and supports private balance 
   assert.ok(dashboardText.includes("No incoming transfers yet"), "The screen should explain the empty treasury activity state.");
   assert.ok(dashboardText.includes("No payout proposals yet"), "The screen should explain the empty volunteer payout state.");
   assert.ok(dashboardText.includes("Solana · devnet"), "The network chip should reflect the registered treasury network.");
-  assert.ok(dashboardText.includes("12.34 SOL"), "The balance should come from the treasury response.");
+  assert.ok(dashboardText.includes("0.000000000"), "The full precision balance should come from the treasury response.");
+  const balanceLayout = await client.evaluate(`(() => {
+    const amount = document.querySelector('[data-testid="treasury-balance-amount"]');
+    const unit = document.querySelector('[data-testid="treasury-balance-unit"]');
+    const artwork = document.querySelector('[data-testid="treasury-hero-artwork"]');
+    return {
+      amountText: amount?.textContent?.trim() ?? null,
+      unitText: unit?.textContent?.trim() ?? null,
+      amountScrollWidth: amount?.scrollWidth ?? null,
+      amountClientWidth: amount?.clientWidth ?? null,
+      unitRight: unit?.getBoundingClientRect().right ?? null,
+      artworkLeft: artwork?.getBoundingClientRect().left ?? null,
+    };
+  })()`);
+  assert.equal(balanceLayout.amountText, "0.000000000", "Long balances should retain every displayed decimal digit.");
+  assert.ok(
+    balanceLayout.amountScrollWidth !== null
+      && balanceLayout.amountClientWidth !== null
+      && balanceLayout.amountScrollWidth <= balanceLayout.amountClientWidth,
+    `The full balance should fit without being ellipsized. Bounds: ${JSON.stringify(balanceLayout)}`,
+  );
+  assert.equal(balanceLayout.unitText, "SOL", "The balance unit should stay visible.");
+  assert.ok(
+    balanceLayout.unitRight !== null && balanceLayout.artworkLeft !== null && balanceLayout.unitRight <= balanceLayout.artworkLeft,
+    `The balance amount and unit should stay clear of the treasury artwork. Bounds: ${JSON.stringify(balanceLayout)}`,
+  );
+  if (process.env.TREASURY_BALANCE_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(process.env.TREASURY_BALANCE_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
+  }
   assert.ok(dashboardText.includes("Community impact"), "The screen should retain the organisation impact metrics.");
   const impactLayout = await client.evaluate(`(() => {
     const cards = [...document.querySelectorAll('[data-testid^="treasury-metric-"]')];

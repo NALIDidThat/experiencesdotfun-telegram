@@ -710,6 +710,7 @@ export function OrganisationFundsScreen({
       retry: false,
     },
   });
+  const balanceIsLong = balanceVisible && (treasuryQuery.data?.balanceSol.length ?? 0) > 9;
   const fundsQuery = useListOrganisationFunds(organisationUserId, {
     query: {
       queryKey: getListOrganisationFundsQueryKey(organisationUserId),
@@ -1183,7 +1184,7 @@ export function OrganisationFundsScreen({
                 resizeMode="contain"
                 accessible={false}
                 testID="treasury-hero-artwork"
-                style={{ position: "absolute", right: -20, top: 17, width: 208, height: 164, zIndex: 0 }}
+                style={{ position: "absolute", right: balanceIsLong ? -46 : -20, top: 17, width: 208, height: 164, zIndex: 0 }}
               />
               <View style={{ position: "relative", zIndex: 1, padding: 14, gap: 9 }}>
                 <View style={{ minHeight: 30, flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -1196,7 +1197,7 @@ export function OrganisationFundsScreen({
                   </View>
                 </View>
 
-                <View style={{ width: "65%", gap: 1 }}>
+                <View style={{ width: balanceIsLong ? "55%" : "65%", gap: 1 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                     <Text style={{ color: colors.foreground, fontSize: 11 }}>Available balance</Text>
                     <Pressable
@@ -1210,16 +1211,17 @@ export function OrganisationFundsScreen({
                       <Feather name={balanceVisible ? "eye" : "eye-off"} size={13} color={colors.mutedForeground} />
                     </Pressable>
                   </View>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", columnGap: 5 }}>
+                  <View style={{ flexDirection: "row", flexWrap: "nowrap", alignItems: "baseline", columnGap: 5 }}>
                     <Text
                       accessibilityLabel={balanceVisible ? `Treasury balance ${treasuryQuery.data.balanceSol} SOL` : "Treasury balance hidden"}
+                      testID="treasury-balance-amount"
                       adjustsFontSizeToFit
                       numberOfLines={1}
-                      style={{ maxWidth: "100%", color: colors.foreground, fontSize: 34, lineHeight: 39, fontFamily: "Inter_700Bold", letterSpacing: -1 }}
+                      style={{ flexShrink: 1, minWidth: 0, maxWidth: "100%", color: colors.foreground, fontSize: balanceIsLong ? 20 : 34, lineHeight: balanceIsLong ? 25 : 39, fontFamily: "Inter_700Bold", letterSpacing: -1 }}
                     >
                       {balanceVisible ? treasuryQuery.data.balanceSol : "••••••••"}
                     </Text>
-                    <Text style={{ color: colors.primary, fontSize: 19, lineHeight: 25, fontFamily: "Inter_700Bold" }}>SOL</Text>
+                    <Text testID="treasury-balance-unit" style={{ flexShrink: 0, color: colors.primary, fontSize: balanceIsLong ? 15 : 19, lineHeight: balanceIsLong ? 20 : 25, fontFamily: "Inter_700Bold" }}>SOL</Text>
                   </View>
                 </View>
 
