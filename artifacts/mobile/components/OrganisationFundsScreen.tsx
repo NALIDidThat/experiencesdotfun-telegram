@@ -1403,10 +1403,41 @@ export function OrganisationFundsScreen({
                 return <TreasuryActivityEntry key={transaction.signature} transaction={transaction} cluster={treasuryQuery.data!.treasury.cluster} campaignLabel={campaignLabel} />;
               })}
               {!treasuryQuery.data.transactions.length && !loadedTransactions.length && !treasuryQuery.isError
-                ? <View style={{ alignItems: "center", borderWidth: 1, borderStyle: "dashed", borderColor: colors.border, borderRadius: colors.radius + 2, paddingVertical: 19, paddingHorizontal: 15, gap: 6 }}>
-                    <Feather name="inbox" size={19} color={colors.mutedForeground} />
-                    <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>No activity to show yet</Text>
-                    <Text style={{ color: colors.mutedForeground, fontSize: 10, textAlign: "center" }}>Incoming transfers appear here when visible on-chain.</Text>
+                ? <View
+                    testID="treasury-empty-activity"
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 12,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: colors.radius + 4,
+                      backgroundColor: colors.card,
+                      padding: 12,
+                    }}
+                  >
+                    <View style={{
+                      width: 78,
+                      height: 72,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: colors.radius + 2,
+                      backgroundColor: colors.primary + "0D",
+                      borderWidth: 1,
+                      borderColor: colors.primary + "18",
+                    }}>
+                      <Image
+                        testID="treasury-empty-artwork"
+                        source={require("../assets/images/charity-treasury-wallet.png")}
+                        resizeMode="contain"
+                        accessible={false}
+                        style={{ width: 82, height: 66 }}
+                      />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
+                      <Text style={{ color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 13 }}>No incoming transfers yet</Text>
+                      <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>Incoming transfers appear here once they’re visible on-chain.</Text>
+                    </View>
                   </View>
                 : null}
               {!activityExpanded && allTransactions.length > 5 ? (
@@ -1425,9 +1456,9 @@ export function OrganisationFundsScreen({
                 setLoadedTransactions((previous) => [...previous, ...treasuryQuery.data!.transactions]);
                 setBefore(treasuryQuery.data.nextCursor);
               }} style={{ minHeight: 44, justifyContent: "center", alignItems: "center" }}><Text style={{ color: colors.primary, fontFamily: "Inter_700Bold" }}>{treasuryQuery.isFetching ? "Loading…" : "Load older activity"}</Text></Pressable> : null}
-              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 7, paddingHorizontal: 2 }}>
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, paddingHorizontal: 10, paddingVertical: 9, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius, backgroundColor: colors.muted }}>
                 <Feather name="shield" size={13} color={colors.mutedForeground} style={{ marginTop: 1 }} />
-                <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 10, lineHeight: 15 }}>Campaign totals are separate from this shared wallet. Experiences.fun reads public activity only; it does not hold funds or control wallet keys.</Text>
+                <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>Campaign totals are separate from this shared wallet. Experiences.fun reads public activity only; it does not hold funds or control wallet keys.</Text>
               </View>
             </View>
           </>

@@ -1641,12 +1641,13 @@ test("charity treasury dashboard shows live values and supports private balance 
 
   await waitForValue(
     client,
-    `Boolean(document.querySelector('[data-testid="treasury-hero-card"]')) && Boolean(document.querySelector('[data-testid="treasury-hero-artwork"]'))`,
+    `Boolean(document.querySelector('[data-testid="treasury-hero-card"]')) && Boolean(document.querySelector('[data-testid="treasury-hero-artwork"]')) && Boolean(document.querySelector('[data-testid="treasury-empty-activity"]')) && Boolean(document.querySelector('[data-testid="treasury-empty-artwork"]'))`,
     Boolean,
-    "the charity treasury card and supplied wallet artwork",
+    "the charity treasury card and its empty activity artwork",
   );
   const dashboardText = await client.evaluate(`document.body?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`);
   assert.ok(dashboardText.includes("Charity treasury"), "The screen should show the charity treasury heading.");
+  assert.ok(dashboardText.includes("No incoming transfers yet"), "The screen should explain the empty treasury activity state.");
   assert.ok(dashboardText.includes("Solana · devnet"), "The network chip should reflect the registered treasury network.");
   assert.ok(dashboardText.includes("12.34 SOL"), "The balance should come from the treasury response.");
   assert.ok(dashboardText.includes("Community impact"), "The screen should retain the organisation impact metrics.");
@@ -1666,6 +1667,7 @@ test("charity treasury dashboard shows live values and supports private balance 
   );
 
   if (process.env.ORGANISATION_TREASURY_SCREENSHOT_PATH) {
+    await client.evaluate(`document.querySelector('[data-testid="treasury-empty-activity"]')?.scrollIntoView({ block: "center" })`);
     const screenshot = await client.send("Page.captureScreenshot", {
       format: "png",
       captureBeyondViewport: true,
