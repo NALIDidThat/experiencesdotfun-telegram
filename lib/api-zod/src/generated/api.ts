@@ -363,6 +363,16 @@ export const UpdateOrganisationFundBody = zod.object({
   "status": zod.enum(['active', 'closed']).optional()
 })
 
+
+export const updateOrganisationFundResponseMilestonesItemTitleMin = 3;
+export const updateOrganisationFundResponseMilestonesItemTitleMax = 80;
+
+export const updateOrganisationFundResponseMilestonesItemOutcomeMin = 10;
+export const updateOrganisationFundResponseMilestonesItemOutcomeMax = 300;
+
+export const updateOrganisationFundResponseMilestonesItemTargetSolRegExp = new RegExp('^\\d+(?:\\.\\d{0,9})?$');
+
+
 export const UpdateOrganisationFundResponse = zod.object({
   "id": zod.number().int(),
   "organisationId": zod.number().int(),
@@ -378,6 +388,13 @@ export const UpdateOrganisationFundResponse = zod.object({
   "goalSol": zod.number(),
   "raisedSol": zod.string(),
   "contributionCount": zod.number().int(),
+  "milestones": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int().min(1),
+  "title": zod.string().min(updateOrganisationFundResponseMilestonesItemTitleMin).max(updateOrganisationFundResponseMilestonesItemTitleMax),
+  "outcome": zod.string().min(updateOrganisationFundResponseMilestonesItemOutcomeMin).max(updateOrganisationFundResponseMilestonesItemOutcomeMax),
+  "targetSol": zod.string().regex(updateOrganisationFundResponseMilestonesItemTargetSolRegExp)
+})),
   "status": zod.enum(['active', 'closed']),
   "createdAt": zod.coerce.date()
 })
@@ -692,14 +709,38 @@ export const createOrganisationFundBodyGoalSolExclusiveMin = 0;
 export const createOrganisationFundBodyGoalSolMax = 1000000000;
 
 
+export const createOrganisationFundBodyMilestonesItemTitleMin = 3;
+export const createOrganisationFundBodyMilestonesItemTitleMax = 80;
+
+export const createOrganisationFundBodyMilestonesItemOutcomeMin = 10;
+export const createOrganisationFundBodyMilestonesItemOutcomeMax = 300;
+
+export const createOrganisationFundBodyMilestonesItemTargetSolRegExp = new RegExp('^\\d+(?:\\.\\d{0,9})?$');
+export const createOrganisationFundBodyMilestonesMax = 12;
+
 
 
 export const CreateOrganisationFundBody = zod.object({
   "title": zod.string().min(createOrganisationFundBodyTitleMin).max(createOrganisationFundBodyTitleMax),
   "description": zod.string().min(createOrganisationFundBodyDescriptionMin).max(createOrganisationFundBodyDescriptionMax),
   "goalSol": zod.number().gt(createOrganisationFundBodyGoalSolExclusiveMin).max(createOrganisationFundBodyGoalSolMax),
-  "experienceId": zod.number().int().min(1).optional()
+  "experienceId": zod.number().int().min(1).optional(),
+  "milestones": zod.array(zod.object({
+  "title": zod.string().min(createOrganisationFundBodyMilestonesItemTitleMin).max(createOrganisationFundBodyMilestonesItemTitleMax),
+  "outcome": zod.string().min(createOrganisationFundBodyMilestonesItemOutcomeMin).max(createOrganisationFundBodyMilestonesItemOutcomeMax),
+  "targetSol": zod.string().regex(createOrganisationFundBodyMilestonesItemTargetSolRegExp)
+})).max(createOrganisationFundBodyMilestonesMax).optional()
 })
+
+
+export const createOrganisationFundResponseMilestonesItemTitleMin = 3;
+export const createOrganisationFundResponseMilestonesItemTitleMax = 80;
+
+export const createOrganisationFundResponseMilestonesItemOutcomeMin = 10;
+export const createOrganisationFundResponseMilestonesItemOutcomeMax = 300;
+
+export const createOrganisationFundResponseMilestonesItemTargetSolRegExp = new RegExp('^\\d+(?:\\.\\d{0,9})?$');
+
 
 export const CreateOrganisationFundResponse = zod.object({
   "id": zod.number().int(),
@@ -716,6 +757,13 @@ export const CreateOrganisationFundResponse = zod.object({
   "goalSol": zod.number(),
   "raisedSol": zod.string(),
   "contributionCount": zod.number().int(),
+  "milestones": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int().min(1),
+  "title": zod.string().min(createOrganisationFundResponseMilestonesItemTitleMin).max(createOrganisationFundResponseMilestonesItemTitleMax),
+  "outcome": zod.string().min(createOrganisationFundResponseMilestonesItemOutcomeMin).max(createOrganisationFundResponseMilestonesItemOutcomeMax),
+  "targetSol": zod.string().regex(createOrganisationFundResponseMilestonesItemTargetSolRegExp)
+})),
   "status": zod.enum(['active', 'closed']),
   "createdAt": zod.coerce.date()
 })
@@ -730,6 +778,16 @@ export const CreateOrganisationFundResponse = zod.object({
 export const ListOrganisationFundsParams = zod.object({
   "organisationUserId": zod.coerce.number().int().min(1)
 })
+
+
+export const listOrganisationFundsResponseMilestonesItemTitleMin = 3;
+export const listOrganisationFundsResponseMilestonesItemTitleMax = 80;
+
+export const listOrganisationFundsResponseMilestonesItemOutcomeMin = 10;
+export const listOrganisationFundsResponseMilestonesItemOutcomeMax = 300;
+
+export const listOrganisationFundsResponseMilestonesItemTargetSolRegExp = new RegExp('^\\d+(?:\\.\\d{0,9})?$');
+
 
 export const ListOrganisationFundsResponseItem = zod.object({
   "id": zod.number().int(),
@@ -746,6 +804,13 @@ export const ListOrganisationFundsResponseItem = zod.object({
   "goalSol": zod.number(),
   "raisedSol": zod.string(),
   "contributionCount": zod.number().int(),
+  "milestones": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int().min(1),
+  "title": zod.string().min(listOrganisationFundsResponseMilestonesItemTitleMin).max(listOrganisationFundsResponseMilestonesItemTitleMax),
+  "outcome": zod.string().min(listOrganisationFundsResponseMilestonesItemOutcomeMin).max(listOrganisationFundsResponseMilestonesItemOutcomeMax),
+  "targetSol": zod.string().regex(listOrganisationFundsResponseMilestonesItemTargetSolRegExp)
+})),
   "status": zod.enum(['active', 'closed']),
   "createdAt": zod.coerce.date()
 })

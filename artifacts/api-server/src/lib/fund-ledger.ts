@@ -1,8 +1,8 @@
-import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import {
   db, fundContributionsTable as contributions, treasuryDepositsTable as deposits,
   organisationTreasuriesTable as treasuries, organisationFundsTable as funds, organisationsTable,
-  experiencesTable, usersTable,
+  organisationFundMilestonesTable, experiencesTable, usersTable,
 } from "@workspace/db";
 import { lamportsToSol } from "./solana-rpc.mjs";
 import { matchesPayment, paymentUri, type SolTransfer } from "./fund-payments.mjs";
@@ -159,12 +159,24 @@ export async function recordTreasuryTransfer(
 
 export async function fundJson(context: NonNullable<Awaited<ReturnType<typeof getFundContext>>>) {
   const { fund, treasury, organisation, creatorUsername, experienceTitle } = context;
-  const totals = await campaignTotals([fund.id]);
+  const [totals, milestones] = await Promise.all([
+    campaignTotals([fund.id]),
+    db.select({
+      id: organisationFundMilestonesTable.id,
+      position: organisationFundMilestonesTable.position,
+      title: organisationFundMilestonesTable.title,
+      outcome: organisationFundMilestonesTable.outcome,
+      targetSol: organisationFundMilestonesTable.targetSol,
+    }).from(organisationFundMilestonesTable)
+      .where(eq(organisationFundMilestonesTable.fundId, fund.id))
+      .orderBy(asc(organisationFundMilestonesTable.position)),
+  ]);
   return {
     id: fund.id, organisationId: organisation.id, organisationUserId: organisation.ownerUserId,
     organisationName: organisation.name, creatorUsername, title: fund.title, description: fund.description,
     experienceId: fund.experienceId, experienceTitle: experienceTitle ?? null,
     walletAddress: treasury.walletAddress, cluster: treasury.cluster, goalSol: Number(fund.goalSol),
+    milestones,
     status: fund.status, createdAt: fund.createdAt.toISOString(),
     ...(totals.get(fund.id) ?? { raisedSol: "0.000000000", contributionCount: 0 }),
   };

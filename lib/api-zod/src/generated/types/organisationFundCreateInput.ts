@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { FundMilestoneInput } from './fundMilestoneInput';
 
 export interface OrganisationFundCreateInput {
   /**
@@ -24,4 +25,6 @@ export interface OrganisationFundCreateInput {
   goalSol: number;
   /** @minimum 1 */
   experienceId?: number;
+  /** @maxItems 12 */
+  milestones?: FundMilestoneInput[];
 }

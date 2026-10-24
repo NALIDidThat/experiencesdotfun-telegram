@@ -31,11 +31,14 @@ export function FundOwnerControls({ fund, onUpdated }: { fund: OrganisationFund;
   const closed = fund.status === "closed";
 
   const goalValue = Number(goalSol.trim());
-  const goalValid = /^(?:\d+(?:\.\d{0,9})?|\.\d{1,9})$/.test(goalSol.trim())
+  const goalFormatValid = /^(?:\d+(?:\.\d{0,9})?|\.\d{1,9})$/.test(goalSol.trim())
     && Number.isFinite(goalValue)
     && goalValue > 0
     && goalValue <= 1_000_000_000
     && Number(goalValue.toFixed(9)) === goalValue;
+  const highestCheckpointSol = Math.max(0, ...(fund.milestones ?? []).map((milestone) => Number(milestone.targetSol)));
+  const goalCoversCheckpoints = goalValue >= highestCheckpointSol;
+  const goalValid = goalFormatValid && goalCoversCheckpoints;
   const goalChanged = goalValid && goalValue !== fund.goalSol;
   const save = (data: { title?: string; description?: string; goalSol?: number; status?: "active" | "closed" }, okText: string) => {
     setFeedback(null);
@@ -75,7 +78,11 @@ export function FundOwnerControls({ fund, onUpdated }: { fund: OrganisationFund;
         Use a positive amount up to 1,000,000,000 SOL and at most 9 decimal places. Updating the goal changes progress checkpoints only; recorded deposits stay the same.
       </Text>
       {goalSol.trim().length > 0 && !goalValid ? (
-        <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 11, lineHeight: 16 }}>Enter a valid positive SOL goal with up to 9 decimal places.</Text>
+        <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 11, lineHeight: 16 }}>
+          {!goalFormatValid
+            ? "Enter a valid positive SOL goal with up to 9 decimal places."
+            : `The campaign goal cannot be lower than its highest checkpoint (${highestCheckpointSol} SOL).`}
+        </Text>
       ) : null}
       <Btn
         label="Save changes"

@@ -33,6 +33,8 @@ function shortAddress(address: string) {
   return address.length > 18 ? `${address.slice(0, 8)}…${address.slice(-6)}` : address;
 }
 
+type FundMilestoneDraft = { title: string; outcome: string; targetSol: string };
+
 function solscanUrl(path: string, cluster: string) {
   return `https://solscan.io/${path}${cluster === "mainnet-beta" ? "" : `?cluster=${cluster}`}`;
 }
@@ -147,6 +149,60 @@ function formatCampaignSol(value: string | number) {
   return amount.toLocaleString(undefined, {
     maximumFractionDigits: Math.abs(amount) < 0.0001 ? 9 : 4,
   });
+}
+
+function campaignSolToLamports(value: string | number) {
+  const text = typeof value === "number"
+    ? Number.isFinite(value) ? value.toFixed(9) : ""
+    : String(value).trim();
+  const match = /^(\d+)(?:\.(\d{0,9}))?$/.exec(text);
+  if (!match) return null;
+  return BigInt(match[1]) * 1_000_000_000n + BigInt((match[2] ?? "").padEnd(9, "0"));
+}
+
+function FundMilestoneProgress({ fund }: { fund: OrganisationFund }) {
+  const colors = useColors();
+  const milestones = fund.milestones ?? [];
+  if (!milestones.length) return null;
+
+  const raised = campaignSolToLamports(fund.raisedSol);
+  return (
+    <View
+      testID={`fund-milestones-${fund.id}`}
+      style={{ borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius + 2, backgroundColor: colors.card, padding: 14, gap: 12 }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Feather name="flag" size={15} color={colors.primary} />
+        <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_700Bold" }}>Fundraising checkpoints</Text>
+      </View>
+      {milestones.map((milestone) => {
+        const target = campaignSolToLamports(milestone.targetSol);
+        const reached = raised !== null && target !== null && raised >= target;
+        const status = raised === null || target === null ? "Progress unavailable" : reached ? "Funding threshold reached" : "In progress";
+        const statusColor = reached ? colors.success : colors.mutedForeground;
+        return (
+          <View
+            key={milestone.id}
+            testID={`fund-milestone-${fund.id}-${milestone.position}`}
+            style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 11 }}
+          >
+            <Feather name={reached ? "check-circle" : "circle"} size={17} color={reached ? colors.success : colors.primary} style={{ marginTop: 2 }} />
+            <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+              <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                <Text style={{ flex: 1, color: colors.foreground, fontSize: 12, lineHeight: 17, fontFamily: "Inter_700Bold" }}>{milestone.title}</Text>
+                <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_700Bold" }}>{formatCampaignSol(milestone.targetSol)} SOL</Text>
+              </View>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>{milestone.outcome}</Text>
+              <Text style={{ color: statusColor, fontSize: 10, fontFamily: "Inter_700Bold" }}>{status}</Text>
+            </View>
+          </View>
+        );
+      })}
+      <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15 }}>
+        Thresholds reflect verified campaign deposits. Reaching one does not confirm the outcome happened or release funds.
+      </Text>
+    </View>
+  );
 }
 
 function CampaignProgressCard({ fund, onPress }: { fund: OrganisationFund; onPress: () => void }) {
@@ -539,6 +595,7 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
         </View>
 
         <FundStats fund={fund} />
+        <FundMilestoneProgress fund={fund} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={trackerExpanded ? "Hide campaign tracker" : "View campaign tracker"}
@@ -679,6 +736,7 @@ export function OrganisationFundsScreen({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [goalSol, setGoalSol] = useState("");
+  const [milestones, setMilestones] = useState<FundMilestoneDraft[]>([]);
   const [createStep, setCreateStep] = useState(1);
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -745,7 +803,7 @@ export function OrganisationFundsScreen({
   const create = useCreateOrganisationFund({ mutation: { onSuccess: () => {
     void queryClient.invalidateQueries({ queryKey: getListOrganisationFundsQueryKey(organisationUserId) });
   } } });
-  const field = (label: string, value: string, setValue: (next: string) => void, placeholder: string, multiline = false, keyboardType: "default" | "decimal-pad" = "default", testID?: string) => (
+  const field = (label: string, value: string, setValue: (next: string) => void, placeholder: string, multiline = false, keyboardType: "default" | "decimal-pad" = "default", testID?: string, maxLength?: number) => (
     <View style={{ gap: 6 }}>
       <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 13 }}>{label}</Text>
       <TextInput
@@ -755,6 +813,7 @@ export function OrganisationFundsScreen({
         placeholderTextColor={colors.mutedForeground}
         multiline={multiline}
         keyboardType={keyboardType}
+        maxLength={maxLength}
         accessibilityLabel={label}
         testID={testID}
         style={{ minHeight: multiline ? 112 : 50, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius - 6, paddingHorizontal: 14, paddingVertical: 12, color: colors.foreground, backgroundColor: colors.card, textAlignVertical: multiline ? "top" : "center" }}
@@ -799,6 +858,21 @@ export function OrganisationFundsScreen({
     setError(null);
     if (clearExperience) setExperienceIdToAttach(undefined);
     setStage("create");
+  };
+  const addMilestone = () => {
+    setMilestones((current) => current.length >= 12
+      ? current
+      : [...current, { title: "", outcome: "", targetSol: "" }]);
+    setError(null);
+  };
+  const updateMilestone = (index: number, key: keyof FundMilestoneDraft, value: string) => {
+    setMilestones((current) => current.map((milestone, currentIndex) =>
+      currentIndex === index ? { ...milestone, [key]: value } : milestone));
+    setError(null);
+  };
+  const removeMilestone = (index: number) => {
+    setMilestones((current) => current.filter((_, currentIndex) => currentIndex !== index));
+    setError(null);
   };
 
   const copyTreasuryAddress = async () => {
@@ -877,6 +951,7 @@ export function OrganisationFundsScreen({
             <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>{createdFund.description}</Text>
             <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold" }}>Goal · {createdFund.goalSol.toLocaleString()} SOL</Text>
           </View>
+          <FundMilestoneProgress fund={createdFund} />
           {button("View fund", () => { setSelectedFund(createdFund); setStage("detail"); }, false, false, "arrow-right")}
           {button("Share fund", () => {
             void Share.share({ message: `${createdFund.title}\n\n${createdFund.description}\n\nGoal: ${createdFund.goalSol.toLocaleString()} SOL\nDonate to the charity treasury: ${createdFund.walletAddress}` });
@@ -896,9 +971,38 @@ export function OrganisationFundsScreen({
     };
     const validateGoal = () => {
       const goal = Number(goalSol);
-      return Number.isFinite(goal) && goal > 0 && Number(goal.toFixed(9)) === goal
+      return Number.isFinite(goal) && goal > 0 && goal <= 1_000_000_000 && Number(goal.toFixed(9)) === goal
         ? null
-        : "Enter a positive SOL goal with up to 9 decimal places.";
+        : "Enter a positive SOL goal up to 1,000,000,000 with up to 9 decimal places.";
+    };
+    const validateMilestones = () => {
+      if (milestones.length > 12) return "Add no more than 12 fundraising checkpoints.";
+      let previousTarget = 0n;
+      const goalTarget = campaignSolToLamports(Number(goalSol));
+      if (goalTarget === null || goalTarget <= 0n) {
+        return "Enter a valid positive SOL goal before setting checkpoint targets.";
+      }
+      for (const [index, milestone] of milestones.entries()) {
+        const number = index + 1;
+        if (milestone.title.trim().length < 3 || milestone.title.trim().length > 80) {
+          return `Add a checkpoint name between 3 and 80 characters for checkpoint ${number}.`;
+        }
+        if (milestone.outcome.trim().length < 10 || milestone.outcome.trim().length > 300) {
+          return `Describe the planned outcome in 10 to 300 characters for checkpoint ${number}.`;
+        }
+        const target = campaignSolToLamports(milestone.targetSol);
+        if (target === null || target <= 0n) {
+          return `Enter a positive SOL target for checkpoint ${number} with up to 9 decimal places.`;
+        }
+        if (target <= previousTarget) {
+          return `Checkpoint ${number} must have a higher SOL target than the previous checkpoint.`;
+        }
+        if (target > goalTarget) {
+          return `Checkpoint ${number} cannot exceed the campaign goal.`;
+        }
+        previousTarget = target;
+      }
+      return null;
     };
     const goToCreateStep = (nextStep: number) => {
       Keyboard.dismiss();
@@ -906,18 +1010,22 @@ export function OrganisationFundsScreen({
       setCreateStep(nextStep);
     };
     const continueCreateStep = () => {
-      const validationError = createStep === 1 ? validateCampaignDetails() : validateGoal();
+      const validationError = createStep === 1
+        ? validateCampaignDetails()
+        : createStep === 2
+          ? validateGoal()
+          : validateMilestones();
       if (validationError) {
         setError(validationError);
         return;
       }
-      goToCreateStep(Math.min(3, createStep + 1));
+      goToCreateStep(Math.min(4, createStep + 1));
     };
     const attachedExperience = hostedExperiencesQuery.data?.find((experience) => experience.id === experienceIdToAttach);
     const attachedExperienceName = attachedExperience?.title
       ?? (experienceIdToAttach === initialExperienceId ? initialExperienceTitle : undefined)
       ?? (experienceIdToAttach ? `Experience #${experienceIdToAttach}` : "");
-    const stepNames = ["Campaign", "Goal", "Review"];
+    const stepNames = ["Campaign", "Goal", "Milestones", "Review"];
     const reviewRow = (label: string, value: string, editStep: number, multiline = false) => (
       <Pressable
         accessibilityRole="button"
@@ -941,24 +1049,32 @@ export function OrganisationFundsScreen({
         }, createStep > 1 ? "Previous step" : "Back to campaign tracker")}
         <KeyboardAwareScrollViewCompat style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 34, gap: 18 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" bottomOffset={60} showsVerticalScrollIndicator={false}>
           <View style={{ gap: 10 }} testID="fund-create-progress">
-            <View accessibilityRole="progressbar" accessibilityLabel={`Step ${createStep} of 3: ${stepNames[createStep - 1]}`} accessibilityValue={{ min: 1, max: 3, now: createStep }} style={{ height: 5, backgroundColor: colors.muted, borderRadius: 999, overflow: "hidden" }}>
-              <View style={{ width: `${Math.round((createStep / 3) * 100)}%`, height: "100%", backgroundColor: colors.primary, borderRadius: 999 }} />
+            <View accessibilityRole="progressbar" accessibilityLabel={`Step ${createStep} of 4: ${stepNames[createStep - 1]}`} accessibilityValue={{ min: 1, max: 4, now: createStep }} style={{ height: 5, backgroundColor: colors.muted, borderRadius: 999, overflow: "hidden" }}>
+              <View style={{ width: `${Math.round((createStep / 4) * 100)}%`, height: "100%", backgroundColor: colors.primary, borderRadius: 999 }} />
             </View>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
               <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.7 }}>{`STEP 0${createStep} · ${stepNames[createStep - 1].toUpperCase()}`}</Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>{createStep} of 3</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>{createStep} of 4</Text>
             </View>
           </View>
           <View style={{ gap: 6 }}>
             <Text testID="fund-create-step-heading" style={{ color: colors.foreground, fontSize: 24, lineHeight: 30, fontFamily: "Inter_700Bold" }}>
-              {createStep === 1 ? "What are you bringing people together for?" : createStep === 2 ? "Set a clear fundraising goal" : "Check everything before launch"}
+              {createStep === 1
+                ? "What are you bringing people together for?"
+                : createStep === 2
+                  ? "Set a clear fundraising goal"
+                  : createStep === 3
+                    ? "Add fundraising checkpoints"
+                    : "Check everything before launch"}
             </Text>
             <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>
               {createStep === 1
                 ? "Give the campaign a specific name and describe the outcomes donations will support."
                 : createStep === 2
                   ? "Choose a goal in SOL and link an Experience if this campaign supports one."
-                  : "Your campaign will direct donations to the registered shared charity treasury. Check the details below."}
+                  : createStep === 3
+                    ? "Pair cumulative SOL targets with the outcomes they support. A reached threshold tracks funding progress; it does not confirm delivery or release funds."
+                    : "Your campaign will direct donations to the registered shared charity treasury. Check the details below."}
             </Text>
           </View>
           <View style={{ borderRadius: colors.radius, backgroundColor: colors.primary + "10", padding: 14, flexDirection: "row", gap: 10 }}>
@@ -1034,11 +1150,66 @@ export function OrganisationFundsScreen({
                 </>
               ) : null}
               {createStep === 3 ? (
+                <View style={{ gap: 13 }} testID="fund-milestones-editor">
+                  <View style={{ borderRadius: colors.radius, backgroundColor: colors.muted, padding: 13, gap: 5 }}>
+                    <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>Optional checkpoints</Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
+                      Targets are cumulative, must increase, and cannot exceed the campaign goal. Funds remain in the shared charity treasury.
+                    </Text>
+                  </View>
+                  {!milestones.length ? (
+                    <View style={{ alignItems: "center", borderWidth: 1, borderStyle: "dashed", borderColor: colors.border, borderRadius: colors.radius, padding: 20, gap: 6 }}>
+                      <Feather name="flag" size={18} color={colors.mutedForeground} />
+                      <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>No checkpoints added</Text>
+                      <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16, textAlign: "center" }}>You can launch without milestones and add them to this plan another time.</Text>
+                    </View>
+                  ) : milestones.map((milestone, index) => (
+                    <View key={index} testID={`fund-milestone-draft-${index}`} style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius, padding: 13, gap: 12 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                          <View style={{ width: 27, height: 27, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "12" }}>
+                            <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_700Bold" }}>{index + 1}</Text>
+                          </View>
+                          <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_700Bold" }}>Checkpoint {index + 1}</Text>
+                        </View>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Remove checkpoint ${index + 1}`}
+                          testID={`fund-milestone-remove-${index}`}
+                          onPress={() => removeMilestone(index)}
+                          hitSlop={8}
+                          style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}
+                        >
+                          <Feather name="trash-2" size={16} color={colors.destructive} />
+                        </Pressable>
+                      </View>
+                      {field("Checkpoint name", milestone.title, (value) => updateMilestone(index, "title", value), "e.g. Prepare the garden beds", false, "default", `fund-milestone-${index}-title`, 80)}
+                      {field("Planned outcome", milestone.outcome, (value) => updateMilestone(index, "outcome", value), "Describe what this funding checkpoint supports.", true, "default", `fund-milestone-${index}-outcome`, 300)}
+                      {field("Raised total (SOL)", milestone.targetSol, (value) => updateMilestone(index, "targetSol", value), "e.g. 2", false, "decimal-pad", `fund-milestone-${index}-target`, 20)}
+                    </View>
+                  ))}
+                  {button("Add checkpoint", addMilestone, true, milestones.length >= 12, "plus", true, "fund-milestone-add")}
+                </View>
+              ) : null}
+              {createStep === 4 ? (
                 <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius, paddingHorizontal: 15, paddingTop: 2 }}>
                   {reviewRow("Campaign name", title.trim(), 1)}
                   {reviewRow("Description & outcomes", description.trim(), 1, true)}
                   {reviewRow("SOL goal", `${goalSol} SOL`, 2)}
                   {reviewRow("Attached Experience", attachedExperienceName || "No Experience attached", 2)}
+                  {reviewRow("Fundraising checkpoints", milestones.length ? `${milestones.length} added` : "None added · optional", 3)}
+                  {milestones.length ? (
+                    <View style={{ paddingVertical: 12, gap: 8 }}>
+                      {milestones.map((milestone, index) => (
+                        <View key={index} style={{ borderRadius: colors.radius - 5, backgroundColor: colors.muted, padding: 11, gap: 4 }}>
+                          <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>
+                            {index + 1}. {milestone.title} · {formatCampaignSol(milestone.targetSol)} SOL
+                          </Text>
+                          <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>{milestone.outcome}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
                   <View style={{ paddingVertical: 14, gap: 8 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                       <Feather name="shield" size={16} color={colors.primary} />
@@ -1050,25 +1221,39 @@ export function OrganisationFundsScreen({
                 </View>
               ) : null}
               {error ? <Text accessibilityRole="alert" testID="fund-create-error" style={{ color: colors.destructive, fontSize: 12, lineHeight: 18 }}>{error}</Text> : null}
-              {createStep < 3
+              {createStep < 4
                 ? button("Continue", continueCreateStep, false, create.isPending, "arrow-right", false, "fund-create-continue")
                 : button(create.isPending ? "Launching fund…" : "Launch fund", () => {
                   const detailsError = validateCampaignDetails();
                   const goalError = validateGoal();
-                  if (detailsError || goalError) {
-                    setError(detailsError ?? goalError);
-                    goToCreateStep(detailsError ? 1 : 2);
+                  const milestoneError = validateMilestones();
+                  if (detailsError || goalError || milestoneError) {
+                    const invalidStep = detailsError ? 1 : goalError ? 2 : 3;
+                    goToCreateStep(invalidStep);
+                    setError(detailsError ?? goalError ?? milestoneError ?? "Check the fundraiser details.");
                     return;
                   }
                   setError(null);
                   const goal = Number(goalSol);
-                  void create.mutateAsync({ data: { title: title.trim(), description: description.trim(), goalSol: goal, ...(experienceIdToAttach ? { experienceId: experienceIdToAttach } : {}) } })
+                  const milestoneInputs = milestones.map((milestone) => ({
+                    title: milestone.title.trim(),
+                    outcome: milestone.outcome.trim(),
+                    targetSol: milestone.targetSol.trim(),
+                  }));
+                  void create.mutateAsync({ data: {
+                    title: title.trim(),
+                    description: description.trim(),
+                    goalSol: goal,
+                    milestones: milestoneInputs,
+                    ...(experienceIdToAttach ? { experienceId: experienceIdToAttach } : {}),
+                  } })
                     .then((fund) => {
                       setCreatedFund(fund);
                       setSelectedFund(fund);
                       setTitle("");
                       setDescription("");
                       setGoalSol("");
+                      setMilestones([]);
                       setCreateStep(1);
                       setStage("success");
                     })
@@ -1183,6 +1368,7 @@ export function OrganisationFundsScreen({
           </View>
 
           <CampaignTrackerInsights fund={fund} />
+          <FundMilestoneProgress fund={fund} />
 
           <View style={{ borderWidth: 1, borderColor: colors.primary + "30", backgroundColor: colors.primary + "08", borderRadius: colors.radius + 3, padding: 15, gap: 10 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>

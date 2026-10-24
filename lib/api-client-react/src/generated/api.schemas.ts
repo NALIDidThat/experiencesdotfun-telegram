@@ -512,6 +512,39 @@ export interface OrganisationVerificationStatus {
   application: OrganisationVerificationStatusApplication;
 }
 
+export interface OrganisationFundMilestone {
+  id: number;
+  /** @minimum 1 */
+  position: number;
+  /**
+     * @minLength 3
+     * @maxLength 80
+     */
+  title: string;
+  /**
+     * @minLength 10
+     * @maxLength 300
+     */
+  outcome: string;
+  /** @pattern ^\d+(?:\.\d{0,9})?$ */
+  targetSol: string;
+}
+
+export interface FundMilestoneInput {
+  /**
+     * @minLength 3
+     * @maxLength 80
+     */
+  title: string;
+  /**
+     * @minLength 10
+     * @maxLength 300
+     */
+  outcome: string;
+  /** @pattern ^\d+(?:\.\d{0,9})?$ */
+  targetSol: string;
+}
+
 export type OrganisationFundCluster = typeof OrganisationFundCluster[keyof typeof OrganisationFundCluster];
 
 
@@ -547,6 +580,7 @@ export interface OrganisationFund {
   goalSol: number;
   raisedSol: string;
   contributionCount: number;
+  milestones: OrganisationFundMilestone[];
   status: OrganisationFundStatus;
   createdAt: string;
 }
@@ -569,6 +603,8 @@ export interface OrganisationFundCreateInput {
   goalSol: number;
   /** @minimum 1 */
   experienceId?: number;
+  /** @maxItems 12 */
+  milestones?: FundMilestoneInput[];
 }
 
 export type OrganisationTreasuryCluster = typeof OrganisationTreasuryCluster[keyof typeof OrganisationTreasuryCluster];

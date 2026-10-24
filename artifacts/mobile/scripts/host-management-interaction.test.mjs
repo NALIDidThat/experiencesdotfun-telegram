@@ -1994,6 +1994,11 @@ test("charities can review and launch a fund with an attached Experience", async
             goalSol: createdFundBody.goalSol,
             raisedSol: "0.000000000",
             contributionCount: 0,
+            milestones: (createdFundBody.milestones ?? []).map((milestone, index) => ({
+              id: 900 + index,
+              position: index + 1,
+              ...milestone,
+            })),
             status: "active",
             createdAt: "2026-10-24T10:00:00.000Z",
           };
@@ -2076,6 +2081,43 @@ test("charities can review and launch a fund with an attached Experience", async
   await tapTestId(client, "fund-create-continue");
   await waitForValue(
     client,
+    `document.querySelector('[data-testid="fund-create-step-heading"]')?.innerText?.includes('Add fundraising checkpoints') ?? false`,
+    Boolean,
+    "the optional fundraising checkpoints step",
+  );
+  await tapTestId(client, "fund-create-continue");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="fund-create-step-heading"]')?.innerText?.includes('Check everything before launch') ?? false`,
+    Boolean,
+    "the final review step without required checkpoints",
+  );
+  await tapTestId(client, "fund-review-edit-fundraising-checkpoints");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="fund-milestones-editor"]'))`,
+    Boolean,
+    "the checkpoint editor from review",
+  );
+  await tapTestId(client, "fund-milestone-add");
+  await replaceInput(client, "fund-milestone-0-title", "Prepare the garden beds");
+  await replaceInput(client, "fund-milestone-0-outcome", "Set up accessible raised beds for local families.");
+  await replaceInput(client, "fund-milestone-0-target", "2");
+  await tapTestId(client, "fund-milestone-add");
+  await replaceInput(client, "fund-milestone-1-title", "Plant native seedlings");
+  await replaceInput(client, "fund-milestone-1-outcome", "Plant native seedlings with the neighbourhood volunteers.");
+  await replaceInput(client, "fund-milestone-1-target", "1.5");
+  await tapTestId(client, "fund-create-continue");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="fund-create-error"]')?.innerText?.includes('higher SOL target') ?? false`,
+    Boolean,
+    "increasing checkpoint target validation",
+  );
+  await replaceInput(client, "fund-milestone-1-target", "4.5");
+  await tapTestId(client, "fund-create-continue");
+  await waitForValue(
+    client,
     `document.querySelector('[data-testid="fund-create-step-heading"]')?.innerText?.includes('Check everything before launch') ?? false`,
     Boolean,
     "the final review step",
@@ -2085,6 +2127,10 @@ test("charities can review and launch a fund with an attached Experience", async
   assert.ok(reviewText.includes("Community garden fund"), "The review should show the campaign name.");
   assert.ok(reviewText.includes("5 SOL"), "The review should show the SOL goal.");
   assert.ok(reviewText.includes(experience.title), "The review should show the linked Experience.");
+  assert.ok(reviewText.includes("Prepare the garden beds"), "The review should show checkpoint names.");
+  assert.ok(reviewText.includes("2 SOL"), "The review should show checkpoint targets.");
+  assert.ok(reviewText.includes("4.5 SOL"), "The review should show each cumulative checkpoint target.");
+  assert.ok(reviewText.includes("Plant native seedlings with the neighbourhood volunteers."), "The review should show planned outcomes.");
   assert.ok(reviewText.includes(walletAddress), "The review should show the registered shared treasury.");
   assert.ok(reviewText.includes("does not reserve, hold, or control the funds"), "The review should explain the shared-treasury custody boundary.");
 
@@ -2095,6 +2141,7 @@ test("charities can review and launch a fund with an attached Experience", async
     Boolean,
     "the campaign name to remain when editing from review",
   );
+  await tapTestId(client, "fund-create-continue");
   await tapTestId(client, "fund-create-continue");
   await tapTestId(client, "fund-create-continue");
   await waitForValue(
@@ -2117,9 +2164,13 @@ test("charities can review and launch a fund with an attached Experience", async
       title: "Community garden fund",
       description: "Garden beds and native plants for the community growing space.",
       goalSol: 5,
+      milestones: [
+        { title: "Prepare the garden beds", outcome: "Set up accessible raised beds for local families.", targetSol: "2" },
+        { title: "Plant native seedlings", outcome: "Plant native seedlings with the neighbourhood volunteers.", targetSol: "4.5" },
+      ],
       experienceId: experience.id,
     },
-    "The wizard should submit only the existing fund API fields.",
+    "The wizard should include the fundraiser checkpoints in the create request.",
   );
   assert.ok(apiTraffic.includes("POST /api/funds"), "The existing charity fund creation API should receive the campaign.");
   assert.deepEqual(unexpectedApiRequests, [], "The fund creation flow should call only expected APIs.");

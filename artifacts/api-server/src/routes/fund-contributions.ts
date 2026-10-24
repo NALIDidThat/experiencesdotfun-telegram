@@ -4,10 +4,12 @@ import { Router, type IRouter } from "express";
 import { z } from "zod/v4";
 import {
   db, fundContributionsTable as contributions, treasuryDepositsTable as deposits,
-  organisationFundsTable as funds, organisationTreasuriesTable as treasuries, organisationsTable,
+  organisationFundsTable as funds, organisationFundMilestonesTable as fundMilestones,
+  organisationTreasuriesTable as treasuries, organisationsTable,
 } from "@workspace/db";
 import { CreateFundContributionBody, UpdateOrganisationFundBody } from "@workspace/api-zod";
 import { currentUser, requireTelegramUser } from "../lib/auth";
+import { validateFundMilestones } from "../lib/fund-milestone-rules.mjs";
 import { createPaymentReference, solToLamports, solanaRpc, readFinalizedTransfers, matchesPayment, SolanaRpcError, publicPaymentError } from "../lib/fund-payments.mjs";
 import { campaignActivity, contributionJson, fundJson, getFundContext, recordTreasuryTransfer } from "../lib/fund-ledger";
 import { lamportsToSol } from "../lib/solana-rpc.mjs";
@@ -232,6 +234,13 @@ router.patch("/campaigns/:fundId", requireTelegramUser, async (req, res): Promis
   }).safeParse(parsed.data);
   if (!details.success || !Object.keys(details.data).length) { res.status(400).json({ message: "Provide valid campaign changes." }); return; }
   const { goalSol, ...detailsToUpdate } = details.data;
+  if (goalSol !== undefined) {
+    const existingMilestones = await db.select({ targetSol: fundMilestones.targetSol }).from(fundMilestones)
+      .where(eq(fundMilestones.fundId, fundId))
+      .orderBy(fundMilestones.position);
+    const milestoneError = validateFundMilestones(existingMilestones, goalSol);
+    if (milestoneError) { res.status(400).json({ message: milestoneError }); return; }
+  }
   await db.update(funds).set({
     ...detailsToUpdate,
     ...(goalSol === undefined ? {} : { goalSol: String(goalSol) }),

@@ -19,6 +19,22 @@ export const organisationFundsTable = pgTable("organisation_funds", {
   goalCheck: check("organisation_funds_goal_check", sql`${table.goalSol} > 0`),
 }));
 
+export const organisationFundMilestonesTable = pgTable("organisation_fund_milestones", {
+  id: serial("id").primaryKey(),
+  fundId: integer("fund_id").notNull().references(() => organisationFundsTable.id, { onDelete: "cascade" }),
+  position: integer("position").notNull(),
+  title: text("title").notNull(),
+  outcome: text("outcome").notNull(),
+  targetSol: numeric("target_sol", { precision: 20, scale: 9 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  fundPositionUnique: uniqueIndex("organisation_fund_milestones_fund_position_unique").on(table.fundId, table.position),
+  positionCheck: check("organisation_fund_milestones_position_check", sql`${table.position} > 0`),
+  titleLengthCheck: check("organisation_fund_milestones_title_length_check", sql`char_length(${table.title}) BETWEEN 3 AND 80`),
+  outcomeLengthCheck: check("organisation_fund_milestones_outcome_length_check", sql`char_length(${table.outcome}) BETWEEN 10 AND 300`),
+  targetCheck: check("organisation_fund_milestones_target_check", sql`${table.targetSol} > 0 AND ${table.targetSol} <= 1000000000`),
+}));
+
 export const organisationTreasuriesTable = pgTable("organisation_treasuries", {
   id: serial("id").primaryKey(),
   organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id),

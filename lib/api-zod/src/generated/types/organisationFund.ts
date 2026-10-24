@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { OrganisationFundCluster } from './organisationFundCluster';
+import type { OrganisationFundMilestone } from './organisationFundMilestone';
 import type { OrganisationFundStatus } from './organisationFundStatus';
 
 export interface OrganisationFund {
@@ -26,6 +27,7 @@ export interface OrganisationFund {
   goalSol: number;
   raisedSol: string;
   contributionCount: number;
+  milestones: OrganisationFundMilestone[];
   status: OrganisationFundStatus;
   createdAt: Date;
 }

@@ -1,8 +1,9 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { Router, type IRouter, type ErrorRequestHandler } from "express";
 import { z } from "zod/v4";
 import {
   db,
+  organisationFundMilestonesTable,
   organisationFundsTable,
   organisationTreasuriesTable,
   organisationsTable,
@@ -11,6 +12,7 @@ import {
 } from "@workspace/db";
 import { currentUser, requireTelegramUser } from "../lib/auth";
 import { canLaunchCharityFund } from "../lib/fund-rules.mjs";
+import { validateFundMilestones } from "../lib/fund-milestone-rules.mjs";
 import { getSolanaBalance, getSolanaTreasuryActivity, isValidSolanaAddress, lamportsToSol } from "../lib/solana-rpc.mjs";
 import contributionRouter from "./fund-contributions";
 import payoutsRouter from "./fund-payouts";
@@ -30,6 +32,14 @@ const createFundSchema = z.object({
   description: z.string().trim().min(10).max(600),
   goalSol: z.number().positive().max(1_000_000_000).refine((value) => Number.isFinite(value) && Number(value.toFixed(9)) === value),
   experienceId: z.number().int().positive().optional(),
+  milestones: z.array(z.object({
+    title: z.string().trim().min(3).max(80),
+    outcome: z.string().trim().min(10).max(300),
+    targetSol: z.string().trim().max(20).regex(/^\d+(?:\.\d{0,9})?$/),
+  })).max(12).optional(),
+}).superRefine((data, context) => {
+  const issue = validateFundMilestones(data.milestones ?? [], data.goalSol);
+  if (issue) context.addIssue({ code: "custom", path: ["milestones"], message: issue });
 });
 const treasuryActivityQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(25).default(20),
@@ -175,7 +185,21 @@ router.get("/:organisationUserId", async (req, res): Promise<void> => {
       eq(organisationsTable.organisationType, "charity"),
     ))
     .orderBy(desc(organisationFundsTable.createdAt), desc(organisationFundsTable.id));
-  const totals = await campaignTotals(rows.map(({ fund }) => fund.id));
+  const fundIds = rows.map(({ fund }) => fund.id);
+  const [totals, milestoneRows] = await Promise.all([
+    campaignTotals(fundIds),
+    fundIds.length
+      ? db.select().from(organisationFundMilestonesTable)
+        .where(inArray(organisationFundMilestonesTable.fundId, fundIds))
+        .orderBy(organisationFundMilestonesTable.fundId, organisationFundMilestonesTable.position)
+      : Promise.resolve([]),
+  ]);
+  const milestonesByFund = new Map<number, typeof milestoneRows>();
+  for (const milestone of milestoneRows) {
+    const fundMilestones = milestonesByFund.get(milestone.fundId) ?? [];
+    fundMilestones.push(milestone);
+    milestonesByFund.set(milestone.fundId, fundMilestones);
+  }
   res.json(rows.map(({ fund, organisation, treasury, experienceTitle, creatorUsername }) => ({
     id: fund.id,
     organisationId: organisation.id,
@@ -190,6 +214,9 @@ router.get("/:organisationUserId", async (req, res): Promise<void> => {
     cluster: treasury.cluster,
     goalSol: Number(fund.goalSol),
     ...(totals.get(fund.id) ?? { raisedSol: "0.000000000", contributionCount: 0 }),
+    milestones: (milestonesByFund.get(fund.id) ?? []).map(({ id, position, title, outcome, targetSol }) => ({
+      id, position, title, outcome, targetSol,
+    })),
     status: fund.status,
     createdAt: fund.createdAt.toISOString(),
   })));
@@ -233,14 +260,26 @@ router.post("/", requireTelegramUser, async (req, res): Promise<void> => {
       return;
     }
   }
-  const [fund] = await db.insert(organisationFundsTable).values({
-    organisationId: organisation.id,
-    createdByUserId: user.id,
-    ...parsed.data,
-    experienceId: attachedExperience?.id ?? null,
-    walletAddress: treasury.walletAddress,
-    goalSol: String(parsed.data.goalSol),
-  }).returning();
+  const { milestones = [], ...fundInput } = parsed.data;
+  const created = await db.transaction(async (transaction) => {
+    const [fund] = await transaction.insert(organisationFundsTable).values({
+      organisationId: organisation.id,
+      createdByUserId: user.id,
+      ...fundInput,
+      experienceId: attachedExperience?.id ?? null,
+      walletAddress: treasury.walletAddress,
+      goalSol: String(fundInput.goalSol),
+    }).returning();
+    const storedMilestones = milestones.length
+      ? await transaction.insert(organisationFundMilestonesTable).values(milestones.map((milestone, index) => ({
+        fundId: fund.id,
+        position: index + 1,
+        ...milestone,
+      }))).returning()
+      : [];
+    return { fund, milestones: storedMilestones };
+  });
+  const { fund, milestones: storedMilestones } = created;
   res.status(201).json({
     id: fund.id,
     organisationId: organisation.id,
@@ -256,6 +295,9 @@ router.post("/", requireTelegramUser, async (req, res): Promise<void> => {
     goalSol: Number(fund.goalSol),
     raisedSol: "0.000000000",
     contributionCount: 0,
+    milestones: storedMilestones.map(({ id, position, title, outcome, targetSol }) => ({
+      id, position, title, outcome, targetSol,
+    })),
     status: fund.status,
     createdAt: fund.createdAt.toISOString(),
   });
@@ -265,7 +307,7 @@ const fundraisingErrorHandler: ErrorRequestHandler = (error, req, res, next) => 
   const cause = error?.cause ?? error;
   if (cause?.code === "42P01" || cause?.code === "42703") {
     req.log?.warn({ code: cause.code, message: cause.message }, "Fundraising database migration is missing");
-    res.status(503).json({ message: "Fundraising ledger setup is pending. The database migration must be approved and applied before donations can be recorded." });
+    res.status(503).json({ message: "Fundraising database setup is pending. The approved migrations must be applied before campaigns, milestones, or donations are available." });
     return;
   }
   next(error);

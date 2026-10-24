@@ -3457,6 +3457,22 @@ components:
             reviewedAt: { type: [string, "null"], format: date-time }
           required: [id, legalName, organisationType, jurisdiction, registrationNumber, website, representativeName, representativeRole, contactEmail, evidenceObjectKeys, status, reviewerNotes, submittedAt, reviewedAt]
       required: [status, submittedAt, reviewedAt, history, application]
+    OrganisationFundMilestone:
+      type: object
+      properties:
+        id: { type: integer }
+        position: { type: integer, minimum: 1 }
+        title: { type: string, minLength: 3, maxLength: 80 }
+        outcome: { type: string, minLength: 10, maxLength: 300 }
+        targetSol: { type: string, pattern: '^\d+(?:\.\d{0,9})?$' }
+      required: [id, position, title, outcome, targetSol]
+    FundMilestoneInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 3, maxLength: 80 }
+        outcome: { type: string, minLength: 10, maxLength: 300 }
+        targetSol: { type: string, pattern: '^\d+(?:\.\d{0,9})?$' }
+      required: [title, outcome, targetSol]
     OrganisationFund:
       type: object
       properties:
@@ -3474,9 +3490,12 @@ components:
         goalSol: { type: number }
         raisedSol: { type: string }
         contributionCount: { type: integer }
+        milestones:
+          type: array
+          items: { $ref: "#/components/schemas/OrganisationFundMilestone" }
         status: { type: string, enum: [active, closed] }
         createdAt: { type: string, format: date-time }
-      required: [id, organisationId, organisationUserId, organisationName, creatorUsername, title, description, experienceId, experienceTitle, walletAddress, cluster, goalSol, raisedSol, contributionCount, status, createdAt]
+      required: [id, organisationId, organisationUserId, organisationName, creatorUsername, title, description, experienceId, experienceTitle, walletAddress, cluster, goalSol, raisedSol, contributionCount, milestones, status, createdAt]
     OrganisationFundCreateInput:
       type: object
       properties:
@@ -3484,6 +3503,10 @@ components:
         description: { type: string, minLength: 10, maxLength: 600 }
         goalSol: { type: number, exclusiveMinimum: 0, maximum: 1000000000 }
         experienceId: { type: integer, minimum: 1 }
+        milestones:
+          type: array
+          maxItems: 12
+          items: { $ref: "#/components/schemas/FundMilestoneInput" }
       required: [title, description, goalSol]
     OrganisationTreasury:
       type: object
