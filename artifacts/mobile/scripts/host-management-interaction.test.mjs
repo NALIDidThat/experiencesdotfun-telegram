@@ -1512,3 +1512,184 @@ test("organisations can start setup for another Telegram community", async (t) =
   );
   assert.ok(apiTraffic.includes("GET /api/community/manage"), "The screen should load the organisation’s linked groups.");
 });
+
+test("charity treasury dashboard shows live values and supports private balance and copy controls", async (t) => {
+  const appBaseUrl = process.env.HOST_MANAGEMENT_APP_URL ?? getAppPreviewUrl("The charity treasury dashboard preview test");
+  const appOrigin = new URL(appBaseUrl).origin;
+  const client = await launchBrowser(t);
+  const { user: fixtureUser } = makeFixtures();
+  const user = {
+    ...fixtureUser,
+    organisation: { ...fixtureUser.organisation, type: "charity" },
+  };
+  const walletAddress = "7YWHMfk9JZe0LM0g1Z8cL3cQW4zVg2oJx7kVhV9zT4x8";
+  const treasuryDashboard = {
+    treasury: {
+      organisationId: user.organisation.id,
+      organisationUserId: user.id,
+      walletAddress,
+      cluster: "devnet",
+      createdAt: "2026-10-01T10:00:00.000Z",
+      updatedAt: "2026-10-01T10:00:00.000Z",
+    },
+    balanceSol: "12.34",
+    transactions: [],
+    nextCursor: null,
+    hasMore: false,
+    checkedAt: "2026-10-24T10:00:00.000Z",
+  };
+  const apiTraffic = [];
+  const unexpectedApiRequests = [];
+
+  client.on("Fetch.requestPaused", ({ params }) => {
+    void (async () => {
+      try {
+        const url = new URL(params.request.url);
+        if (!url.pathname.startsWith("/api/")) {
+          await client.send("Fetch.continueRequest", { requestId: params.requestId });
+          return;
+        }
+        const method = params.request.method;
+        apiTraffic.push(`${method} ${url.pathname}`);
+        if (method === "OPTIONS") {
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 204,
+            responseHeaders: [
+              ...apiResponseHeaders(params.request, appOrigin),
+              { name: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
+              {
+                name: "Access-Control-Allow-Headers",
+                value: params.request.headers["Access-Control-Request-Headers"]
+                  ?? params.request.headers["access-control-request-headers"]
+                  ?? "authorization,content-type",
+              },
+            ],
+            body: "",
+          });
+          return;
+        }
+
+        let status = 200;
+        let response = {};
+        if (url.pathname === "/api/me" && method === "GET") {
+          response = user;
+        } else if (url.pathname === "/api/friends" && method === "GET") {
+          response = [];
+        } else if (url.pathname === "/api/friends/notifications" && method === "GET") {
+          response = { notifications: [], unreadCount: 0 };
+        } else if (url.pathname === "/api/organisations/verification" && method === "GET") {
+          response = { status: "unsubmitted" };
+        } else if (url.pathname === "/api/host/overview" && method === "GET") {
+          response = {
+            organisation: user.organisation,
+            upcomingExperiences: 0,
+            participantCount: 0,
+            waitlistCount: 0,
+            monthlyVerifiedCompletions: 0,
+            pendingVerifications: 0,
+            pendingCompletionReviews: 0,
+            pendingMilestoneReviews: 0,
+            totalExperiences: 0,
+          };
+        } else if (url.pathname === "/api/funds/treasury" && method === "GET") {
+          response = treasuryDashboard;
+        } else if (url.pathname === `/api/funds/${user.id}` && method === "GET") {
+          response = [];
+        } else if (
+          (url.pathname === "/api/funds/payouts" || url.pathname === "/api/funds/payout-candidates")
+          && method === "GET"
+        ) {
+          response = [];
+        } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
+          status = 202;
+          response = { accepted: true };
+        } else {
+          unexpectedApiRequests.push(`${method} ${url.pathname}`);
+          status = 404;
+          response = { message: "Unexpected API request in charity treasury test." };
+        }
+
+        await client.send("Fetch.fulfillRequest", {
+          requestId: params.requestId,
+          responseCode: status,
+          responseHeaders: apiResponseHeaders(params.request, appOrigin),
+          body: status === 204 ? "" : Buffer.from(JSON.stringify(response)).toString("base64"),
+        });
+      } catch (error) {
+        unexpectedApiRequests.push(error.message);
+        await client.send("Fetch.failRequest", {
+          requestId: params.requestId,
+          errorReason: "Failed",
+        }).catch(() => {});
+      }
+    })();
+  });
+
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
+  await client.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `localStorage.setItem('@experiences/auth-token', 'email_treasury-visual-test'); window.__treasuryClipboard = ''; window.__treasuryAlerts = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text) => { window.__treasuryClipboard = text; }, readText: async () => window.__treasuryClipboard } }); window.alert = (message) => window.__treasuryAlerts.push(String(message));`,
+  });
+  await setViewport(client);
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: 402,
+    height: 874,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await client.send("Page.navigate", { url: `${appBaseUrl}/?screen=funds` });
+
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="treasury-hero-card"]')) && Boolean(document.querySelector('[data-testid="treasury-hero-artwork"]'))`,
+    Boolean,
+    "the charity treasury card and supplied wallet artwork",
+  );
+  const dashboardText = await client.evaluate(`document.body?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`);
+  assert.ok(dashboardText.includes("Charity treasury"), "The screen should show the charity treasury heading.");
+  assert.ok(dashboardText.includes("Solana · devnet"), "The network chip should reflect the registered treasury network.");
+  assert.ok(dashboardText.includes("12.34 SOL"), "The balance should come from the treasury response.");
+  assert.ok(dashboardText.includes("Community impact"), "The screen should retain the organisation impact metrics.");
+  const impactLayout = await client.evaluate(`(() => {
+    const cards = [...document.querySelectorAll('[data-testid^="treasury-metric-"]')];
+    const nav = document.querySelector('[data-testid="bottom-nav-tabs"]');
+    return {
+      cardCount: cards.length,
+      cardsBottom: cards.length ? Math.max(...cards.map((card) => card.getBoundingClientRect().bottom)) : null,
+      navTop: nav?.getBoundingClientRect().top ?? null,
+    };
+  })()`);
+  assert.equal(impactLayout.cardCount, 4, "All four community impact cards should be present.");
+  assert.ok(
+    impactLayout.cardsBottom !== null && impactLayout.navTop !== null && impactLayout.cardsBottom <= impactLayout.navTop,
+    `The impact cards should remain above the bottom navigation at phone size. Bounds: ${JSON.stringify(impactLayout)}`,
+  );
+
+  if (process.env.ORGANISATION_TREASURY_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", {
+      format: "png",
+      captureBeyondViewport: true,
+    });
+    await writeFile(
+      process.env.ORGANISATION_TREASURY_SCREENSHOT_PATH,
+      Buffer.from(screenshot.data, "base64"),
+    );
+  }
+
+  await tapTestId(client, "treasury-balance-visibility");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="treasury-hero-card"]')?.innerText?.includes('••••••••') ?? false`,
+    Boolean,
+    "the treasury balance to hide when requested",
+  );
+  await tapTestId(client, "treasury-address-copy");
+  await waitForValue(
+    client,
+    `window.__treasuryClipboard === ${JSON.stringify(walletAddress)}`,
+    Boolean,
+    "the treasury address to be copied",
+  );
+  assert.deepEqual(unexpectedApiRequests, [], "The dashboard should only call the read-only APIs needed by the screen.");
+  assert.ok(apiTraffic.includes("GET /api/funds/treasury"), "The dashboard should load the registered charity treasury.");
+});

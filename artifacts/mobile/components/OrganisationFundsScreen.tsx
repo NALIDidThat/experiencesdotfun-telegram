@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, GestureResponderEvent, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, GestureResponderEvent, Image, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import * as Clipboard from "expo-clipboard";
+import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -269,17 +271,17 @@ function ExpandableMetric({
       aria-expanded={expanded}
       testID={`treasury-metric-${label.toLowerCase().replaceAll(" ", "-")}`}
       onPress={onPress}
-      style={{ flex: 1, minWidth: "46%", borderWidth: 1, borderColor: expanded ? colors.primary + "55" : colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 4, padding: 14, gap: 11 }}
+      style={{ flex: 1, minWidth: "46%", minHeight: 88, borderWidth: 1, borderColor: expanded ? colors.primary + "55" : colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 8, padding: 12, gap: 7 }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.primary + "12", alignItems: "center", justifyContent: "center" }}>
+        <View style={{ width: 32, height: 32, borderRadius: 12, backgroundColor: colors.primary + "12", alignItems: "center", justifyContent: "center" }}>
           <Feather name={icon} size={15} color={colors.primary} />
         </View>
-        <Feather name={expanded ? "chevron-up" : "chevron-down"} size={15} color={colors.mutedForeground} />
+        <Feather name={expanded ? "chevron-down" : "chevron-right"} size={15} color={colors.mutedForeground} />
       </View>
       <View style={{ gap: 3 }}>
-        <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: colors.foreground, fontSize: 19, fontFamily: "Inter_700Bold" }}>{value}</Text>
-        <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.35 }}>{label}</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: colors.foreground, fontSize: 18, lineHeight: 21, fontFamily: "Inter_700Bold" }}>{value}</Text>
+        <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.35 }}>{label}</Text>
       </View>
     </Pressable>
   );
@@ -675,6 +677,7 @@ export function OrganisationFundsScreen({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [goalSol, setGoalSol] = useState("");
+  const [balanceVisible, setBalanceVisible] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [treasuryAddress, setTreasuryAddress] = useState("");
   const [cluster, setCluster] = useState<OrganisationTreasuryInput["cluster"]>("mainnet-beta");
@@ -776,7 +779,38 @@ export function OrganisationFundsScreen({
   );
   const allTransactions = [...loadedTransactions, ...(treasuryQuery.data?.transactions ?? [])];
   const visibleTransactions = activityExpanded ? allTransactions : allTransactions.slice(0, 5);
+  const totalCampaignRaisedSol = fundsQuery.data?.reduce(
+    (total, fund) => total + Number(fund.raisedSol || 0),
+    0,
+  );
+  const totalCampaignRaisedLabel = totalCampaignRaisedSol === undefined
+    ? "—"
+    : `${formatCampaignSol(totalCampaignRaisedSol)} SOL`;
   const returnToStage = initialView === "campaigns" ? "campaigns" : "dashboard";
+
+  const copyTreasuryAddress = async () => {
+    const address = treasuryQuery.data?.treasury.walletAddress;
+    if (!address) return;
+    try {
+      await Clipboard.setStringAsync(address);
+      Alert.alert("Address copied", "The shared treasury address is ready to paste.");
+    } catch {
+      void Share.share({ message: `Send SOL to the charity treasury: ${address}` });
+    }
+  };
+  const showTreasuryActionInfo = (action: "send" | "swap") => {
+    if (action === "send") {
+      Alert.alert(
+        "Treasury transfers require approval",
+        "Transfers from the shared charity treasury must be proposed and approved by its multisig signers. Experiences.fun never signs or sends treasury transactions.",
+      );
+      return;
+    }
+    Alert.alert(
+      "Swaps are not available here",
+      "Experiences.fun does not connect to or sign treasury swaps. The charity's multisig signers control the shared wallet.",
+    );
+  };
 
   if (stage === "detail" && initialFundId && fundsQuery.isLoading) {
     return (
@@ -1077,8 +1111,50 @@ export function OrganisationFundsScreen({
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {header("Charity treasury", "Shared funds, campaign progress and community impact.", onBack, "Back to organisation profile")}
-      <KeyboardAwareScrollViewCompat style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 34, gap: 16 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" bottomOffset={60}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 22 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back to organisation profile"
+          testID="treasury-back"
+          onPress={onBack}
+          style={{ width: 34, height: 30, justifyContent: "center" }}
+        >
+          <Feather name="arrow-left" size={21} color={colors.foreground} />
+        </Pressable>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingLeft: 34, marginTop: 16 }}>
+          <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+            <Text style={{ color: colors.foreground, fontSize: 20, lineHeight: 24, fontFamily: "Inter_700Bold" }}>Charity treasury</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 15 }}>
+              Selected funds, campaign progress and community impact.
+            </Text>
+          </View>
+          {treasuryQuery.data ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Treasury network: Solana ${treasuryQuery.data.treasury.cluster === "mainnet-beta" ? "Mainnet" : treasuryQuery.data.treasury.cluster}`}
+              testID="treasury-network-info"
+              onPress={() => {
+                const network = treasuryQuery.data!.treasury.cluster === "mainnet-beta"
+                  ? "Mainnet"
+                  : treasuryQuery.data!.treasury.cluster;
+                Alert.alert("Treasury network", `This shared treasury is registered on Solana ${network}.`);
+              }}
+              style={{ minHeight: 34, maxWidth: 156, flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 18, backgroundColor: colors.card, paddingHorizontal: 9 }}
+            >
+              <View style={{ width: 17, height: 17, borderRadius: 9, backgroundColor: colors.foreground, alignItems: "center", justifyContent: "center", gap: 1 }}>
+                <View style={{ width: 9, height: 2, borderRadius: 1, backgroundColor: colors.teal, transform: [{ skewX: "-20deg" }] }} />
+                <View style={{ width: 9, height: 2, borderRadius: 1, backgroundColor: colors.secondary, transform: [{ skewX: "-20deg" }] }} />
+                <View style={{ width: 9, height: 2, borderRadius: 1, backgroundColor: colors.primary, transform: [{ skewX: "-20deg" }] }} />
+              </View>
+              <Text numberOfLines={1} style={{ flexShrink: 1, color: colors.foreground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>
+                Solana · {treasuryQuery.data.treasury.cluster === "mainnet-beta" ? "Mainnet" : treasuryQuery.data.treasury.cluster}
+              </Text>
+              <Feather name="chevron-down" size={13} color={colors.mutedForeground} />
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+      <KeyboardAwareScrollViewCompat style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 34, gap: 14 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" bottomOffset={60}>
         {treasuryQuery.isLoading ? (
           <Text style={{ color: colors.mutedForeground, fontSize: 13, paddingVertical: 16 }}>Loading charity treasury…</Text>
         ) : treasuryQuery.isError && (treasuryQuery.error as { status?: number })?.status !== 404 ? (
@@ -1088,75 +1164,184 @@ export function OrganisationFundsScreen({
           </View>
         ) : treasuryQuery.data ? (
           <>
-            <View style={{ borderWidth: 1, borderColor: colors.primary + "35", borderRadius: colors.radius + 8, backgroundColor: colors.primary + "0A", padding: 18, gap: 14 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-                  <View style={{ width: 28, height: 28, borderRadius: 10, backgroundColor: colors.primary + "18", alignItems: "center", justifyContent: "center" }}>
-                    <Feather name="shield" size={14} color={colors.primary} />
+            <View
+              testID="treasury-hero-card"
+              style={{ position: "relative", overflow: "hidden", borderWidth: 1, borderColor: colors.primary + "20", borderRadius: 24, backgroundColor: colors.primary + "0A" }}
+            >
+              <LinearGradient
+                pointerEvents="none"
+                colors={[colors.primary + "0A", colors.primary + "17", colors.secondary + "08"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View pointerEvents="none" style={{ position: "absolute", width: 148, height: 148, right: -26, top: 20, borderRadius: 74, backgroundColor: colors.primary + "0D" }} />
+              <Image
+                source={require("../assets/images/charity-treasury-wallet.png")}
+                resizeMode="contain"
+                accessible={false}
+                testID="treasury-hero-artwork"
+                style={{ position: "absolute", right: -20, top: 17, width: 208, height: 164, zIndex: 0 }}
+              />
+              <View style={{ position: "relative", zIndex: 1, padding: 14, gap: 9 }}>
+                <View style={{ minHeight: 30, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.card + "B8", alignItems: "center", justifyContent: "center" }}>
+                    <Feather name="shield" size={17} color={colors.primary} />
                   </View>
-                  <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.8 }}>SHARED TREASURY</Text>
+                  <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                    <Text style={{ color: colors.primary, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.55 }}>SHARED TREASURY</Text>
+                    <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>Collective funds for real-world impact.</Text>
+                  </View>
                 </View>
-                <View style={{ borderRadius: 20, backgroundColor: colors.card, paddingHorizontal: 9, paddingVertical: 5 }}>
-                  <Text style={{ color: colors.foreground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>
-                    Solana · {treasuryQuery.data.treasury.cluster === "mainnet-beta" ? "Mainnet" : treasuryQuery.data.treasury.cluster}
+
+                <View style={{ width: "65%", gap: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Text style={{ color: colors.foreground, fontSize: 11 }}>Available balance</Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={balanceVisible ? "Hide treasury balance" : "Show treasury balance"}
+                      accessibilityState={{ selected: !balanceVisible }}
+                      testID="treasury-balance-visibility"
+                      onPress={() => setBalanceVisible((visible) => !visible)}
+                      hitSlop={8}
+                    >
+                      <Feather name={balanceVisible ? "eye" : "eye-off"} size={13} color={colors.mutedForeground} />
+                    </Pressable>
+                  </View>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", columnGap: 5 }}>
+                    <Text
+                      accessibilityLabel={balanceVisible ? `Treasury balance ${treasuryQuery.data.balanceSol} SOL` : "Treasury balance hidden"}
+                      adjustsFontSizeToFit
+                      numberOfLines={1}
+                      style={{ maxWidth: "100%", color: colors.foreground, fontSize: 34, lineHeight: 39, fontFamily: "Inter_700Bold", letterSpacing: -1 }}
+                    >
+                      {balanceVisible ? treasuryQuery.data.balanceSol : "••••••••"}
+                    </Text>
+                    <Text style={{ color: colors.primary, fontSize: 19, lineHeight: 25, fontFamily: "Inter_700Bold" }}>SOL</Text>
+                  </View>
+                </View>
+
+                <View style={{ width: "60%", flexDirection: "row", gap: 9 }}>
+                  <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <View style={{ width: 31, height: 31, borderRadius: 11, backgroundColor: colors.teal + "15", alignItems: "center", justifyContent: "center" }}>
+                      <Feather name="activity" size={14} color={colors.teal} />
+                    </View>
+                    <View style={{ minWidth: 0, gap: 1 }}>
+                      <Text style={{ color: colors.foreground, fontSize: 11, fontFamily: "Inter_700Bold" }}>—</Text>
+                      <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 9 }}>24H CHANGE</Text>
+                    </View>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <View style={{ width: 31, height: 31, borderRadius: 11, backgroundColor: colors.primary + "14", alignItems: "center", justifyContent: "center" }}>
+                      <Feather name="bar-chart-2" size={14} color={colors.primary} />
+                    </View>
+                    <View style={{ minWidth: 0, gap: 1 }}>
+                      <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: colors.foreground, fontSize: 11, fontFamily: "Inter_700Bold" }}>{totalCampaignRaisedLabel}</Text>
+                      <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 9 }}>CAMPAIGN RAISED</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={{ minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 14, backgroundColor: colors.card + "E8", paddingHorizontal: 12 }}>
+                  <Feather name="key" size={13} color={colors.mutedForeground} />
+                  <Text
+                    selectable
+                    numberOfLines={1}
+                    accessibilityLabel={`Treasury wallet address ${treasuryQuery.data.treasury.walletAddress}`}
+                    style={{ flex: 1, color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}
+                  >
+                    {shortAddress(treasuryQuery.data.treasury.walletAddress)}
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Copy treasury address"
+                    testID="treasury-address-copy"
+                    onPress={() => { void copyTreasuryAddress(); }}
+                    style={{ width: 32, height: 32, alignItems: "center", justifyContent: "center" }}
+                    hitSlop={8}
+                  >
+                    <Feather name="copy" size={15} color={colors.foreground} />
+                  </Pressable>
+                </View>
+
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Pressable
+                    accessibilityRole="link"
+                    accessibilityLabel="Open charity treasury on Solscan"
+                    testID="treasury-solscan"
+                    onPress={() => {
+                      void Linking.openURL(solscanUrl(`account/${treasuryQuery.data!.treasury.walletAddress}`, treasuryQuery.data!.treasury.cluster)).catch(() => {
+                        Alert.alert("Unable to open Solscan", "Check your connection and try again.");
+                      });
+                    }}
+                    style={{ flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1, borderColor: colors.primary + "20", borderRadius: 14, backgroundColor: colors.card + "D9" }}
+                  >
+                    <Feather name="external-link" size={15} color={colors.foreground} />
+                    <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>Solscan</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Share treasury address to receive SOL"
+                    testID="treasury-receive"
+                    onPress={() => {
+                      void Share.share({ message: `Send SOL to the charity treasury: ${treasuryQuery.data!.treasury.walletAddress}` });
+                    }}
+                    style={{ flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: 14, backgroundColor: colors.primary }}
+                  >
+                    <Feather name="share-2" size={15} color={colors.primaryForeground} />
+                    <Text style={{ color: colors.primaryForeground, fontSize: 12, fontFamily: "Inter_700Bold" }}>Receive SOL</Text>
+                  </Pressable>
+                </View>
+
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {([
+                    { label: "Send", icon: "arrow-up" as const, action: () => showTreasuryActionInfo("send"), testID: "treasury-send" },
+                    { label: "Swap", icon: "repeat" as const, action: () => showTreasuryActionInfo("swap"), testID: "treasury-swap" },
+                    { label: treasuryQuery.isFetching ? "Refreshing" : "Refresh", icon: "refresh-cw" as const, action: () => { void treasuryQuery.refetch(); }, testID: "treasury-refresh" },
+                  ]).map(({ label, icon, action, testID }) => (
+                    <Pressable
+                      key={testID}
+                      accessibilityRole="button"
+                      accessibilityLabel={testID === "treasury-refresh" ? "Refresh treasury balance and activity" : `${label} treasury`}
+                      accessibilityState={{ disabled: testID === "treasury-refresh" && treasuryQuery.isFetching }}
+                      testID={testID}
+                      disabled={testID === "treasury-refresh" && treasuryQuery.isFetching}
+                      onPress={action}
+                      style={({ pressed }) => ({ flex: 1, minHeight: 56, alignItems: "center", justifyContent: "center", gap: 4, borderRadius: 16, backgroundColor: colors.card + "A8", opacity: pressed || (testID === "treasury-refresh" && treasuryQuery.isFetching) ? 0.6 : 1 })}
+                    >
+                      {testID === "treasury-refresh" && treasuryQuery.isFetching
+                        ? <ActivityIndicator size="small" color={colors.primary} />
+                        : <Feather name={icon} size={16} color={colors.primary} />}
+                      <Text style={{ color: colors.primary, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>{label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 1 }}>
+                  <Feather name="info" size={12} color={colors.mutedForeground} />
+                  <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 10, lineHeight: 14 }}>
+                    This is a shared treasury for your organisation and community.
                   </Text>
                 </View>
               </View>
-              <View style={{ gap: 3 }}>
-                <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Available balance</Text>
-                <Text
-                  accessibilityLabel={`Treasury balance ${treasuryQuery.data.balanceSol} SOL`}
-                  adjustsFontSizeToFit
-                  numberOfLines={1}
-                  style={{ color: colors.foreground, fontSize: 34, fontFamily: "Inter_700Bold", letterSpacing: -0.8 }}
-                >
-                  {treasuryQuery.data.balanceSol} <Text style={{ color: colors.primary, fontSize: 20 }}>SOL</Text>
-                </Text>
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, borderRadius: colors.radius - 4, backgroundColor: colors.card, paddingHorizontal: 11, paddingVertical: 10 }}>
-                <Feather name="key" size={14} color={colors.mutedForeground} />
-                <Text
-                  selectable
-                  numberOfLines={1}
-                  accessibilityLabel={`Treasury wallet address ${treasuryQuery.data.treasury.walletAddress}`}
-                  style={{ flex: 1, color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}
-                >
-                  {shortAddress(treasuryQuery.data.treasury.walletAddress)}
-                </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Share treasury address"
-                  onPress={() => { void Share.share({ message: `Send SOL to the charity treasury: ${treasuryQuery.data!.treasury.walletAddress}` }); }}
-                  style={{ width: 34, height: 34, alignItems: "center", justifyContent: "center" }}
-                  hitSlop={8}
-                >
-                  <Feather name="share" size={15} color={colors.primary} />
-                </Pressable>
-              </View>
-              <View style={{ flexDirection: "row", gap: 9 }}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  {button("Solscan", () => { void Linking.openURL(solscanUrl(`account/${treasuryQuery.data!.treasury.walletAddress}`, treasuryQuery.data!.treasury.cluster)); }, true, false, "external-link")}
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  {button("Receive SOL", () => { void Share.share({ message: `Send SOL to the charity treasury: ${treasuryQuery.data!.treasury.walletAddress}` }); }, false, false, "share-2")}
-                </View>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={treasuryQuery.isFetching ? "Refreshing treasury" : "Refresh treasury balance and activity"}
-                onPress={() => void treasuryQuery.refetch()}
-                style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 2 }}
-              >
-                <Feather name="refresh-cw" size={13} color={colors.primary} />
-                <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
-                  {treasuryQuery.isFetching ? "Refreshing…" : "Refresh balance and activity"}
-                </Text>
-              </Pressable>
             </View>
             <View style={{ gap: 9 }}>
-              <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Community impact</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Community impact</Text>
+                <Pressable
+                  testID="treasury-impact-all-time"
+                  accessibilityRole="button"
+                  accessibilityLabel="All-time community impact metrics"
+                  onPress={() => Alert.alert("All-time totals", "These figures show all recorded activity; time-range filters are not available yet.")}
+                  style={{ minHeight: 32, flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 18, backgroundColor: colors.card, paddingHorizontal: 10 }}
+                >
+                  <Feather name="calendar" size={13} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>All time</Text>
+                  <Feather name="chevron-down" size={13} color={colors.mutedForeground} />
+                </Pressable>
+              </View>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 9 }}>
-                <ExpandableMetric label="CAMPAIGN RAISED" accessibilityLabel={`Campaign raised: ${fundsQuery.data ? `${fundsQuery.data.reduce((total, fund) => total + Number(fund.raisedSol || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL` : "unavailable"}`} value={fundsQuery.data ? `${fundsQuery.data.reduce((total, fund) => total + Number(fund.raisedSol || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL` : "—"} icon="trending-up" expanded={expandedMetric === "raised"} onPress={() => setExpandedMetric(expandedMetric === "raised" ? null : "raised")} />
+                <ExpandableMetric label="CAMPAIGN RAISED" accessibilityLabel={`Campaign raised: ${totalCampaignRaisedLabel}`} value={totalCampaignRaisedLabel} icon="trending-up" expanded={expandedMetric === "raised"} onPress={() => setExpandedMetric(expandedMetric === "raised" ? null : "raised")} />
                 <ExpandableMetric label="PARTICIPANT ENTRIES" accessibilityLabel={`Participant entries: ${hostOverviewQuery.data?.participantCount.toLocaleString() ?? "unavailable"}`} value={hostOverviewQuery.data ? hostOverviewQuery.data.participantCount.toLocaleString() : "—"} icon="users" expanded={expandedMetric === "participants"} onPress={() => setExpandedMetric(expandedMetric === "participants" ? null : "participants")} />
                 <ExpandableMetric label="EXPERIENCES" accessibilityLabel={`Experiences: ${hostOverviewQuery.data?.totalExperiences.toLocaleString() ?? "unavailable"}`} value={hostOverviewQuery.data ? hostOverviewQuery.data.totalExperiences.toLocaleString() : "—"} icon="calendar" expanded={expandedMetric === "experiences"} onPress={() => setExpandedMetric(expandedMetric === "experiences" ? null : "experiences")} />
                 <ExpandableMetric label="REWARDED USERS" accessibilityLabel={`Rewarded users: ${hostOverviewQuery.data && Number.isFinite(hostOverviewQuery.data.rewardedUserCount) ? hostOverviewQuery.data.rewardedUserCount.toLocaleString() : "unavailable"}`} value={hostOverviewQuery.data && Number.isFinite(hostOverviewQuery.data.rewardedUserCount) ? hostOverviewQuery.data.rewardedUserCount.toLocaleString() : "—"} icon="award" expanded={expandedMetric === "rewarded"} onPress={() => {

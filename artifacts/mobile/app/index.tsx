@@ -9597,6 +9597,7 @@ export default function App() {
       : undefined;
   return (
     <AppShell
+      showFeedbackBanner={screen !== 'funds'}
       screenTransitionKey={`${screen}:${transitionEntityId ?? ''}`}
       bottomNav={!noNav
         ? (
