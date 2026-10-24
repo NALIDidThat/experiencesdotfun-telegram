@@ -5865,6 +5865,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
   const [experienceSearch, setExperienceSearch] = useState('');
   const [experienceFilter, setExperienceFilter] = useState<HostExperienceFilter>('all');
   const allExperiences = experiences.data ?? [];
+  const hostArtworkCategory = user?.interests?.[0] ?? 'community';
   const searchTerm = experienceSearch.trim().toLowerCase();
   const filteredExperiences = allExperiences.filter((item) => {
     const matchesSearch = !searchTerm || [item.title, item.city, item.location, categoryLabel[item.category]]
@@ -5897,31 +5898,53 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
     >
       <Header title="Host tools" subtitle={organisationName} onBack={() => go('home')} />
 
-      <View style={[styles.hostHero, { borderRadius: colors.radius + 4 }]}>
-        <LinearGradient
-          colors={[colors.secondary, colors.secondary, colors.primary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View pointerEvents="none" style={styles.hostHeroRingLarge} />
-        <View pointerEvents="none" style={styles.hostHeroRingSmall} />
-        <View style={styles.hostHeroMark}>
-          <Feather name="briefcase" size={17} color={colors.primaryForeground} />
-          <Text style={[styles.hostHeroEyebrow, { color: colors.primaryForeground }]}>ORGANISATION SPACE</Text>
+      <View
+        testID="host-hero"
+        style={[
+          styles.hostHero,
+          { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 4 },
+        ]}
+      >
+        <View style={[styles.hostHeroAccent, { backgroundColor: colors.primary }]} />
+        <View style={styles.hostHeroContent}>
+          <View style={styles.hostHeroTop}>
+            <View style={styles.hostHeroCopy}>
+              <View style={styles.hostHeroMark}>
+                <View style={[styles.hostHeroMarkIcon, { backgroundColor: colors.primary + '12' }]}>
+                  <Feather name="briefcase" size={13} color={colors.primary} />
+                </View>
+                <Text style={[styles.hostHeroEyebrow, { color: colors.primary }]}>ORGANISATION SPACE</Text>
+              </View>
+              <Text style={[styles.hostHeroTitle, { color: colors.foreground }]}>Bring your community together.</Text>
+              <Text style={[styles.hostHeroBody, { color: colors.mutedForeground }]}>
+                Create experiences, manage participation and track impact.
+              </Text>
+            </View>
+            <View
+              testID="host-hero-artwork"
+              accessible={false}
+              style={[
+                styles.hostHeroArtworkFrame,
+                { backgroundColor: colors.primary + '0A', borderColor: colors.primary + '18', borderRadius: colors.radius + 2 },
+              ]}
+            >
+              <ExperienceCategoryArtwork category={hostArtworkCategory} size={74} />
+            </View>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Create experience"
+            testID="host-create-experience"
+            onPress={() => { triggerHaptic(); go('create'); }}
+            style={({ pressed }) => [
+              styles.hostHeroButton,
+              { backgroundColor: colors.primary, borderRadius: Math.max(13, colors.radius - 3), opacity: pressed ? 0.84 : 1 },
+            ]}
+          >
+            <Feather name="plus" size={17} color={colors.primaryForeground} />
+            <Text style={[styles.hostHeroButtonText, { color: colors.primaryForeground }]}>Create experience</Text>
+          </Pressable>
         </View>
-        <Text style={[styles.hostHeroTitle, { color: colors.primaryForeground }]}>Create experiences, manage participation and track impact.</Text>
-        <Text style={[styles.hostHeroBody, { color: colors.primaryForeground }]}>Bring your community together and recognise the people who take part.</Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Create experience"
-          testID="host-create-experience"
-          onPress={() => { triggerHaptic(); go('create'); }}
-          style={({ pressed }) => [styles.hostHeroButton, { backgroundColor: colors.primaryForeground, borderRadius: Math.max(13, colors.radius - 3), opacity: pressed ? 0.88 : 1 }]}
-        >
-          <Feather name="plus" size={19} color={colors.primary} />
-          <Text style={[styles.hostHeroButtonText, { color: colors.primary }]}>Create experience</Text>
-        </Pressable>
       </View>
 
       <View style={styles.hostStats}>
@@ -5980,7 +6003,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
       </View>
 
       <View style={styles.hostSearchRow}>
-        <View style={[styles.hostSearchBox, { backgroundColor: colors.muted, borderColor: colors.muted, borderRadius: colors.radius }]}>
+        <View style={[styles.hostSearchBox, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <Feather name="search" size={17} color={colors.mutedForeground} />
           <TextInput
             accessibilityLabel="Search experiences"
@@ -6020,9 +6043,9 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
               accessibilityState={{ selected: active }}
               testID={`host-experience-filter-${option.key}`}
               onPress={() => setExperienceFilter(option.key)}
-              style={[styles.hostFilterChip, { backgroundColor: active ? colors.secondary : colors.card, borderColor: active ? colors.secondary : colors.border, borderRadius: colors.radius }]}
+              style={[styles.hostFilterChip, { backgroundColor: active ? colors.primary : colors.card, borderColor: active ? colors.primary : colors.border, borderRadius: 999 }]}
             >
-              <Text style={[styles.hostFilterText, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>{option.label}</Text>
+              <Text style={[styles.hostFilterText, { color: active ? colors.primaryForeground : colors.foreground }]}>{option.label}</Text>
             </Pressable>
           );
         })}
@@ -6031,7 +6054,39 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
       {experiences.isLoading ? <LoadingState /> : experiences.isError ? (
         <EmptyState title="Your experiences didn’t load" body="Try again to see your published opportunities." actionLabel="Try again" onAction={() => { void experiences.refetch(); }} />
       ) : allExperiences.length === 0 ? (
-        <EmptyState title="No experience published" body="Create a real volunteering opportunity and it will appear here." icon="edit-3" actionLabel="Create experience" onAction={() => go('create')} />
+        <View
+          testID="host-empty-experience-state"
+          style={[
+            styles.hostEmptyState,
+            { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 2 },
+          ]}
+        >
+          <View style={[styles.hostEmptyIcon, { backgroundColor: colors.primary + '10' }]}>
+            <Feather name="edit-3" size={21} color={colors.primary} />
+          </View>
+          <Text style={[styles.hostEmptyTitle, { color: colors.foreground }]}>Your first experience starts here</Text>
+          <Text style={[styles.hostEmptyBody, { color: colors.mutedForeground }]}>
+            Publish a volunteering opportunity and it will appear here for your community to discover.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Create your first experience"
+            testID="host-empty-create-experience"
+            onPress={() => { triggerHaptic(); go('create'); }}
+            style={({ pressed }) => [
+              styles.hostEmptyAction,
+              {
+                backgroundColor: colors.primary + '0A',
+                borderColor: colors.primary + '25',
+                borderRadius: Math.max(12, colors.radius - 4),
+                opacity: pressed ? 0.74 : 1,
+              },
+            ]}
+          >
+            <Feather name="plus" size={15} color={colors.primary} />
+            <Text style={[styles.hostEmptyActionText, { color: colors.primary }]}>Create experience</Text>
+          </Pressable>
+        </View>
       ) : filteredExperiences.length ? filteredExperiences.map((item) => (
         <ExperienceManagementCard
           key={item.id}
@@ -6058,31 +6113,35 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
         />
       )}
 
-      <View style={styles.hostQuickActionsSection}>
+      {(allExperiences.length > 0 || user.organisation?.type === 'charity') ? <View style={styles.hostQuickActionsSection}>
         <View style={styles.hostQuickHeading}>
           <Text style={[styles.hostQuickTitle, { color: colors.foreground }]}>Quick actions</Text>
           <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>Common tasks to keep things moving.</Text>
         </View>
         <View style={styles.hostQuickActions}>
           {[
-            {
-              label: 'Review participants',
-              detail: 'Completion submissions',
-              count: overview.data?.pendingCompletionReviews,
-              icon: 'users' as const,
-              color: colors.primary,
-              onPress: () => openExperience(experienceForPeople, 'review'),
-              disabled: !experienceForPeople,
-            },
-            {
-              label: 'Review milestones',
-              detail: 'Milestone submissions',
-              count: overview.data?.pendingMilestoneReviews,
-              icon: 'list' as const,
-              color: colors.secondary,
-              onPress: () => openExperience(allExperiences[0]),
-              disabled: !allExperiences.length,
-            },
+            ...(allExperiences.length > 0
+              ? [
+                  {
+                    label: 'Review participants',
+                    detail: 'Completion submissions',
+                    count: overview.data?.pendingCompletionReviews,
+                    icon: 'users' as const,
+                    color: colors.primary,
+                    onPress: () => openExperience(experienceForPeople, 'review'),
+                    disabled: !experienceForPeople,
+                  },
+                  {
+                    label: 'Review milestones',
+                    detail: 'Milestone submissions',
+                    count: overview.data?.pendingMilestoneReviews,
+                    icon: 'list' as const,
+                    color: colors.primary,
+                    onPress: () => openExperience(allExperiences[0]),
+                    disabled: !allExperiences.length,
+                  },
+                ]
+              : []),
             ...(user.organisation?.type === 'charity'
               ? [{
                   label: 'Fundraising',
@@ -6122,6 +6181,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
           ))}
         </View>
       </View>
+      : null}
 
       <View style={{ height: 120 }} />
     </KeyboardAwareScrollViewCompat>
@@ -10377,16 +10437,20 @@ const styles = StyleSheet.create({
   friendSectionHint: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular', paddingHorizontal: 2 },
   
   // Host
-  hostHero: { position: 'relative', overflow: 'hidden', padding: 20, gap: 9, marginBottom: 14 },
-  hostHeroRingLarge: { position: 'absolute', right: -46, top: 38, width: 176, height: 92, borderWidth: 13, borderColor: 'rgba(255,255,255,0.16)', borderRadius: 70, transform: [{ rotate: '-32deg' }] },
-  hostHeroRingSmall: { position: 'absolute', right: -67, top: 104, width: 136, height: 70, borderWidth: 10, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 52, transform: [{ rotate: '-32deg' }] },
-  hostHeroMark: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
-  hostHeroEyebrow: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2 },
-  hostHeroTitle: { maxWidth: 340, fontSize: 23, lineHeight: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
-  hostHeroBody: { maxWidth: 300, fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular', marginBottom: 3, opacity: 0.92 },
-  hostHeroButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 3, paddingHorizontal: 16 },
-  hostHeroButtonText: { fontSize: 14, fontFamily: 'Inter_700Bold' },
-  hostStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
+  hostHero: { flexDirection: 'row', overflow: 'hidden', borderWidth: 1, marginBottom: 13 },
+  hostHeroAccent: { width: 4 },
+  hostHeroContent: { flex: 1, minWidth: 0, padding: 14, gap: 12 },
+  hostHeroTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  hostHeroCopy: { flex: 1, minWidth: 0, gap: 7 },
+  hostHeroMark: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  hostHeroMarkIcon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  hostHeroEyebrow: { fontSize: 9, fontFamily: 'Inter_700Bold', letterSpacing: 0.85 },
+  hostHeroTitle: { fontSize: 19, lineHeight: 24, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 },
+  hostHeroBody: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
+  hostHeroArtworkFrame: { width: 76, height: 76, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  hostHeroButton: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 16 },
+  hostHeroButtonText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  hostStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
   hostStat: { flexGrow: 1, flexBasis: '47%', minWidth: 0, minHeight: 72, flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingVertical: 11, paddingHorizontal: 10, gap: 9 },
   hostStatWide: { flexBasis: '100%' },
   hostStatIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
@@ -10406,6 +10470,12 @@ const styles = StyleSheet.create({
   hostFilterList: { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingBottom: 14 },
   hostFilterChip: { minHeight: 38, justifyContent: 'center', borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
   hostFilterText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  hostEmptyState: { alignItems: 'center', borderWidth: 1, padding: 18, gap: 8 },
+  hostEmptyIcon: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 16, marginBottom: 2 },
+  hostEmptyTitle: { fontSize: 15, lineHeight: 20, fontFamily: 'Inter_700Bold', textAlign: 'center' },
+  hostEmptyBody: { maxWidth: 300, fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  hostEmptyAction: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, paddingHorizontal: 14, marginTop: 3 },
+  hostEmptyActionText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   hostStatusPill: { flexShrink: 0, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   hostStatusText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
   hostCapacityHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 1 },

@@ -1087,6 +1087,7 @@ test("publishing an experience opens its host-management detail screen", async (
 
   const client = await launchBrowser(t);
   const { user } = makeFixtures();
+  user.organisation.type = "charity";
   const apiTraffic = [];
   const unexpectedApiRequests = [];
   let createBody;
@@ -1199,7 +1200,38 @@ test("publishing an experience opens its host-management detail screen", async (
     source: "localStorage.setItem('@experiences/auth-token', 'email_host-publish-test');",
   });
   await setViewport(client);
-  await client.send("Page.navigate", { url: `${appUrl}/?screen=create` });
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=host` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-hero"]')) && Boolean(document.querySelector('[data-testid="host-hero-artwork"]')) && Boolean(document.querySelector('[data-testid="host-empty-experience-state"]')) && Boolean(document.querySelector('[data-testid="host-empty-create-experience"]'))`,
+    Boolean,
+    "the redesigned organisation dashboard and first-experience empty state",
+  );
+  const hostEmptyState = await client.evaluate(`({
+    text: document.querySelector('[data-testid="host-empty-experience-state"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? '',
+    participantReview: Boolean(document.querySelector('[data-testid="host-quick-action-review-participants"]')),
+    milestoneReview: Boolean(document.querySelector('[data-testid="host-quick-action-review-milestones"]')),
+    fundraising: Boolean(document.querySelector('[data-testid="host-quick-action-fundraising"]')),
+  })`);
+  assert.ok(hostEmptyState.text.includes("Your first experience starts here"), "The empty state should explain the next step.");
+  assert.equal(hostEmptyState.participantReview, false, "Participant reviews should not appear before an experience exists.");
+  assert.equal(hostEmptyState.milestoneReview, false, "Milestone reviews should not appear before an experience exists.");
+  assert.equal(hostEmptyState.fundraising, true, "Charities should retain their available fundraising shortcut.");
+  if (process.env.HOST_TOOLS_EMPTY_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(
+      process.env.HOST_TOOLS_EMPTY_SCREENSHOT_PATH,
+      Buffer.from(screenshot.data, "base64"),
+    );
+  }
+  if (process.env.HOST_TOOLS_EMPTY_STATE_SCREENSHOT_PATH) {
+    await client.evaluate(`document.querySelector('[data-testid="host-empty-experience-state"]')?.scrollIntoView({ block: "center" })`);
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(
+      process.env.HOST_TOOLS_EMPTY_STATE_SCREENSHOT_PATH,
+      Buffer.from(screenshot.data, "base64"),
+    );
+  }
 
   const waitForPrompt = async (prompt) => waitForValue(
     client,
@@ -1212,6 +1244,7 @@ test("publishing an experience opens its host-management detail screen", async (
     await waitForPrompt(prompt);
   };
 
+  await tapTestId(client, "host-create-experience");
   try {
     await waitForPrompt("Who is hosting?");
   } catch (error) {
@@ -1294,13 +1327,19 @@ test("publishing an experience opens its host-management detail screen", async (
   );
   assert.equal(createBody?.title, "Publish handoff test", "Publishing should send the experience details to the API.");
   assert.equal(createBody?.milestones?.[0]?.title, "Prepare the garden", "Publishing should preserve the configured milestone.");
+  const detailRequestDeadline = Date.now() + 5_000;
+  while (Date.now() < detailRequestDeadline
+    && (!apiTraffic.includes(`GET /api/host/experiences/${experienceId}/participants`)
+      || !apiTraffic.includes(`GET /api/host/experiences/${experienceId}/milestones`))) {
+    await delay(50);
+  }
   assert.ok(
     apiTraffic.includes(`GET /api/host/experiences/${experienceId}/participants`),
-    "The host-management detail should load the new experience's participants.",
+    `The host-management detail should load the new experience's participants. Requests: ${apiTraffic.join(", ")}`,
   );
   assert.ok(
     apiTraffic.includes(`GET /api/host/experiences/${experienceId}/milestones`),
-    "The host-management detail should load the new experience's milestones.",
+    `The host-management detail should load the new experience's milestones. Requests: ${apiTraffic.join(", ")}`,
   );
   assert.deepEqual(unexpectedApiRequests, [], "The publish and handoff flow should only request mocked APIs.");
 });
