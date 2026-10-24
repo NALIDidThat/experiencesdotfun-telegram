@@ -662,6 +662,24 @@ test("signup creates an authenticated session without production data", async (t
   );
   assert.match(welcomeActivity, /London/);
   assert.match(welcomeActivity, /2 verified/);
+  const welcomeActivityKey = await waitForValue(
+    client,
+    `document.querySelector('[data-testid="welcome-activity-key"]')?.textContent`,
+    (value) => value?.includes("Host-verified completions") && value.includes("Last 30 days"),
+    "the meaning and timeframe for the Welcome globe markers",
+  );
+  assert.match(welcomeActivityKey, /Host-verified completions/);
+  assert.match(welcomeActivityKey, /Last 30 days/);
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="welcome-activity-london"]')?.getAttribute('aria-label')`),
+    "London: 2 host-verified completions in the last 30 days.",
+  );
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="welcome-activity-leader-london"]'))`,
+    Boolean,
+    "the London activity callout to connect to its globe marker",
+  );
 
   await tapTestId(client, "welcome-start");
   await waitForValue(

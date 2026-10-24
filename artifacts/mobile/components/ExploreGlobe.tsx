@@ -153,6 +153,78 @@ function polygonPath(points: Array<[number, number]>, rotation: number, tilt: nu
   return path;
 }
 
+type PositionedWelcomeActivity = {
+  activity: WelcomeGlobeActivityCity;
+  point: ReturnType<typeof project>;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  pointX: number;
+  pointY: number;
+  anchorX: number;
+  anchorY: number;
+};
+
+function positionWelcomeActivityCallouts(
+  activities: Array<{ activity: WelcomeGlobeActivityCity; point: ReturnType<typeof project> }>,
+  stageSize: { width: number; height: number },
+  globeScale: number,
+  globeOffsetX: number,
+  globeOffsetY: number,
+): PositionedWelcomeActivity[] {
+  if (globeScale <= 0) return [];
+  const width = 166;
+  const height = 54;
+  const minTop = 48;
+  const maxLeft = Math.max(6, stageSize.width - width - 6);
+  const maxTop = Math.max(minTop, stageSize.height - height - 6);
+  const placed: PositionedWelcomeActivity[] = [];
+
+  activities.forEach(({ activity, point }) => {
+    const pointX = globeOffsetX + point.x * globeScale;
+    const pointY = globeOffsetY + point.y * globeScale;
+    const preferredLeft = point.x <= CENTER_X ? pointX + 24 : pointX - width - 24;
+    let left = Math.max(6, Math.min(maxLeft, preferredLeft));
+    let top = Math.max(minTop, Math.min(maxTop, pointY - height - 8));
+    const overlaps = (candidateLeft: number, candidateTop: number) => placed.some((item) => (
+      candidateLeft < item.left + item.width + 8
+      && candidateLeft + width + 8 > item.left
+      && candidateTop < item.top + item.height + 8
+      && candidateTop + height + 8 > item.top
+    ));
+
+    if (overlaps(left, top)) {
+      const alternateLeft = Math.max(
+        6,
+        Math.min(maxLeft, point.x <= CENTER_X ? pointX - width - 24 : pointX + 24),
+      );
+      const alternateTop = Math.max(minTop, Math.min(maxTop, pointY + 14));
+      if (!overlaps(alternateLeft, alternateTop)) {
+        left = alternateLeft;
+        top = alternateTop;
+      } else {
+        top = alternateTop;
+      }
+    }
+
+    const anchorX = pointX < left
+      ? left
+      : pointX > left + width
+        ? left + width
+        : left + width / 2;
+    const anchorY = pointY < top
+      ? top + height / 2
+      : pointY > top + height
+        ? top + height / 2
+        : Math.max(top + 10, Math.min(top + height - 10, pointY));
+
+    placed.push({ activity, point, left, top, width, height, pointX, pointY, anchorX, anchorY });
+  });
+
+  return placed;
+}
+
 const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgGlobeEngine({
   cities,
   friends = [],
@@ -390,6 +462,15 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
       : welcomeActivityCityCount === 0
         ? `No host-verified completions in the last ${welcomeActivityWindowDays} days yet.`
         : 'Verified activity is available, but no supported city location is mapped yet.';
+  const welcomeActivityCallouts = welcomeMode
+    ? positionWelcomeActivityCallouts(
+      projectedWelcomeActivityCities,
+      stageSize,
+      globeScale,
+      globeOffsetX,
+      globeOffsetY,
+    )
+    : [];
 
   return (
     <View
@@ -533,8 +614,8 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
             }) : null}
             {welcomeMode ? projectedWelcomeActivityCities.map(({ activity, point }) => (
               <G key={`welcome-city-${activity.city}`}>
-                <Circle cx={point.x} cy={point.y} r="13" fill={colors.primary} fillOpacity="0.16" />
-                <Circle cx={point.x} cy={point.y} r="5.2" fill={colors.primary} stroke={welcomeColors.foreground} strokeOpacity="0.9" strokeWidth="1.3" />
+                <Circle cx={point.x} cy={point.y} r="13" fill={colors.primary} fillOpacity="0.22" />
+                <Circle cx={point.x} cy={point.y} r="6.2" fill={colors.primary} stroke={welcomeColors.gold} strokeOpacity="0.95" strokeWidth="2" />
                 <Circle cx={point.x} cy={point.y} r="1.6" fill={welcomeColors.foreground} />
               </G>
             )) : null}
@@ -600,14 +681,57 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
           ) : null}
         </Svg>
         <View style={[styles.markerLayer, { pointerEvents: 'box-none' }]}>
-          {welcomeMode && globeScale > 0 ? projectedWelcomeActivityCities.map(({ activity, point }) => {
-            const cardWidth = 142;
-            const cardHeight = 54;
-            const pointX = globeOffsetX + point.x * globeScale;
-            const pointY = globeOffsetY + point.y * globeScale;
-            const preferredLeft = point.x <= CENTER_X ? pointX + 10 : pointX - cardWidth - 10;
-            const left = Math.max(6, Math.min(stageSize.width - cardWidth - 6, preferredLeft));
-            const top = Math.max(6, Math.min(stageSize.height - cardHeight - 6, pointY - cardHeight - 8));
+          {welcomeMode && welcomeActivityCities.length > 0 ? (
+            <View
+              testID="welcome-activity-key"
+              accessible
+              accessibilityLabel={`Host-verified completions in the last ${welcomeActivityWindowDays} days.`}
+              style={[StyleSheet.absoluteFill, styles.welcomeActivityKeyLayer, { pointerEvents: 'none' }]}
+            >
+              <View style={[
+                styles.welcomeActivityKey,
+                {
+                  backgroundColor: `${welcomeColors.background}E8`,
+                  borderColor: `${welcomeColors.foreground}38`,
+                },
+              ]}>
+                <View style={[styles.welcomeActivityKeyIcon, { backgroundColor: `${colors.primary}28` }]}>
+                  <Feather name="check-circle" size={13} color={colors.primary} />
+                </View>
+                <Text style={[styles.welcomeActivityKeyTitle, { color: welcomeColors.foreground }]}>
+                  Host-verified completions
+                </Text>
+                <View style={[styles.welcomeActivityKeyDivider, { backgroundColor: `${welcomeColors.foreground}38` }]} />
+                <Text style={[styles.welcomeActivityKeyPeriod, { color: welcomeColors.muted }]}>
+                  Last {welcomeActivityWindowDays} days
+                </Text>
+              </View>
+            </View>
+          ) : null}
+          {welcomeMode && welcomeActivityCallouts.length > 0 ? (
+            <Svg
+              width="100%"
+              height="100%"
+              viewBox={`0 0 ${stageSize.width} ${stageSize.height}`}
+              style={styles.welcomeLeaderLayer}
+            >
+              {welcomeActivityCallouts.map(({ activity, pointX, pointY, anchorX, anchorY }) => (
+                <Line
+                  key={`welcome-activity-leader-${activity.city}`}
+                  testID={`welcome-activity-leader-${activity.city.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                  x1={pointX}
+                  y1={pointY}
+                  x2={anchorX}
+                  y2={anchorY}
+                  stroke={welcomeColors.gold}
+                  strokeOpacity="0.8"
+                  strokeWidth="1.2"
+                  strokeDasharray="3 3"
+                />
+              ))}
+            </Svg>
+          ) : null}
+          {welcomeMode ? welcomeActivityCallouts.map(({ activity, left, top, width, height }) => {
             return (
               <View
                 key={`welcome-activity-${activity.city}`}
@@ -620,8 +744,8 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
                     pointerEvents: 'none',
                     left,
                     top,
-                    width: cardWidth,
-                    minHeight: cardHeight,
+                    width,
+                    minHeight: height,
                     borderColor: `${welcomeColors.foreground}38`,
                     shadowColor: welcomeColors.background,
                   },
@@ -639,14 +763,17 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
                   )}
                 </View>
                 <View style={[styles.welcomeActivityIcon, { backgroundColor: `${colors.primary}28` }]}>
-                  <Feather name="users" size={15} color={colors.primary} />
+                  <Feather name="check-circle" size={15} color={colors.primary} />
                 </View>
                 <View style={styles.welcomeActivityCopy}>
                   <Text numberOfLines={1} style={[styles.welcomeActivityCity, { color: welcomeColors.foreground }]}>
                     {activity.city}
                   </Text>
                   <Text numberOfLines={1} style={[styles.welcomeActivityMetric, { color: welcomeColors.muted }]}>
-                    {activity.verifiedCompletions} verified · {welcomeActivityWindowDays}d
+                    <Text style={{ color: welcomeColors.gold, fontFamily: 'Inter_700Bold' }}>
+                      {activity.verifiedCompletions}
+                    </Text>
+                    {' verified completions'}
                   </Text>
                 </View>
               </View>
@@ -868,6 +995,23 @@ export const ExploreGlobe = React.forwardRef<ExploreGlobeHandle, Props>(function
 const styles = StyleSheet.create({
   welcomeRoot: { flex: 1, height: '100%', width: '100%', position: 'relative', overflow: 'visible', pointerEvents: 'none' },
   welcomeGlobeStage: { flex: 1, height: '100%', width: '100%', position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  welcomeActivityKeyLayer: { alignItems: 'center', paddingTop: 8, zIndex: 6 },
+  welcomeActivityKey: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderRadius: 99,
+  },
+  welcomeActivityKeyIcon: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  welcomeActivityKeyTitle: { fontSize: 9, lineHeight: 12, fontFamily: 'Inter_700Bold' },
+  welcomeActivityKeyDivider: { width: 1, height: 14 },
+  welcomeActivityKeyPeriod: { fontSize: 8, lineHeight: 11, fontFamily: 'Inter_500Medium' },
+  welcomeLeaderLayer: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 3, pointerEvents: 'none' },
   welcomeActivityPopover: {
     position: 'absolute',
     zIndex: 5,

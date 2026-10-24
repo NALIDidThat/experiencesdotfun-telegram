@@ -15,5 +15,7 @@ export const modules: ModuleMap = {
   "./components/mockups/experience-details/Reference.tsx": () => import("../components/mockups/experience-details/Reference.tsx"),
   "./components/mockups/fundraiser-card/Current.tsx": () => import("../components/mockups/fundraiser-card/Current.tsx"),
   "./components/mockups/fundraiser-card/ImpactFocused.tsx": () => import("../components/mockups/fundraiser-card/ImpactFocused.tsx"),
+  "./components/mockups/welcome-globe/Clearer.tsx": () => import("../components/mockups/welcome-globe/Clearer.tsx"),
+  "./components/mockups/welcome-globe/Current.tsx": () => import("../components/mockups/welcome-globe/Current.tsx"),
   "./components/mockups/welcome-screen/Current.tsx": () => import("../components/mockups/welcome-screen/Current.tsx")
 };
