@@ -231,7 +231,7 @@ export function OrganisationHomeScreen({ user, go }: Props) {
             <View style={[styles.workspaceArtwork, { backgroundColor: `${item.tint}12`, borderColor: `${item.tint}20` }]}>
               <Image source={item.image} style={styles.workspaceArtworkImage} resizeMode="contain" accessible={false} />
             </View>
-            <View style={styles.workspaceCopy}><Text numberOfLines={1} style={[styles.workspaceTitle, { color: colors.foreground }]}>{item.title}</Text><Text numberOfLines={2} style={[styles.workspaceDetail, { color: colors.mutedForeground }]}>{item.detail}</Text></View>
+            <View style={styles.workspaceCopy}><Text numberOfLines={2} style={[styles.workspaceTitle, { color: colors.foreground }]}>{item.title}</Text><Text numberOfLines={3} style={[styles.workspaceDetail, { color: colors.mutedForeground }]}>{item.detail}</Text></View>
             <View style={[styles.workspaceChevron, { backgroundColor: colors.muted }]}>
               <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
             </View>
@@ -313,13 +313,13 @@ const styles = StyleSheet.create({
   textAction: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   workspaceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  workspaceCard: { minHeight: 84, width: '48%', flexGrow: 1, flexBasis: '44%', borderWidth: 1, borderRadius: 18, paddingHorizontal: 10, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  workspaceArtwork: { width: 46, height: 46, flexShrink: 0, borderWidth: 1, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  workspaceArtworkImage: { width: 42, height: 42 },
-  workspaceChevron: { width: 22, height: 22, flexShrink: 0, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  workspaceCard: { minHeight: 100, width: '48%', flexGrow: 1, flexBasis: '44%', borderWidth: 1, borderRadius: 18, paddingHorizontal: 8, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  workspaceArtwork: { width: 40, height: 40, flexShrink: 0, borderWidth: 1, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  workspaceArtworkImage: { width: 38, height: 38 },
+  workspaceChevron: { width: 18, height: 18, flexShrink: 0, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   workspaceIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   workspaceCopy: { flex: 1, minWidth: 0, gap: 3 },
-  workspaceTitle: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  workspaceTitle: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_700Bold' },
   workspaceDetail: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
   noticeCard: { minHeight: 58, borderWidth: 1, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   noticeText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium' },
