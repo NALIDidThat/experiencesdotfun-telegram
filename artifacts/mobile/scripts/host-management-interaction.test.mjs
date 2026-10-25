@@ -315,19 +315,19 @@ async function revealParticipantControl(client, testId) {
 
 async function replaceInput(client, testId, value, options) {
   await tapTestId(client, testId, options);
-  await client.send("Input.dispatchKeyEvent", {
-    type: "keyDown",
-    key: "a",
-    code: "KeyA",
-    modifiers: 2,
-  });
-  await client.send("Input.dispatchKeyEvent", {
-    type: "keyUp",
-    key: "a",
-    code: "KeyA",
-    modifiers: 2,
-  });
+  const selector = `[data-testid="${testId}"]`;
+  const focused = await client.evaluate(`(() => {
+    const input = document.querySelector(${JSON.stringify(selector)});
+    if (!input) return false;
+    input.focus();
+    if (typeof input.select === "function") input.select();
+    else if (typeof input.setSelectionRange === "function") input.setSelectionRange(0, input.value.length);
+    return input.ownerDocument.activeElement === input;
+  })()`);
+  assert.equal(focused, true, `Expected ${testId} to be focused before replacing its value.`);
   await client.send("Input.insertText", { text: value });
+  const actualValue = await client.evaluate(`document.querySelector(${JSON.stringify(selector)})?.value ?? null`);
+  assert.equal(actualValue, value, `Expected ${testId} to contain the replacement value.`);
 }
 
 function apiResponseHeaders(request, origin) {
@@ -2118,8 +2118,12 @@ test("charities can review and launch a fund with an attached Experience", async
   await tapTestId(client, "fund-create-continue");
   await waitForValue(
     client,
-    `document.querySelector('[data-testid="fund-create-step-heading"]')?.innerText?.includes('Check everything before launch') ?? false`,
-    Boolean,
+    `({
+      heading: document.querySelector('[data-testid="fund-create-step-heading"]')?.innerText ?? null,
+      error: document.querySelector('[data-testid="fund-create-error"]')?.innerText ?? null,
+      targets: [...document.querySelectorAll('[data-testid^="fund-milestone-"][data-testid$="-target"]')].map((input) => input.value),
+    })`,
+    (value) => value?.heading?.includes("Check everything before launch") ?? false,
     "the final review step",
   );
 
