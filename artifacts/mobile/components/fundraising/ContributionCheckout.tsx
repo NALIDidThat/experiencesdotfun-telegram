@@ -158,17 +158,23 @@ export function ContributeToFund({ fund }: { fund: OrganisationFund }) {
 
   if (closed) return <Notice text="This campaign is closed and is not accepting new contributions." />;
   return (
-    <View style={{ borderWidth: 1, borderColor: colors.primary + "24", borderRadius: colors.radius + 1, backgroundColor: colors.primary + "08", padding: 12, gap: 10 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <View style={{ width: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "16" }}>
-          <Feather name="heart" size={15} color={colors.primary} />
-        </View>
-        <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_700Bold" }}>Support this fundraiser</Text>
-      </View>
+    <View style={{
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: colors.radius + 8,
+      backgroundColor: colors.card,
+      padding: 12,
+      gap: 10,
+      shadowColor: "#170d20",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      elevation: 2,
+    }}>
       <View style={{ flexDirection: "row", gap: 8 }}>
         {["0.1", "0.5", "1"].map((q) => (
           <Pressable key={q} accessibilityRole="button" accessibilityLabel={`Set amount to ${q} SOL`} accessibilityState={{ selected: amount === q }} testID={`contribute-quick-${fund.id}-${q.replace(".", "-")}`} onPress={() => { setAmount(q); setError(null); }}
-            style={{ flex: 1, minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 12, borderWidth: 1, borderColor: amount === q ? colors.primary : colors.border, backgroundColor: amount === q ? colors.primary : colors.card }}>
+            style={{ flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 12, borderWidth: 1, borderColor: amount === q ? colors.primary : colors.border, backgroundColor: amount === q ? colors.primary : colors.muted }}>
             <Text style={{ color: amount === q ? colors.primaryForeground : colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>{q} SOL</Text>
           </Pressable>
         ))}
