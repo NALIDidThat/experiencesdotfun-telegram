@@ -5787,6 +5787,20 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           setSelectedProfileMetric(metric);
         }}
       />
+      {current.userType !== 'participant' ? (
+        <OrganisationActivityDashboard
+          overview={hostOverview.data}
+          experiences={hosted.data}
+          overviewIsLoading={hostOverview.isLoading}
+          overviewHasError={hostOverview.isError}
+          experiencesIsLoading={hosted.isLoading}
+          experiencesHaveError={hosted.isError}
+          onRetryOverview={() => { void hostOverview.refetch(); }}
+          onRetryExperiences={() => { void hosted.refetch(); }}
+          onOpenExperience={(id) => go('host-detail', { id: String(id) })}
+          onCreateExperience={() => go('create')}
+        />
+      ) : null}
       {current.userType === 'organisation' && current.organisation?.type === 'charity' ? (
         <OrganisationFundraiserSection organisationUserId={current.id} canLaunch onLaunch={() => go('funds')} />
       ) : null}
@@ -5814,22 +5828,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
             </View>
           )) : <Text style={[styles.mutedParagraph, { color: colors.mutedForeground }]}>Verified contributions will appear here.</Text>}
         </>
-      ) : (
-        <>
-          <OrganisationActivityDashboard
-            overview={hostOverview.data}
-            experiences={hosted.data}
-            overviewIsLoading={hostOverview.isLoading}
-            overviewHasError={hostOverview.isError}
-            experiencesIsLoading={hosted.isLoading}
-            experiencesHaveError={hosted.isError}
-            onRetryOverview={() => { void hostOverview.refetch(); }}
-            onRetryExperiences={() => { void hosted.refetch(); }}
-            onOpenExperience={(id) => go('host-detail', { id: String(id) })}
-            onCreateExperience={() => go('create')}
-          />
-        </>
-      )}
+      ) : null}
 
       <Pressable
         testID="profile-friends-overview"

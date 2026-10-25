@@ -17,6 +17,7 @@
 - [React Native Web disclosure state](react-native-web-disclosure-state.md) — set explicit `aria-expanded` alongside native accessibility state on expandable controls.
 - [Transitive package overrides](transitive-package-overrides.md) — security overrides can cross CJS/ESM boundaries; verify them through the consuming package's workspace resolution.
 - [OpenAPI date-only fields](openapi-date-only-fields.md) — keep date-only wire values as strings when generating Zod schemas with Orval.
+- [OpenAPI URL regex escaping](openapi-url-regex-escaping.md) — escape slash pairs in schema patterns and verify generated Zod regexes so Orval preserves URL prefixes.
 - [Supabase database connectivity](supabase-pooler.md) — use the Session Pooler and confirm runtime/secret scope before external schema writes.
 - [Drizzle push filters](drizzle-push-filters.md) — inspect verbose push output against external databases; a configured table filter may still produce broad DDL.
 - [Expo preview API mocks](expo-preview-api-mocking.md) — mock CORS preflight requests before asserting an authenticated Expo web preview has restored its test session.

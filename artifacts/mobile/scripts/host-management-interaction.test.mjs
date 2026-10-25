@@ -425,6 +425,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
 
   const client = await launchBrowser(t);
   const { user, experience, people } = makeFixtures();
+  user.organisation.type = "charity";
   const requests = [];
   const apiTraffic = [];
   const unexpectedApiRequests = [];
@@ -535,6 +536,8 @@ test("organisation hosts can manage experience participants from a phone-sized d
           response = { notifications: [], unreadCount: 0 };
         } else if (url.pathname === "/api/organisations/verification" && method === "GET") {
           response = { status: "unsubmitted" };
+        } else if (url.pathname === `/api/funds/${user.id}` && method === "GET") {
+          response = [];
         } else if (url.pathname === "/api/host/overview" && method === "GET") {
           response = hostOverview();
         } else if (url.pathname === "/api/host/experiences" && method === "GET") {
@@ -690,6 +693,20 @@ test("organisation hosts can manage experience participants from a phone-sized d
   assert.ok(missionCardText.includes("OUR MISSION"), "The organisation mission card should retain its label.");
   assert.ok(missionCardText.includes("A temporary in-memory host fixture."), "The organisation mission card should show its current description.");
   assert.ok(missionCardText.includes("Environmental"), "The organisation mission card should retain its cause category.");
+  const profileSectionOrder = await client.evaluate(`(() => {
+    const mission = document.querySelector('[data-testid="organisation-profile-mission"]');
+    const activity = document.querySelector('[data-testid="organisation-activity-dashboard"]');
+    const fundraisers = document.querySelector('[data-testid="organisation-fundraiser-section"]');
+    if (!mission || !activity || !fundraisers) return false;
+    const missionBeforeActivity = mission.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING;
+    const activityBeforeFundraisers = activity.compareDocumentPosition(fundraisers) & Node.DOCUMENT_POSITION_FOLLOWING;
+    return Boolean(missionBeforeActivity && activityBeforeFundraisers);
+  })()`);
+  assert.equal(
+    profileSectionOrder,
+    true,
+    "The organisation activity dashboard should appear below its mission and above fundraisers.",
+  );
   const organisationStats = await client.evaluate(`(() => ({
     stats: [...document.querySelectorAll('[data-testid^="organisation-activity-stat-"]')]
       .map((element) => element.innerText.replace(/[^\\x20-\\x7E]/g, ' ').replace(/\\s+/g, ' ').trim()),

@@ -673,7 +673,7 @@ export function OrganisationFundraiserSection({
   }
   if (!query.isLoading && !query.isError && !query.data?.length && !canLaunch) return null;
   return (
-    <View style={{ gap: 12, marginTop: 20 }}>
+    <View testID="organisation-fundraiser-section" style={{ gap: 12, marginTop: 20 }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={{ color: colors.foreground, fontSize: 20, fontFamily: "Inter_700Bold" }}>{canLaunch ? "Your fundraisers" : "Support their work"}</Text>
