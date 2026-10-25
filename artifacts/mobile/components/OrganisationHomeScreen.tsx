@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -112,10 +112,10 @@ export function OrganisationHomeScreen({ user, go }: Props) {
   );
 
   const workspace = [
-    { title: 'Experiences', detail: overview.isLoading ? 'Loading…' : overview.isError ? 'Unavailable' : `${overview.data?.upcomingExperiences ?? 0} active · ${overview.data?.totalExperiences ?? 0} total`, icon: 'calendar' as const, tint: colors.primary, target: 'host' as const },
-    { title: 'Reviews', detail: overview.isLoading ? 'Loading…' : overview.isError ? 'Unavailable' : `${reviewCount} awaiting review`, icon: 'users' as const, tint: colors.teal, target: 'host' as const },
-    { title: isCharity ? 'Fundraising' : 'Organisation profile', detail: isCharity ? 'Manage charity campaigns' : 'View profile and verification', icon: isCharity ? 'bar-chart-2' as const : 'briefcase' as const, tint: colors.secondary, target: isCharity ? 'funds' as const : 'profile' as const },
-    ...(isCharity ? [{ title: 'Treasury', detail: treasury.isLoading ? 'Checking balance…' : treasury.isError ? 'Balance unavailable' : `${treasury.data?.balanceSol ?? '—'} SOL on-chain`, icon: 'credit-card' as const, tint: colors.primary, target: 'funds' as const }] : []),
+    { title: 'Experiences', detail: overview.isLoading ? 'Loading…' : overview.isError ? 'Unavailable' : `${overview.data?.upcomingExperiences ?? 0} active · ${overview.data?.totalExperiences ?? 0} total`, image: require('../assets/images/organisation-experiences-3d.png'), tint: colors.primary, target: 'host' as const },
+    { title: 'Reviews', detail: overview.isLoading ? 'Loading…' : overview.isError ? 'Unavailable' : `${reviewCount} awaiting review`, image: require('../assets/images/organisation-reviews-3d.png'), tint: colors.teal, target: 'host' as const },
+    { title: isCharity ? 'Fundraising' : 'Organisation profile', detail: isCharity ? 'Manage charity campaigns' : 'View profile and verification', image: isCharity ? require('../assets/images/organisation-fundraising-3d.png') : require('../assets/images/organisation-profile-3d.png'), tint: colors.secondary, target: isCharity ? 'funds' as const : 'profile' as const },
+    ...(isCharity ? [{ title: 'Treasury', detail: treasury.isLoading ? 'Checking balance…' : treasury.isError ? 'Balance unavailable' : `${treasury.data?.balanceSol ?? '—'} SOL on-chain`, image: require('../assets/images/organisation-treasury-3d.png'), tint: colors.primary, target: 'funds' as const }] : []),
   ];
 
   return (
@@ -227,10 +227,14 @@ export function OrganisationHomeScreen({ user, go }: Props) {
       {sectionTitle('Your workspace', 'Manage organisation', () => go('profile'))}
       <View style={styles.workspaceGrid}>
         {workspace.map((item) => (
-          <Pressable key={item.title} accessibilityRole="button" accessibilityLabel={`${item.title}: ${item.detail}`} onPress={() => go(item.target)} style={({ pressed }) => [styles.workspaceCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.76 : 1 }]}>
-            <View style={[styles.workspaceIcon, { backgroundColor: `${item.tint}18` }]}><Feather name={item.icon} size={19} color={item.tint} /></View>
+          <Pressable key={item.title} testID={`organisation-workspace-${item.title.toLowerCase().replaceAll(' ', '-')}`} accessibilityRole="button" accessibilityLabel={`${item.title}: ${item.detail}`} onPress={() => go(item.target)} style={({ pressed }) => [styles.workspaceCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.76 : 1 }]}>
+            <View style={[styles.workspaceArtwork, { backgroundColor: `${item.tint}12`, borderColor: `${item.tint}20` }]}>
+              <Image source={item.image} style={styles.workspaceArtworkImage} resizeMode="contain" accessible={false} />
+            </View>
             <View style={styles.workspaceCopy}><Text numberOfLines={1} style={[styles.workspaceTitle, { color: colors.foreground }]}>{item.title}</Text><Text numberOfLines={2} style={[styles.workspaceDetail, { color: colors.mutedForeground }]}>{item.detail}</Text></View>
-            <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+            <View style={[styles.workspaceChevron, { backgroundColor: colors.muted }]}>
+              <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+            </View>
           </Pressable>
         ))}
       </View>
@@ -309,7 +313,10 @@ const styles = StyleSheet.create({
   textAction: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   workspaceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  workspaceCard: { minHeight: 76, width: '48%', flexGrow: 1, flexBasis: '44%', borderWidth: 1, borderRadius: 16, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  workspaceCard: { minHeight: 84, width: '48%', flexGrow: 1, flexBasis: '44%', borderWidth: 1, borderRadius: 18, paddingHorizontal: 10, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  workspaceArtwork: { width: 46, height: 46, flexShrink: 0, borderWidth: 1, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  workspaceArtworkImage: { width: 42, height: 42 },
+  workspaceChevron: { width: 22, height: 22, flexShrink: 0, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   workspaceIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   workspaceCopy: { flex: 1, minWidth: 0, gap: 3 },
   workspaceTitle: { fontSize: 12, fontFamily: 'Inter_700Bold' },
