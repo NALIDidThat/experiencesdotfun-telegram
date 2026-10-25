@@ -580,8 +580,8 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
         </View>
 
         <View style={{ gap: 3 }}>
-          <Text numberOfLines={descriptionExpanded ? undefined : 3} style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>{fund.description}</Text>
-          {fund.description.length > 150 ? (
+          <Text numberOfLines={descriptionExpanded ? undefined : 2} style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 18 }}>{fund.description}</Text>
+          {fund.description.length > 110 ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={descriptionExpanded ? "Show less campaign information" : "Read full campaign information"}
@@ -600,14 +600,14 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
         <FundOutcomeReports fund={fund} />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={trackerExpanded ? "Hide campaign tracker" : "View campaign tracker"}
+          accessibilityLabel={trackerExpanded ? "Hide campaign tracker" : "View campaign progress and outcomes"}
           accessibilityState={{ expanded: trackerExpanded }}
           testID={`fund-tracker-toggle-${fund.id}`}
           onPress={() => setTrackerExpanded((expanded) => !expanded)}
-          style={{ minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1, borderColor: colors.primary + "35", borderRadius: colors.radius - 5, backgroundColor: colors.primary + "08", paddingHorizontal: 12 }}
+          style={{ minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius - 5, backgroundColor: colors.background, paddingHorizontal: 12 }}
         >
           <Feather name={trackerExpanded ? "chevron-up" : "bar-chart-2"} size={15} color={colors.primary} />
-          <Text style={{ color: colors.primary, fontSize: 12, fontFamily: "Inter_700Bold" }}>{trackerExpanded ? "Hide campaign tracker" : "View campaign tracker"}</Text>
+          <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{trackerExpanded ? "Hide progress & outcomes" : "Progress & outcomes"}</Text>
         </Pressable>
         {trackerExpanded ? <CampaignTrackerInsights fund={fund} showProgress={false} /> : null}
         <ContributeToFund fund={fund} />
@@ -615,7 +615,7 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Feather name="shield" size={13} color={colors.mutedForeground} />
             <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>
-              Shared charity treasury · Solana {fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}
+              Shared treasury · Solana {fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}
             </Text>
             <Pressable
               accessibilityRole="button"
@@ -630,9 +630,9 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
               <Feather name="share" size={15} color={colors.primary} />
             </Pressable>
           </View>
-          <Text selectable style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15, fontFamily: "Inter_500Medium" }}>{fund.walletAddress}</Text>
+          <Text numberOfLines={2} selectable style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 14, fontFamily: "Inter_500Medium" }}>{fund.walletAddress}</Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 14 }}>
-            Approve in your wallet. Contributions are verified on chain before they count; confirmed transfers can’t be reversed.
+            Wallet approval required · confirmed transfers can’t be reversed.
           </Text>
         </View>
       </View>

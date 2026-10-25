@@ -181,8 +181,8 @@ export function ContributeToFund({ fund }: { fund: OrganisationFund }) {
         <Btn label="Contribute" busy={create.isPending} testID={`donate-${fund.id}`} onPress={start} />
       </View>
       {error ? <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 11, lineHeight: 16 }}>{error}</Text> : null}
-      <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15 }}>
-        You will get a payment request first. Nothing is counted until the transfer is verified on chain.
+      <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 14 }}>
+        Payment request first · counted after on-chain verification.
       </Text>
       <ContributionSheet contribution={active} visible={!!active} onClose={close} />
     </View>

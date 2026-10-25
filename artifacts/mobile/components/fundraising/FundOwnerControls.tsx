@@ -3,19 +3,47 @@ import { Text, TextInput, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateOrganisationFund } from "@workspace/api-client-react";
 import type { OrganisationFund } from "@workspace/api-client-react";
+import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { Btn, Card, Notice, apiErrorMessage, refreshFundData } from "./shared";
+import { formatSol } from "./format-sol.mjs";
 
 export function FundStats({ fund }: { fund: OrganisationFund }) {
   const colors = useColors();
+  const goal = Number(fund.goalSol);
+  const raised = Number(fund.raisedSol);
+  const progress = Number.isFinite(goal) && goal > 0 && Number.isFinite(raised)
+    ? Math.max(0, Math.min(100, (raised / goal) * 100))
+    : 0;
+  const depositLabel = `${fund.contributionCount} verified ${fund.contributionCount === 1 ? "deposit" : "deposits"}`;
   return (
-    <View style={{ gap: 3 }} accessibilityLabel={`${fund.raisedSol} SOL recorded from ${fund.contributionCount} finalized deposits, goal ${fund.goalSol} SOL`}>
-      <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold" }}>
-        {fund.raisedSol} SOL <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium" }}>raised of {fund.goalSol.toLocaleString()} SOL goal</Text>
-      </Text>
-      <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15 }}>
-        {fund.contributionCount} recorded finalized {fund.contributionCount === 1 ? "deposit" : "deposits"}. Progress counts recorded deposits, not the treasury balance.
-      </Text>
+    <View
+      testID={`fund-stats-${fund.id}`}
+      style={{ gap: 9 }}
+      accessibilityLabel={`${formatSol(fund.raisedSol)} SOL raised from ${depositLabel}; campaign goal ${formatSol(fund.goalSol)} SOL`}
+    >
+      <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 8 }}>
+        <View style={{ flexDirection: "row", alignItems: "baseline", gap: 5 }}>
+          <Text style={{ color: colors.foreground, fontSize: 23, lineHeight: 28, fontFamily: "Inter_700Bold" }}>{formatSol(fund.raisedSol)}</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>SOL raised</Text>
+        </View>
+        <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>Goal · {formatSol(fund.goalSol)} SOL</Text>
+      </View>
+      <View
+        accessibilityRole="progressbar"
+        accessibilityLabel="Funding progress from verified campaign deposits"
+        accessibilityValue={{ min: 0, max: 100, now: Math.min(100, Math.round(progress)) }}
+        style={{ height: 7, borderRadius: 99, backgroundColor: colors.muted, overflow: "hidden" }}
+      >
+        <View style={{ width: `${progress}%`, height: "100%", borderRadius: 99, backgroundColor: colors.primary }} />
+      </View>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+          <Feather name="check-circle" size={12} color={colors.mutedForeground} />
+          <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>{depositLabel}</Text>
+        </View>
+        <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>Campaign-only</Text>
+      </View>
     </View>
   );
 }
