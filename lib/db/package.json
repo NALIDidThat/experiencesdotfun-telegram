@@ -14,6 +14,7 @@
     "migrate:fundraising": "node ./scripts/apply-fundraising-ledger.mjs",
     "migrate:fund-experience-link": "node ./scripts/apply-fund-experience-link.mjs",
     "migrate:fund-milestones": "node ./scripts/apply-fund-campaign-milestones.mjs",
+    "migrate:fund-outcome-reports": "node ./scripts/apply-fund-outcome-reports.mjs",
     "migrate:telegram-community-moderation": "node ./scripts/apply-telegram-community-moderation.mjs",
     "migrate:telegram-community-link-rules": "node ./scripts/apply-telegram-community-link-rules.mjs"
   },

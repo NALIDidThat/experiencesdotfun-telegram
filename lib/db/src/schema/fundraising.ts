@@ -35,6 +35,25 @@ export const organisationFundMilestonesTable = pgTable("organisation_fund_milest
   targetCheck: check("organisation_fund_milestones_target_check", sql`${table.targetSol} > 0 AND ${table.targetSol} <= 1000000000`),
 }));
 
+export const organisationFundOutcomeReportsTable = pgTable("organisation_fund_outcome_reports", {
+  id: serial("id").primaryKey(),
+  milestoneId: integer("milestone_id").notNull().references(() => organisationFundMilestonesTable.id, { onDelete: "restrict" }),
+  reportedByUserId: integer("reported_by_user_id").notNull().references(() => usersTable.id, { onDelete: "restrict" }),
+  milestoneTitle: text("milestone_title").notNull(),
+  plannedOutcome: text("planned_outcome").notNull(),
+  status: text("status").notNull(),
+  updateText: text("update_text").notNull(),
+  evidenceUrl: text("evidence_url"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  milestoneCreatedIndex: index("organisation_fund_outcome_reports_milestone_created_idx").on(table.milestoneId, table.createdAt, table.id),
+  statusCheck: check("organisation_fund_outcome_reports_status_check", sql`${table.status} IN ('in_progress', 'completed', 'blocked')`),
+  milestoneTitleLengthCheck: check("organisation_fund_outcome_reports_title_length_check", sql`char_length(${table.milestoneTitle}) BETWEEN 3 AND 80`),
+  plannedOutcomeLengthCheck: check("organisation_fund_outcome_reports_planned_outcome_length_check", sql`char_length(${table.plannedOutcome}) BETWEEN 10 AND 300`),
+  updateLengthCheck: check("organisation_fund_outcome_reports_update_length_check", sql`char_length(${table.updateText}) BETWEEN 10 AND 600`),
+  evidenceUrlCheck: check("organisation_fund_outcome_reports_evidence_url_check", sql`${table.evidenceUrl} IS NULL OR (char_length(${table.evidenceUrl}) <= 2048 AND ${table.evidenceUrl} ~* '^https://')`),
+}));
+
 export const organisationTreasuriesTable = pgTable("organisation_treasuries", {
   id: serial("id").primaryKey(),
   organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id),

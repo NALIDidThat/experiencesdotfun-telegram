@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { FundMilestoneOutcomeReport } from './fundMilestoneOutcomeReport';
 
 export interface OrganisationFundMilestone {
   id: number;
@@ -22,4 +23,5 @@ export interface OrganisationFundMilestone {
   outcome: string;
   /** @pattern ^\d+(?:\.\d{0,9})?$ */
   targetSol: string;
+  outcomeReports: FundMilestoneOutcomeReport[];
 }

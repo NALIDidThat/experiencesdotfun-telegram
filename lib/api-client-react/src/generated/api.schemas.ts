@@ -512,6 +512,39 @@ export interface OrganisationVerificationStatus {
   application: OrganisationVerificationStatusApplication;
 }
 
+export type FundMilestoneOutcomeReportStatus = typeof FundMilestoneOutcomeReportStatus[keyof typeof FundMilestoneOutcomeReportStatus];
+
+
+export const FundMilestoneOutcomeReportStatus = {
+  in_progress: 'in_progress',
+  completed: 'completed',
+  blocked: 'blocked',
+} as const;
+
+export interface FundMilestoneOutcomeReport {
+  id: number;
+  milestoneId: number;
+  /**
+     * @minLength 3
+     * @maxLength 80
+     */
+  milestoneTitle: string;
+  /**
+     * @minLength 10
+     * @maxLength 300
+     */
+  plannedOutcome: string;
+  status: FundMilestoneOutcomeReportStatus;
+  /**
+     * @minLength 10
+     * @maxLength 600
+     */
+  updateText: string;
+  /** @nullable */
+  evidenceUrl: string | null;
+  createdAt: string;
+}
+
 export interface OrganisationFundMilestone {
   id: number;
   /** @minimum 1 */
@@ -528,6 +561,21 @@ export interface OrganisationFundMilestone {
   outcome: string;
   /** @pattern ^\d+(?:\.\d{0,9})?$ */
   targetSol: string;
+  outcomeReports: FundMilestoneOutcomeReport[];
+}
+
+export interface FundMilestoneOutcomeReportInput {
+  status: FundMilestoneOutcomeReportStatus;
+  /**
+     * @minLength 10
+     * @maxLength 600
+     */
+  updateText: string;
+  /**
+     * @maxLength 2048
+     * @pattern ^[hH][tT][tT][pP][sS]:\/\//
+     */
+  evidenceUrl?: string;
 }
 
 export interface FundMilestoneInput {

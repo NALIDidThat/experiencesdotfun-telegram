@@ -1,9 +1,10 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Router, type IRouter, type ErrorRequestHandler } from "express";
 import { z } from "zod/v4";
 import {
   db,
   organisationFundMilestonesTable,
+  organisationFundOutcomeReportsTable,
   organisationFundsTable,
   organisationTreasuriesTable,
   organisationsTable,
@@ -13,10 +14,15 @@ import {
 import { currentUser, requireTelegramUser } from "../lib/auth";
 import { canLaunchCharityFund } from "../lib/fund-rules.mjs";
 import { validateFundMilestones } from "../lib/fund-milestone-rules.mjs";
+import { isHttpsEvidenceUrl } from "../lib/fund-outcome-report-rules.mjs";
 import { getSolanaBalance, getSolanaTreasuryActivity, isValidSolanaAddress, lamportsToSol } from "../lib/solana-rpc.mjs";
 import contributionRouter from "./fund-contributions";
 import payoutsRouter from "./fund-payouts";
-import { campaignTotals } from "../lib/fund-ledger";
+import {
+  campaignMilestonesWithOutcomeReports,
+  campaignTotals,
+  getFundContext,
+} from "../lib/fund-ledger";
 
 const router: IRouter = Router();
 router.use(contributionRouter);
@@ -40,6 +46,11 @@ const createFundSchema = z.object({
 }).superRefine((data, context) => {
   const issue = validateFundMilestones(data.milestones ?? [], data.goalSol);
   if (issue) context.addIssue({ code: "custom", path: ["milestones"], message: issue });
+});
+const fundOutcomeReportSchema = z.object({
+  status: z.enum(["in_progress", "completed", "blocked"]),
+  updateText: z.string().trim().min(10).max(600),
+  evidenceUrl: z.string().trim().url().max(2048).refine(isHttpsEvidenceUrl, "Evidence links must use HTTPS.").optional(),
 });
 const treasuryActivityQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(25).default(20),
@@ -186,20 +197,10 @@ router.get("/:organisationUserId", async (req, res): Promise<void> => {
     ))
     .orderBy(desc(organisationFundsTable.createdAt), desc(organisationFundsTable.id));
   const fundIds = rows.map(({ fund }) => fund.id);
-  const [totals, milestoneRows] = await Promise.all([
+  const [totals, milestonesByFund] = await Promise.all([
     campaignTotals(fundIds),
-    fundIds.length
-      ? db.select().from(organisationFundMilestonesTable)
-        .where(inArray(organisationFundMilestonesTable.fundId, fundIds))
-        .orderBy(organisationFundMilestonesTable.fundId, organisationFundMilestonesTable.position)
-      : Promise.resolve([]),
+    campaignMilestonesWithOutcomeReports(fundIds),
   ]);
-  const milestonesByFund = new Map<number, typeof milestoneRows>();
-  for (const milestone of milestoneRows) {
-    const fundMilestones = milestonesByFund.get(milestone.fundId) ?? [];
-    fundMilestones.push(milestone);
-    milestonesByFund.set(milestone.fundId, fundMilestones);
-  }
   res.json(rows.map(({ fund, organisation, treasury, experienceTitle, creatorUsername }) => ({
     id: fund.id,
     organisationId: organisation.id,
@@ -214,12 +215,62 @@ router.get("/:organisationUserId", async (req, res): Promise<void> => {
     cluster: treasury.cluster,
     goalSol: Number(fund.goalSol),
     ...(totals.get(fund.id) ?? { raisedSol: "0.000000000", contributionCount: 0 }),
-    milestones: (milestonesByFund.get(fund.id) ?? []).map(({ id, position, title, outcome, targetSol }) => ({
-      id, position, title, outcome, targetSol,
-    })),
+    milestones: milestonesByFund.get(fund.id) ?? [],
     status: fund.status,
     createdAt: fund.createdAt.toISOString(),
   })));
+});
+
+router.post("/:fundId/milestones/:milestoneId/outcome-reports", requireTelegramUser, async (req, res): Promise<void> => {
+  const fundId = Number(req.params.fundId);
+  const milestoneId = Number(req.params.milestoneId);
+  const parsed = fundOutcomeReportSchema.safeParse(req.body);
+  if (!Number.isSafeInteger(fundId) || fundId <= 0 || !Number.isSafeInteger(milestoneId) || milestoneId <= 0 || !parsed.success) {
+    res.status(400).json({ message: parsed.success ? "Campaign checkpoint not found." : parsed.error.issues[0]?.message ?? "Check the outcome update." });
+    return;
+  }
+
+  const user = currentUser(req);
+  const context = await getFundContext(fundId);
+  if (!context || user.userType !== "organisation" || context.organisation.organisationType !== "charity" || context.organisation.ownerUserId !== user.id) {
+    res.status(404).json({ message: "Campaign not found." });
+    return;
+  }
+
+  const [milestone] = await db.select({
+    id: organisationFundMilestonesTable.id,
+    title: organisationFundMilestonesTable.title,
+    outcome: organisationFundMilestonesTable.outcome,
+  }).from(organisationFundMilestonesTable)
+    .where(and(
+      eq(organisationFundMilestonesTable.id, milestoneId),
+      eq(organisationFundMilestonesTable.fundId, fundId),
+    ))
+    .limit(1);
+  if (!milestone) {
+    res.status(404).json({ message: "Campaign checkpoint not found." });
+    return;
+  }
+
+  const [report] = await db.insert(organisationFundOutcomeReportsTable).values({
+    milestoneId,
+    reportedByUserId: user.id,
+    milestoneTitle: milestone.title,
+    plannedOutcome: milestone.outcome,
+    status: parsed.data.status,
+    updateText: parsed.data.updateText,
+    evidenceUrl: parsed.data.evidenceUrl ?? null,
+  }).returning();
+  res.status(201).json({
+    id: report.id,
+    milestoneId: report.milestoneId,
+    milestoneTitle: report.milestoneTitle,
+    plannedOutcome: report.plannedOutcome,
+    status: report.status,
+    updateText: report.updateText,
+    evidenceUrl: report.evidenceUrl,
+    createdAt: report.createdAt.toISOString(),
+  });
 });
 
 router.post("/", requireTelegramUser, async (req, res): Promise<void> => {
@@ -296,7 +347,7 @@ router.post("/", requireTelegramUser, async (req, res): Promise<void> => {
     raisedSol: "0.000000000",
     contributionCount: 0,
     milestones: storedMilestones.map(({ id, position, title, outcome, targetSol }) => ({
-      id, position, title, outcome, targetSol,
+      id, position, title, outcome, targetSol, outcomeReports: [],
     })),
     status: fund.status,
     createdAt: fund.createdAt.toISOString(),
@@ -307,7 +358,7 @@ const fundraisingErrorHandler: ErrorRequestHandler = (error, req, res, next) => 
   const cause = error?.cause ?? error;
   if (cause?.code === "42P01" || cause?.code === "42703") {
     req.log?.warn({ code: cause.code, message: cause.message }, "Fundraising database migration is missing");
-    res.status(503).json({ message: "Fundraising database setup is pending. The approved migrations must be applied before campaigns, milestones, or donations are available." });
+    res.status(503).json({ message: "Fundraising database setup is pending. The approved migrations must be applied before campaigns, milestones, outcome reports, or donations are available." });
     return;
   }
   next(error);

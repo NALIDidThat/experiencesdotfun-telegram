@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import {
   db, fundContributionsTable as contributions, treasuryDepositsTable as deposits,
   organisationTreasuriesTable as treasuries, organisationFundsTable as funds, organisationsTable,
-  organisationFundMilestonesTable, experiencesTable, usersTable,
+  organisationFundMilestonesTable, organisationFundOutcomeReportsTable, experiencesTable, usersTable,
 } from "@workspace/db";
 import { lamportsToSol } from "./solana-rpc.mjs";
 import { matchesPayment, paymentUri, type SolTransfer } from "./fund-payments.mjs";
@@ -54,6 +54,83 @@ export async function campaignTotals(fundIds: number[]) {
   return new Map(totals.filter((row) => row.fundId !== null).map((row) => [
     row.fundId!, { raisedSol: lamportsToSol(row.amount), contributionCount: row.count },
   ]));
+}
+
+type CampaignMilestoneWithOutcomeReports = {
+  id: number;
+  position: number;
+  title: string;
+  outcome: string;
+  targetSol: string;
+  outcomeReports: Array<{
+    id: number;
+    milestoneId: number;
+    milestoneTitle: string;
+    plannedOutcome: string;
+    status: string;
+    updateText: string;
+    evidenceUrl: string | null;
+    createdAt: string;
+  }>;
+};
+
+export async function campaignMilestonesWithOutcomeReports(fundIds: number[]) {
+  if (!fundIds.length) return new Map<number, CampaignMilestoneWithOutcomeReports[]>();
+
+  const milestones = await db.select({
+    id: organisationFundMilestonesTable.id,
+    fundId: organisationFundMilestonesTable.fundId,
+    position: organisationFundMilestonesTable.position,
+    title: organisationFundMilestonesTable.title,
+    outcome: organisationFundMilestonesTable.outcome,
+    targetSol: organisationFundMilestonesTable.targetSol,
+  }).from(organisationFundMilestonesTable)
+    .where(inArray(organisationFundMilestonesTable.fundId, fundIds))
+    .orderBy(asc(organisationFundMilestonesTable.fundId), asc(organisationFundMilestonesTable.position));
+
+  const milestoneIds = milestones.map((milestone) => milestone.id);
+  const reportRows = milestoneIds.length
+    ? await db.select({
+      id: organisationFundOutcomeReportsTable.id,
+      milestoneId: organisationFundOutcomeReportsTable.milestoneId,
+      milestoneTitle: organisationFundOutcomeReportsTable.milestoneTitle,
+      plannedOutcome: organisationFundOutcomeReportsTable.plannedOutcome,
+      status: organisationFundOutcomeReportsTable.status,
+      updateText: organisationFundOutcomeReportsTable.updateText,
+      evidenceUrl: organisationFundOutcomeReportsTable.evidenceUrl,
+      createdAt: organisationFundOutcomeReportsTable.createdAt,
+    }).from(organisationFundOutcomeReportsTable)
+      .where(inArray(organisationFundOutcomeReportsTable.milestoneId, milestoneIds))
+      .orderBy(
+        asc(organisationFundOutcomeReportsTable.createdAt),
+        asc(organisationFundOutcomeReportsTable.id),
+      )
+    : [];
+
+  const reportsByMilestone = new Map<number, typeof reportRows>();
+  for (const report of reportRows) {
+    const reports = reportsByMilestone.get(report.milestoneId) ?? [];
+    reports.push(report);
+    reportsByMilestone.set(report.milestoneId, reports);
+  }
+
+  const milestonesByFund = new Map<number, CampaignMilestoneWithOutcomeReports[]>();
+  for (const milestone of milestones) {
+    const fundMilestones = milestonesByFund.get(milestone.fundId) ?? [];
+    fundMilestones.push({
+      id: milestone.id,
+      position: milestone.position,
+      title: milestone.title,
+      outcome: milestone.outcome,
+      targetSol: milestone.targetSol,
+      outcomeReports: (reportsByMilestone.get(milestone.id) ?? []).map((report) => ({
+        ...report,
+        createdAt: report.createdAt.toISOString(),
+      })),
+    });
+    milestonesByFund.set(milestone.fundId, fundMilestones);
+  }
+  return milestonesByFund;
 }
 
 export async function campaignActivity(fundId: number, period: "all" | "month") {
@@ -159,24 +236,16 @@ export async function recordTreasuryTransfer(
 
 export async function fundJson(context: NonNullable<Awaited<ReturnType<typeof getFundContext>>>) {
   const { fund, treasury, organisation, creatorUsername, experienceTitle } = context;
-  const [totals, milestones] = await Promise.all([
+  const [totals, milestonesByFund] = await Promise.all([
     campaignTotals([fund.id]),
-    db.select({
-      id: organisationFundMilestonesTable.id,
-      position: organisationFundMilestonesTable.position,
-      title: organisationFundMilestonesTable.title,
-      outcome: organisationFundMilestonesTable.outcome,
-      targetSol: organisationFundMilestonesTable.targetSol,
-    }).from(organisationFundMilestonesTable)
-      .where(eq(organisationFundMilestonesTable.fundId, fund.id))
-      .orderBy(asc(organisationFundMilestonesTable.position)),
+    campaignMilestonesWithOutcomeReports([fund.id]),
   ]);
   return {
     id: fund.id, organisationId: organisation.id, organisationUserId: organisation.ownerUserId,
     organisationName: organisation.name, creatorUsername, title: fund.title, description: fund.description,
     experienceId: fund.experienceId, experienceTitle: experienceTitle ?? null,
     walletAddress: treasury.walletAddress, cluster: treasury.cluster, goalSol: Number(fund.goalSol),
-    milestones,
+    milestones: milestonesByFund.get(fund.id) ?? [],
     status: fund.status, createdAt: fund.createdAt.toISOString(),
     ...(totals.get(fund.id) ?? { raisedSol: "0.000000000", contributionCount: 0 }),
   };

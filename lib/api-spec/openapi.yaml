@@ -648,6 +648,35 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+  /funds/{fundId}/milestones/{milestoneId}/outcome-reports:
+    post:
+      operationId: createFundMilestoneOutcomeReport
+      tags: [host]
+      summary: Record an append-only charity outcome update for a campaign checkpoint
+      description: Outcome reports are charity-authored updates and do not change fundraising progress, verify delivery, or trigger payouts.
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - { name: fundId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: milestoneId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FundMilestoneOutcomeReportInput" }
+      responses:
+        "201":
+          description: Charity outcome update recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FundMilestoneOutcomeReport" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: Campaign or checkpoint not found for the signed-in charity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /challenges:
     get:
       operationId: listExperienceChallenges
@@ -3465,7 +3494,32 @@ components:
         title: { type: string, minLength: 3, maxLength: 80 }
         outcome: { type: string, minLength: 10, maxLength: 300 }
         targetSol: { type: string, pattern: '^\d+(?:\.\d{0,9})?$' }
-      required: [id, position, title, outcome, targetSol]
+        outcomeReports:
+          type: array
+          items: { $ref: "#/components/schemas/FundMilestoneOutcomeReport" }
+      required: [id, position, title, outcome, targetSol, outcomeReports]
+    FundMilestoneOutcomeReportStatus:
+      type: string
+      enum: [in_progress, completed, blocked]
+    FundMilestoneOutcomeReportInput:
+      type: object
+      properties:
+        status: { $ref: "#/components/schemas/FundMilestoneOutcomeReportStatus" }
+        updateText: { type: string, minLength: 10, maxLength: 600 }
+        evidenceUrl: { type: string, format: uri, pattern: '^[hH][tT][tT][pP][sS]:\/\//', maxLength: 2048 }
+      required: [status, updateText]
+    FundMilestoneOutcomeReport:
+      type: object
+      properties:
+        id: { type: integer }
+        milestoneId: { type: integer }
+        milestoneTitle: { type: string, minLength: 3, maxLength: 80 }
+        plannedOutcome: { type: string, minLength: 10, maxLength: 300 }
+        status: { $ref: "#/components/schemas/FundMilestoneOutcomeReportStatus" }
+        updateText: { type: string, minLength: 10, maxLength: 600 }
+        evidenceUrl: { type: [string, "null"], format: uri }
+        createdAt: { type: string, format: date-time }
+      required: [id, milestoneId, milestoneTitle, plannedOutcome, status, updateText, evidenceUrl, createdAt]
     FundMilestoneInput:
       type: object
       properties:

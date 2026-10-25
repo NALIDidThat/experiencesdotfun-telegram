@@ -371,6 +371,15 @@ export const updateOrganisationFundResponseMilestonesItemOutcomeMin = 10;
 export const updateOrganisationFundResponseMilestonesItemOutcomeMax = 300;
 
 export const updateOrganisationFundResponseMilestonesItemTargetSolRegExp = new RegExp('^\\d+(?:\\.\\d{0,9})?$');
+export const updateOrganisationFundResponseMilestonesItemOutcomeReportsItemMilestoneTitleMin = 3;
+export const updateOrganisationFundResponseMilestonesItemOutcomeReportsItemMilestoneTitleMax = 80;
+
+export const updateOrganisationFundResponseMilestonesItemOutcomeReportsItemPlannedOutcomeMin = 10;
+export const updateOrganisationFundResponseMilestonesItemOutcomeReportsItemPlannedOutcomeMax = 300;
+
+export const updateOrganisationFundResponseMilestonesItemOutcomeReportsItemUpdateTextMin = 10;
+export const updateOrganisationFundResponseMilestonesItemOutcomeReportsItemUpdateTextMax = 600;
+
 
 
 export const UpdateOrganisationFundResponse = zod.object({
@@ -393,7 +402,17 @@ export const UpdateOrganisationFundResponse = zod.object({
   "position": zod.number().int().min(1),
   "title": zod.string().min(updateOrganisationFundResponseMilestonesItemTitleMin).max(updateOrganisationFundResponseMilestonesItemTitleMax),
   "outcome": zod.string().min(updateOrganisationFundResponseMilestonesItemOutcomeMin).max(updateOrganisationFundResponseMilestonesItemOutcomeMax),
-  "targetSol": zod.string().regex(updateOrganisationFundResponseMilestonesItemTargetSolRegExp)
+  "targetSol": zod.string().regex(updateOrganisationFundResponseMilestonesItemTargetSolRegExp),
+  "outcomeReports": zod.array(zod.object({
+  "id": zod.number().int(),
+  "milestoneId": zod.number().int(),
+  "milestoneTitle": zod.string().min(updateOrganisationFundResponseMilestonesItemOutcomeReportsItemMilestoneTitleMin).max(updateOrganisationFundResponseMilestonesItemOutcomeReportsItemMilestoneTitleMax),
+  "plannedOutcome": zod.string().min(updateOrganisationFundResponseMilestonesItemOutcomeReportsItemPlannedOutcomeMin).max(updateOrganisationFundResponseMilestonesItemOutcomeReportsItemPlannedOutcomeMax),
+  "status": zod.enum(['in_progress', 'completed', 'blocked']),
+  "updateText": zod.string().min(updateOrganisationFundResponseMilestonesItemOutcomeReportsItemUpdateTextMin).max(updateOrganisationFundResponseMilestonesItemOutcomeReportsItemUpdateTextMax),
+  "evidenceUrl": zod.string().url().nullable(),
+  "createdAt": zod.coerce.date()
+}))
 })),
   "status": zod.enum(['active', 'closed']),
   "createdAt": zod.coerce.date()
@@ -740,6 +759,15 @@ export const createOrganisationFundResponseMilestonesItemOutcomeMin = 10;
 export const createOrganisationFundResponseMilestonesItemOutcomeMax = 300;
 
 export const createOrganisationFundResponseMilestonesItemTargetSolRegExp = new RegExp('^\\d+(?:\\.\\d{0,9})?$');
+export const createOrganisationFundResponseMilestonesItemOutcomeReportsItemMilestoneTitleMin = 3;
+export const createOrganisationFundResponseMilestonesItemOutcomeReportsItemMilestoneTitleMax = 80;
+
+export const createOrganisationFundResponseMilestonesItemOutcomeReportsItemPlannedOutcomeMin = 10;
+export const createOrganisationFundResponseMilestonesItemOutcomeReportsItemPlannedOutcomeMax = 300;
+
+export const createOrganisationFundResponseMilestonesItemOutcomeReportsItemUpdateTextMin = 10;
+export const createOrganisationFundResponseMilestonesItemOutcomeReportsItemUpdateTextMax = 600;
+
 
 
 export const CreateOrganisationFundResponse = zod.object({
@@ -762,7 +790,17 @@ export const CreateOrganisationFundResponse = zod.object({
   "position": zod.number().int().min(1),
   "title": zod.string().min(createOrganisationFundResponseMilestonesItemTitleMin).max(createOrganisationFundResponseMilestonesItemTitleMax),
   "outcome": zod.string().min(createOrganisationFundResponseMilestonesItemOutcomeMin).max(createOrganisationFundResponseMilestonesItemOutcomeMax),
-  "targetSol": zod.string().regex(createOrganisationFundResponseMilestonesItemTargetSolRegExp)
+  "targetSol": zod.string().regex(createOrganisationFundResponseMilestonesItemTargetSolRegExp),
+  "outcomeReports": zod.array(zod.object({
+  "id": zod.number().int(),
+  "milestoneId": zod.number().int(),
+  "milestoneTitle": zod.string().min(createOrganisationFundResponseMilestonesItemOutcomeReportsItemMilestoneTitleMin).max(createOrganisationFundResponseMilestonesItemOutcomeReportsItemMilestoneTitleMax),
+  "plannedOutcome": zod.string().min(createOrganisationFundResponseMilestonesItemOutcomeReportsItemPlannedOutcomeMin).max(createOrganisationFundResponseMilestonesItemOutcomeReportsItemPlannedOutcomeMax),
+  "status": zod.enum(['in_progress', 'completed', 'blocked']),
+  "updateText": zod.string().min(createOrganisationFundResponseMilestonesItemOutcomeReportsItemUpdateTextMin).max(createOrganisationFundResponseMilestonesItemOutcomeReportsItemUpdateTextMax),
+  "evidenceUrl": zod.string().url().nullable(),
+  "createdAt": zod.coerce.date()
+}))
 })),
   "status": zod.enum(['active', 'closed']),
   "createdAt": zod.coerce.date()
@@ -787,6 +825,15 @@ export const listOrganisationFundsResponseMilestonesItemOutcomeMin = 10;
 export const listOrganisationFundsResponseMilestonesItemOutcomeMax = 300;
 
 export const listOrganisationFundsResponseMilestonesItemTargetSolRegExp = new RegExp('^\\d+(?:\\.\\d{0,9})?$');
+export const listOrganisationFundsResponseMilestonesItemOutcomeReportsItemMilestoneTitleMin = 3;
+export const listOrganisationFundsResponseMilestonesItemOutcomeReportsItemMilestoneTitleMax = 80;
+
+export const listOrganisationFundsResponseMilestonesItemOutcomeReportsItemPlannedOutcomeMin = 10;
+export const listOrganisationFundsResponseMilestonesItemOutcomeReportsItemPlannedOutcomeMax = 300;
+
+export const listOrganisationFundsResponseMilestonesItemOutcomeReportsItemUpdateTextMin = 10;
+export const listOrganisationFundsResponseMilestonesItemOutcomeReportsItemUpdateTextMax = 600;
+
 
 
 export const ListOrganisationFundsResponseItem = zod.object({
@@ -809,12 +856,73 @@ export const ListOrganisationFundsResponseItem = zod.object({
   "position": zod.number().int().min(1),
   "title": zod.string().min(listOrganisationFundsResponseMilestonesItemTitleMin).max(listOrganisationFundsResponseMilestonesItemTitleMax),
   "outcome": zod.string().min(listOrganisationFundsResponseMilestonesItemOutcomeMin).max(listOrganisationFundsResponseMilestonesItemOutcomeMax),
-  "targetSol": zod.string().regex(listOrganisationFundsResponseMilestonesItemTargetSolRegExp)
+  "targetSol": zod.string().regex(listOrganisationFundsResponseMilestonesItemTargetSolRegExp),
+  "outcomeReports": zod.array(zod.object({
+  "id": zod.number().int(),
+  "milestoneId": zod.number().int(),
+  "milestoneTitle": zod.string().min(listOrganisationFundsResponseMilestonesItemOutcomeReportsItemMilestoneTitleMin).max(listOrganisationFundsResponseMilestonesItemOutcomeReportsItemMilestoneTitleMax),
+  "plannedOutcome": zod.string().min(listOrganisationFundsResponseMilestonesItemOutcomeReportsItemPlannedOutcomeMin).max(listOrganisationFundsResponseMilestonesItemOutcomeReportsItemPlannedOutcomeMax),
+  "status": zod.enum(['in_progress', 'completed', 'blocked']),
+  "updateText": zod.string().min(listOrganisationFundsResponseMilestonesItemOutcomeReportsItemUpdateTextMin).max(listOrganisationFundsResponseMilestonesItemOutcomeReportsItemUpdateTextMax),
+  "evidenceUrl": zod.string().url().nullable(),
+  "createdAt": zod.coerce.date()
+}))
 })),
   "status": zod.enum(['active', 'closed']),
   "createdAt": zod.coerce.date()
 })
 export const ListOrganisationFundsResponse = zod.array(ListOrganisationFundsResponseItem)
+
+
+/**
+ * Outcome reports are charity-authored updates and do not change fundraising progress, verify delivery, or trigger payouts.
+ * @summary Record an append-only charity outcome update for a campaign checkpoint
+ */
+
+
+
+
+export const CreateFundMilestoneOutcomeReportParams = zod.object({
+  "fundId": zod.coerce.number().int().min(1),
+  "milestoneId": zod.coerce.number().int().min(1)
+})
+
+export const createFundMilestoneOutcomeReportBodyUpdateTextMin = 10;
+export const createFundMilestoneOutcomeReportBodyUpdateTextMax = 600;
+
+export const createFundMilestoneOutcomeReportBodyEvidenceUrlMax = 2048;
+
+
+export const createFundMilestoneOutcomeReportBodyEvidenceUrlRegExp = new RegExp('^[hH][tT][tT][pP][sS]:\\/\\/');
+
+
+export const CreateFundMilestoneOutcomeReportBody = zod.object({
+  "status": zod.enum(['in_progress', 'completed', 'blocked']),
+  "updateText": zod.string().min(createFundMilestoneOutcomeReportBodyUpdateTextMin).max(createFundMilestoneOutcomeReportBodyUpdateTextMax),
+  "evidenceUrl": zod.string().url().max(createFundMilestoneOutcomeReportBodyEvidenceUrlMax).regex(createFundMilestoneOutcomeReportBodyEvidenceUrlRegExp).optional()
+})
+
+export const createFundMilestoneOutcomeReportResponseMilestoneTitleMin = 3;
+export const createFundMilestoneOutcomeReportResponseMilestoneTitleMax = 80;
+
+export const createFundMilestoneOutcomeReportResponsePlannedOutcomeMin = 10;
+export const createFundMilestoneOutcomeReportResponsePlannedOutcomeMax = 300;
+
+export const createFundMilestoneOutcomeReportResponseUpdateTextMin = 10;
+export const createFundMilestoneOutcomeReportResponseUpdateTextMax = 600;
+
+
+
+export const CreateFundMilestoneOutcomeReportResponse = zod.object({
+  "id": zod.number().int(),
+  "milestoneId": zod.number().int(),
+  "milestoneTitle": zod.string().min(createFundMilestoneOutcomeReportResponseMilestoneTitleMin).max(createFundMilestoneOutcomeReportResponseMilestoneTitleMax),
+  "plannedOutcome": zod.string().min(createFundMilestoneOutcomeReportResponsePlannedOutcomeMin).max(createFundMilestoneOutcomeReportResponsePlannedOutcomeMax),
+  "status": zod.enum(['in_progress', 'completed', 'blocked']),
+  "updateText": zod.string().min(createFundMilestoneOutcomeReportResponseUpdateTextMin).max(createFundMilestoneOutcomeReportResponseUpdateTextMax),
+  "evidenceUrl": zod.string().url().nullable(),
+  "createdAt": zod.coerce.date()
+})
 
 
 /**

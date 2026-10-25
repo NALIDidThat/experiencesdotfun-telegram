@@ -24,6 +24,7 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { ContributeToFund } from "@/components/fundraising/ContributionCheckout";
 import { CampaignTrackerInsights } from "@/components/fundraising/CampaignTrackerInsights";
+import { FundOutcomeReports } from "@/components/fundraising/FundOutcomeReports";
 import { CharityPayoutsSection } from "@/components/fundraising/Payouts";
 import { FundOwnerControls, FundStats } from "@/components/fundraising/FundOwnerControls";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
@@ -596,6 +597,7 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
 
         <FundStats fund={fund} />
         <FundMilestoneProgress fund={fund} />
+        <FundOutcomeReports fund={fund} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={trackerExpanded ? "Hide campaign tracker" : "View campaign tracker"}
@@ -952,6 +954,10 @@ export function OrganisationFundsScreen({
             <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold" }}>Goal · {createdFund.goalSol.toLocaleString()} SOL</Text>
           </View>
           <FundMilestoneProgress fund={createdFund} />
+          <FundOutcomeReports
+            fund={createdFund}
+            canReport={user?.userType === "organisation" && user.id === createdFund.organisationUserId}
+          />
           {button("View fund", () => { setSelectedFund(createdFund); setStage("detail"); }, false, false, "arrow-right")}
           {button("Share fund", () => {
             void Share.share({ message: `${createdFund.title}\n\n${createdFund.description}\n\nGoal: ${createdFund.goalSol.toLocaleString()} SOL\nDonate to the charity treasury: ${createdFund.walletAddress}` });
@@ -1369,6 +1375,10 @@ export function OrganisationFundsScreen({
 
           <CampaignTrackerInsights fund={fund} />
           <FundMilestoneProgress fund={fund} />
+          <FundOutcomeReports
+            fund={fund}
+            canReport={user?.userType === "organisation" && user.id === fund.organisationUserId}
+          />
 
           <View style={{ borderWidth: 1, borderColor: colors.primary + "30", backgroundColor: colors.primary + "08", borderRadius: colors.radius + 3, padding: 15, gap: 10 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>

@@ -1920,6 +1920,8 @@ test("charities can review and launch a fund with an attached Experience", async
   const apiTraffic = [];
   const unexpectedApiRequests = [];
   let createdFundBody;
+  let listedFunds = [];
+  let outcomeReportSubmission;
 
   client.on("Fetch.requestPaused", ({ params }) => {
     void (async () => {
@@ -1975,7 +1977,7 @@ test("charities can review and launch a fund with an attached Experience", async
         } else if (url.pathname === "/api/funds/treasury" && method === "GET") {
           response = treasuryDashboard;
         } else if (url.pathname === `/api/funds/${user.id}` && method === "GET") {
-          response = [];
+          response = listedFunds;
         } else if (url.pathname === "/api/funds" && method === "POST") {
           createdFundBody = JSON.parse(params.request.postData ?? "{}");
           status = 201;
@@ -1998,10 +2000,30 @@ test("charities can review and launch a fund with an attached Experience", async
               id: 900 + index,
               position: index + 1,
               ...milestone,
+              outcomeReports: [],
             })),
             status: "active",
             createdAt: "2026-10-24T10:00:00.000Z",
           };
+          listedFunds = [response];
+        } else if (url.pathname === "/api/funds/812/milestones/900/outcome-reports" && method === "POST") {
+          outcomeReportSubmission = JSON.parse(params.request.postData ?? "{}");
+          status = 201;
+          response = {
+            id: 1201,
+            milestoneId: 900,
+            milestoneTitle: "Prepare the garden beds",
+            plannedOutcome: "Set up accessible raised beds for local families.",
+            ...outcomeReportSubmission,
+            evidenceUrl: outcomeReportSubmission.evidenceUrl ?? null,
+            createdAt: "2026-10-25T12:00:00.000Z",
+          };
+          listedFunds = listedFunds.map((fund) => ({
+            ...fund,
+            milestones: fund.milestones.map((milestone) => milestone.id === 900
+              ? { ...milestone, outcomeReports: [...milestone.outcomeReports, response] }
+              : milestone),
+          }));
         } else if (url.pathname === "/api/funds/payout-candidates" && method === "GET") {
           response = [];
         } else if (url.pathname === "/api/funds/payouts" && method === "GET") {
@@ -2161,6 +2183,41 @@ test("charities can review and launch a fund with an attached Experience", async
     Boolean,
     "the fund creation success screen",
   );
+
+  await tapTestId(client, "fund-outcome-report-toggle-812-900");
+  await tapTestId(client, "fund-outcome-status-completed");
+  await replaceInput(client, "fund-outcome-update-text-900", "Accessible beds are installed and ready for local families.");
+  await replaceInput(client, "fund-outcome-evidence-url-900", "http://example.org/garden-proof");
+  await tapTestId(client, "fund-outcome-submit-812-900");
+  await waitForValue(
+    client,
+    `document.body?.innerText?.includes('Evidence links must be HTTPS') ?? false`,
+    Boolean,
+    "the HTTPS-only evidence validation message",
+  );
+  assert.equal(outcomeReportSubmission, undefined, "Invalid evidence URLs must not be sent to the API.");
+
+  await replaceInput(client, "fund-outcome-evidence-url-900", "https://example.org/garden-proof");
+  await tapTestId(client, "fund-outcome-submit-812-900");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="fund-outcome-report-1201"]'))`,
+    Boolean,
+    "the newly published outcome report in the public history",
+  );
+  assert.deepEqual(
+    outcomeReportSubmission,
+    {
+      status: "completed",
+      updateText: "Accessible beds are installed and ready for local families.",
+      evidenceUrl: "https://example.org/garden-proof",
+    },
+    "The charity outcome report should include its status, update, and HTTPS evidence link.",
+  );
+  const visibleReportText = await client.evaluate(`document.body?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`);
+  assert.ok(visibleReportText.includes("Charity-reported; not independently verified."), "Published reports must be clearly labeled as charity-reported.");
+  assert.ok(apiTraffic.includes("POST /api/funds/812/milestones/900/outcome-reports"), "Publishing should use the outcome report endpoint.");
+  assert.equal(apiTraffic.some((request) => request.startsWith("POST ") && request.includes("/payouts")), false, "Outcome reporting must not invoke payout flows.");
 
   assert.deepEqual(
     createdFundBody,
