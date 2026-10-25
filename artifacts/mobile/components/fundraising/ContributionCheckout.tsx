@@ -158,12 +158,18 @@ export function ContributeToFund({ fund }: { fund: OrganisationFund }) {
 
   if (closed) return <Notice text="This campaign is closed and is not accepting new contributions." />;
   return (
-    <View style={{ gap: 9 }}>
+    <View style={{ borderWidth: 1, borderColor: colors.primary + "24", borderRadius: colors.radius + 1, backgroundColor: colors.primary + "08", padding: 12, gap: 10 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <View style={{ width: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "16" }}>
+          <Feather name="heart" size={15} color={colors.primary} />
+        </View>
+        <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_700Bold" }}>Support this fundraiser</Text>
+      </View>
       <View style={{ flexDirection: "row", gap: 8 }}>
         {["0.1", "0.5", "1"].map((q) => (
           <Pressable key={q} accessibilityRole="button" accessibilityLabel={`Set amount to ${q} SOL`} accessibilityState={{ selected: amount === q }} testID={`contribute-quick-${fund.id}-${q.replace(".", "-")}`} onPress={() => { setAmount(q); setError(null); }}
-            style={{ flex: 1, minHeight: 40, alignItems: "center", justifyContent: "center", borderRadius: 10, borderWidth: 1, borderColor: amount === q ? colors.primary : colors.border, backgroundColor: amount === q ? colors.primary + "12" : colors.background }}>
-            <Text style={{ color: amount === q ? colors.primary : colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>{q} SOL</Text>
+            style={{ flex: 1, minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 12, borderWidth: 1, borderColor: amount === q ? colors.primary : colors.border, backgroundColor: amount === q ? colors.primary : colors.card }}>
+            <Text style={{ color: amount === q ? colors.primaryForeground : colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>{q} SOL</Text>
           </Pressable>
         ))}
       </View>
@@ -174,15 +180,15 @@ export function ContributeToFund({ fund }: { fund: OrganisationFund }) {
           keyboardType="decimal-pad"
           value={amount}
           onChangeText={(v) => { setAmount(v); setError(null); }}
-          placeholder="Amount in SOL"
+          placeholder="Other amount"
           placeholderTextColor={colors.mutedForeground}
-          style={{ flex: 1, minWidth: 0, minHeight: 48, borderWidth: 1, borderColor: error ? colors.destructive : colors.border, borderRadius: colors.radius - 5, paddingHorizontal: 12, color: colors.foreground, backgroundColor: colors.background, fontSize: 14 }}
+          style={{ flex: 1, minWidth: 0, minHeight: 48, borderWidth: 1, borderColor: error ? colors.destructive : colors.border, borderRadius: colors.radius - 5, paddingHorizontal: 12, color: colors.foreground, backgroundColor: colors.card, fontSize: 14 }}
         />
         <Btn label="Contribute" busy={create.isPending} testID={`donate-${fund.id}`} onPress={start} />
       </View>
       {error ? <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 11, lineHeight: 16 }}>{error}</Text> : null}
       <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 14 }}>
-        Payment request first · counted after on-chain verification.
+        Payment request first · counted after verification.
       </Text>
       <ContributionSheet contribution={active} visible={!!active} onClose={close} />
     </View>

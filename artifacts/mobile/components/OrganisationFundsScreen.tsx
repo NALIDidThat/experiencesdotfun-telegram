@@ -562,6 +562,7 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
   const colors = useColors();
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [trackerExpanded, setTrackerExpanded] = useState(false);
+  const [treasuryExpanded, setTreasuryExpanded] = useState(false);
   return (
     <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 4, overflow: "hidden" }}>
       <View style={{ padding: 15, gap: 12 }}>
@@ -604,36 +605,51 @@ function FundCard({ fund }: { fund: OrganisationFund }) {
           accessibilityState={{ expanded: trackerExpanded }}
           testID={`fund-tracker-toggle-${fund.id}`}
           onPress={() => setTrackerExpanded((expanded) => !expanded)}
-          style={{ minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius - 5, backgroundColor: colors.background, paddingHorizontal: 12 }}
+          style={{ minHeight: 40, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 2 }}
         >
-          <Feather name={trackerExpanded ? "chevron-up" : "bar-chart-2"} size={15} color={colors.primary} />
-          <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{trackerExpanded ? "Hide progress & outcomes" : "Progress & outcomes"}</Text>
+          <Feather name={trackerExpanded ? "chevron-up" : "bar-chart-2"} size={14} color={colors.primary} />
+          <Text style={{ color: colors.primary, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{trackerExpanded ? "Hide campaign details" : "Campaign details"}</Text>
         </Pressable>
         {trackerExpanded ? <CampaignTrackerInsights fund={fund} showProgress={false} /> : null}
         <ContributeToFund fund={fund} />
         <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8, gap: 5 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Feather name="shield" size={13} color={colors.mutedForeground} />
-            <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>
-              Shared treasury · Solana {fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}
-            </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={treasuryExpanded ? "Hide treasury and safety details" : "Show treasury and safety details"}
+              accessibilityState={{ expanded: treasuryExpanded }}
+              testID={`fund-treasury-toggle-${fund.id}`}
+              onPress={() => setTreasuryExpanded((expanded) => !expanded)}
+              style={{ flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              <Feather name="shield" size={14} color={colors.mutedForeground} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={{ color: colors.foreground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>Treasury & safety</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>Shared charity treasury · Solana {fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}</Text>
+              </View>
+              <Feather name={treasuryExpanded ? "chevron-up" : "chevron-down"} size={15} color={colors.mutedForeground} />
+            </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Share ${fund.organisationName} treasury address on Solana ${fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}`}
               testID={`fund-treasury-share-${fund.id}`}
               onPress={() => {
                 void Share.share({ message: `${fund.organisationName} shared charity treasury\nSolana ${fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}\n${fund.walletAddress}` })
-                  .catch(() => Alert.alert("Unable to share treasury address", "You can select and copy the address below."));
+                  .catch(() => Alert.alert("Unable to share treasury address", "Expand treasury details to select and copy the address."));
               }}
-              style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
+              style={{ width: 40, height: 44, alignItems: "center", justifyContent: "center" }}
             >
               <Feather name="share" size={15} color={colors.primary} />
             </Pressable>
           </View>
-          <Text numberOfLines={2} selectable style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 14, fontFamily: "Inter_500Medium" }}>{fund.walletAddress}</Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 14 }}>
-            Wallet approval required · confirmed transfers can’t be reversed.
-          </Text>
+          {treasuryExpanded ? (
+            <View style={{ gap: 5, paddingLeft: 22, paddingBottom: 6 }}>
+              <Text selectable style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 14, fontFamily: "Inter_500Medium" }}>{fund.walletAddress}</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 14 }}>
+                Approve in your wallet · confirmed transfers can’t be reversed.
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
     </View>

@@ -1,9 +1,9 @@
+import { Feather } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Text, TextInput, View } from "react-native";
-import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateOrganisationFund } from "@workspace/api-client-react";
 import type { OrganisationFund } from "@workspace/api-client-react";
-import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { Btn, Card, Notice, apiErrorMessage, refreshFundData } from "./shared";
 import { formatSol } from "./format-sol.mjs";
@@ -27,7 +27,7 @@ export function FundStats({ fund }: { fund: OrganisationFund }) {
           <Text style={{ color: colors.foreground, fontSize: 23, lineHeight: 28, fontFamily: "Inter_700Bold" }}>{formatSol(fund.raisedSol)}</Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>SOL raised</Text>
         </View>
-        <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>Goal · {formatSol(fund.goalSol)} SOL</Text>
+        <Text style={{ color: colors.primary, fontSize: 12, fontFamily: "Inter_700Bold" }}>{Math.round(progress)}% funded</Text>
       </View>
       <View
         accessibilityRole="progressbar"
@@ -42,7 +42,7 @@ export function FundStats({ fund }: { fund: OrganisationFund }) {
           <Feather name="check-circle" size={12} color={colors.mutedForeground} />
           <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>{depositLabel}</Text>
         </View>
-        <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>Campaign-only</Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>Campaign progress</Text>
       </View>
     </View>
   );
