@@ -18,6 +18,22 @@ test("group riddles can be selected across the full random range", () => {
   );
 });
 
+test("catalog contains 100 new riddles with unique IDs and questions", () => {
+  assert.equal(GROUP_RIDDLES.length, 110);
+  assert.equal(new Set(GROUP_RIDDLES.map(({ id }) => id)).size, 110);
+  assert.equal(
+    new Set(GROUP_RIDDLES.map(({ question }) => normalizeRiddleAnswer(question))).size,
+    110,
+  );
+  for (const riddle of GROUP_RIDDLES) {
+    assert.ok(riddle.question.trim());
+    assert.ok(riddle.answers.length > 0);
+    for (const answer of riddle.answers) {
+      assert.equal(isCorrectGroupRiddleAnswer(riddle.id, answer), true);
+    }
+  }
+});
+
 test("riddle answers ignore case, spacing, and punctuation", () => {
   assert.equal(normalizeRiddleAnswer("  A   STAMP! "), "astamp");
   assert.equal(isCorrectGroupRiddleAnswer("corner", "A stamp."), true);
