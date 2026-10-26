@@ -245,17 +245,17 @@ export function decideMessageAward(input: {
 }
 
 export function parseAdminRewardAmount(text: string): number | null {
-  const match = /^\+([1-9]\d*)$/.exec(text);
+  const match = /^([+-])([1-9]\d*)$/.exec(text);
   if (!match) return null;
-  const amount = Number(match[1]);
+  const magnitude = Number(match[2]);
   if (
-    !Number.isSafeInteger(amount) ||
-    amount < COMMUNITY_XP_CONFIG.adminReward.minimumXp ||
-    amount > COMMUNITY_XP_CONFIG.adminReward.maximumXpPerReward
+    !Number.isSafeInteger(magnitude) ||
+    magnitude < COMMUNITY_XP_CONFIG.adminReward.minimumXp ||
+    magnitude > COMMUNITY_XP_CONFIG.adminReward.maximumXpPerReward
   ) {
     return null;
   }
-  return amount;
+  return match[1] === "-" ? -magnitude : magnitude;
 }
 
 export type AdminRewardDecision =
@@ -266,7 +266,8 @@ export type AdminRewardDecision =
         | "invalid_amount"
         | "per_admin_daily_limit"
         | "member_lifetime_cap"
-        | "community_daily_cap";
+        | "community_daily_cap"
+        | "insufficient_member_xp";
     };
 
 export function decideAdminReward(input: {
@@ -277,16 +278,22 @@ export function decideAdminReward(input: {
 }): AdminRewardDecision {
   if (
     !Number.isSafeInteger(input.amount) ||
-    input.amount < COMMUNITY_XP_CONFIG.adminReward.minimumXp ||
-    input.amount > COMMUNITY_XP_CONFIG.adminReward.maximumXpPerReward
+    Math.abs(input.amount) < COMMUNITY_XP_CONFIG.adminReward.minimumXp ||
+    Math.abs(input.amount) > COMMUNITY_XP_CONFIG.adminReward.maximumXpPerReward
   ) {
     return { allowed: false, reason: "invalid_amount" };
   }
   if (
-    input.adminXpToday + input.amount >
+    input.adminXpToday + Math.abs(input.amount) >
     COMMUNITY_XP_CONFIG.adminReward.maxXpPerRecipientPerAdminPerDay
   ) {
     return { allowed: false, reason: "per_admin_daily_limit" };
+  }
+  if (input.amount < 0) {
+    if (input.recipientLifetimeXp + input.amount < 0) {
+      return { allowed: false, reason: "insufficient_member_xp" };
+    }
+    return { allowed: true };
   }
   if (
     input.recipientLifetimeXp + input.amount >

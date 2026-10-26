@@ -82,15 +82,32 @@ test("message award decisions enforce duplicate, minute, lifetime member, and co
   );
 });
 
-test("admin recognition accepts only exact bounded +integer commands", () => {
+test("admin XP adjustments accept exact bounded signed integers", () => {
   assert.equal(parseAdminRewardAmount("+1"), 1);
   assert.equal(parseAdminRewardAmount("+20"), 20);
-  for (const value of ["1", "+xp", "++1", "+ 10", "+10xp", "+1000", "+0", "+01"]) {
+  assert.equal(parseAdminRewardAmount("-1"), -1);
+  assert.equal(parseAdminRewardAmount("-20"), -20);
+  for (const value of [
+    "1",
+    "-10xp",
+    "+xp",
+    "++1",
+    "--1",
+    "+ 10",
+    "- 10",
+    "+10xp",
+    "+1000",
+    "-21",
+    "+0",
+    "-0",
+    "+01",
+    "-01",
+  ]) {
     assert.equal(parseAdminRewardAmount(value), null, value);
   }
 });
 
-test("admin recognition enforces per-admin, member lifetime, and community daily caps", () => {
+test("admin XP adjustments enforce daily, member, and community limits", () => {
   assert.deepEqual(
     decideAdminReward({
       amount: 10,
@@ -132,6 +149,42 @@ test("admin recognition enforces per-admin, member lifetime, and community daily
       amount: 21,
       adminXpToday: 0,
       recipientLifetimeXp: 0,
+      communityXpToday: 0,
+    }),
+    { allowed: false, reason: "invalid_amount" },
+  );
+  assert.deepEqual(
+    decideAdminReward({
+      amount: -10,
+      adminXpToday: 0,
+      recipientLifetimeXp: 20,
+      communityXpToday: 1_000,
+    }),
+    { allowed: true },
+  );
+  assert.deepEqual(
+    decideAdminReward({
+      amount: -10,
+      adminXpToday: 0,
+      recipientLifetimeXp: 9,
+      communityXpToday: 0,
+    }),
+    { allowed: false, reason: "insufficient_member_xp" },
+  );
+  assert.deepEqual(
+    decideAdminReward({
+      amount: -10,
+      adminXpToday: 11,
+      recipientLifetimeXp: 20,
+      communityXpToday: 0,
+    }),
+    { allowed: false, reason: "per_admin_daily_limit" },
+  );
+  assert.deepEqual(
+    decideAdminReward({
+      amount: -21,
+      adminXpToday: 0,
+      recipientLifetimeXp: 25,
       communityXpToday: 0,
     }),
     { allowed: false, reason: "invalid_amount" },

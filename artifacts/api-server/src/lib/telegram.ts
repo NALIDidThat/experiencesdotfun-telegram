@@ -2082,9 +2082,12 @@ async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
       const recipientName = recipient.username
         ? `@${recipient.username}`
         : recipient.name;
+      const xpNotice = result.xpAwarded > 0
+        ? `${escapeTelegramHtml(recipientName)} received +${result.xpAwarded} Community XP.`
+        : `${escapeTelegramHtml(recipientName)} had ${Math.abs(result.xpAwarded)} Community XP deducted.`;
       await sendTelegramMessage(
         message.chat.id,
-        `<b>Community recognition</b>\n${escapeTelegramHtml(recipientName)} received +${result.xpAwarded} Community XP.`,
+        `<b>Community XP adjustment</b>\n${xpNotice}`,
       );
     } else if (result.reason === "member_lifetime_cap") {
       await sendTelegramMessage(
@@ -2099,7 +2102,12 @@ async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
     } else if (result.reason === "daily_limit") {
       await sendTelegramMessage(
         message.chat.id,
-        "This admin has already awarded the maximum recognition XP to this member today.",
+        "This admin has already used the maximum XP adjustment for this member today.",
+      );
+    } else if (result.reason === "insufficient_member_xp") {
+      await sendTelegramMessage(
+        message.chat.id,
+        `That member needs at least ${Math.abs(rewardAmount)} Community XP for this deduction.`,
       );
     }
     return;

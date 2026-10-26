@@ -166,6 +166,7 @@ export async function processCommunityMessage(input: {
         and(
           eq(communityContributionsTable.chatId, input.chatId),
           gte(communityContributionsTable.createdAt, dayStart),
+          gt(communityContributionsTable.xpAwarded, 0),
         ),
       );
 
@@ -277,7 +278,8 @@ export async function processAdminCommunityReward(input: {
         | "invalid_amount"
         | "daily_limit"
         | "member_lifetime_cap"
-        | "community_daily_cap";
+        | "community_daily_cap"
+        | "insufficient_member_xp";
     }
 > {
   if (hasSameTelegramIdentity(input.admin, input.recipient)) {
@@ -304,7 +306,7 @@ export async function processAdminCommunityReward(input: {
 
     const [adminXp] = await transaction
       .select({
-        total: sql<number>`coalesce(sum(${communityContributionsTable.xpAwarded}), 0)`,
+        total: sql<number>`coalesce(sum(abs(${communityContributionsTable.xpAwarded})), 0)`,
       })
       .from(communityContributionsTable)
       .where(
@@ -337,6 +339,7 @@ export async function processAdminCommunityReward(input: {
         and(
           eq(communityContributionsTable.chatId, input.chatId),
           gte(communityContributionsTable.createdAt, dayStart),
+          gt(communityContributionsTable.xpAwarded, 0),
         ),
       );
 
@@ -362,7 +365,7 @@ export async function processAdminCommunityReward(input: {
         telegramMessageId: input.telegramMessageId,
         targetMessageId: input.targetMessageId,
         contributionType: ADMIN_REWARD,
-        qualificationReason: "admin_recognition",
+        qualificationReason: input.amount > 0 ? "admin_recognition" : "admin_demotion",
         wordCount: input.targetText
           ? input.targetText.trim().split(/\s+/).filter(Boolean).length
           : 0,
@@ -386,7 +389,7 @@ export async function processAdminCommunityReward(input: {
         chatTitle: input.chatTitle,
         userId: input.recipient.id,
         communityXp: input.amount,
-        contributionCount: 1,
+        contributionCount: input.amount > 0 ? 1 : 0,
         qualifyingMessages: 0,
         communityXpUpdatedAt: now,
         firstContributionAt: now,
@@ -399,10 +402,14 @@ export async function processAdminCommunityReward(input: {
         set: {
           chatTitle: input.chatTitle,
           communityXp: sql`${communityMembersTable.communityXp} + ${input.amount}`,
-          contributionCount: sql`${communityMembersTable.contributionCount} + 1`,
           communityXpUpdatedAt: now,
-          lastContributionAt: now,
           updatedAt: now,
+          ...(input.amount > 0
+            ? {
+                contributionCount: sql`${communityMembersTable.contributionCount} + 1`,
+                lastContributionAt: now,
+              }
+            : {}),
         },
       });
 

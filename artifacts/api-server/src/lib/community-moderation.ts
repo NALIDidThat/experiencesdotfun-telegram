@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, gte, gt, inArray, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   communityContributionsTable,
@@ -113,6 +113,7 @@ export async function listTelegramOwnedCommunitiesForManagement(
         and(
           inArray(communityContributionsTable.chatId, chatIds),
           gte(communityContributionsTable.createdAt, dayStart),
+          gt(communityContributionsTable.xpAwarded, 0),
         ),
       )
       .groupBy(communityContributionsTable.chatId),
