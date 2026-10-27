@@ -6,9 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Organisation } from './organisation';
+import type { OrganisationProgress } from './organisationProgress';
 
 export interface HostOverview {
   organisation: Organisation | null;
+  organisationProgress: OrganisationProgress;
   upcomingExperiences: number;
   participantCount: number;
   waitlistCount: number;

@@ -340,6 +340,19 @@ function apiResponseHeaders(request, origin) {
   ];
 }
 
+function makeOrganisationProgress(hasExperience) {
+  return {
+    milestones: [
+      { id: "profile_ready", completed: true },
+      { id: "first_experience", completed: hasExperience },
+      { id: "first_verified_delivery", completed: false },
+      { id: "repeat_participation", completed: false },
+    ],
+    currentMilestoneId: hasExperience ? "first_verified_delivery" : "first_experience",
+    nextAction: hasExperience ? "manage_experiences" : "create_experience",
+  };
+}
+
 function makeFixtures() {
   const organisation = {
     id: 700,
@@ -482,6 +495,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
   function hostOverview() {
     return {
       organisation: user.organisation,
+      organisationProgress: makeOrganisationProgress(true),
       upcomingExperiences: 1,
       participantCount: people.filter((person) => ["joined", "attended", "submitted", "verified"].includes(person.status)).length,
       waitlistCount: people.filter((person) => person.status === "waitlisted").length,
@@ -1113,6 +1127,7 @@ test("publishing an experience opens its host-management detail screen", async (
 
   const hostOverview = () => ({
     organisation: user.organisation,
+    organisationProgress: makeOrganisationProgress(Boolean(createdExperience)),
     upcomingExperiences: createdExperience ? 1 : 0,
     participantCount: 0,
     waitlistCount: 0,
@@ -1651,6 +1666,7 @@ test("charity treasury dashboard shows live values and supports private balance 
         } else if (url.pathname === "/api/host/overview" && method === "GET") {
           response = {
             organisation: user.organisation,
+            organisationProgress: makeOrganisationProgress(false),
             upcomingExperiences: 0,
             participantCount: 0,
             waitlistCount: 0,
@@ -1982,6 +1998,7 @@ test("charities can review and launch a fund with an attached Experience", async
         } else if (url.pathname === "/api/host/overview" && method === "GET") {
           response = {
             organisation: user.organisation,
+            organisationProgress: makeOrganisationProgress(false),
             upcomingExperiences: 0,
             participantCount: 0,
             waitlistCount: 0,

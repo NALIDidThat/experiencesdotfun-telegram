@@ -4994,6 +4994,8 @@ components:
           anyOf:
             - $ref: "#/components/schemas/Organisation"
             - type: "null"
+        organisationProgress:
+          $ref: "#/components/schemas/OrganisationProgress"
         upcomingExperiences:
           type: integer
         participantCount:
@@ -5012,7 +5014,33 @@ components:
           type: integer
         rewardedUserCount:
           type: integer
-      required: [organisation, upcomingExperiences, participantCount, waitlistCount, monthlyVerifiedCompletions, pendingCompletionReviews, pendingMilestoneReviews, pendingVerifications, totalExperiences, rewardedUserCount]
+      required: [organisation, organisationProgress, upcomingExperiences, participantCount, waitlistCount, monthlyVerifiedCompletions, pendingCompletionReviews, pendingMilestoneReviews, pendingVerifications, totalExperiences, rewardedUserCount]
+    OrganisationProgressMilestoneId:
+      type: string
+      enum: [profile_ready, first_experience, first_verified_delivery, repeat_participation]
+    OrganisationProgressMilestone:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/OrganisationProgressMilestoneId"
+        completed:
+          type: boolean
+      required: [id, completed]
+    OrganisationProgress:
+      type: object
+      properties:
+        milestones:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrganisationProgressMilestone"
+        currentMilestoneId:
+          anyOf:
+            - $ref: "#/components/schemas/OrganisationProgressMilestoneId"
+            - type: "null"
+        nextAction:
+          type: string
+          enum: [edit_profile, create_experience, manage_experiences]
+      required: [milestones, currentMilestoneId, nextAction]
     HostExperience:
       allOf:
         - $ref: "#/components/schemas/Experience"

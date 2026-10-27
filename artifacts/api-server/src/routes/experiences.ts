@@ -52,6 +52,7 @@ import {
   type UserType,
 } from "@workspace/db/schema";
 import { redeemPendingXpAwards } from "../lib/xp-award-redemption.mjs";
+import { getOrganisationProgress } from "../lib/organisation-progress.mjs";
 import {
   currentUser,
   authenticateEmail,
@@ -1886,6 +1887,11 @@ router.get("/host/overview", async (req, res) => {
   if (!organisation) {
     res.json({
       organisation: null,
+      organisationProgress: getOrganisationProgress({
+        organisation: null,
+        experiences: [],
+        participations: [],
+      }),
       upcomingExperiences: 0,
       participantCount: 0,
       waitlistCount: 0,
@@ -1950,6 +1956,11 @@ router.get("/host/overview", async (req, res) => {
     ));
   res.json({
     organisation: organisationResponse(organisation),
+    organisationProgress: getOrganisationProgress({
+      organisation,
+      experiences,
+      participations,
+    }),
     upcomingExperiences: experiences.filter((item) => ["published", "full"].includes(item.status)).length,
     participantCount: participations.filter((item) =>
       ["joined", "attended", "submitted", "verified"].includes(item.status),

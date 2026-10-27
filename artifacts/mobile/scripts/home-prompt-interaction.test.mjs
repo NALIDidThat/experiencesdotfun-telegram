@@ -227,6 +227,50 @@ const user = {
   rewardsPence: 0,
 };
 
+const organisation = {
+  id: 691,
+  name: "Milestone QA Community",
+  description: "A local organisation dashboard test.",
+  city: "London",
+  country: "UK",
+  categories: ["environmental"],
+  type: "community_centre",
+  verified: false,
+};
+const organisationUser = {
+  ...user,
+  id: 691,
+  email: "milestones.qa@example.test",
+  name: "Milestone QA",
+  username: "milestone_qa",
+  userType: "organisation",
+  organisation,
+  hostedCount: 0,
+};
+let signedInUser = user;
+const organisationOverview = {
+  organisation,
+  organisationProgress: {
+    milestones: [
+      { id: "profile_ready", completed: true },
+      { id: "first_experience", completed: false },
+      { id: "first_verified_delivery", completed: false },
+      { id: "repeat_participation", completed: false },
+    ],
+    currentMilestoneId: "first_experience",
+    nextAction: "create_experience",
+  },
+  upcomingExperiences: 0,
+  participantCount: 0,
+  waitlistCount: 0,
+  monthlyVerifiedCompletions: 0,
+  pendingCompletionReviews: 0,
+  pendingMilestoneReviews: 0,
+  pendingVerifications: 0,
+  totalExperiences: 0,
+  rewardedUserCount: 0,
+};
+
 function makeParticipation(id) {
   const organisation = {
     id: 691,
@@ -269,7 +313,7 @@ function makeParticipation(id) {
   };
 }
 
-test("the signed-in Home prompt and personal Activity timeline work on mobile", async (t) => {
+test("signed-in Home prompts, organisation progress, and the personal Activity timeline work on mobile", async (t) => {
   const appUrl = getAppPreviewUrl("The Home prompt preview test");
   const appOrigin = new URL(appUrl).origin;
 
@@ -346,8 +390,12 @@ test("the signed-in Home prompt and personal Activity timeline work on mobile", 
             status = 401;
             response = { message: "The test session was not restored." };
           } else {
-            response = user;
+            response = signedInUser;
           }
+        } else if (url.pathname === "/api/host/overview" && method === "GET") {
+          response = organisationOverview;
+        } else if (url.pathname === "/api/host/experiences" && method === "GET") {
+          response = [];
         } else if (url.pathname === "/api/participations" && method === "GET") {
           response = url.searchParams.get("status") === "upcoming"
             ? upcomingParticipations
@@ -741,6 +789,63 @@ test("the signed-in Home prompt and personal Activity timeline work on mobile", 
     `document.body.innerText.includes('Your invitations')`,
     Boolean,
     "the challenge-management screen after opening a challenge from Activity",
+  );
+
+  signedInUser = organisationUser;
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=home` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-progress"]'))`,
+    Boolean,
+    "the organisation dashboard progress card after authenticated organisation data loads",
+  );
+  const progressText = await client.evaluate(
+    `document.querySelector('[data-testid="organisation-progress"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+  );
+  assert.match(progressText, /1 of 4 milestones complete/);
+  assert.match(progressText, /Profile ready/);
+  assert.match(progressText, /First experience/);
+  assert.match(progressText, /First verified delivery/);
+  assert.match(progressText, /Repeat participation/);
+  assert.match(progressText, /Create your first experience/);
+  const progressBounds = await client.evaluate(`(() => {
+    const card = document.querySelector('[data-testid="organisation-progress"]');
+    if (!card) return null;
+    const bounds = card.getBoundingClientRect();
+    return {
+      viewportWidth: window.innerWidth,
+      cardWidth: bounds.width,
+      scrollWidth: card.scrollWidth,
+      clientWidth: card.clientWidth,
+    };
+  })()`);
+  assert.ok(progressBounds, "The progress card should have measurable mobile layout.");
+  assert.equal(progressBounds.viewportWidth, viewport.width);
+  assert.ok(progressBounds.cardWidth <= viewport.width, "The progress card should fit the phone viewport.");
+  assert.ok(progressBounds.scrollWidth <= progressBounds.clientWidth + 2, "The progress card should not overflow horizontally.");
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="organisation-progress-milestone-first_experience"]')?.getAttribute('aria-label')`),
+    "First experience: Next",
+    "The current operating milestone should be clearly announced.",
+  );
+  if (screenshotDir) {
+    await client.evaluate(`document.querySelector('[data-testid="organisation-progress"]')?.scrollIntoView({ block: 'center' })`);
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(
+      join(screenshotDir, "organisation-progress.png"),
+      Buffer.from(screenshot.data, "base64"),
+    );
+  }
+  await tapTestId(client, "organisation-progress-next-action");
+  await waitForValue(
+    client,
+    `!document.querySelector('[data-testid="organisation-progress"]')`,
+    Boolean,
+    "the create-experience screen after activating the milestone next step",
+  );
+  assert.ok(
+    apiTraffic.some((request) => request === "GET /api/host/overview"),
+    "The organisation dashboard should load its server-derived milestone progression.",
   );
 
   assert.ifError(interceptionError);

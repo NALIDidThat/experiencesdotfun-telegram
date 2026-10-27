@@ -11,7 +11,11 @@ import {
   useListHostExperiences,
   useListOrganisationFunds,
 } from '@workspace/api-client-react';
-import type { User } from '@workspace/api-client-react';
+import type {
+  OrganisationProgressMilestoneId,
+  OrganisationProgressNextAction,
+  User,
+} from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { UserAvatar } from '@/components/UserAvatar';
 import { LinearGradient } from '@/components/LinearGradient';
@@ -20,6 +24,41 @@ import { selectOrganisationHomePriority } from '@/lib/home-priority';
 type Props = {
   user: User;
   go: (screen: 'profile' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'notifications', params?: Record<string, string>) => void;
+};
+
+const organisationMilestones: Record<OrganisationProgressMilestoneId, string> = {
+  profile_ready: 'Profile ready',
+  first_experience: 'First experience',
+  first_verified_delivery: 'First verified delivery',
+  repeat_participation: 'Repeat participation',
+};
+
+const nextStepCopy: Record<OrganisationProgressMilestoneId | 'complete', { title: string; detail: string; buttonLabel: string }> = {
+  profile_ready: {
+    title: 'Complete your organisation profile',
+    detail: 'Add the essentials before you start hosting.',
+    buttonLabel: 'Edit profile',
+  },
+  first_experience: {
+    title: 'Create your first experience',
+    detail: 'Publish an experience so participants can join.',
+    buttonLabel: 'Create experience',
+  },
+  first_verified_delivery: {
+    title: 'Host and verify your first delivery',
+    detail: 'Manage your experiences, then verify a participant’s completion after it takes place.',
+    buttonLabel: 'Manage experiences',
+  },
+  repeat_participation: {
+    title: 'Bring participants back',
+    detail: 'Create another experience and look for participants who return.',
+    buttonLabel: 'Create next experience',
+  },
+  complete: {
+    title: 'Keep building your programme',
+    detail: 'Create another experience and keep recognising verified participation.',
+    buttonLabel: 'Create another experience',
+  },
 };
 
 export function OrganisationHomeScreen({ user, go }: Props) {
@@ -58,6 +97,25 @@ export function OrganisationHomeScreen({ user, go }: Props) {
     fundsLoading: funds.isLoading,
     fundsError: funds.isError,
   });
+  const organisationProgress = overview.data?.organisationProgress;
+  const completedMilestoneCount = organisationProgress?.milestones.filter((item) => item.completed).length ?? 0;
+  const currentMilestoneId = organisationProgress?.currentMilestoneId ?? null;
+  const currentStep = currentMilestoneId
+    ? nextStepCopy[currentMilestoneId]
+    : nextStepCopy.complete;
+  const openMilestoneAction = (action?: OrganisationProgressNextAction) => {
+    switch (action) {
+      case 'edit_profile':
+        go('profile');
+        return;
+      case 'create_experience':
+        go('create');
+        return;
+      case 'manage_experiences':
+        go('host');
+        return;
+    }
+  };
   useEffect(() => {
     let isActive = true;
     setLoadedDismissalKey(null);
@@ -333,6 +391,108 @@ export function OrganisationHomeScreen({ user, go }: Props) {
         ))}
       </View>
 
+      {sectionTitle('Operating milestones')}
+      {overview.isLoading ? (
+        <View testID="organisation-progress-loading" style={[styles.progressNotice, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[styles.workspaceDetail, { color: colors.mutedForeground }]}>Loading your organisation progress…</Text>
+        </View>
+      ) : overview.isError || !organisationProgress ? (
+        <Pressable
+          testID="organisation-progress-retry"
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading organisation progress"
+          onPress={() => void overview.refetch()}
+          style={[styles.progressNotice, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Feather name="alert-circle" size={18} color={colors.destructive} />
+          <Text style={[styles.workspaceDetail, { color: colors.foreground }]}>Progress couldn’t load. Tap to retry.</Text>
+        </Pressable>
+      ) : (
+        <View
+          testID="organisation-progress"
+          style={[styles.progressCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 6 }]}
+        >
+          <View style={styles.progressHeading}>
+            <View style={styles.progressHeadingCopy}>
+              <Text style={[styles.progressEyebrow, { color: colors.primary }]}>YOUR OPERATING JOURNEY</Text>
+              <Text style={[styles.progressCount, { color: colors.foreground }]}>
+                {completedMilestoneCount} of {organisationProgress.milestones.length} milestones complete
+              </Text>
+            </View>
+            <Feather name="trending-up" size={19} color={colors.primary} />
+          </View>
+          <View
+            accessible
+            accessibilityLabel={`${completedMilestoneCount} of ${organisationProgress.milestones.length} organisation milestones complete`}
+            accessibilityValue={{ min: 0, max: organisationProgress.milestones.length, now: completedMilestoneCount }}
+            style={[styles.progressTrack, { backgroundColor: colors.muted }]}
+          >
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${organisationProgress.milestones.length
+                    ? (completedMilestoneCount / organisationProgress.milestones.length) * 100
+                    : 0}%`,
+                  backgroundColor: colors.primary,
+                },
+              ]}
+            />
+          </View>
+          <View style={styles.progressMilestones}>
+            {organisationProgress.milestones.map((milestone) => {
+              const isCurrent = milestone.id === currentMilestoneId;
+              const stateLabel = milestone.completed ? 'Complete' : isCurrent ? 'Next' : 'Later';
+              return (
+                <View
+                  key={milestone.id}
+                  testID={`organisation-progress-milestone-${milestone.id}`}
+                  accessibilityLabel={`${organisationMilestones[milestone.id]}: ${stateLabel}`}
+                  style={styles.progressMilestone}
+                >
+                  <Feather
+                    name={milestone.completed ? 'check-circle' : 'circle'}
+                    size={17}
+                    color={milestone.completed ? colors.accent : isCurrent ? colors.primary : colors.mutedForeground}
+                  />
+                  <Text
+                    style={[
+                      styles.progressMilestoneTitle,
+                      { color: milestone.completed || isCurrent ? colors.foreground : colors.mutedForeground },
+                    ]}
+                  >
+                    {organisationMilestones[milestone.id]}
+                  </Text>
+                  <Text style={[styles.progressMilestoneState, { color: isCurrent ? colors.primary : colors.mutedForeground }]}>
+                    {stateLabel}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+          <View style={[styles.progressNextStep, { backgroundColor: `${colors.primary}08` }]}>
+            <View style={styles.progressNextCopy}>
+              <Text style={[styles.progressNextTitle, { color: colors.foreground }]}>{currentStep.title}</Text>
+              <Text style={[styles.progressNextDetail, { color: colors.mutedForeground }]}>{currentStep.detail}</Text>
+            </View>
+            <Pressable
+              testID="organisation-progress-next-action"
+              accessibilityRole="button"
+              accessibilityLabel={currentStep.buttonLabel}
+              onPress={() => openMilestoneAction(organisationProgress.nextAction)}
+              style={({ pressed }) => [
+                styles.progressActionButton,
+                { backgroundColor: colors.primary, borderRadius: Math.max(12, colors.radius - 2), opacity: pressed ? 0.84 : 1 },
+              ]}
+            >
+              <Text style={[styles.progressActionText, { color: colors.primaryForeground }]}>{currentStep.buttonLabel}</Text>
+              <Feather name="arrow-right" size={16} color={colors.primaryForeground} />
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       {sectionTitle('Impact this month')}
       <View style={[styles.impactCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={[styles.workspaceIcon, { backgroundColor: `${colors.secondary}18` }]}><Feather name="activity" size={19} color={colors.secondary} /></View>
@@ -417,6 +577,24 @@ const styles = StyleSheet.create({
   workspaceDetail: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
   noticeCard: { minHeight: 58, borderWidth: 1, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   noticeText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium' },
+  progressNotice: { minHeight: 58, borderWidth: 1, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  progressCard: { borderWidth: 1, padding: 15, gap: 12 },
+  progressHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  progressHeadingCopy: { flex: 1, minWidth: 0, gap: 3 },
+  progressEyebrow: { fontSize: 9, letterSpacing: 0.9, fontFamily: 'Inter_700Bold' },
+  progressCount: { fontSize: 14, lineHeight: 19, fontFamily: 'Inter_700Bold' },
+  progressTrack: { height: 6, overflow: 'hidden', borderRadius: 3 },
+  progressFill: { height: '100%', borderRadius: 3 },
+  progressMilestones: { gap: 2 },
+  progressMilestone: { minHeight: 31, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  progressMilestoneTitle: { flex: 1, minWidth: 0, fontSize: 12, lineHeight: 17, fontFamily: 'Inter_600SemiBold' },
+  progressMilestoneState: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  progressNextStep: { borderRadius: 14, padding: 12, gap: 10 },
+  progressNextCopy: { gap: 4 },
+  progressNextTitle: { fontSize: 14, lineHeight: 19, fontFamily: 'Inter_700Bold' },
+  progressNextDetail: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
+  progressActionButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 13 },
+  progressActionText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   attentionCard: { borderWidth: 1, padding: 14, gap: 13 },
   firstExperienceCard: { position: 'relative', overflow: 'hidden', borderWidth: 1, padding: 16, gap: 14 },
   firstExperienceAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 4 },

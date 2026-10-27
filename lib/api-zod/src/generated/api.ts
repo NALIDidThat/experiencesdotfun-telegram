@@ -3264,6 +3264,14 @@ export const GetHostOverviewResponse = zod.object({
   "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
   "verified": zod.boolean()
 }),zod.null()]),
+  "organisationProgress": zod.object({
+  "milestones": zod.array(zod.object({
+  "id": zod.enum(['profile_ready', 'first_experience', 'first_verified_delivery', 'repeat_participation']),
+  "completed": zod.boolean()
+})),
+  "currentMilestoneId": zod.union([zod.enum(['profile_ready', 'first_experience', 'first_verified_delivery', 'repeat_participation']),zod.null()]),
+  "nextAction": zod.enum(['edit_profile', 'create_experience', 'manage_experiences'])
+}),
   "upcomingExperiences": zod.number().int(),
   "participantCount": zod.number().int(),
   "waitlistCount": zod.number().int(),

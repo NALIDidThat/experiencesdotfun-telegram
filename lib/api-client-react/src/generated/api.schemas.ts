@@ -1822,8 +1822,39 @@ export interface ParticipationReviewReasonInput {
   reason: string;
 }
 
+export type OrganisationProgressMilestoneId = typeof OrganisationProgressMilestoneId[keyof typeof OrganisationProgressMilestoneId];
+
+
+export const OrganisationProgressMilestoneId = {
+  profile_ready: 'profile_ready',
+  first_experience: 'first_experience',
+  first_verified_delivery: 'first_verified_delivery',
+  repeat_participation: 'repeat_participation',
+} as const;
+
+export interface OrganisationProgressMilestone {
+  id: OrganisationProgressMilestoneId;
+  completed: boolean;
+}
+
+export type OrganisationProgressNextAction = typeof OrganisationProgressNextAction[keyof typeof OrganisationProgressNextAction];
+
+
+export const OrganisationProgressNextAction = {
+  edit_profile: 'edit_profile',
+  create_experience: 'create_experience',
+  manage_experiences: 'manage_experiences',
+} as const;
+
+export interface OrganisationProgress {
+  milestones: OrganisationProgressMilestone[];
+  currentMilestoneId: OrganisationProgressMilestoneId | null;
+  nextAction: OrganisationProgressNextAction;
+}
+
 export interface HostOverview {
   organisation: Organisation | null;
+  organisationProgress: OrganisationProgress;
   upcomingExperiences: number;
   participantCount: number;
   waitlistCount: number;
