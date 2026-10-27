@@ -3,10 +3,10 @@ type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/accountability-partner/Current.tsx": () => import("../components/mockups/accountability-partner/Current.tsx"),
   "./components/mockups/accountability-partner/Refined.tsx": () => import("../components/mockups/accountability-partner/Refined.tsx"),
-  "./components/mockups/campaign-tracker/Current.tsx": () => import("../components/mockups/campaign-tracker/Current.tsx"),
-  "./components/mockups/campaign-tracker/Unified.tsx": () => import("../components/mockups/campaign-tracker/Unified.tsx"),
   "./components/mockups/create-experience/Current.tsx": () => import("../components/mockups/create-experience/Current.tsx"),
   "./components/mockups/create-experience/Interactive.tsx": () => import("../components/mockups/create-experience/Interactive.tsx"),
+  "./components/mockups/campaign-tracker/Current.tsx": () => import("../components/mockups/campaign-tracker/Current.tsx"),
+  "./components/mockups/campaign-tracker/Unified.tsx": () => import("../components/mockups/campaign-tracker/Unified.tsx"),
   "./components/mockups/dashboard-greeting/Current.tsx": () => import("../components/mockups/dashboard-greeting/Current.tsx"),
   "./components/mockups/dashboard-greeting/Reference.tsx": () => import("../components/mockups/dashboard-greeting/Reference.tsx"),
   "./components/mockups/experience-card/Current.tsx": () => import("../components/mockups/experience-card/Current.tsx"),
