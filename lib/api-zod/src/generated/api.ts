@@ -1213,6 +1213,13 @@ export const authenticateTelegramResponseUserSocialLinksXRegExp = new RegExp('^h
 
 
 export const authenticateTelegramResponseUserSocialLinksYoutubeRegExp = new RegExp('^https:/');
+export const authenticateTelegramResponseUserLevelProgressMin = 0;
+export const authenticateTelegramResponseUserLevelProgressMax = 100;
+
+export const authenticateTelegramResponseUserNextLevelXpMin = 0;
+
+export const authenticateTelegramResponseUserXpToNextLevelMin = 0;
+
 
 
 
@@ -1250,6 +1257,9 @@ export const AuthenticateTelegramResponse = zod.object({
 }).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
+  "levelProgress": zod.number().int().min(authenticateTelegramResponseUserLevelProgressMin).max(authenticateTelegramResponseUserLevelProgressMax),
+  "nextLevelXp": zod.number().int().min(authenticateTelegramResponseUserNextLevelXpMin).nullable(),
+  "xpToNextLevel": zod.number().int().min(authenticateTelegramResponseUserXpToNextLevelMin).nullable(),
   "completedCount": zod.number().int(),
   "hostedCount": zod.number().int(),
   "rewardsPence": zod.number().int()
@@ -1297,6 +1307,13 @@ export const signUpWithEmailResponseUserSocialLinksXRegExp = new RegExp('^https:
 
 
 export const signUpWithEmailResponseUserSocialLinksYoutubeRegExp = new RegExp('^https:/');
+export const signUpWithEmailResponseUserLevelProgressMin = 0;
+export const signUpWithEmailResponseUserLevelProgressMax = 100;
+
+export const signUpWithEmailResponseUserNextLevelXpMin = 0;
+
+export const signUpWithEmailResponseUserXpToNextLevelMin = 0;
+
 
 
 
@@ -1334,6 +1351,9 @@ export const SignUpWithEmailResponse = zod.object({
 }).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
+  "levelProgress": zod.number().int().min(signUpWithEmailResponseUserLevelProgressMin).max(signUpWithEmailResponseUserLevelProgressMax),
+  "nextLevelXp": zod.number().int().min(signUpWithEmailResponseUserNextLevelXpMin).nullable(),
+  "xpToNextLevel": zod.number().int().min(signUpWithEmailResponseUserXpToNextLevelMin).nullable(),
   "completedCount": zod.number().int(),
   "hostedCount": zod.number().int(),
   "rewardsPence": zod.number().int()
@@ -1372,6 +1392,13 @@ export const loginWithEmailResponseUserSocialLinksXRegExp = new RegExp('^https:/
 
 
 export const loginWithEmailResponseUserSocialLinksYoutubeRegExp = new RegExp('^https:/');
+export const loginWithEmailResponseUserLevelProgressMin = 0;
+export const loginWithEmailResponseUserLevelProgressMax = 100;
+
+export const loginWithEmailResponseUserNextLevelXpMin = 0;
+
+export const loginWithEmailResponseUserXpToNextLevelMin = 0;
+
 
 
 
@@ -1409,6 +1436,9 @@ export const LoginWithEmailResponse = zod.object({
 }).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
+  "levelProgress": zod.number().int().min(loginWithEmailResponseUserLevelProgressMin).max(loginWithEmailResponseUserLevelProgressMax),
+  "nextLevelXp": zod.number().int().min(loginWithEmailResponseUserNextLevelXpMin).nullable(),
+  "xpToNextLevel": zod.number().int().min(loginWithEmailResponseUserXpToNextLevelMin).nullable(),
   "completedCount": zod.number().int(),
   "hostedCount": zod.number().int(),
   "rewardsPence": zod.number().int()
@@ -1819,6 +1849,13 @@ export const listAccountProfilesResponseAccountsItemSocialLinksXRegExp = new Reg
 
 
 export const listAccountProfilesResponseAccountsItemSocialLinksYoutubeRegExp = new RegExp('^https:/');
+export const listAccountProfilesResponseAccountsItemLevelProgressMin = 0;
+export const listAccountProfilesResponseAccountsItemLevelProgressMax = 100;
+
+export const listAccountProfilesResponseAccountsItemNextLevelXpMin = 0;
+
+export const listAccountProfilesResponseAccountsItemXpToNextLevelMin = 0;
+
 
 
 export const ListAccountProfilesResponse = zod.object({
@@ -1855,6 +1892,9 @@ export const ListAccountProfilesResponse = zod.object({
 }).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
+  "levelProgress": zod.number().int().min(listAccountProfilesResponseAccountsItemLevelProgressMin).max(listAccountProfilesResponseAccountsItemLevelProgressMax),
+  "nextLevelXp": zod.number().int().min(listAccountProfilesResponseAccountsItemNextLevelXpMin).nullable(),
+  "xpToNextLevel": zod.number().int().min(listAccountProfilesResponseAccountsItemXpToNextLevelMin).nullable(),
   "completedCount": zod.number().int(),
   "hostedCount": zod.number().int(),
   "rewardsPence": zod.number().int()
@@ -1884,6 +1924,13 @@ export const createAccountProfileResponseUserSocialLinksXRegExp = new RegExp('^h
 
 
 export const createAccountProfileResponseUserSocialLinksYoutubeRegExp = new RegExp('^https:/');
+export const createAccountProfileResponseUserLevelProgressMin = 0;
+export const createAccountProfileResponseUserLevelProgressMax = 100;
+
+export const createAccountProfileResponseUserNextLevelXpMin = 0;
+
+export const createAccountProfileResponseUserXpToNextLevelMin = 0;
+
 
 
 
@@ -1921,6 +1968,9 @@ export const CreateAccountProfileResponse = zod.object({
 }).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
+  "levelProgress": zod.number().int().min(createAccountProfileResponseUserLevelProgressMin).max(createAccountProfileResponseUserLevelProgressMax),
+  "nextLevelXp": zod.number().int().min(createAccountProfileResponseUserNextLevelXpMin).nullable(),
+  "xpToNextLevel": zod.number().int().min(createAccountProfileResponseUserXpToNextLevelMin).nullable(),
   "completedCount": zod.number().int(),
   "hostedCount": zod.number().int(),
   "rewardsPence": zod.number().int()
@@ -1955,6 +2005,13 @@ export const activateAccountProfileResponseUserSocialLinksXRegExp = new RegExp('
 
 
 export const activateAccountProfileResponseUserSocialLinksYoutubeRegExp = new RegExp('^https:/');
+export const activateAccountProfileResponseUserLevelProgressMin = 0;
+export const activateAccountProfileResponseUserLevelProgressMax = 100;
+
+export const activateAccountProfileResponseUserNextLevelXpMin = 0;
+
+export const activateAccountProfileResponseUserXpToNextLevelMin = 0;
+
 
 
 
@@ -1992,6 +2049,9 @@ export const ActivateAccountProfileResponse = zod.object({
 }).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
+  "levelProgress": zod.number().int().min(activateAccountProfileResponseUserLevelProgressMin).max(activateAccountProfileResponseUserLevelProgressMax),
+  "nextLevelXp": zod.number().int().min(activateAccountProfileResponseUserNextLevelXpMin).nullable(),
+  "xpToNextLevel": zod.number().int().min(activateAccountProfileResponseUserXpToNextLevelMin).nullable(),
   "completedCount": zod.number().int(),
   "hostedCount": zod.number().int(),
   "rewardsPence": zod.number().int()
@@ -2019,6 +2079,13 @@ export const getMeResponseSocialLinksXRegExp = new RegExp('^https:/');
 
 
 export const getMeResponseSocialLinksYoutubeRegExp = new RegExp('^https:/');
+export const getMeResponseLevelProgressMin = 0;
+export const getMeResponseLevelProgressMax = 100;
+
+export const getMeResponseNextLevelXpMin = 0;
+
+export const getMeResponseXpToNextLevelMin = 0;
+
 
 
 export const GetMeResponse = zod.object({
@@ -2054,6 +2121,9 @@ export const GetMeResponse = zod.object({
 }).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
+  "levelProgress": zod.number().int().min(getMeResponseLevelProgressMin).max(getMeResponseLevelProgressMax),
+  "nextLevelXp": zod.number().int().min(getMeResponseNextLevelXpMin).nullable(),
+  "xpToNextLevel": zod.number().int().min(getMeResponseXpToNextLevelMin).nullable(),
   "completedCount": zod.number().int(),
   "hostedCount": zod.number().int(),
   "rewardsPence": zod.number().int()
@@ -2138,6 +2208,13 @@ export const updateMeResponseSocialLinksXRegExp = new RegExp('^https:/');
 
 
 export const updateMeResponseSocialLinksYoutubeRegExp = new RegExp('^https:/');
+export const updateMeResponseLevelProgressMin = 0;
+export const updateMeResponseLevelProgressMax = 100;
+
+export const updateMeResponseNextLevelXpMin = 0;
+
+export const updateMeResponseXpToNextLevelMin = 0;
+
 
 
 export const UpdateMeResponse = zod.object({
@@ -2173,6 +2250,9 @@ export const UpdateMeResponse = zod.object({
 }).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
+  "levelProgress": zod.number().int().min(updateMeResponseLevelProgressMin).max(updateMeResponseLevelProgressMax),
+  "nextLevelXp": zod.number().int().min(updateMeResponseNextLevelXpMin).nullable(),
+  "xpToNextLevel": zod.number().int().min(updateMeResponseXpToNextLevelMin).nullable(),
   "completedCount": zod.number().int(),
   "hostedCount": zod.number().int(),
   "rewardsPence": zod.number().int()
@@ -2215,6 +2295,13 @@ export const redeemMyXpAwardsResponseUserSocialLinksXRegExp = new RegExp('^https
 
 
 export const redeemMyXpAwardsResponseUserSocialLinksYoutubeRegExp = new RegExp('^https:/');
+export const redeemMyXpAwardsResponseUserLevelProgressMin = 0;
+export const redeemMyXpAwardsResponseUserLevelProgressMax = 100;
+
+export const redeemMyXpAwardsResponseUserNextLevelXpMin = 0;
+
+export const redeemMyXpAwardsResponseUserXpToNextLevelMin = 0;
+
 
 
 export const RedeemMyXpAwardsResponse = zod.object({
@@ -2252,6 +2339,9 @@ export const RedeemMyXpAwardsResponse = zod.object({
 }).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
+  "levelProgress": zod.number().int().min(redeemMyXpAwardsResponseUserLevelProgressMin).max(redeemMyXpAwardsResponseUserLevelProgressMax),
+  "nextLevelXp": zod.number().int().min(redeemMyXpAwardsResponseUserNextLevelXpMin).nullable(),
+  "xpToNextLevel": zod.number().int().min(redeemMyXpAwardsResponseUserXpToNextLevelMin).nullable(),
   "completedCount": zod.number().int(),
   "hostedCount": zod.number().int(),
   "rewardsPence": zod.number().int()
@@ -4576,6 +4666,13 @@ export const getFriendProfileResponseSocialLinksXRegExp = new RegExp('^https:/')
 
 
 export const getFriendProfileResponseSocialLinksYoutubeRegExp = new RegExp('^https:/');
+export const getFriendProfileResponseLevelProgressMin = 0;
+export const getFriendProfileResponseLevelProgressMax = 100;
+
+export const getFriendProfileResponseNextLevelXpMin = 0;
+
+export const getFriendProfileResponseXpToNextLevelMin = 0;
+
 
 
 export const GetFriendProfileResponse = zod.object({
@@ -4606,6 +4703,9 @@ export const GetFriendProfileResponse = zod.object({
 }).nullable(),
   "xp": zod.number().int(),
   "level": zod.string(),
+  "levelProgress": zod.number().int().min(getFriendProfileResponseLevelProgressMin).max(getFriendProfileResponseLevelProgressMax),
+  "nextLevelXp": zod.number().int().min(getFriendProfileResponseNextLevelXpMin).nullable(),
+  "xpToNextLevel": zod.number().int().min(getFriendProfileResponseXpToNextLevelMin).nullable(),
   "completedCount": zod.number().int(),
   "hostedCount": zod.number().int(),
   "friendsCount": zod.number().int(),

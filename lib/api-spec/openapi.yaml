@@ -4199,6 +4199,16 @@ components:
           type: integer
         level:
           type: string
+        levelProgress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        nextLevelXp:
+          type: [integer, "null"]
+          minimum: 0
+        xpToNextLevel:
+          type: [integer, "null"]
+          minimum: 0
         completedCount:
           type: integer
         hostedCount:
@@ -4223,6 +4233,9 @@ components:
         - organisation
         - xp
         - level
+        - levelProgress
+        - nextLevelXp
+        - xpToNextLevel
         - completedCount
         - hostedCount
         - rewardsPence
@@ -5239,6 +5252,16 @@ components:
           type: integer
         level:
           type: string
+        levelProgress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        nextLevelXp:
+          type: [integer, "null"]
+          minimum: 0
+        xpToNextLevel:
+          type: [integer, "null"]
+          minimum: 0
         completedCount:
           type: integer
         hostedCount:
@@ -5261,6 +5284,9 @@ components:
         - organisation
         - xp
         - level
+        - levelProgress
+        - nextLevelXp
+        - xpToNextLevel
         - completedCount
         - hostedCount
         - friendsCount

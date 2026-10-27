@@ -38,6 +38,21 @@ export interface User {
   organisation: Organisation | null;
   xp: number;
   level: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  levelProgress: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  nextLevelXp: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  xpToNextLevel: number | null;
   completedCount: number;
   hostedCount: number;
   rewardsPence: number;

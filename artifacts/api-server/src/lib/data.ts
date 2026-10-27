@@ -15,14 +15,9 @@ import {
   type User,
 } from "@workspace/db/schema";
 import { toPublicVerifiedLocation } from "./experience-location-rules.mjs";
+import { getExperienceXpProgress } from "./xp-progression.mjs";
 
-export const levelForXp = (xp: number): string => {
-  if (xp >= 5000) return "Legend";
-  if (xp >= 2500) return "Leader";
-  if (xp >= 1500) return "Champion";
-  if (xp >= 500) return "Contributor";
-  return "Explorer";
-};
+export const levelForXp = (xp: number): string => getExperienceXpProgress(xp).level;
 
 export async function userResponse(user: User) {
   const [completed] = await db
@@ -86,7 +81,7 @@ export async function userResponse(user: User) {
     userType: user.userType,
     organisation: organisation ? organisationResponse(organisation) : null,
     xp: user.xp,
-    level: levelForXp(user.xp),
+    ...getExperienceXpProgress(user.xp),
     completedCount: Number(completed?.value ?? 0),
     hostedCount: Number(hosted?.value ?? 0),
     rewardsPence: Number(rewards?.value ?? 0),
@@ -140,7 +135,7 @@ export async function friendProfileResponse(user: User) {
     userType: user.userType,
     organisation: organisation ? organisationResponse(organisation) : null,
     xp: user.xp,
-    level: levelForXp(user.xp),
+    ...getExperienceXpProgress(user.xp),
     completedCount: Number(completed?.value ?? 0),
     hostedCount: Number(hosted?.value ?? 0),
     friendsCount: Number(friends?.value ?? 0),

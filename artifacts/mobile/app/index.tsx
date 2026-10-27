@@ -2433,7 +2433,7 @@ function Home({
           <Text style={[styles.dashboardSeeAll, { color: colors.primary }]}>See all</Text>
         </Pressable>
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel="Open your experience passport" onPress={() => { triggerHaptic(); go('profile'); }} style={[styles.dashboardPassportCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Open your experience passport. ${user.level} level. ${user.nextLevelXp === null ? 'Maximum level reached' : `${user.xpToNextLevel ?? 0} XP to next level`}.`} onPress={() => { triggerHaptic(); go('profile'); }} style={[styles.dashboardPassportCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
         <View style={styles.dashboardPassportTop}>
           <View>
             <Text style={[styles.dashboardCardEyebrow, { color: colors.primary }]}>EXPERIENCE PASSPORT</Text>
@@ -2447,7 +2447,7 @@ function Home({
           <View style={[styles.dashboardPassportMetric, { backgroundColor: colors.muted, borderRadius: colors.radius - 4 }]}>
             <View style={styles.dashboardPassportMetricLabelRow}>
               <Feather name="zap" size={13} color={colors.primary} />
-              <Text style={[styles.dashboardPassportMetricLabel, { color: colors.mutedForeground }]}>XP EARNED</Text>
+              <Text style={[styles.dashboardPassportMetricLabel, { color: colors.mutedForeground }]}>XP BALANCE</Text>
             </View>
             <View style={styles.dashboardPassportMetricValueRow}>
               <Text style={[styles.dashboardPassportMetricValue, { color: colors.foreground }]}>{user.xp.toLocaleString()}</Text>
@@ -2461,6 +2461,38 @@ function Home({
             </View>
             <Text style={[styles.dashboardPassportMetricValue, { color: colors.foreground }]}>{user.completedCount}</Text>
           </View>
+        </View>
+        <View style={styles.dashboardPassportProgress}>
+          {user.nextLevelXp === null ? (
+            <Text style={[styles.dashboardPassportProgressCopy, { color: colors.primary }]}>
+              Maximum level reached
+            </Text>
+          ) : (
+            <>
+              <View style={styles.dashboardPassportProgressLabels}>
+                <Text style={[styles.dashboardPassportProgressCopy, { color: colors.foreground }]}>
+                  {user.xpToNextLevel?.toLocaleString() ?? 0} XP to next level
+                </Text>
+                <Text style={[styles.dashboardPassportProgressPercent, { color: colors.mutedForeground }]}>
+                  {user.levelProgress}%
+                </Text>
+              </View>
+              <View
+                accessible
+                accessibilityRole="progressbar"
+                accessibilityLabel={`${user.level} level progress`}
+                accessibilityValue={{ min: 0, max: 100, now: user.levelProgress }}
+                style={[styles.dashboardPassportProgressTrack, { backgroundColor: colors.border }]}
+              >
+                <View
+                  style={[
+                    styles.dashboardPassportProgressFill,
+                    { backgroundColor: colors.primary, width: `${user.levelProgress}%` },
+                  ]}
+                />
+              </View>
+            </>
+          )}
         </View>
       </Pressable>
 
@@ -3873,7 +3905,7 @@ function normalizeSocialLink(key: SocialLinkKey, value: string): string | null {
 
 type SocialProfileUser = Pick<
   User,
-  'name' | 'username' | 'avatarUrl' | 'createdAt' | 'level' | 'completedCount' | 'hostedCount' | 'xp' | 'bio' | 'city' | 'interests' | 'socialLinks' | 'userType' | 'organisation'
+  'name' | 'username' | 'avatarUrl' | 'createdAt' | 'level' | 'levelProgress' | 'nextLevelXp' | 'xpToNextLevel' | 'completedCount' | 'hostedCount' | 'xp' | 'bio' | 'city' | 'interests' | 'socialLinks' | 'userType' | 'organisation'
 >;
 
 function ProfileDashboardMetric({
@@ -4081,24 +4113,65 @@ function SocialProfileHeader({
 
       <ProfileDashboardMetric
         testID="profile-metric-xp"
-        accessibilityLabel={`View ${user.xp} experience points`}
-        accessibilityHint="Opens your experience points summary."
+        accessibilityLabel={`${user.level} level. ${user.nextLevelXp === null ? 'Maximum level reached' : `${user.xpToNextLevel ?? 0} XP to next level`}. View Experience XP.`}
+        accessibilityHint="Opens your Experience XP awards and redemption history."
         onPress={onMetricPress ? () => onMetricPress('xp') : undefined}
         style={[styles.profileXpTile, { backgroundColor: colors.muted, borderRadius: colors.radius }]}
       >
-        <View style={styles.profileXpCopy}>
-          <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.primary + '12' }]}>
-            <Feather name="zap" size={14} color={colors.primary} />
+        <View style={styles.profileXpHeader}>
+          <View style={styles.profileXpCopy}>
+            <View style={[styles.profileMetricIconSmall, { backgroundColor: colors.primary + '12' }]}>
+              <Feather name="zap" size={14} color={colors.primary} />
+            </View>
+            <View style={styles.profileXpTitleCopy}>
+              <Text style={[styles.profileXpTitle, { color: colors.foreground }]}>Experience XP</Text>
+              <Text numberOfLines={2} style={[styles.profileXpCaption, { color: colors.mutedForeground }]}>
+                {onMetricPress
+                  ? 'Personal profile XP. Tap to review pending awards and history.'
+                  : 'Personal profile XP'}
+              </Text>
+            </View>
           </View>
-          <View>
-            <Text style={[styles.profileXpTitle, { color: colors.foreground }]}>Experience points</Text>
-            <Text style={[styles.profileXpCaption, { color: colors.mutedForeground }]}>Redeem awards to add to your profile</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <Text style={[styles.profileXpValue, { color: colors.primary }]}>
+              {user.xp.toLocaleString()}<Text style={[styles.profileXpUnit, { color: colors.primary }]}> XP</Text>
+            </Text>
+            {onMetricPress ? <Feather name="chevron-right" size={16} color={colors.mutedForeground} /> : null}
           </View>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-          <Text style={[styles.profileXpValue, { color: colors.primary }]}>{user.xp}<Text style={[styles.profileXpUnit, { color: colors.primary }]}> XP</Text></Text>
-          {onMetricPress ? <Feather name="chevron-right" size={16} color={colors.mutedForeground} /> : null}
-        </View>
+        {user.nextLevelXp === null ? (
+          <Text style={[styles.profileXpProgressCopy, { color: colors.primary }]}>Maximum level reached</Text>
+        ) : (
+          <>
+            <View style={styles.profileXpProgressLabels}>
+              <Text style={[styles.profileXpProgressCopy, { color: colors.foreground }]}>
+                {user.xpToNextLevel?.toLocaleString() ?? 0} XP to next level
+              </Text>
+              <Text style={[styles.profileXpProgressPercent, { color: colors.mutedForeground }]}>
+                {user.levelProgress}%
+              </Text>
+            </View>
+            <View
+              accessible
+              accessibilityRole="progressbar"
+              accessibilityLabel={`${user.level} level progress`}
+              accessibilityValue={{ min: 0, max: 100, now: user.levelProgress }}
+              style={[styles.profileXpProgressTrack, { backgroundColor: colors.border }]}
+            >
+              <View
+                style={[
+                  styles.profileXpProgressFill,
+                  { backgroundColor: colors.primary, width: `${user.levelProgress}%` },
+                ]}
+              />
+            </View>
+          </>
+        )}
+        <Text style={[styles.profileXpProgressFootnote, { color: colors.mutedForeground }]}>
+          {user.nextLevelXp === null
+            ? 'Progress uses your profile XP. Community XP is separate.'
+            : `${user.nextLevelXp.toLocaleString()} XP for the next level. Pending awards need redemption; Community XP is separate.`}
+        </Text>
       </ProfileDashboardMetric>
       </>
       ) : null}
@@ -4617,6 +4690,9 @@ function FriendProfileScreen({
               avatarUrl: friend.avatarUrl,
               createdAt: friend.memberSince,
               level: friend.level,
+              levelProgress: friend.levelProgress,
+              nextLevelXp: friend.nextLevelXp,
+              xpToNextLevel: friend.xpToNextLevel,
               completedCount: friend.completedCount,
               hostedCount: friend.hostedCount,
               xp: friend.xp,
@@ -10058,6 +10134,12 @@ const styles = StyleSheet.create({
   dashboardPassportTitle: { fontSize: 21, fontFamily: 'Inter_700Bold', letterSpacing: -0.4 },
   dashboardPassportArt: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   dashboardPassportMetrics: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingBottom: 16 },
+  dashboardPassportProgress: { paddingHorizontal: 16, paddingBottom: 15, gap: 7 },
+  dashboardPassportProgressLabels: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  dashboardPassportProgressCopy: { fontSize: 11, lineHeight: 15, fontFamily: 'Inter_600SemiBold' },
+  dashboardPassportProgressPercent: { fontSize: 10, fontFamily: 'Inter_700Bold' },
+  dashboardPassportProgressTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  dashboardPassportProgressFill: { height: '100%', borderRadius: 3 },
   dashboardPassportMetric: { flex: 1, minWidth: 0, minHeight: 78, justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10 },
   dashboardPassportMetricLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dashboardPassportMetricLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
@@ -10291,12 +10373,20 @@ const styles = StyleSheet.create({
   profileCompactMetricCopy: { flex: 1, minWidth: 0 },
   profileCompactMetricValue: { fontSize: 21, lineHeight: 25, fontFamily: 'Inter_700Bold' },
   profileTileLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
-  profileXpTile: { minHeight: 74, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 13, paddingVertical: 11 },
+  profileXpTile: { minHeight: 120, flexDirection: 'column', alignItems: 'stretch', justifyContent: 'center', gap: 9, paddingHorizontal: 13, paddingVertical: 12 },
+  profileXpHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   profileXpCopy: { flexDirection: 'row', alignItems: 'center', gap: 9, flex: 1, minWidth: 0 },
+  profileXpTitleCopy: { flex: 1, minWidth: 0 },
   profileXpTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   profileXpCaption: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 2 },
   profileXpValue: { flexShrink: 0, fontSize: 22, fontFamily: 'Inter_700Bold' },
   profileXpUnit: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  profileXpProgressLabels: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  profileXpProgressCopy: { fontSize: 11, lineHeight: 15, fontFamily: 'Inter_600SemiBold' },
+  profileXpProgressPercent: { fontSize: 10, fontFamily: 'Inter_700Bold' },
+  profileXpProgressTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
+  profileXpProgressFill: { height: '100%', borderRadius: 4 },
+  profileXpProgressFootnote: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
   profileBioTile: { gap: 6, padding: 13, borderWidth: 1 },
   profileTileOverline: { fontSize: 9, letterSpacing: 0.6, fontFamily: 'Inter_700Bold' },
   profileDetailTile: { flex: 1, minWidth: 0, minHeight: 112, justifyContent: 'space-between', alignItems: 'flex-start', gap: 7, padding: 12, borderWidth: 1 },
