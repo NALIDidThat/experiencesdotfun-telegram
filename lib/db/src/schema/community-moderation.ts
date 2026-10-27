@@ -1,5 +1,6 @@
 import {
   boolean,
+  check,
   index,
   integer,
   pgTable,
@@ -8,6 +9,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { organisationsTable, usersTable } from "./experiences";
 
 export const telegramCommunitiesTable = pgTable(
@@ -23,12 +25,34 @@ export const telegramCommunitiesTable = pgTable(
       .notNull()
       .references(() => usersTable.id, { onDelete: "restrict" }),
     spamProtectionEnabled: boolean("spam_protection_enabled").notNull().default(false),
+    riddlesEnabled: boolean("riddles_enabled").notNull().default(false),
+    riddleIntervalMinutes: integer("riddle_interval_minutes").notNull().default(60),
+    nextRiddleAt: timestamp("next_riddle_at", { withTimezone: true }),
+    activeRiddleMessageId: integer("active_riddle_message_id"),
+    activeRiddleId: text("active_riddle_id"),
+    activeRiddleExpiresAt: timestamp("active_riddle_expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     chatUnique: uniqueIndex("telegram_communities_chat_id_idx").on(table.chatId),
     organisationIndex: index("telegram_communities_organisation_idx").on(table.organisationId),
+    riddlesDueIndex: index("telegram_communities_riddles_due_idx").on(
+      table.riddlesEnabled,
+      table.nextRiddleAt,
+    ),
+    riddleIntervalCheck: check(
+      "telegram_communities_riddle_interval_check",
+      sql`${table.riddleIntervalMinutes} IN (30, 60, 180, 360, 720, 1440)`,
+    ),
+    activeRiddleCheck: check(
+      "telegram_communities_active_riddle_check",
+      sql`(
+        (${table.activeRiddleMessageId} IS NULL AND ${table.activeRiddleId} IS NULL AND ${table.activeRiddleExpiresAt} IS NULL)
+        OR
+        (${table.activeRiddleMessageId} IS NOT NULL AND ${table.activeRiddleId} IS NOT NULL AND ${table.activeRiddleExpiresAt} IS NOT NULL)
+      )`,
+    ),
   }),
 );
 

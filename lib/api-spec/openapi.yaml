@@ -1462,6 +1462,40 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /community/manage/{chatId}/riddles:
+    patch:
+      operationId: updateTelegramCommunityRiddleSettings
+      tags: [community]
+      summary: Update scheduled riddles for a linked Telegram group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramCommunityRiddleSettingsInput"
+      responses:
+        "200":
+          description: Updated scheduled-riddle settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityRiddleSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /community/manage/{chatId}/rules:
     get:
       operationId: getTelegramCommunityRules
@@ -4289,6 +4323,8 @@ components:
         chatTitle: { type: string }
         organisationName: { type: string }
         spamProtectionEnabled: { type: boolean }
+        riddlesEnabled: { type: boolean }
+        riddleIntervalMinutes: { type: integer, enum: [30, 60, 180, 360, 720, 1440] }
         xpAwardedToday: { type: integer }
         dailyXpLimit: { type: integer }
         dailyXpRemaining: { type: integer }
@@ -4304,6 +4340,8 @@ components:
         - chatTitle
         - organisationName
         - spamProtectionEnabled
+        - riddlesEnabled
+        - riddleIntervalMinutes
         - xpAwardedToday
         - dailyXpLimit
         - dailyXpRemaining
@@ -4314,6 +4352,19 @@ components:
         - trackedMembers
         - qualifyingMessagesToday
         - resetTimezone
+    TelegramCommunityRiddleSettingsInput:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        intervalMinutes: { type: integer, enum: [30, 60, 180, 360, 720, 1440] }
+      required: [enabled, intervalMinutes]
+      additionalProperties: false
+    TelegramCommunityRiddleSettings:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        intervalMinutes: { type: integer, enum: [30, 60, 180, 360, 720, 1440] }
+      required: [enabled, intervalMinutes]
     TelegramCommunityRulesResponse:
       type: object
       properties:
