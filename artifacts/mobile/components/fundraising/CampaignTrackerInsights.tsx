@@ -6,8 +6,6 @@ import type { OrganisationFund } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { formatSol } from "./format-sol.mjs";
 
-const checkpoints = [25, 50, 75, 100] as const;
-
 function outcomeCards(description: string) {
   return description
     .split(/\r?\n/)
@@ -29,14 +27,20 @@ function formatDate(value: string) {
 export function CampaignTrackerInsights({
   fund,
   showProgress = true,
+  section,
 }: {
   fund: OrganisationFund;
   showProgress?: boolean;
+  section?: "overview" | "community" | "impact";
 }) {
   const colors = useColors();
   const [supporterPeriod, setSupporterPeriod] = useState<"all" | "month">("all");
   const activityQuery = useGetFundCampaignActivity(fund.id, supporterPeriod, {
-    query: { queryKey: getGetFundCampaignActivityQueryKey(fund.id, supporterPeriod), staleTime: 30_000 },
+    query: {
+      queryKey: getGetFundCampaignActivityQueryKey(fund.id, supporterPeriod),
+      staleTime: 30_000,
+      enabled: section !== "impact",
+    },
   });
   const activity = activityQuery.data;
   const goal = Number(fund.goalSol);
@@ -46,12 +50,10 @@ export function CampaignTrackerInsights({
     : 0;
   const progressLabel = Math.round(progress);
   const outcomes = outcomeCards(fund.description);
-  const nextCheckpointIndex = checkpoints.findIndex((percentage) => progress < percentage);
-  const closed = fund.status.toLowerCase() !== "active";
 
   return (
     <View style={{ gap: 14 }}>
-      {showProgress ? (
+      {showProgress && (!section || section === "overview") ? (
         <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 3, padding: 15, gap: 11 }}>
           <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
             <View style={{ flex: 1, gap: 3 }}>
@@ -85,34 +87,8 @@ export function CampaignTrackerInsights({
         </View>
       ) : null}
 
-      <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 3, padding: 15, gap: 12 }}>
-        <View style={{ gap: 3 }}>
-          <Text accessibilityRole="header" style={{ color: colors.foreground, fontSize: 16, fontFamily: "Inter_700Bold" }}>Funding milestones</Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>Goal-based checkpoints, not real-world impact claims.</Text>
-        </View>
-        <View style={{ gap: 9 }}>
-          {checkpoints.map((percentage, index) => {
-            const reached = progress >= percentage;
-            const isNext = !closed && !reached && index === nextCheckpointIndex;
-            const status = reached ? "Reached" : isNext ? "Next checkpoint" : closed ? "Not reached" : "Upcoming";
-            const statusColor = reached ? colors.success : isNext ? colors.primary : colors.mutedForeground;
-            return (
-              <View key={percentage} style={{ flexDirection: "row", alignItems: "center", gap: 10, borderRadius: colors.radius - 5, backgroundColor: reached ? colors.success + "0D" : colors.muted, padding: 10 }}>
-                <View style={{ width: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: statusColor + "18" }}>
-                  <Feather name={reached ? "check" : isNext ? "target" : "circle"} size={14} color={statusColor} />
-                </View>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>{percentage}% of goal</Text>
-                  <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>{formatSol((goal * percentage) / 100)} SOL checkpoint</Text>
-                </View>
-                <Text style={{ color: statusColor, fontSize: 10, fontFamily: "Inter_700Bold" }}>{status}</Text>
-              </View>
-            );
-          })}
-        </View>
-      </View>
-
-      <View style={{ gap: 10 }}>
+      {!section || section === "impact" ? (
+        <View style={{ gap: 10 }}>
         <View style={{ gap: 3 }}>
           <Text accessibilityRole="header" style={{ color: colors.foreground, fontSize: 16, fontFamily: "Inter_700Bold" }}>What this supports</Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Campaign details provided by the organiser.</Text>
@@ -146,8 +122,11 @@ export function CampaignTrackerInsights({
           </View>
         )}
         <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15 }}>These are organiser-provided details, not independently verified outcomes.</Text>
-      </View>
+        </View>
+      ) : null}
 
+      {!section || section === "community" ? (
+        <>
       <View style={{ gap: 10 }}>
         <View style={{ gap: 3 }}>
           <Text accessibilityRole="header" style={{ color: colors.foreground, fontSize: 16, fontFamily: "Inter_700Bold" }}>Recent contributions</Text>
@@ -241,6 +220,8 @@ export function CampaignTrackerInsights({
         )}
         <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15 }}>Wallet identities are not shown. Only campaign-attributed deposits are included.</Text>
       </View>
+        </>
+      ) : null}
     </View>
   );
 }

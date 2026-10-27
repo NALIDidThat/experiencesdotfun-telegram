@@ -29,12 +29,16 @@ import { CharityPayoutsSection } from "@/components/fundraising/Payouts";
 import { FundOwnerControls, FundStats } from "@/components/fundraising/FundOwnerControls";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { isValidSolanaAddress } from "@/lib/solana-pay.mjs";
+import { filterAndSortCampaigns, sumCampaignRaisedSol } from "@/components/fundraising/campaign-list.mjs";
+import { formatSol } from "@/components/fundraising/format-sol.mjs";
 
 function shortAddress(address: string) {
   return address.length > 18 ? `${address.slice(0, 8)}…${address.slice(-6)}` : address;
 }
 
 type FundMilestoneDraft = { title: string; outcome: string; targetSol: string };
+type CampaignDetailTab = "overview" | "milestones" | "community" | "impact";
+type CampaignSort = "recent" | "raised" | "progress";
 
 function solscanUrl(path: string, cluster: string) {
   return `https://solscan.io/${path}${cluster === "mainnet-beta" ? "" : `?cluster=${cluster}`}`;
@@ -167,6 +171,10 @@ function FundMilestoneProgress({ fund }: { fund: OrganisationFund }) {
   if (!milestones.length) return null;
 
   const raised = campaignSolToLamports(fund.raisedSol);
+  const reachedCount = milestones.filter((milestone) => {
+    const target = campaignSolToLamports(milestone.targetSol);
+    return raised !== null && target !== null && raised >= target;
+  }).length;
   return (
     <View
       testID={`fund-milestones-${fund.id}`}
@@ -174,7 +182,8 @@ function FundMilestoneProgress({ fund }: { fund: OrganisationFund }) {
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Feather name="flag" size={15} color={colors.primary} />
-        <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_700Bold" }}>Fundraising checkpoints</Text>
+        <Text style={{ flex: 1, color: colors.foreground, fontSize: 14, fontFamily: "Inter_700Bold" }}>Funding thresholds</Text>
+        <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_700Bold" }}>{reachedCount} of {milestones.length} reached</Text>
       </View>
       {milestones.map((milestone) => {
         const target = campaignSolToLamports(milestone.targetSol);
@@ -772,6 +781,9 @@ export function OrganisationFundsScreen({
   const [payoutBefore, setPayoutBefore] = useState<string | undefined>();
   const [loadedPayoutRecords, setLoadedPayoutRecords] = useState<FundPayout[]>([]);
   const [campaignFilter, setCampaignFilter] = useState<"active" | "all" | "closed">("active");
+  const [campaignSearch, setCampaignSearch] = useState("");
+  const [campaignSort, setCampaignSort] = useState<CampaignSort>("recent");
+  const [campaignDetailTab, setCampaignDetailTab] = useState<CampaignDetailTab>("overview");
   const [experienceIdToAttach, setExperienceIdToAttach] = useState<number | undefined>(initialExperienceId);
   const { user } = useAuth();
   const hostOverviewQuery = useGetHostOverview({
@@ -1292,39 +1304,180 @@ export function OrganisationFundsScreen({
 
   if (stage === "campaigns") {
     const campaigns = fundsQuery.data ?? [];
-    const visibleCampaigns = campaigns.filter((fund) => campaignFilter === "all" || fund.status === campaignFilter);
+    const visibleCampaigns = filterAndSortCampaigns(campaigns, {
+      filter: campaignFilter,
+      query: campaignSearch,
+      sort: campaignSort,
+    });
     const activeCount = campaigns.filter((fund) => fund.status === "active").length;
+    const closedCount = campaigns.filter((fund) => fund.status === "closed").length;
+    const totalRaised = fundsQuery.data ? sumCampaignRaisedSol(campaigns) : null;
+    const totalVerifiedDeposits = fundsQuery.data
+      ? campaigns.reduce((total, fund) => total + fund.contributionCount, 0)
+      : null;
+    const hasCampaignSearch = campaignSearch.trim().length > 0;
+    const activeValue = fundsQuery.isLoading
+      ? "—"
+      : fundsQuery.isError && !fundsQuery.data
+        ? "Unavailable"
+        : activeCount;
+    const raisedValue = fundsQuery.isLoading
+      ? "—"
+      : fundsQuery.isError && !fundsQuery.data
+        ? "Unavailable"
+        : totalRaised === null
+          ? "Unavailable"
+          : `${formatSol(totalRaised)} SOL`;
+    const filterOptions = [
+      { value: "all" as const, label: "All", count: fundsQuery.data ? campaigns.length : "—" },
+      { value: "active" as const, label: "Active", count: fundsQuery.data ? activeCount : "—" },
+      { value: "closed" as const, label: "Closed", count: fundsQuery.data ? closedCount : "—" },
+    ];
+    const sortOptions: Array<{ value: CampaignSort; label: string }> = [
+      { value: "recent", label: "Recently added" },
+      { value: "raised", label: "Most raised" },
+      { value: "progress", label: "Funded progress" },
+    ];
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-        {header("Campaign tracker", "Follow verified fundraiser progress.", onBack, "Back to treasury")}
-        <KeyboardAwareScrollViewCompat style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 34, gap: 14 }}>
+        {header("Campaign tracker", "Turn support into measurable progress.", onBack, "Back to treasury")}
+        <KeyboardAwareScrollViewCompat style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 34, gap: 15 }} keyboardShouldPersistTaps="handled">
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <View style={{ flex: 1, gap: 3 }}>
               <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Campaigns</Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{activeCount} active · {campaigns.length} total</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
+                {fundsQuery.isLoading ? "Loading campaign list…" : fundsQuery.isError && !fundsQuery.data ? "Campaign totals unavailable" : `${activeCount} active · ${campaigns.length} total`}
+              </Text>
             </View>
             {button("Launch a fund", () => openFundCreation(), false, false, "plus", true, "fund-launch-tracker-header")}
           </View>
-          <View style={{ flexDirection: "row", gap: 7 }}>
-            {(["active", "all", "closed"] as const).map((filter) => (
-              <Pressable key={filter} accessibilityRole="button" accessibilityState={{ selected: campaignFilter === filter }} testID={`campaign-filter-${filter}`} onPress={() => setCampaignFilter(filter)} style={{ flex: 1, minHeight: 40, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: campaignFilter === filter ? colors.primary : colors.card, borderWidth: 1, borderColor: campaignFilter === filter ? colors.primary : colors.border }}>
-                <Text style={{ color: campaignFilter === filter ? colors.primaryForeground : colors.mutedForeground, fontSize: 11, fontFamily: "Inter_700Bold", textTransform: "capitalize" }}>{filter}</Text>
-              </Pressable>
+
+          <View style={{ flexDirection: "row", gap: 9 }}>
+            {([
+              { label: "Active campaigns", value: activeValue, icon: "target" as const, detail: "Open to contributions" },
+              {
+                label: "Verified total raised",
+                value: raisedValue,
+                icon: "shield" as const,
+                detail: totalVerifiedDeposits === null
+                  ? "Deposit count unavailable"
+                  : `${totalVerifiedDeposits} verified ${totalVerifiedDeposits === 1 ? "deposit" : "deposits"} · all campaigns`,
+              },
+            ]).map((stat) => (
+              <View key={stat.label} testID={`campaign-overview-${stat.label.toLowerCase().replaceAll(" ", "-")}`} style={{ flex: 1, minWidth: 0, minHeight: 98, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius + 2, backgroundColor: colors.card, padding: 12, gap: 8 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Feather name={stat.icon} size={13} color={colors.primary} />
+                  <Text numberOfLines={1} style={{ flex: 1, color: colors.mutedForeground, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.3 }}>{stat.label}</Text>
+                </View>
+                <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: colors.foreground, fontSize: 17, lineHeight: 21, fontFamily: "Inter_700Bold" }}>{stat.value}</Text>
+                <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 9 }}>{stat.detail}</Text>
+              </View>
             ))}
           </View>
-          {fundsQuery.isLoading ? <Text style={{ color: colors.mutedForeground, fontSize: 13, paddingVertical: 14 }}>Loading campaign progress…</Text> : fundsQuery.isError ? (
+
+          <View style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius - 4, backgroundColor: colors.card, paddingHorizontal: 12 }}>
+            <Feather name="search" size={16} color={colors.mutedForeground} />
+            <TextInput
+              accessibilityLabel="Search campaigns"
+              testID="campaign-search"
+              value={campaignSearch}
+              onChangeText={setCampaignSearch}
+              placeholder="Search campaigns or experiences"
+              placeholderTextColor={colors.mutedForeground}
+              returnKeyType="search"
+              style={{ flex: 1, minWidth: 0, minHeight: 46, color: colors.foreground, fontSize: 12 }}
+            />
+            {campaignSearch ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Clear campaign search" testID="campaign-search-clear" onPress={() => setCampaignSearch("")} style={{ width: 36, height: 40, alignItems: "center", justifyContent: "center" }}>
+                <Feather name="x" size={16} color={colors.mutedForeground} />
+              </Pressable>
+            ) : null}
+          </View>
+
+          <View accessibilityRole="tablist" accessibilityLabel="Filter campaigns" style={{ flexDirection: "row", gap: 7 }}>
+            {filterOptions.map(({ value, label, count }) => {
+              const selected = campaignFilter === value;
+              return (
+                <Pressable
+                  key={value}
+                  accessibilityRole="tab"
+                  accessibilityLabel={`${label} campaigns, ${count}`}
+                  accessibilityState={{ selected }}
+                  aria-selected={selected}
+                  testID={`campaign-filter-${value}`}
+                  onPress={() => setCampaignFilter(value)}
+                  style={{ flex: 1, minHeight: 42, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, backgroundColor: selected ? colors.primary : colors.card, borderWidth: 1, borderColor: selected ? colors.primary : colors.border }}
+                >
+                  <Text style={{ color: selected ? colors.primaryForeground : colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold" }}>{label}</Text>
+                  <Text style={{ color: selected ? colors.primaryForeground : colors.mutedForeground, fontSize: 9, fontFamily: "Inter_600SemiBold" }}>{count}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: "center", gap: 7 }}>
+            <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold", marginRight: 2 }}>Sort</Text>
+            {sortOptions.map(({ value, label }) => {
+              const selected = campaignSort === value;
+              return (
+                <Pressable
+                  key={value}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  testID={`campaign-sort-${value}`}
+                  onPress={() => setCampaignSort(value)}
+                  style={{ minHeight: 36, flexDirection: "row", alignItems: "center", justifyContent: "center", borderRadius: 999, borderWidth: 1, borderColor: selected ? colors.secondary + "60" : colors.border, backgroundColor: selected ? colors.secondary + "12" : colors.card, paddingHorizontal: 11 }}
+                >
+                  <Text style={{ color: selected ? colors.secondary : colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold" }}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          {fundsQuery.isError && fundsQuery.data ? (
+            <View style={{ borderRadius: colors.radius - 5, backgroundColor: colors.destructive + "10", padding: 10, gap: 4 }}>
+              <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 11 }}>Showing the last loaded campaign data. It couldn’t be refreshed.</Text>
+              <Pressable accessibilityRole="button" onPress={() => { void fundsQuery.refetch(); }} style={{ minHeight: 36, justifyContent: "center", alignSelf: "flex-start" }}>
+                <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_700Bold" }}>Try again</Text>
+              </Pressable>
+            </View>
+          ) : null}
+          {fundsQuery.isLoading ? (
+            <View accessibilityRole="progressbar" accessibilityLabel="Loading campaign progress" style={{ minHeight: 70, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 }}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Loading campaigns…</Text>
+            </View>
+          ) : fundsQuery.isError && !fundsQuery.data ? (
             <View style={{ gap: 9 }}>
               <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 13 }}>Campaign progress could not be loaded.</Text>
               {button("Try again", () => { void fundsQuery.refetch(); }, true, fundsQuery.isFetching, "refresh-cw")}
             </View>
           ) : visibleCampaigns.length ? visibleCampaigns.map((fund) => (
-            <CampaignProgressCard key={fund.id} fund={fund} onPress={() => { setSelectedFund(fund); setStage("detail"); }} />
+            <CampaignProgressCard key={fund.id} fund={fund} onPress={() => { setSelectedFund(fund); setCampaignDetailTab("overview"); setStage("detail"); }} />
           )) : (
-            <View style={{ alignItems: "center", paddingVertical: 22, paddingHorizontal: 18, gap: 8 }}>
-              <Feather name="target" size={25} color={colors.primary} />
-              <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold" }}>{campaignFilter === "active" ? "No active campaigns" : campaignFilter === "closed" ? "No closed campaigns" : "No campaigns yet"}</Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18, textAlign: "center" }}>Launch a fundraiser when your organisation is ready to raise support.</Text>
-              {campaignFilter !== "active" ? null : button("Launch a fund", () => openFundCreation(), false, false, "plus", true, "fund-launch-tracker-empty")}
+            <View testID="campaign-empty-state" style={{ alignItems: "center", borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius + 3, backgroundColor: colors.card, paddingVertical: 22, paddingHorizontal: 18, gap: 8 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "12" }}>
+                <Feather name={hasCampaignSearch ? "search" : "target"} size={20} color={colors.primary} />
+              </View>
+              <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold", textAlign: "center" }}>
+                {hasCampaignSearch
+                  ? "No campaigns match your search"
+                  : campaigns.length === 0
+                    ? "No campaigns yet"
+                    : campaignFilter === "active"
+                      ? "No active campaigns"
+                      : "No closed campaigns"}
+              </Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18, textAlign: "center" }}>
+                {hasCampaignSearch
+                  ? "Try another campaign name, description, or linked experience."
+                  : "Verified deposits and campaign updates will appear here as your fundraiser progresses."}
+              </Text>
+              {hasCampaignSearch
+                ? button("Clear search", () => setCampaignSearch(""), true, false, "x", true, "campaign-empty-clear-search")
+                : campaignFilter !== "closed"
+                  ? button("Launch a fund", () => openFundCreation(), false, false, "plus", true, "fund-launch-tracker-empty")
+                  : null}
             </View>
           )}
           <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15 }}>Progress includes recorded, finalized campaign deposits only. Transfers to the shared treasury may not be attributable to a campaign.</Text>
@@ -1346,7 +1499,7 @@ export function OrganisationFundsScreen({
     });
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-        {header("Campaign tracker", "Verified progress and campaign details", () => onOpenCampaign ? onOpenCampaign(fund.id) : setStage("campaigns"), "Back to campaign tracker")}
+        {header("Campaign tracker", "Fundraising progress and updates", () => onOpenCampaign ? onOpenCampaign(fund.id) : setStage("campaigns"), "Back to campaign tracker")}
         <KeyboardAwareScrollViewCompat
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 36, gap: 16 }}
@@ -1389,13 +1542,35 @@ export function OrganisationFundsScreen({
             ) : null}
           </View>
 
-          <CampaignTrackerInsights fund={fund} />
-          <FundMilestoneProgress fund={fund} />
-          <FundOutcomeReports
-            fund={fund}
-            canReport={user?.userType === "organisation" && user.id === fund.organisationUserId}
-          />
+          <View accessibilityRole="tablist" accessibilityLabel="Campaign details" style={{ flexDirection: "row", gap: 5, padding: 4, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius + 1, backgroundColor: colors.card }}>
+            {([
+              ["overview", "Overview", "bar-chart-2"],
+              ["milestones", "Milestones", "flag"],
+              ["community", "Community", "users"],
+              ["impact", "Impact", "heart"],
+            ] as const).map(([value, label, icon]) => {
+              const selected = campaignDetailTab === value;
+              return (
+                <Pressable
+                  key={value}
+                  accessibilityRole="tab"
+                  accessibilityLabel={`${label} for ${fund.title}`}
+                  accessibilityState={{ selected }}
+                  aria-selected={selected}
+                  testID={`campaign-detail-tab-${value}`}
+                  onPress={() => setCampaignDetailTab(value)}
+                  style={{ flex: 1, minWidth: 0, minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, borderRadius: colors.radius - 3, backgroundColor: selected ? colors.primary : "transparent", paddingHorizontal: 3 }}
+                >
+                  <Feather name={icon} size={12} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+                  <Text numberOfLines={1} style={{ color: selected ? colors.primaryForeground : colors.mutedForeground, fontSize: 9, fontFamily: "Inter_700Bold" }}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
+          {campaignDetailTab === "overview" ? (
+            <>
+          <CampaignTrackerInsights fund={fund} section="overview" />
           <View style={{ borderWidth: 1, borderColor: colors.primary + "30", backgroundColor: colors.primary + "08", borderRadius: colors.radius + 3, padding: 15, gap: 10 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
               <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.primary + "16", alignItems: "center", justifyContent: "center" }}>
@@ -1469,6 +1644,33 @@ export function OrganisationFundsScreen({
               <Text style={{ color: colors.primaryForeground, fontSize: 12, fontFamily: "Inter_700Bold" }}>Share fund</Text>
             </Pressable>
           </View>
+            </>
+          ) : null}
+
+          {campaignDetailTab === "milestones" ? (
+            fund.milestones.length ? (
+              <FundMilestoneProgress fund={fund} />
+            ) : (
+              <View testID={`campaign-no-milestones-${fund.id}`} style={{ alignItems: "center", borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius + 3, backgroundColor: colors.card, padding: 20, gap: 8 }}>
+                <View style={{ width: 44, height: 44, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "12" }}>
+                  <Feather name="flag" size={19} color={colors.primary} />
+                </View>
+                <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold" }}>No funding thresholds yet</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18, textAlign: "center" }}>This fundraiser has no funding checkpoints. Thresholds can be included when a fundraiser is created.</Text>
+              </View>
+            )
+          ) : null}
+
+          {campaignDetailTab === "community" ? <CampaignTrackerInsights fund={fund} section="community" showProgress={false} /> : null}
+          {campaignDetailTab === "impact" ? (
+            <>
+              <CampaignTrackerInsights fund={fund} section="impact" showProgress={false} />
+              <FundOutcomeReports
+                fund={fund}
+                canReport={user?.userType === "organisation" && user.id === fund.organisationUserId}
+              />
+            </>
+          ) : null}
         </KeyboardAwareScrollViewCompat>
       </View>
     );
