@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -24,6 +25,9 @@ type Props = {
 export function OrganisationHomeScreen({ user, go }: Props) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const createPromptDismissalKey = `organisation-home:create-prompt-dismissed:${user.id}`;
+  const [createPromptDismissed, setCreatePromptDismissed] = useState(false);
+  const [loadedDismissalKey, setLoadedDismissalKey] = useState<string | null>(null);
   const isCharity = user.organisation?.type === 'charity';
   const overview = useGetHostOverview();
   const experiences = useListHostExperiences();
@@ -54,6 +58,30 @@ export function OrganisationHomeScreen({ user, go }: Props) {
     fundsLoading: funds.isLoading,
     fundsError: funds.isError,
   });
+  useEffect(() => {
+    let isActive = true;
+    setLoadedDismissalKey(null);
+    void (async () => {
+      try {
+        const dismissed = await AsyncStorage.getItem(createPromptDismissalKey);
+        if (isActive) setCreatePromptDismissed(dismissed === 'true');
+      } catch {
+        if (isActive) setCreatePromptDismissed(false);
+      } finally {
+        if (isActive) setLoadedDismissalKey(createPromptDismissalKey);
+      }
+    })();
+    return () => {
+      isActive = false;
+    };
+  }, [createPromptDismissalKey]);
+  const isCreatePrompt = priority.action === 'create' && priority.kind === 'create-experience';
+  const canShowPriority = !isCreatePrompt
+    || (loadedDismissalKey === createPromptDismissalKey && !createPromptDismissed);
+  const dismissCreatePrompt = () => {
+    setCreatePromptDismissed(true);
+    void AsyncStorage.setItem(createPromptDismissalKey, 'true').catch(() => {});
+  };
   const formatDate = (value: string) => {
     const date = new Date(`${value}T12:00:00`);
     return Number.isNaN(date.getTime())
@@ -158,46 +186,108 @@ export function OrganisationHomeScreen({ user, go }: Props) {
         </Pressable>
       </View>
 
-      {sectionTitle('Your next action')}
-      <Pressable
-        testID="organisation-home-priority"
-        accessibilityRole="button"
-        accessibilityLabel={`${priority.title}. ${priority.detail} ${priority.buttonLabel}.`}
-        accessibilityState={{ disabled: priority.kind === 'loading' }}
-        disabled={priority.kind === 'loading'}
-        onPress={openPriority}
-        style={({ pressed }) => [
-          styles.attentionCard,
-          {
-            backgroundColor: colors.card,
-            borderColor: `${colors.primary}22`,
-            borderRadius: colors.radius + 6,
-            opacity: pressed ? 0.96 : 1,
-          },
-        ]}
-      >
-        <View style={styles.priorityHeader}>
-          <View style={[styles.priorityIcon, {
-            backgroundColor: priority.kind === 'error' ? `${colors.destructive}18` : `${colors.primary}14`,
-          }]}>
-            {priority.kind === 'loading'
-              ? <ActivityIndicator color={colors.primary} />
-              : <Feather
-                  name={priority.icon}
-                  size={21}
-                  color={priority.kind === 'error' ? colors.destructive : colors.primary}
-                />}
-          </View>
-          <View style={styles.priorityCopy}>
-            <Text style={[styles.priorityTitle, { color: colors.foreground }]}>{priority.title}</Text>
-            <Text style={[styles.priorityDetail, { color: colors.mutedForeground }]}>{priority.detail}</Text>
-          </View>
-        </View>
-        <View style={[styles.priorityAction, { backgroundColor: colors.secondary, borderRadius: Math.max(12, colors.radius - 2) }]}>
-          <Text style={[styles.priorityActionText, { color: colors.primaryForeground }]}>{priority.buttonLabel}</Text>
-          <Feather name="arrow-right" size={17} color={colors.primaryForeground} />
-        </View>
-      </Pressable>
+      {canShowPriority ? (
+        <>
+          {sectionTitle('Your next action')}
+          {isCreatePrompt ? (
+            <View
+              testID="organisation-home-priority"
+              style={[
+                styles.firstExperienceCard,
+                {
+                  backgroundColor: `${colors.primary}08`,
+                  borderColor: `${colors.primary}35`,
+                  borderRadius: colors.radius + 8,
+                },
+              ]}
+            >
+              <View style={[styles.firstExperienceAccent, { backgroundColor: colors.primary }]} />
+              <View style={styles.firstExperienceHeader}>
+                <View style={[styles.firstExperienceIcon, { backgroundColor: colors.primary }]}>
+                  <Feather name="plus" size={22} color="#FFFFFF" />
+                </View>
+                <View style={styles.firstExperienceCopy}>
+                  <Text style={[styles.firstExperienceEyebrow, { color: colors.primary }]}>YOUR FIRST STEP</Text>
+                  <Text style={[styles.firstExperienceTitle, { color: colors.foreground }]}>{priority.title}</Text>
+                  <Text style={[styles.firstExperienceDetail, { color: colors.mutedForeground }]}>{priority.detail}</Text>
+                </View>
+                <Pressable
+                  testID="organisation-home-priority-dismiss"
+                  accessibilityRole="button"
+                  accessibilityLabel="Dismiss create experience prompt"
+                  hitSlop={8}
+                  onPress={dismissCreatePrompt}
+                  style={({ pressed }) => [
+                    styles.dismissButton,
+                    { backgroundColor: `${colors.primary}10`, opacity: pressed ? 0.65 : 1 },
+                  ]}
+                >
+                  <Feather name="x" size={17} color={colors.mutedForeground} />
+                </Pressable>
+              </View>
+              <View style={styles.firstExperienceNudge}>
+                <Feather name="users" size={15} color={colors.primary} />
+                <Text style={[styles.firstExperienceNudgeText, { color: colors.foreground }]}>
+                  Give your community something to join.
+                </Text>
+              </View>
+              <Pressable
+                testID="organisation-home-priority-create"
+                accessibilityRole="button"
+                accessibilityLabel={priority.buttonLabel}
+                onPress={openPriority}
+                style={({ pressed }) => [
+                  styles.firstExperienceAction,
+                  { opacity: pressed ? 0.82 : 1, borderRadius: Math.max(12, colors.radius - 2) },
+                ]}
+              >
+                <Text style={styles.firstExperienceActionText}>{priority.buttonLabel}</Text>
+                <Feather name="arrow-right" size={18} color="#111111" />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              testID="organisation-home-priority"
+              accessibilityRole="button"
+              accessibilityLabel={`${priority.title}. ${priority.detail} ${priority.buttonLabel}.`}
+              accessibilityState={{ disabled: priority.kind === 'loading' }}
+              disabled={priority.kind === 'loading'}
+              onPress={openPriority}
+              style={({ pressed }) => [
+                styles.attentionCard,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: `${colors.primary}22`,
+                  borderRadius: colors.radius + 6,
+                  opacity: pressed ? 0.96 : 1,
+                },
+              ]}
+            >
+              <View style={styles.priorityHeader}>
+                <View style={[styles.priorityIcon, {
+                  backgroundColor: priority.kind === 'error' ? `${colors.destructive}18` : `${colors.primary}14`,
+                }]}>
+                  {priority.kind === 'loading'
+                    ? <ActivityIndicator color={colors.primary} />
+                    : <Feather
+                        name={priority.icon}
+                        size={21}
+                        color={priority.kind === 'error' ? colors.destructive : colors.primary}
+                      />}
+                </View>
+                <View style={styles.priorityCopy}>
+                  <Text style={[styles.priorityTitle, { color: colors.foreground }]}>{priority.title}</Text>
+                  <Text style={[styles.priorityDetail, { color: colors.mutedForeground }]}>{priority.detail}</Text>
+                </View>
+              </View>
+              <View style={[styles.priorityAction, { backgroundColor: colors.secondary, borderRadius: Math.max(12, colors.radius - 2) }]}>
+                <Text style={[styles.priorityActionText, { color: colors.primaryForeground }]}>{priority.buttonLabel}</Text>
+                <Feather name="arrow-right" size={17} color={colors.primaryForeground} />
+              </View>
+            </Pressable>
+          )}
+        </>
+      ) : null}
 
       {isCharity ? (
         <Pressable
@@ -328,6 +418,19 @@ const styles = StyleSheet.create({
   noticeCard: { minHeight: 58, borderWidth: 1, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   noticeText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium' },
   attentionCard: { borderWidth: 1, padding: 14, gap: 13 },
+  firstExperienceCard: { position: 'relative', overflow: 'hidden', borderWidth: 1, padding: 16, gap: 14 },
+  firstExperienceAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 4 },
+  firstExperienceHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
+  firstExperienceIcon: { width: 46, height: 46, flexShrink: 0, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  firstExperienceCopy: { flex: 1, minWidth: 0, gap: 4, paddingTop: 1 },
+  firstExperienceEyebrow: { fontSize: 9, letterSpacing: 1, fontFamily: 'Inter_700Bold' },
+  firstExperienceTitle: { fontSize: 17, lineHeight: 22, letterSpacing: -0.35, fontFamily: 'Inter_700Bold' },
+  firstExperienceDetail: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
+  dismissButton: { width: 30, height: 30, flexShrink: 0, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  firstExperienceNudge: { minHeight: 37, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, paddingHorizontal: 11, backgroundColor: 'rgba(242,7,137,0.07)' },
+  firstExperienceNudgeText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  firstExperienceAction: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15, backgroundColor: '#f20789' },
+  firstExperienceActionText: { color: '#111111', fontSize: 13, fontFamily: 'Inter_700Bold' },
   priorityHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   priorityIcon: { width: 44, height: 44, flexShrink: 0, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   priorityCopy: { flex: 1, minWidth: 0, paddingTop: 1, gap: 4 },
