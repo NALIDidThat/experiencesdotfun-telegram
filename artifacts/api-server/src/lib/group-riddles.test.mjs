@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   chooseGroupRiddle,
+  chooseWrongRiddleAnswerResponse,
   createRiddleRoundStore,
   GROUP_RIDDLES,
   isCorrectGroupRiddleAnswer,
@@ -15,6 +16,15 @@ test("group riddles can be selected across the full random range", () => {
   assert.equal(
     chooseGroupRiddle(() => 0.5).id,
     GROUP_RIDDLES[Math.floor(GROUP_RIDDLES.length * 0.5)].id,
+  );
+});
+
+test("wrong riddle answers receive playful feedback options", () => {
+  assert.equal(chooseWrongRiddleAnswerResponse(() => 0), "Nexttttt! Who's got it?");
+  assert.equal(chooseWrongRiddleAnswerResponse(() => 0.25), "Not quite. Anyone else?");
+  assert.equal(
+    chooseWrongRiddleAnswerResponse(() => 0.999999),
+    "Ooh, not quite! Who's got another guess?",
   );
 });
 
@@ -56,6 +66,7 @@ test("riddle rounds stay chat-scoped and only accept replies to the active riddl
   assert.equal(rounds.start(1234, 44, GROUP_RIDDLES[2], 1_001), true);
   assert.equal(rounds.solve(-100, 99, "piano", 1_002), null);
   assert.equal(rounds.solve(-100, 42, "keyboard", 1_003), null);
+  assert.equal(rounds.getActive(-100, 1_003)?.messageId, 42);
   assert.equal(rounds.solve(-100, 42, "piano", 1_004)?.id, riddle.id);
   assert.equal(rounds.solve(-100, 42, "piano", 1_005), null);
   assert.equal(rounds.solve(1234, 44, "clock", 1_006)?.id, GROUP_RIDDLES[2].id);

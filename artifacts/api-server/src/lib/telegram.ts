@@ -57,6 +57,7 @@ import {
   parseAdminRewardAmount,
 } from "./community-rules";
 import {
+  chooseWrongRiddleAnswerResponse,
   chooseGroupRiddle,
   createRiddleRoundStore,
   RIDDLE_REVEAL_AFTER_MS,
@@ -1052,13 +1053,24 @@ async function handleRiddleReply(
   identity: TelegramIdentity,
   answer: string,
 ): Promise<boolean> {
+  const now = Date.now();
+  const replyMessageId = message.reply_to_message?.message_id;
+  const isReplyToActiveRiddle =
+    riddleRounds.getActive(message.chat.id, now)?.messageId === replyMessageId;
   const solvedRiddle = riddleRounds.solve(
     message.chat.id,
-    message.reply_to_message?.message_id ?? 0,
+    replyMessageId ?? 0,
     answer,
+    now,
   );
   if (!solvedRiddle) {
-    await revealExpiredRiddle(message.chat.id);
+    await revealExpiredRiddle(message.chat.id, now);
+    if (isReplyToActiveRiddle) {
+      await sendTelegramMessage(
+        message.chat.id,
+        chooseWrongRiddleAnswerResponse(),
+      );
+    }
     return false;
   }
   clearRiddleRevealTimer(message.chat.id, message.reply_to_message?.message_id);

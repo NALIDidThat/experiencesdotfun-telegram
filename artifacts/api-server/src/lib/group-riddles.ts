@@ -627,6 +627,21 @@ export function chooseGroupRiddle(random = Math.random): Riddle {
   return GROUP_RIDDLES[index];
 }
 
+const WRONG_RIDDLE_ANSWER_RESPONSES = [
+  "Nexttttt! Who's got it?",
+  "Not quite. Anyone else?",
+  "Nope! The riddle is still undefeated.",
+  "Ooh, not quite! Who's got another guess?",
+] as const;
+
+export function chooseWrongRiddleAnswerResponse(random = Math.random): string {
+  const index = Math.min(
+    Math.max(0, Math.floor(random() * WRONG_RIDDLE_ANSWER_RESPONSES.length)),
+    WRONG_RIDDLE_ANSWER_RESPONSES.length - 1,
+  );
+  return WRONG_RIDDLE_ANSWER_RESPONSES[index];
+}
+
 export function normalizeRiddleAnswer(answer: string): string {
   return answer
     .normalize("NFKC")
