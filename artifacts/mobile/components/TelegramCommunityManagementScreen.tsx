@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  getGetTelegramCommunityManagementQueryKey,
   getGetTelegramCommunityRulesQueryKey,
   useAddTelegramCommunityLink,
   useAddTelegramCommunityPhrase,
@@ -19,12 +20,22 @@ import {
   useGetTelegramCommunityLiveInfo,
   useGetTelegramCommunityManagement,
   useGetTelegramCommunityRules,
+  useUpdateTelegramCommunityRiddleSettings,
   type TelegramManagedCommunity,
 } from '@workspace/api-client-react';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
 
 type RuleFeedback = { message: string; tone: 'success' | 'error' };
+
+const RIDDLE_INTERVALS = [
+  { minutes: 30, label: '30 min', fullLabel: '30 minutes' },
+  { minutes: 60, label: '1 hour', fullLabel: '1 hour' },
+  { minutes: 180, label: '3 hours', fullLabel: '3 hours' },
+  { minutes: 360, label: '6 hours', fullLabel: '6 hours' },
+  { minutes: 720, label: '12 hours', fullLabel: '12 hours' },
+  { minutes: 1440, label: '24 hours', fullLabel: '24 hours' },
+] as const;
 
 function errorMessage(error: unknown, fallback: string) {
   if (typeof error === 'object' && error !== null && 'data' in error) {
@@ -55,8 +66,8 @@ function CommunityCard({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${community.chatTitle}, ${community.organisationName}. ${community.xpAwardedToday.toLocaleString()} of ${community.dailyXpLimit.toLocaleString()} Community XP used today. ${community.spamProtectionEnabled ? 'Phrase protection on.' : 'Phrase protection off.'} Open group dashboard`}
-      accessibilityHint="Opens this linked group's Community XP and protection dashboard"
+      accessibilityLabel={`${community.chatTitle}, ${community.organisationName}. ${community.xpAwardedToday.toLocaleString()} of ${community.dailyXpLimit.toLocaleString()} Community XP used today. ${community.spamProtectionEnabled ? 'Phrase protection on.' : 'Phrase protection off.'} ${community.riddlesEnabled ? `Automatic riddles every ${RIDDLE_INTERVALS.find(({ minutes }) => minutes === community.riddleIntervalMinutes)?.fullLabel ?? `${community.riddleIntervalMinutes} minutes`}.` : 'Automatic riddles off.'} Open group dashboard`}
+      accessibilityHint="Opens this linked group's Community XP, protection, and scheduled-riddle dashboard"
       testID={`telegram-community-${community.chatId}`}
       onPress={onOpen}
       style={({ pressed }) => [
@@ -102,6 +113,14 @@ function CommunityCard({
             ]}
           />
         </View>
+      </View>
+      <View style={styles.riddleStatusRow}>
+        <Feather name="help-circle" size={13} color={community.riddlesEnabled ? colors.primary : colors.mutedForeground} />
+        <Text style={[styles.riddleStatusText, { color: community.riddlesEnabled ? colors.primary : colors.mutedForeground }]}>
+          {community.riddlesEnabled
+            ? `Riddles every ${RIDDLE_INTERVALS.find(({ minutes }) => minutes === community.riddleIntervalMinutes)?.fullLabel ?? `${community.riddleIntervalMinutes} minutes`}`
+            : 'Automatic riddles off'}
+        </Text>
       </View>
       <View style={styles.openDashboard}>
         <Text style={[styles.openDashboardText, { color: colors.primary }]}>Open group dashboard</Text>
@@ -230,7 +249,7 @@ export function TelegramCommunityManagementScreen({ onBack, onOpenCommunity, onO
           <Text style={[styles.eyebrow, { color: colors.primary }]}>ORGANISATION TOOLS</Text>
           <Text style={[styles.title, { color: colors.foreground }]}>Telegram groups</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Check protection and XP budgets, then manage group controls in the bot.
+            Check XP and protection status, and configure scheduled riddles for each group.
           </Text>
         </View>
       </View>
@@ -382,6 +401,7 @@ export function TelegramCommunityDashboardScreen({
   const [linkDraft, setLinkDraft] = useState('');
   const [phraseFeedback, setPhraseFeedback] = useState<RuleFeedback | null>(null);
   const [linkFeedback, setLinkFeedback] = useState<RuleFeedback | null>(null);
+  const [riddleFeedback, setRiddleFeedback] = useState<RuleFeedback | null>(null);
   const management = useGetTelegramCommunityManagement();
   const liveInfo = useGetTelegramCommunityLiveInfo(chatId ?? '', {
     query: {
@@ -399,6 +419,7 @@ export function TelegramCommunityDashboardScreen({
   const removePhrase = useDeleteTelegramCommunityPhrase();
   const addLink = useAddTelegramCommunityLink();
   const removeLink = useDeleteTelegramCommunityLink();
+  const updateRiddles = useUpdateTelegramCommunityRiddleSettings();
   const community = management.data?.communities.find((item) => item.chatId === chatId);
   const displayedTitle = liveInfo.data?.connectionStatus !== 'error' && liveInfo.data?.chatTitle
     ? liveInfo.data.chatTitle
@@ -508,6 +529,36 @@ export function TelegramCommunityDashboardScreen({
       await refreshRules();
     } catch (error) {
       setLinkFeedback({ message: errorMessage(error, 'Could not add that link. Try again.'), tone: 'error' });
+    }
+  }
+
+  async function saveRiddleSettings(
+    enabled: boolean,
+    intervalMinutes: TelegramManagedCommunity['riddleIntervalMinutes'],
+  ) {
+    if (!chatId || !community || updateRiddles.isPending) return;
+    setRiddleFeedback(null);
+    try {
+      await updateRiddles.mutateAsync({
+        chatId,
+        data: { enabled, intervalMinutes },
+      });
+      const interval = RIDDLE_INTERVALS.find(({ minutes }) => minutes === intervalMinutes)?.fullLabel
+        ?? `${intervalMinutes} minutes`;
+      setRiddleFeedback({
+        message: enabled
+          ? `Scheduled riddles are on. The next one is due in ${interval}.`
+          : `Scheduled riddles are off. The ${interval} interval is saved.`,
+        tone: 'success',
+      });
+      await queryClient.invalidateQueries({
+        queryKey: getGetTelegramCommunityManagementQueryKey(),
+      });
+    } catch (error) {
+      setRiddleFeedback({
+        message: errorMessage(error, 'Could not update scheduled riddles. Try again.'),
+        tone: 'error',
+      });
     }
   }
 
@@ -676,6 +727,114 @@ export function TelegramCommunityDashboardScreen({
               </Pressable>
             </View>
           ) : null}
+
+          <View
+            testID="telegram-community-riddle-settings"
+            style={[
+              styles.dashboardCard,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+            ]}
+          >
+            <View style={styles.dashboardSectionHeader}>
+              <View style={[styles.setupIcon, { backgroundColor: colors.primary + '14' }]}>
+                <Feather name="help-circle" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Scheduled riddles</Text>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  {community.riddlesEnabled
+                    ? `On · every ${RIDDLE_INTERVALS.find(({ minutes }) => minutes === community.riddleIntervalMinutes)?.fullLabel ?? `${community.riddleIntervalMinutes} minutes`}`
+                    : 'Off · turn them on to post riddles automatically'}
+                </Text>
+              </View>
+              <View
+                accessibilityLabel={`Automatic riddles ${community.riddlesEnabled ? 'on' : 'off'}`}
+                style={[
+                  styles.riddleStateBadge,
+                  { backgroundColor: community.riddlesEnabled ? colors.success + '16' : colors.muted },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.protectionDot,
+                    { backgroundColor: community.riddlesEnabled ? colors.success : colors.mutedForeground },
+                  ]}
+                />
+                <Text style={[styles.connectionText, { color: community.riddlesEnabled ? colors.success : colors.mutedForeground }]}>
+                  {community.riddlesEnabled ? 'On' : 'Off'}
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.sectionDescription, { color: colors.mutedForeground, marginBottom: 12 }]}>
+              A new riddle is posted after each interval. Each round stays open for 15 minutes. Settings apply to this linked group only.
+            </Text>
+            <View style={styles.riddleIntervalGrid}>
+              {RIDDLE_INTERVALS.map(({ minutes, label, fullLabel }) => {
+                const selected = community.riddleIntervalMinutes === minutes;
+                return (
+                  <Pressable
+                    key={minutes}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set riddle interval to every ${fullLabel}`}
+                    accessibilityState={{ selected, disabled: updateRiddles.isPending }}
+                    testID={`telegram-community-riddle-interval-${minutes}`}
+                    disabled={updateRiddles.isPending}
+                    onPress={() => { void saveRiddleSettings(community.riddlesEnabled, minutes); }}
+                    style={({ pressed }) => [
+                      styles.riddleIntervalButton,
+                      {
+                        backgroundColor: selected ? colors.primary + '12' : colors.background,
+                        borderColor: selected ? colors.primary : colors.border,
+                        borderRadius: colors.radius - 5,
+                        opacity: pressed || updateRiddles.isPending ? 0.68 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.riddleIntervalText, { color: selected ? colors.primary : colors.foreground }]}>
+                      {label}
+                    </Text>
+                    {selected ? <Feather name="check" size={14} color={colors.primary} /> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Turn scheduled riddles ${community.riddlesEnabled ? 'off' : 'on'}`}
+              testID="telegram-community-riddle-toggle"
+              disabled={updateRiddles.isPending}
+              onPress={() => { void saveRiddleSettings(!community.riddlesEnabled, community.riddleIntervalMinutes); }}
+              style={({ pressed }) => [
+                styles.riddleToggleButton,
+                {
+                  backgroundColor: community.riddlesEnabled ? colors.muted : colors.primary,
+                  borderRadius: colors.radius - 5,
+                  opacity: pressed || updateRiddles.isPending ? 0.72 : 1,
+                },
+              ]}
+            >
+              {updateRiddles.isPending
+                ? <ActivityIndicator size="small" color={community.riddlesEnabled ? colors.foreground : colors.primaryForeground} />
+                : <Feather name={community.riddlesEnabled ? 'pause-circle' : 'play-circle'} size={17} color={community.riddlesEnabled ? colors.foreground : colors.primaryForeground} />}
+              <Text style={[styles.riddleToggleText, { color: community.riddlesEnabled ? colors.foreground : colors.primaryForeground }]}>
+                {updateRiddles.isPending
+                  ? 'Saving…'
+                  : community.riddlesEnabled ? 'Turn automatic riddles off' : 'Turn automatic riddles on'}
+              </Text>
+            </Pressable>
+            {riddleFeedback ? (
+              <Text
+                accessibilityRole={riddleFeedback.tone === 'error' ? 'alert' : 'text'}
+                testID="telegram-community-riddle-feedback"
+                style={[
+                  styles.ruleFeedback,
+                  { color: riddleFeedback.tone === 'error' ? colors.destructive : colors.success },
+                ]}
+              >
+                {riddleFeedback.message}
+              </Text>
+            ) : null}
+          </View>
 
           <View>
             <View style={styles.sectionHeadingRow}>
@@ -1086,8 +1245,11 @@ const styles = StyleSheet.create({
   communityTitleCopy: { flex: 1, minWidth: 0, gap: 3 },
   communityTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 },
   organisationName: { fontFamily: 'Inter_400Regular', fontSize: 11 },
+  riddleStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 9 },
+  riddleStatusText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   connectionRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 7, marginTop: 8 },
   connectionBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 20 },
+  riddleStateBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
   connectionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
   memberCountText: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
   settingsShortcut: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
@@ -1125,6 +1287,11 @@ const styles = StyleSheet.create({
   dashboardSections: { gap: 12 },
   dashboardCard: { borderWidth: 1, padding: 14 },
   dashboardSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  riddleIntervalGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 12 },
+  riddleIntervalButton: { flexBasis: '31%', flexGrow: 1, minHeight: 39, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, paddingHorizontal: 6 },
+  riddleIntervalText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  riddleToggleButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
+  riddleToggleText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
   sectionTitleCopy: { flex: 1, minWidth: 0, gap: 4 },
   rulesLoading: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 8 },
   rulesError: { gap: 9, paddingVertical: 3 },

@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gte, gt, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, gte, gt, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   communityContributionsTable,
@@ -14,6 +14,7 @@ import {
   normalizeCommunityLink,
   normalizeCommunityModerationPhrase,
 } from "./community-rules";
+import { TELEGRAM_COMMUNITY_RIDDLE_INTERVALS } from "./group-riddles";
 
 export type OwnedTelegramOrganisation = {
   id: number;
@@ -51,6 +52,8 @@ export async function getTelegramCommunity(chatId: string) {
       organisationId: telegramCommunitiesTable.organisationId,
       organisationName: organisationsTable.name,
       spamProtectionEnabled: telegramCommunitiesTable.spamProtectionEnabled,
+      riddlesEnabled: telegramCommunitiesTable.riddlesEnabled,
+      riddleIntervalMinutes: telegramCommunitiesTable.riddleIntervalMinutes,
     })
     .from(telegramCommunitiesTable)
     .innerJoin(
@@ -73,6 +76,8 @@ export async function listTelegramOwnedCommunities(
       chatTitle: telegramCommunitiesTable.chatTitle,
       organisationName: organisationsTable.name,
       spamProtectionEnabled: telegramCommunitiesTable.spamProtectionEnabled,
+      riddlesEnabled: telegramCommunitiesTable.riddlesEnabled,
+      riddleIntervalMinutes: telegramCommunitiesTable.riddleIntervalMinutes,
     })
     .from(telegramCommunitiesTable)
     .innerJoin(
@@ -183,6 +188,8 @@ export async function getTelegramCommunityManagementContext(
       organisationName: organisationsTable.name,
       ownerUserId: usersTable.id,
       spamProtectionEnabled: telegramCommunitiesTable.spamProtectionEnabled,
+      riddlesEnabled: telegramCommunitiesTable.riddlesEnabled,
+      riddleIntervalMinutes: telegramCommunitiesTable.riddleIntervalMinutes,
     })
     .from(telegramCommunitiesTable)
     .innerJoin(
@@ -200,6 +207,152 @@ export async function getTelegramCommunityManagementContext(
     .where(eq(telegramCommunitiesTable.chatId, chatId))
     .limit(1);
   return context ?? null;
+}
+
+export async function setTelegramCommunityRiddleSettings(input: {
+  chatId: string;
+  telegramUserId: number;
+  enabled: boolean;
+  intervalMinutes: number;
+}) {
+  if (
+    !TELEGRAM_COMMUNITY_RIDDLE_INTERVALS.includes(
+      input.intervalMinutes as (typeof TELEGRAM_COMMUNITY_RIDDLE_INTERVALS)[number],
+    )
+  ) {
+    return null;
+  }
+  const context = await getTelegramCommunityManagementContext(input.chatId, input.telegramUserId);
+  if (!context) return null;
+  const now = new Date();
+  const nextRiddleAt = input.enabled
+    ? new Date(now.getTime() + input.intervalMinutes * 60_000)
+    : null;
+  const [updated] = await db
+    .update(telegramCommunitiesTable)
+    .set({
+      riddlesEnabled: input.enabled,
+      riddleIntervalMinutes: input.intervalMinutes,
+      nextRiddleAt,
+      updatedAt: now,
+    })
+    .where(eq(telegramCommunitiesTable.id, context.communityId))
+    .returning({ id: telegramCommunitiesTable.id });
+  return updated
+    ? {
+        ...context,
+        riddlesEnabled: input.enabled,
+        riddleIntervalMinutes: input.intervalMinutes,
+        nextRiddleAt,
+      }
+    : null;
+}
+
+export async function listDueTelegramCommunityRiddles(
+  now = new Date(),
+  limit = 20,
+) {
+  return db
+    .select({
+      communityId: telegramCommunitiesTable.id,
+      chatId: telegramCommunitiesTable.chatId,
+      chatTitle: telegramCommunitiesTable.chatTitle,
+      riddleIntervalMinutes: telegramCommunitiesTable.riddleIntervalMinutes,
+      nextRiddleAt: telegramCommunitiesTable.nextRiddleAt,
+      activeRiddleMessageId: telegramCommunitiesTable.activeRiddleMessageId,
+      activeRiddleId: telegramCommunitiesTable.activeRiddleId,
+      activeRiddleExpiresAt: telegramCommunitiesTable.activeRiddleExpiresAt,
+    })
+    .from(telegramCommunitiesTable)
+    .where(
+      and(
+        eq(telegramCommunitiesTable.riddlesEnabled, true),
+        lte(telegramCommunitiesTable.nextRiddleAt, now),
+      ),
+    )
+    .orderBy(asc(telegramCommunitiesTable.nextRiddleAt), asc(telegramCommunitiesTable.id))
+    .limit(Math.max(1, Math.min(100, Math.floor(limit))));
+}
+
+export async function advanceTelegramCommunityRiddleSchedule(input: {
+  communityId: number;
+  dueBy: Date;
+  nextRiddleAt: Date;
+}) {
+  const [updated] = await db
+    .update(telegramCommunitiesTable)
+    .set({
+      nextRiddleAt: input.nextRiddleAt,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(telegramCommunitiesTable.id, input.communityId),
+        eq(telegramCommunitiesTable.riddlesEnabled, true),
+        lte(telegramCommunitiesTable.nextRiddleAt, input.dueBy),
+      ),
+    )
+    .returning({ id: telegramCommunitiesTable.id });
+  return Boolean(updated);
+}
+
+export async function saveTelegramCommunityActiveRiddle(input: {
+  chatId: string;
+  messageId: number;
+  riddleId: string;
+  expiresAt: Date;
+}) {
+  const [updated] = await db
+    .update(telegramCommunitiesTable)
+    .set({
+      activeRiddleMessageId: input.messageId,
+      activeRiddleId: input.riddleId,
+      activeRiddleExpiresAt: input.expiresAt,
+      updatedAt: new Date(),
+    })
+    .where(eq(telegramCommunitiesTable.chatId, input.chatId))
+    .returning({ id: telegramCommunitiesTable.id });
+  return Boolean(updated);
+}
+
+export async function clearTelegramCommunityActiveRiddle(input: {
+  chatId: string;
+  messageId: number;
+}) {
+  const [updated] = await db
+    .update(telegramCommunitiesTable)
+    .set({
+      activeRiddleMessageId: null,
+      activeRiddleId: null,
+      activeRiddleExpiresAt: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(telegramCommunitiesTable.chatId, input.chatId),
+        eq(telegramCommunitiesTable.activeRiddleMessageId, input.messageId),
+      ),
+    )
+    .returning({ id: telegramCommunitiesTable.id });
+  return Boolean(updated);
+}
+
+export async function listTelegramCommunityActiveRiddles() {
+  return db
+    .select({
+      chatId: telegramCommunitiesTable.chatId,
+      messageId: telegramCommunitiesTable.activeRiddleMessageId,
+      riddleId: telegramCommunitiesTable.activeRiddleId,
+      expiresAt: telegramCommunitiesTable.activeRiddleExpiresAt,
+    })
+    .from(telegramCommunitiesTable)
+    .where(
+      and(
+        isNotNull(telegramCommunitiesTable.activeRiddleMessageId),
+        isNotNull(telegramCommunitiesTable.activeRiddleId),
+        isNotNull(telegramCommunitiesTable.activeRiddleExpiresAt),
+      ),
+    );
 }
 
 export async function connectTelegramCommunity(input: {

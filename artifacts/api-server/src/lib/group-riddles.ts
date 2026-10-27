@@ -1,4 +1,5 @@
 export const RIDDLE_REVEAL_AFTER_MS = 15 * 60_000;
+export const TELEGRAM_COMMUNITY_RIDDLE_INTERVALS = [30, 60, 180, 360, 720, 1440] as const;
 
 export type Riddle = {
   id: string;
@@ -559,6 +560,10 @@ export const GROUP_RIDDLES: readonly Riddle[] = [
   },
 ];
 
+export function getGroupRiddleById(id: string): Riddle | null {
+  return GROUP_RIDDLES.find((riddle) => riddle.id === id) ?? null;
+}
+
 export type ActiveRiddleRound = {
   messageId: number;
   riddle: Riddle;
@@ -586,6 +591,20 @@ export function createRiddleRoundStore(ttlMs = RIDDLE_REVEAL_AFTER_MS) {
       if (getActive(chatId, now)) return false;
       active.delete(chatId);
       active.set(chatId, { messageId, riddle, expiresAt: now + ttlMs });
+      return true;
+    },
+    restore(
+      chatId: number,
+      messageId: number,
+      riddle: Riddle,
+      expiresAt: number,
+      now = Date.now(),
+    ): boolean {
+      if (!Number.isSafeInteger(chatId) || chatId === 0) return false;
+      if (!Number.isSafeInteger(messageId) || messageId <= 0) return false;
+      if (!Number.isSafeInteger(expiresAt) || expiresAt <= now) return false;
+      if (getActive(chatId, now)) return false;
+      active.set(chatId, { messageId, riddle, expiresAt });
       return true;
     },
     solve(

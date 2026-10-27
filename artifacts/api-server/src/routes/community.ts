@@ -11,6 +11,9 @@ import {
   DeleteTelegramCommunityPhraseParams,
   GetTelegramCommunityRulesParams,
   GetTelegramCommunityRulesResponse,
+  UpdateTelegramCommunityRiddleSettingsBody,
+  UpdateTelegramCommunityRiddleSettingsParams,
+  UpdateTelegramCommunityRiddleSettingsResponse,
 } from "@workspace/api-zod";
 import { db } from "@workspace/db";
 import { communityMembersTable } from "@workspace/db/schema";
@@ -33,6 +36,7 @@ import {
   listTelegramOwnedCommunitiesForManagement,
   removeTelegramCommunityKeywordRuleById,
   removeTelegramCommunityLinkRuleById,
+  setTelegramCommunityRiddleSettings,
 } from "../lib/community-moderation";
 
 const router: IRouter = Router();
@@ -71,6 +75,36 @@ router.get("/community/manage", async (req, res) => {
   res.json({
     communities: await listTelegramOwnedCommunitiesForManagement(telegramUserId),
   });
+});
+
+router.patch("/community/manage/:chatId/riddles", async (req, res) => {
+  const params = UpdateTelegramCommunityRiddleSettingsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: "That Telegram group identifier is invalid." });
+    return;
+  }
+  const body = UpdateTelegramCommunityRiddleSettingsBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ message: "Choose a valid interval and turn automatic riddles on or off." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+
+  const updated = await setTelegramCommunityRiddleSettings({
+    chatId: params.data.chatId,
+    telegramUserId,
+    enabled: body.data.enabled,
+    intervalMinutes: body.data.intervalMinutes,
+  });
+  if (!updated) {
+    res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+    return;
+  }
+  res.json(UpdateTelegramCommunityRiddleSettingsResponse.parse({
+    enabled: updated.riddlesEnabled,
+    intervalMinutes: updated.riddleIntervalMinutes,
+  }));
 });
 
 router.get("/community/manage/:chatId/rules", async (req, res) => {

@@ -33,11 +33,17 @@ import {
   getTelegramCommunityManagementContext,
   listTelegramCommunityKeywordRules,
   listTelegramCommunityLinkRules,
+  listDueTelegramCommunityRiddles,
+  listTelegramCommunityActiveRiddles,
   listTelegramOwnedCommunities,
   listTelegramOwnedOrganisations,
+  advanceTelegramCommunityRiddleSchedule,
+  clearTelegramCommunityActiveRiddle,
   removeTelegramCommunityKeywordRule,
   removeTelegramCommunityKeywordRuleById,
+  saveTelegramCommunityActiveRiddle,
   setTelegramCommunitySpamProtection,
+  setTelegramCommunityRiddleSettings,
 } from "./community-moderation";
 import {
   tryAcquireTelegramPollingLease,
@@ -59,8 +65,10 @@ import {
 import {
   chooseWrongRiddleAnswerResponse,
   chooseGroupRiddle,
+  getGroupRiddleById,
   createRiddleRoundStore,
   RIDDLE_REVEAL_AFTER_MS,
+  TELEGRAM_COMMUNITY_RIDDLE_INTERVALS,
 } from "./group-riddles";
 import { recordAnalyticsEvent } from "./analytics";
 import type { AnalyticsEventCategory } from "@workspace/db/schema";
@@ -173,6 +181,9 @@ const riddleRevealTimers = new Map<
   number,
   { messageId: number; timer: ReturnType<typeof setTimeout> }
 >();
+type TelegramCommunityManagementContext = NonNullable<
+  Awaited<ReturnType<typeof getTelegramCommunityManagementContext>>
+>;
 
 function nextPollingRetryDelay(): number {
   consecutivePollingFailures += 1;
@@ -993,14 +1004,30 @@ async function sendRiddleAnswerReveal(chatId: number, answer: string): Promise<v
   );
 }
 
-function scheduleRiddleAnswerReveal(chatId: number, messageId: number): void {
+function scheduleRiddleAnswerReveal(
+  chatId: number,
+  messageId: number,
+  delayMs = RIDDLE_REVEAL_AFTER_MS,
+): void {
   const timer = setTimeout(() => {
     const scheduled = riddleRevealTimers.get(chatId);
     if (!scheduled || scheduled.messageId !== messageId) return;
     riddleRevealTimers.delete(chatId);
     const round = riddleRounds.reveal(chatId, messageId);
-    if (round) void sendRiddleAnswerReveal(chatId, round.riddle.answers[0]);
-  }, RIDDLE_REVEAL_AFTER_MS);
+    if (round) {
+      void (async () => {
+        if (chatId < 0) {
+          await clearTelegramCommunityActiveRiddle({
+            chatId: String(chatId),
+            messageId,
+          }).catch((error) => {
+            logger.warn({ err: error, chatId }, "Persisted riddle round could not be cleared");
+          });
+        }
+        await sendRiddleAnswerReveal(chatId, round.riddle.answers[0]);
+      })();
+    }
+  }, Math.max(0, delayMs));
   riddleRevealTimers.set(chatId, { messageId, timer });
 }
 
@@ -1008,7 +1035,54 @@ async function revealExpiredRiddle(chatId: number, now = Date.now()): Promise<vo
   const round = riddleRounds.revealExpired(chatId, now);
   if (!round) return;
   clearRiddleRevealTimer(chatId, round.messageId);
+  if (chatId < 0) {
+    await clearTelegramCommunityActiveRiddle({
+      chatId: String(chatId),
+      messageId: round.messageId,
+    }).catch((error) => {
+      logger.warn({ err: error, chatId }, "Persisted riddle round could not be cleared");
+    });
+  }
   await sendRiddleAnswerReveal(chatId, round.riddle.answers[0]);
+}
+
+async function restorePersistedCommunityRiddles(): Promise<void> {
+  const rounds = await listTelegramCommunityActiveRiddles();
+  const now = Date.now();
+  for (const round of rounds) {
+    const chatId = Number(round.chatId);
+    if (
+      !Number.isSafeInteger(chatId) ||
+      chatId >= 0 ||
+      round.messageId === null ||
+      round.riddleId === null ||
+      round.expiresAt === null
+    ) {
+      continue;
+    }
+    const riddle = getGroupRiddleById(round.riddleId);
+    if (!riddle) {
+      await clearTelegramCommunityActiveRiddle({
+        chatId: round.chatId,
+        messageId: round.messageId,
+      });
+      logger.warn({ chatId, riddleId: round.riddleId }, "Stored riddle round referenced an unknown riddle");
+      continue;
+    }
+
+    const expiresAt = round.expiresAt.getTime();
+    if (expiresAt <= now) {
+      await clearTelegramCommunityActiveRiddle({
+        chatId: round.chatId,
+        messageId: round.messageId,
+      });
+      await sendRiddleAnswerReveal(chatId, riddle.answers[0]);
+      continue;
+    }
+    if (riddleRounds.restore(chatId, round.messageId, riddle, expiresAt, now)) {
+      scheduleRiddleAnswerReveal(chatId, round.messageId, expiresAt - now);
+    }
+  }
 }
 
 async function handleRiddleCommand(
@@ -1046,6 +1120,121 @@ async function handleRiddleCommand(
     return;
   }
   scheduleRiddleAnswerReveal(chatId, sentMessage.message_id);
+  if (chatId < 0) {
+    const saved = await saveTelegramCommunityActiveRiddle({
+      chatId: String(chatId),
+      messageId: sentMessage.message_id,
+      riddleId: riddle.id,
+      expiresAt: new Date(startedAt + RIDDLE_REVEAL_AFTER_MS),
+    }).catch((error) => {
+      logger.warn({ err: error, chatId }, "Active group riddle could not be persisted");
+      return false;
+    });
+    if (!saved) {
+      logger.debug({ chatId, messageId: sentMessage.message_id }, "Riddle round has no linked community record");
+    }
+  }
+}
+
+async function sendDueScheduledCommunityRiddles(): Promise<void> {
+  if (!botRunning || !telegramPollingLease) return;
+  const dueCommunities = await listDueTelegramCommunityRiddles(new Date(), 20);
+  for (const community of dueCommunities) {
+    if (!botRunning || !telegramPollingLease) return;
+    const chatId = Number(community.chatId);
+    if (!Number.isSafeInteger(chatId) || chatId >= 0) {
+      logger.warn({ communityId: community.communityId }, "Scheduled riddle skipped for an invalid group chat ID");
+      continue;
+    }
+
+    const now = Date.now();
+    const persistedExpiry = community.activeRiddleExpiresAt?.getTime();
+    if (persistedExpiry && persistedExpiry > now) {
+      await advanceTelegramCommunityRiddleSchedule({
+        communityId: community.communityId,
+        dueBy: new Date(now),
+        nextRiddleAt: new Date(persistedExpiry + 1_000),
+      });
+      continue;
+    }
+
+    if (persistedExpiry && persistedExpiry <= now) {
+      const expiredRiddle = community.activeRiddleId
+        ? getGroupRiddleById(community.activeRiddleId)
+        : null;
+      const expiredLocalRound = riddleRounds.revealExpired(chatId, now);
+      if (expiredLocalRound) {
+        clearRiddleRevealTimer(chatId, expiredLocalRound.messageId);
+      }
+      if (community.activeRiddleMessageId !== null) {
+        await clearTelegramCommunityActiveRiddle({
+          chatId: community.chatId,
+          messageId: community.activeRiddleMessageId,
+        });
+      }
+      const answer = expiredLocalRound?.riddle.answers[0] ?? expiredRiddle?.answers[0];
+      if (answer) await sendRiddleAnswerReveal(chatId, answer);
+    }
+
+    if (!persistedExpiry || persistedExpiry > now) {
+      await revealExpiredRiddle(chatId);
+    }
+    const activeRound = riddleRounds.getActive(chatId);
+    if (activeRound) {
+      await advanceTelegramCommunityRiddleSchedule({
+        communityId: community.communityId,
+        dueBy: new Date(now),
+        nextRiddleAt: new Date(activeRound.expiresAt + 1_000),
+      });
+      continue;
+    }
+
+    const claimTime = new Date();
+    const nextRiddleAt = new Date(
+      claimTime.getTime() + community.riddleIntervalMinutes * 60_000,
+    );
+    const claimed = await advanceTelegramCommunityRiddleSchedule({
+      communityId: community.communityId,
+      dueBy: claimTime,
+      nextRiddleAt,
+    });
+    if (!claimed || !botRunning || !telegramPollingLease) continue;
+
+    const riddle = chooseGroupRiddle();
+    const sentMessage = await sendTelegramMessage(
+      chatId,
+      `🧩 <b>Scheduled group riddle</b>\n\n${escapeTelegramHtml(riddle.question)}\n\nReply directly to this message with your answer. The first correct answer solves it; otherwise, the answer is revealed after 15 minutes.`,
+    );
+    if (!sentMessage || !Number.isSafeInteger(sentMessage.message_id)) {
+      logger.warn({ chatId, riddleId: riddle.id }, "Scheduled group riddle could not be posted");
+      continue;
+    }
+
+    const startedAt = Date.now();
+    if (!riddleRounds.start(chatId, sentMessage.message_id, riddle, startedAt)) {
+      logger.error({ chatId, messageId: sentMessage.message_id }, "Scheduled group riddle could not be activated");
+      continue;
+    }
+    scheduleRiddleAnswerReveal(chatId, sentMessage.message_id);
+    const saved = await saveTelegramCommunityActiveRiddle({
+      chatId: community.chatId,
+      messageId: sentMessage.message_id,
+      riddleId: riddle.id,
+      expiresAt: new Date(startedAt + RIDDLE_REVEAL_AFTER_MS),
+    }).catch((error) => {
+      logger.warn({ err: error, chatId }, "Scheduled group riddle state could not be persisted");
+      return false;
+    });
+    if (!saved) {
+      logger.warn({ chatId, messageId: sentMessage.message_id }, "Scheduled riddle was posted without a linked community record");
+    }
+    logger.info({
+      communityId: community.communityId,
+      chatId,
+      riddleId: riddle.id,
+      nextRiddleAt: nextRiddleAt.toISOString(),
+    }, "Scheduled group riddle posted");
+  }
 }
 
 async function handleRiddleReply(
@@ -1074,6 +1263,14 @@ async function handleRiddleReply(
     return false;
   }
   clearRiddleRevealTimer(message.chat.id, message.reply_to_message?.message_id);
+  if (message.chat.id < 0) {
+    await clearTelegramCommunityActiveRiddle({
+      chatId: String(message.chat.id),
+      messageId: message.reply_to_message?.message_id ?? 0,
+    }).catch((error) => {
+      logger.warn({ err: error, chatId: message.chat.id }, "Solved riddle state could not be cleared");
+    });
+  }
 
   const memberName = identity.username
     ? `@${identity.username}`
@@ -1214,6 +1411,101 @@ async function runCommunityControlsSafely(
   }
 }
 
+function formatCommunityRiddleInterval(minutes: number): string {
+  if (minutes < 60) return `${minutes} minutes`;
+  const hours = minutes / 60;
+  return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+}
+
+function communityRiddleSettingsKeyboard(
+  context: TelegramCommunityManagementContext,
+  groupChatId: number,
+  privateControls: boolean,
+): TelegramButton[][] {
+  const toggleData = (enabled: boolean) =>
+    privateControls
+      ? `community:private:riddle-toggle:${groupChatId}:${enabled ? "on" : "off"}`
+      : `community:riddle:toggle:${enabled ? "on" : "off"}`;
+  const intervalData = (minutes: number) =>
+    privateControls
+      ? `community:private:riddle-interval:${groupChatId}:${minutes}`
+      : `community:riddle:interval:${minutes}`;
+  const intervals = TELEGRAM_COMMUNITY_RIDDLE_INTERVALS.map((minutes) =>
+    callbackButton(
+      `${context.riddleIntervalMinutes === minutes ? "✓ " : ""}${formatCommunityRiddleInterval(minutes)}`,
+      intervalData(minutes),
+    ),
+  );
+
+  return [
+    [
+      callbackButton(
+        context.riddlesEnabled ? "Turn scheduled riddles off" : "Turn scheduled riddles on",
+        toggleData(!context.riddlesEnabled),
+      ),
+    ],
+    ...Array.from({ length: Math.ceil(intervals.length / 2) }, (_, index) =>
+      intervals.slice(index * 2, index * 2 + 2),
+    ),
+  ];
+}
+
+async function showGroupCommunityControls(
+  chatId: number,
+  context: TelegramCommunityManagementContext,
+) {
+  const riddleStatus = context.riddlesEnabled
+    ? `ON · every ${formatCommunityRiddleInterval(context.riddleIntervalMinutes)}`
+    : "OFF";
+  await sendTelegramMessage(
+    chatId,
+    `<b>${escapeTelegramHtml(context.chatTitle)}</b>\nConnected to <b>${escapeTelegramHtml(context.organisationName)}</b>\nPhrase protection: <b>${context.spamProtectionEnabled ? "ON" : "OFF"}</b>\nScheduled riddles: <b>${riddleStatus}</b>\n\nOnly the linked organisation owner who is also a Telegram group admin can change settings.\n\n<code>/spam on</code> / <code>/spam off</code>\n<code>/filter add phrase</code> · <code>/filter remove phrase</code> · <code>/filters</code>\n<code>/community disconnect</code> Unlink this group\n\nManage the same riddle settings privately with <code>/community</code> in a private chat.`,
+    [
+      ...communityRiddleSettingsKeyboard(context, chatId, false),
+      [callbackButton("Disconnect group", "community:disconnect:confirm")],
+    ],
+  );
+}
+
+async function changeCommunityRiddleSettings(
+  groupChatId: number,
+  responseChatId: number,
+  identity: TelegramIdentity,
+  change: { enabled?: boolean; intervalMinutes?: number },
+  privateControls: boolean,
+) {
+  const context = await requireTelegramCommunityOwner(groupChatId, identity, responseChatId);
+  if (!context) return;
+  const enabled = change.enabled ?? context.riddlesEnabled;
+  const intervalMinutes = change.intervalMinutes ?? context.riddleIntervalMinutes;
+  const updated = await setTelegramCommunityRiddleSettings({
+    chatId: String(groupChatId),
+    telegramUserId: identity.id,
+    enabled,
+    intervalMinutes,
+  });
+  if (!updated) {
+    await sendTelegramMessage(responseChatId, "Your organisation access changed. Reopen /community and try again.");
+    return;
+  }
+  logger.info({
+    chatId: groupChatId,
+    organisationId: updated.organisationId,
+    actorUserId: updated.ownerUserId,
+    enabled,
+    intervalMinutes,
+  }, "Telegram community scheduled-riddle settings updated");
+  await sendTelegramMessage(
+    responseChatId,
+    `Scheduled riddles are <b>${enabled ? "ON" : "OFF"}</b>${enabled ? ` · every ${formatCommunityRiddleInterval(intervalMinutes)}` : ` · interval saved as ${formatCommunityRiddleInterval(intervalMinutes)}`}.`,
+  );
+  if (privateControls) {
+    await showPrivateCommunityControls(responseChatId, groupChatId, identity);
+  } else {
+    await showGroupCommunityControls(groupChatId, updated);
+  }
+}
+
 async function handleCommunityCommand(
   chatId: number,
   chatType: string | undefined,
@@ -1250,7 +1542,7 @@ async function handleCommunityCommand(
     if (!context) return;
     await sendTelegramMessage(
       chatId,
-      `<b>Disconnect ${escapeTelegramHtml(context.chatTitle)}?</b>\n\nPhrase and link protection will stop, and this group's saved phrase filters and whitelisted links will be permanently deleted. Community XP history will be kept.`,
+      `<b>Disconnect ${escapeTelegramHtml(context.chatTitle)}?</b>\n\nPhrase protection and scheduled riddles will stop, and this group's saved phrase filters and whitelisted links will be permanently deleted. Community XP history will be kept.`,
       [[
         callbackButton("Disconnect group", "community:disconnect:confirm"),
         callbackButton("Cancel", "community:disconnect:cancel"),
@@ -1261,10 +1553,8 @@ async function handleCommunityCommand(
 
   const existing = await getTelegramCommunity(String(chatId));
   if (existing) {
-    await sendTelegramMessage(
-      chatId,
-      `<b>${escapeTelegramHtml(existing.chatTitle)}</b>\nConnected to <b>${escapeTelegramHtml(existing.organisationName)}</b>\nPhrase protection: <b>${existing.spamProtectionEnabled ? "ON" : "OFF"}</b>\n\nOnly the linked organisation owner who is also a Telegram group admin can change settings.\n\n<code>/spam on</code> / <code>/spam off</code>\n<code>/filter add phrase</code> · <code>/filter remove phrase</code> · <code>/filters</code>\n<code>/community disconnect</code> Unlink this group\n\nYou can manage linked groups privately by opening the bot and running <code>/community</code>.\n\nThis first version removes exact-word or exact-phrase matches only. It does not detect floods or suspicious links.`,
-    );
+    const context = await requireTelegramCommunityOwner(chatId, identity);
+    if (context) await showGroupCommunityControls(chatId, context);
     return;
   }
 
@@ -1374,7 +1664,7 @@ async function sendPrivateCommunityList(
 
   await sendTelegramMessage(
     privateChatId,
-    `<b>Your linked groups</b>\n\nChoose a group to manage phrase protection and saved filters. Group changes are available only while you remain both its Telegram admin and the linked organisation owner.`,
+    `<b>Your linked groups</b>\n\nChoose a group to manage scheduled riddles, phrase protection, and saved filters. Group changes are available only while you remain both its Telegram admin and the linked organisation owner.`,
     keyboard,
   );
 }
@@ -1393,8 +1683,9 @@ async function showPrivateCommunityControls(
     : "Turn phrase protection on";
   await sendTelegramMessage(
     privateChatId,
-    `<b>${escapeTelegramHtml(context.chatTitle)}</b>\n${escapeTelegramHtml(context.organisationName)}\nPhrase protection: <b>${context.spamProtectionEnabled ? "ON" : "OFF"}</b>\n\nManage these settings privately. You must remain a Telegram group admin and the linked organisation owner.`,
+    `<b>${escapeTelegramHtml(context.chatTitle)}</b>\n${escapeTelegramHtml(context.organisationName)}\nPhrase protection: <b>${context.spamProtectionEnabled ? "ON" : "OFF"}</b>\nScheduled riddles: <b>${context.riddlesEnabled ? `ON · every ${formatCommunityRiddleInterval(context.riddleIntervalMinutes)}` : "OFF"}</b>\n\nManage these settings privately. You must remain a Telegram group admin and the linked organisation owner.`,
     [
+      ...communityRiddleSettingsKeyboard(context, groupChatId, true),
       [callbackButton(protectionLabel, `community:private:toggle:${groupChatId}:${protectionAction}`)],
       [
         callbackButton("Add phrase filter", `community:private:add:${groupChatId}`),
@@ -1597,6 +1888,39 @@ async function handlePrivateCommunityCallback(
     await showPrivateCommunityControls(privateChatId, groupChatId, identity);
     return;
   }
+  if (action === "riddle-toggle") {
+    if (rawValue !== "on" && rawValue !== "off") {
+      await sendTelegramMessage(privateChatId, "That riddle setting is invalid. Reopen /community and try again.");
+      return;
+    }
+    await changeCommunityRiddleSettings(
+      groupChatId,
+      privateChatId,
+      identity,
+      { enabled: rawValue === "on" },
+      true,
+    );
+    return;
+  }
+  if (action === "riddle-interval") {
+    const intervalMinutes = Number(rawValue);
+    if (
+      !TELEGRAM_COMMUNITY_RIDDLE_INTERVALS.includes(
+        intervalMinutes as (typeof TELEGRAM_COMMUNITY_RIDDLE_INTERVALS)[number],
+      )
+    ) {
+      await sendTelegramMessage(privateChatId, "That riddle interval is invalid. Reopen /community and try again.");
+      return;
+    }
+    await changeCommunityRiddleSettings(
+      groupChatId,
+      privateChatId,
+      identity,
+      { intervalMinutes },
+      true,
+    );
+    return;
+  }
   if (action === "add") {
     const context = await requireTelegramCommunityOwner(groupChatId, identity, privateChatId);
     if (!context) return;
@@ -1654,7 +1978,7 @@ async function handlePrivateCommunityCallback(
     if (!context) return;
     await sendTelegramMessage(
       privateChatId,
-      `<b>Disconnect ${escapeTelegramHtml(context.chatTitle)}?</b>\n\nPhrase and link protection will stop, and this group's saved phrase filters and whitelisted links will be permanently deleted. Community XP history will be kept.`,
+      `<b>Disconnect ${escapeTelegramHtml(context.chatTitle)}?</b>\n\nPhrase protection and scheduled riddles will stop, and this group's saved phrase filters and whitelisted links will be permanently deleted. Community XP history will be kept.`,
       [[
         callbackButton("Disconnect group", `community:private:disconnect-confirm:${groupChatId}`),
         callbackButton("Cancel", `community:private:disconnect-cancel:${groupChatId}`),
@@ -2164,6 +2488,42 @@ async function handleCallback(update: NonNullable<TelegramUpdate["callback_query
     );
     return;
   }
+  const communityRiddlePrefix = "community:riddle:";
+  if (callback.startsWith(communityRiddlePrefix)) {
+    if (!update.message || !isGroupChat(chatType)) return;
+    const [action, rawValue] = callback.slice(communityRiddlePrefix.length).split(":");
+    await runCommunityControlsSafely(chatId, "scheduled_riddle_settings", async () => {
+      if (action === "toggle" && (rawValue === "on" || rawValue === "off")) {
+        await changeCommunityRiddleSettings(
+          chatId,
+          chatId,
+          update.from,
+          { enabled: rawValue === "on" },
+          false,
+        );
+        return;
+      }
+      if (action === "interval") {
+        const intervalMinutes = Number(rawValue);
+        if (
+          TELEGRAM_COMMUNITY_RIDDLE_INTERVALS.includes(
+            intervalMinutes as (typeof TELEGRAM_COMMUNITY_RIDDLE_INTERVALS)[number],
+          )
+        ) {
+          await changeCommunityRiddleSettings(
+            chatId,
+            chatId,
+            update.from,
+            { intervalMinutes },
+            false,
+          );
+          return;
+        }
+      }
+      await sendTelegramMessage(chatId, "That riddle setting is invalid. Reopen /community and try again.");
+    });
+    return;
+  }
   const communityConnectPrefix = "community:connect:";
   if (callback.startsWith(communityConnectPrefix)) {
     if (!update.message || !isGroupChat(chatType)) return;
@@ -2353,6 +2713,13 @@ async function poll(offset: number): Promise<void> {
         logger.error({ err: error }, "Telegram update handling failed");
       }
     }
+    if (botRunning && telegramPollingLease) {
+      try {
+        await sendDueScheduledCommunityRiddles();
+      } catch (error) {
+        logger.error({ err: error }, "Scheduled community riddle processing failed");
+      }
+    }
   } catch (error) {
     logger.error({ err: error }, "Telegram polling iteration failed");
     retryDelayMs = nextPollingRetryDelay();
@@ -2421,6 +2788,12 @@ export async function startTelegramBot() {
     }
 
     botRunning = true;
+    try {
+      await restorePersistedCommunityRiddles();
+    } catch (error) {
+      logger.warn({ err: error }, "Persisted group riddle rounds could not be restored");
+    }
+    if (telegramPollingLease !== lease || !botRunning) return;
     await registerTelegramCommands();
     if (telegramPollingLease !== lease || !botRunning) return;
     logger.info({ username: me.username }, "Telegram bot polling started");

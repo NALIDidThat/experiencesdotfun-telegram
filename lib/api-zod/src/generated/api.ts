@@ -2310,6 +2310,8 @@ export const GetTelegramCommunityManagementResponse = zod.object({
   "chatTitle": zod.string(),
   "organisationName": zod.string(),
   "spamProtectionEnabled": zod.boolean(),
+  "riddlesEnabled": zod.boolean(),
+  "riddleIntervalMinutes": zod.union([zod.literal(30),zod.literal(60),zod.literal(180),zod.literal(360),zod.literal(720),zod.literal(1440)]),
   "xpAwardedToday": zod.number().int(),
   "dailyXpLimit": zod.number().int(),
   "dailyXpRemaining": zod.number().int(),
@@ -2321,6 +2323,27 @@ export const GetTelegramCommunityManagementResponse = zod.object({
   "qualifyingMessagesToday": zod.number().int().describe('Number of text messages recorded by the community XP system since 00:00 UTC; this is not a count of all Telegram messages.'),
   "resetTimezone": zod.enum(['UTC'])
 }))
+})
+
+
+/**
+ * @summary Update scheduled riddles for a linked Telegram group
+ */
+export const updateTelegramCommunityRiddleSettingsPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const UpdateTelegramCommunityRiddleSettingsParams = zod.object({
+  "chatId": zod.coerce.string().regex(updateTelegramCommunityRiddleSettingsPathChatIdRegExp)
+})
+
+export const UpdateTelegramCommunityRiddleSettingsBody = zod.object({
+  "enabled": zod.boolean(),
+  "intervalMinutes": zod.union([zod.literal(30),zod.literal(60),zod.literal(180),zod.literal(360),zod.literal(720),zod.literal(1440)])
+})
+
+export const UpdateTelegramCommunityRiddleSettingsResponse = zod.object({
+  "enabled": zod.boolean(),
+  "intervalMinutes": zod.union([zod.literal(30),zod.literal(60),zod.literal(180),zod.literal(360),zod.literal(720),zod.literal(1440)])
 })
 
 

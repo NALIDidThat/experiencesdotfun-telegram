@@ -6,12 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { TelegramManagedCommunityResetTimezone } from './telegramManagedCommunityResetTimezone';
+import type { TelegramManagedCommunityRiddleIntervalMinutes } from './telegramManagedCommunityRiddleIntervalMinutes';
 
 export interface TelegramManagedCommunity {
   chatId: string;
   chatTitle: string;
   organisationName: string;
   spamProtectionEnabled: boolean;
+  riddlesEnabled: boolean;
+  riddleIntervalMinutes: TelegramManagedCommunityRiddleIntervalMinutes;
   xpAwardedToday: number;
   dailyXpLimit: number;
   dailyXpRemaining: number;

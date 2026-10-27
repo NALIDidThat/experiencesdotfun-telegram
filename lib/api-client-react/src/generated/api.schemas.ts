@@ -1300,6 +1300,18 @@ export interface MyCommunitiesResponse {
   communities: CommunitySummary[];
 }
 
+export type TelegramManagedCommunityRiddleIntervalMinutes = typeof TelegramManagedCommunityRiddleIntervalMinutes[keyof typeof TelegramManagedCommunityRiddleIntervalMinutes];
+
+
+export const TelegramManagedCommunityRiddleIntervalMinutes = {
+  NUMBER_30: 30,
+  NUMBER_60: 60,
+  NUMBER_180: 180,
+  NUMBER_360: 360,
+  NUMBER_720: 720,
+  NUMBER_1440: 1440,
+} as const;
+
 export type TelegramManagedCommunityResetTimezone = typeof TelegramManagedCommunityResetTimezone[keyof typeof TelegramManagedCommunityResetTimezone];
 
 
@@ -1312,6 +1324,8 @@ export interface TelegramManagedCommunity {
   chatTitle: string;
   organisationName: string;
   spamProtectionEnabled: boolean;
+  riddlesEnabled: boolean;
+  riddleIntervalMinutes: TelegramManagedCommunityRiddleIntervalMinutes;
   xpAwardedToday: number;
   dailyXpLimit: number;
   dailyXpRemaining: number;
@@ -1331,6 +1345,40 @@ export interface TelegramManagedCommunity {
 
 export interface TelegramCommunityManagementResponse {
   communities: TelegramManagedCommunity[];
+}
+
+export type TelegramCommunityRiddleSettingsInputIntervalMinutes = typeof TelegramCommunityRiddleSettingsInputIntervalMinutes[keyof typeof TelegramCommunityRiddleSettingsInputIntervalMinutes];
+
+
+export const TelegramCommunityRiddleSettingsInputIntervalMinutes = {
+  NUMBER_30: 30,
+  NUMBER_60: 60,
+  NUMBER_180: 180,
+  NUMBER_360: 360,
+  NUMBER_720: 720,
+  NUMBER_1440: 1440,
+} as const;
+
+export interface TelegramCommunityRiddleSettingsInput {
+  enabled: boolean;
+  intervalMinutes: TelegramCommunityRiddleSettingsInputIntervalMinutes;
+}
+
+export type TelegramCommunityRiddleSettingsIntervalMinutes = typeof TelegramCommunityRiddleSettingsIntervalMinutes[keyof typeof TelegramCommunityRiddleSettingsIntervalMinutes];
+
+
+export const TelegramCommunityRiddleSettingsIntervalMinutes = {
+  NUMBER_30: 30,
+  NUMBER_60: 60,
+  NUMBER_180: 180,
+  NUMBER_360: 360,
+  NUMBER_720: 720,
+  NUMBER_1440: 1440,
+} as const;
+
+export interface TelegramCommunityRiddleSettings {
+  enabled: boolean;
+  intervalMinutes: TelegramCommunityRiddleSettingsIntervalMinutes;
 }
 
 export interface TelegramCommunityPhraseRule {

@@ -4,10 +4,12 @@ import {
   chooseGroupRiddle,
   chooseWrongRiddleAnswerResponse,
   createRiddleRoundStore,
+  getGroupRiddleById,
   GROUP_RIDDLES,
   isCorrectGroupRiddleAnswer,
   normalizeRiddleAnswer,
   RIDDLE_REVEAL_AFTER_MS,
+  TELEGRAM_COMMUNITY_RIDDLE_INTERVALS,
 } from "./group-riddles.ts";
 
 test("group riddles can be selected across the full random range", () => {
@@ -57,6 +59,12 @@ test("only accepted answers solve a known riddle", () => {
   assert.equal(isCorrectGroupRiddleAnswer("keys", "!!!"), false);
 });
 
+test("community riddle intervals are bounded presets and stored IDs resolve safely", () => {
+  assert.deepEqual(TELEGRAM_COMMUNITY_RIDDLE_INTERVALS, [30, 60, 180, 360, 720, 1440]);
+  assert.equal(getGroupRiddleById(GROUP_RIDDLES[0].id), GROUP_RIDDLES[0]);
+  assert.equal(getGroupRiddleById("missing-riddle"), null);
+});
+
 test("riddle rounds stay chat-scoped and only accept replies to the active riddle", () => {
   const rounds = createRiddleRoundStore(60_000);
   const riddle = GROUP_RIDDLES[0];
@@ -70,6 +78,22 @@ test("riddle rounds stay chat-scoped and only accept replies to the active riddl
   assert.equal(rounds.solve(-100, 42, "piano", 1_004)?.id, riddle.id);
   assert.equal(rounds.solve(-100, 42, "piano", 1_005), null);
   assert.equal(rounds.solve(1234, 44, "clock", 1_006)?.id, GROUP_RIDDLES[2].id);
+});
+
+test("persisted rounds restore with their original expiry and reject stale state", () => {
+  const rounds = createRiddleRoundStore(60_000);
+  const riddle = GROUP_RIDDLES[0];
+  assert.equal(rounds.restore(-100, 42, riddle, 2_000, 1_000), true);
+  assert.deepEqual(rounds.getActive(-100, 1_500), {
+    messageId: 42,
+    riddle,
+    expiresAt: 2_000,
+  });
+  assert.equal(rounds.restore(-100, 43, GROUP_RIDDLES[1], 3_000, 1_500), false);
+  assert.equal(rounds.restore(1234, 44, riddle, 3_000, 1_500), true);
+  assert.equal(rounds.restore(-200, 45, riddle, 1_500, 1_500), false);
+  assert.equal(rounds.reveal(-100, 42, 1_999), null);
+  assert.equal(rounds.solve(-100, 42, "piano", 1_999)?.id, riddle.id);
 });
 
 test("riddle answers are revealed after fifteen minutes and cannot then be solved", () => {
