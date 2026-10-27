@@ -628,6 +628,40 @@ Object.defineProperty(navigator, 'geolocation', {
     await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-profile-button"]'))`),
     "The profile action should remain in the Explore header.",
   );
+  assert.ok(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-glass-header"]'))`),
+    "The Explore title and search input should sit over the glass header surface.",
+  );
+  assert.ok(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-category-filter-toggle"]')?.innerText?.includes('Filter'))`),
+    "Experience categories should be available from a Filter dropdown.",
+  );
+  const exploreHeaderGeometry = await client.evaluate(`(() => {
+    const header = document.querySelector('[data-testid="explore-glass-header"]')?.getBoundingClientRect();
+    const search = document.querySelector('[data-testid="explore-search-input"]')?.getBoundingClientRect();
+    const modes = document.querySelector('[aria-label="Map layers"]')?.getBoundingClientRect();
+    const filter = document.querySelector('[data-testid="explore-category-filter-toggle"]')?.getBoundingClientRect();
+    const sheet = document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect();
+    return {
+      headerTop: header?.top ?? 0,
+      headerBottom: header?.bottom ?? 0,
+      searchTop: search?.top ?? 0,
+      searchBottom: search?.bottom ?? 0,
+      modesTop: modes?.top ?? 0,
+      modesBottom: modes?.bottom ?? 0,
+      filterTop: filter?.top ?? 0,
+      filterBottom: filter?.bottom ?? 0,
+      sheetTop: sheet?.top ?? 0,
+    };
+  })()`);
+  assert.ok(
+    exploreHeaderGeometry.searchTop >= exploreHeaderGeometry.headerTop
+      && exploreHeaderGeometry.searchBottom <= exploreHeaderGeometry.modesTop
+      && exploreHeaderGeometry.filterTop >= exploreHeaderGeometry.modesBottom
+      && exploreHeaderGeometry.filterBottom <= exploreHeaderGeometry.headerBottom
+      && exploreHeaderGeometry.headerBottom < exploreHeaderGeometry.sheetTop,
+    `The glass header, map modes, category dropdown, and experience sheet should not overlap. Geometry: ${JSON.stringify(exploreHeaderGeometry)}`,
+  );
   const defaultGlobeRadius = await client.evaluate(`document.querySelector('svg defs circle')?.getAttribute('r') ?? ''`);
   assert.ok(defaultGlobeRadius, "The default globe scale should be available before any city is focused.");
 
@@ -893,6 +927,21 @@ Object.defineProperty(navigator, 'geolocation', {
     "globe rotation after a horizontal touch drag",
   );
 
+  await tapTestId(client, "explore-category-filter-toggle");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-category-filter-toggle"]')?.getAttribute('aria-expanded') ?? ''`,
+    (value) => value === "true",
+    "the category Filter menu opening",
+  );
+  assert.ok(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-category-filter-menu"]'))`),
+    "The Filter dropdown should show category choices.",
+  );
+  if (process.env.EXPLORE_GLOBE_FILTER_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(process.env.EXPLORE_GLOBE_FILTER_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
+  }
   await tapTestId(client, "explore-category-environmental");
   await waitForValue(
     client,
@@ -920,6 +969,7 @@ Object.defineProperty(navigator, 'geolocation', {
     "Cities without experiences in the selected category should disappear from the globe.",
   );
 
+  await tapTestId(client, "explore-category-filter-toggle");
   await tapTestId(client, "explore-category-all");
   await waitForValue(
     client,

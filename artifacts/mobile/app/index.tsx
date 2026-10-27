@@ -26,6 +26,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import {
   GlassView,
@@ -2603,6 +2604,11 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   const routeParams = useLocalSearchParams<{ category?: string }>();
   const initialCategory = categories.find((item) => item.key === routeParams.category)?.key ?? 'all';
   const [category, setCategory] = useState<ExperienceCategory | 'all'>(initialCategory);
+  const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
+  const liquidGlassAvailable =
+    Platform.OS === 'ios' &&
+    isLiquidGlassAvailable() &&
+    isGlassEffectAPIAvailable();
   useEffect(() => {
     setCategory(initialCategory);
   }, [initialCategory]);
@@ -2763,39 +2769,77 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           : sheetExpanded
             ? 'Swipe down · city locations are approximate'
             : 'Swipe up · city locations are approximate';
+  const selectedCategoryLabel = categories.find((item) => item.key === category)?.label ?? 'All';
   const categoryFilters = (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={[styles.filterRow, styles.exploreFullscreenFilterRow]}
-    >
-      {categories.map((item) => {
-        const selected = category === item.key;
-        return (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Show ${item.label === 'All' ? 'all' : item.label} experiences`}
-            accessibilityState={{ selected }}
-            testID={`explore-category-${item.key}`}
-            key={item.key}
-            onPress={() => { triggerHaptic(); setCategory(item.key); }}
-            style={({ pressed }) => [
-              styles.filter,
-              {
-                backgroundColor: selected ? colors.primary : colors.card,
-                borderColor: selected ? colors.primary : colors.border,
-                opacity: pressed ? 0.78 : 1,
-              },
-            ]}
-          >
-            {item.key === 'all'
-              ? <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
-              : <ExperienceCategoryArtwork category={item.key} size={22} />}
-            <Text style={[styles.filterText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+    <View style={styles.exploreCategoryPicker}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Filter experiences by category. Current filter: ${selectedCategoryLabel}`}
+        accessibilityState={{ expanded: categoryFilterOpen }}
+        testID="explore-category-filter-toggle"
+        onPress={() => { triggerHaptic(); setCategoryFilterOpen((open) => !open); }}
+        style={({ pressed }) => [
+          styles.exploreCategoryFilterButton,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            opacity: pressed ? 0.82 : 1,
+          },
+        ]}
+      >
+        <Feather name="filter" size={15} color={colors.primary} />
+        <Text style={[styles.exploreCategoryFilterLabel, { color: colors.foreground }]}>Filter</Text>
+        <Text numberOfLines={1} style={[styles.exploreCategoryCurrent, { color: colors.mutedForeground }]}>
+          {selectedCategoryLabel}
+        </Text>
+        <Feather name={categoryFilterOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.mutedForeground} />
+      </Pressable>
+      {categoryFilterOpen ? (
+        <View
+          accessibilityLabel="Experience category filters"
+          testID="explore-category-filter-menu"
+          style={[
+            styles.exploreCategoryMenu,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              boxShadow: `0px 8px 24px ${colors.foreground}20`,
+            },
+          ]}
+        >
+          {categories.map((item) => {
+            const selected = category === item.key;
+            return (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Show ${item.label === 'All' ? 'all' : item.label} experiences`}
+                accessibilityState={{ selected }}
+                testID={`explore-category-${item.key}`}
+                key={item.key}
+                onPress={() => {
+                  triggerHaptic();
+                  setCategory(item.key);
+                  setCategoryFilterOpen(false);
+                }}
+                style={({ pressed }) => [
+                  styles.exploreCategoryOption,
+                  {
+                    backgroundColor: selected ? `${colors.primary}12` : 'transparent',
+                    opacity: pressed ? 0.78 : 1,
+                  },
+                ]}
+              >
+                {item.key === 'all'
+                  ? <Feather name={item.icon} size={16} color={selected ? colors.primary : colors.mutedForeground} />
+                  : <ExperienceCategoryArtwork category={item.key} size={20} />}
+                <Text style={[styles.exploreCategoryOptionText, { color: colors.foreground }]}>{item.label}</Text>
+                {selected ? <Feather name="check" size={16} color={colors.primary} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
   );
 
   return (
@@ -2833,67 +2877,83 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
       </View>
 
       <View pointerEvents="box-none" style={styles.exploreTopOverlay}>
-        <View style={[styles.exploreTopBar, styles.exploreFullscreenTopBar]}>
-          <View style={styles.exploreHeading}>
-            <Text style={[styles.exploreFullscreenTitle, { color: colors.foreground }]}>Explore</Text>
-            <Text style={[styles.exploreFullscreenSubtitle, { color: colors.mutedForeground }]}>Real experiences. Real impact.</Text>
-          </View>
-          <View style={styles.exploreTopActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open notifications"
-              testID="explore-notifications-button"
-              onPress={() => { triggerHaptic(); go('notifications'); }}
-              style={({ pressed }) => [styles.exploreTopAction, pressed && styles.exploreTopActionPressed]}
-            >
-              <Feather name="bell" size={19} color={colors.foreground} />
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open your profile"
-              testID="explore-profile-button"
-              onPress={() => { triggerHaptic(); go('profile'); }}
-              style={({ pressed }) => [styles.exploreAvatarButton, pressed && styles.exploreTopActionPressed]}
-            >
-              <UserAvatar
-                avatarUrl={user?.avatarUrl}
-                name={user?.name ?? 'Your profile'}
-                  containerStyle={[styles.exploreAvatar, { backgroundColor: colors.card }]}
-                initialStyle={{ color: colors.primary, fontFamily: 'Inter_700Bold' }}
+        <View
+          testID="explore-glass-header"
+          style={[styles.exploreGlassHeader, { borderColor: `${colors.border}C8` }]}
+        >
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.exploreGlassBackdrop]}>
+            {liquidGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                tintColor={`${colors.primary}12`}
+                style={StyleSheet.absoluteFill}
               />
-            </Pressable>
+            ) : (
+              <BlurView intensity={48} tint="light" style={StyleSheet.absoluteFill} />
+            )}
+            <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.card}82` }]} />
           </View>
-        </View>
+          <View style={[styles.exploreTopBar, styles.exploreFullscreenTopBar]}>
+            <View style={styles.exploreHeading}>
+              <Text style={[styles.exploreFullscreenTitle, { color: colors.foreground }]}>Explore</Text>
+              <Text style={[styles.exploreFullscreenSubtitle, { color: colors.mutedForeground }]}>Real experiences. Real impact.</Text>
+            </View>
+            <View style={styles.exploreTopActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open notifications"
+                testID="explore-notifications-button"
+                onPress={() => { triggerHaptic(); go('notifications'); }}
+                style={({ pressed }) => [styles.exploreTopAction, pressed && styles.exploreTopActionPressed]}
+              >
+                <Feather name="bell" size={19} color={colors.foreground} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open your profile"
+                testID="explore-profile-button"
+                onPress={() => { triggerHaptic(); go('profile'); }}
+                style={({ pressed }) => [styles.exploreAvatarButton, pressed && styles.exploreTopActionPressed]}
+              >
+                <UserAvatar
+                  avatarUrl={user?.avatarUrl}
+                  name={user?.name ?? 'Your profile'}
+                  containerStyle={[styles.exploreAvatar, { backgroundColor: colors.card }]}
+                  initialStyle={{ color: colors.primary, fontFamily: 'Inter_700Bold' }}
+                />
+              </Pressable>
+            </View>
+          </View>
 
-        <View style={[
-          styles.searchBox,
-          styles.exploreFullscreenSearchBox,
-          { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
-        ]}>
-          <Feather name="search" size={19} color={colors.mutedForeground} />
-          <TextInput
-            accessibilityLabel="Search experiences or city"
-            testID="explore-search-input"
-            value={search}
-            onChangeText={setSearch}
-            onSubmitEditing={focusSearchedCity}
-            placeholder="Search experiences or city"
-            placeholderTextColor={colors.mutedForeground}
-            returnKeyType="search"
-            style={[styles.searchInput, { color: colors.foreground }]}
-          />
-          {search.length > 0 ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Clear search"
-              testID="explore-clear-search"
-              onPress={() => { triggerHaptic(); setSearch(''); }}
-              style={styles.exploreClearButton}
-            >
-              <Feather name="x" size={17} color={colors.mutedForeground} />
-            </Pressable>
-          ) : null}
-        </View>
+          <View style={[
+            styles.searchBox,
+            styles.exploreFullscreenSearchBox,
+            { backgroundColor: `${colors.card}96`, borderColor: `${colors.border}D0`, borderRadius: colors.radius },
+          ]}>
+            <Feather name="search" size={19} color={colors.mutedForeground} />
+            <TextInput
+              accessibilityLabel="Search experiences or city"
+              testID="explore-search-input"
+              value={search}
+              onChangeText={setSearch}
+              onSubmitEditing={focusSearchedCity}
+              placeholder="Search experiences or city"
+              placeholderTextColor={colors.mutedForeground}
+              returnKeyType="search"
+              style={[styles.searchInput, { color: colors.foreground }]}
+            />
+            {search.length > 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+                testID="explore-clear-search"
+                onPress={() => { triggerHaptic(); setSearch(''); }}
+                style={styles.exploreClearButton}
+              >
+                <Feather name="x" size={17} color={colors.mutedForeground} />
+              </Pressable>
+            ) : null}
+          </View>
 
         <View
           style={[
@@ -2911,7 +2971,11 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
                 accessibilityLabel={`Show ${option.label} map layer`}
                 accessibilityState={{ selected }}
                 testID={`explore-mode-${option.key}`}
-                onPress={() => { triggerHaptic(); setMode(option.key); }}
+                onPress={() => {
+                  triggerHaptic();
+                  setMode(option.key);
+                  setCategoryFilterOpen(false);
+                }}
                 style={({ pressed }) => [
                   styles.exploreModeTab,
                   {
@@ -2931,6 +2995,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         </View>
 
         {mode === 'explore' ? categoryFilters : null}
+        </View>
       </View>
 
       <Animated.View
@@ -10176,15 +10241,23 @@ const styles = StyleSheet.create({
   // Explore
   exploreScreen: { flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' },
   exploreTopOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, paddingHorizontal: 18, paddingTop: 9 },
-  exploreFullscreenTopBar: { marginBottom: 8, justifyContent: 'space-between', alignItems: 'center' },
+  exploreGlassHeader: { position: 'relative', borderWidth: 1, borderRadius: 21, padding: 10, marginBottom: 8, overflow: 'visible' },
+  exploreGlassBackdrop: { borderRadius: 20, overflow: 'hidden' },
+  exploreFullscreenTopBar: { marginBottom: 7, justifyContent: 'space-between', alignItems: 'center' },
   exploreHeading: { flex: 1, minWidth: 0 },
   exploreFullscreenTitle: { fontSize: 25, lineHeight: 29, letterSpacing: -0.65, fontFamily: 'Inter_700Bold' },
   exploreFullscreenSubtitle: { fontSize: 11, lineHeight: 15, marginTop: 1, fontFamily: 'Inter_400Regular' },
-  exploreFullscreenSearchBox: { width: '100%', alignSelf: 'stretch', marginBottom: 9, height: 50 },
-  exploreFullscreenFilterRow: { paddingBottom: 0, gap: 7 },
-  exploreModeRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 8, borderWidth: 1, borderRadius: 15, padding: 3 },
+  exploreFullscreenSearchBox: { width: '100%', alignSelf: 'stretch', marginBottom: 0, height: 48 },
+  exploreModeRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 7, borderWidth: 1, borderRadius: 15, padding: 3 },
   exploreModeTab: { flex: 1, minWidth: 0, height: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 4, borderWidth: 1, borderRadius: 11 },
   exploreModeTabText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  exploreCategoryPicker: { position: 'relative', zIndex: 10, elevation: 10 },
+  exploreCategoryFilterButton: { width: '100%', height: 40, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12 },
+  exploreCategoryFilterLabel: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  exploreCategoryCurrent: { flex: 1, minWidth: 0, fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'right' },
+  exploreCategoryMenu: { position: 'absolute', left: 0, right: 0, top: 46, zIndex: 12, elevation: 14, borderWidth: 1, borderRadius: 16, padding: 6, gap: 3 },
+  exploreCategoryOption: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 11, paddingHorizontal: 10 },
+  exploreCategoryOptionText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium' },
   exploreSheet: {
     position: 'absolute',
     left: 0,
