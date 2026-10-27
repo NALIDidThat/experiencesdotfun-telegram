@@ -170,28 +170,33 @@ export function OrganisationHomeScreen({ user, go }: Props) {
           styles.attentionCard,
           {
             backgroundColor: colors.card,
-            borderColor: colors.border,
-            opacity: pressed ? 0.78 : 1,
+            borderColor: `${colors.primary}22`,
+            borderRadius: colors.radius + 6,
+            opacity: pressed ? 0.96 : 1,
           },
         ]}
       >
-        <View style={[styles.workspaceIcon, {
-          backgroundColor: priority.kind === 'error' ? `${colors.destructive}18` : `${colors.primary}18`,
-        }]}>
-          {priority.kind === 'loading'
-            ? <ActivityIndicator color={colors.primary} />
-            : <Feather
-                name={priority.icon}
-                size={19}
-                color={priority.kind === 'error' ? colors.destructive : colors.primary}
-              />}
+        <View style={styles.priorityHeader}>
+          <View style={[styles.priorityIcon, {
+            backgroundColor: priority.kind === 'error' ? `${colors.destructive}18` : `${colors.primary}14`,
+          }]}>
+            {priority.kind === 'loading'
+              ? <ActivityIndicator color={colors.primary} />
+              : <Feather
+                  name={priority.icon}
+                  size={21}
+                  color={priority.kind === 'error' ? colors.destructive : colors.primary}
+                />}
+          </View>
+          <View style={styles.priorityCopy}>
+            <Text style={[styles.priorityTitle, { color: colors.foreground }]}>{priority.title}</Text>
+            <Text style={[styles.priorityDetail, { color: colors.mutedForeground }]}>{priority.detail}</Text>
+          </View>
         </View>
-        <View style={styles.workspaceCopy}>
-          <Text style={[styles.workspaceTitle, { color: colors.foreground }]}>{priority.title}</Text>
-          <Text style={[styles.workspaceDetail, { color: colors.mutedForeground }]}>{priority.detail}</Text>
-          <Text style={[styles.actionText, { color: colors.primary }]}>{priority.buttonLabel}</Text>
+        <View style={[styles.priorityAction, { backgroundColor: colors.secondary, borderRadius: Math.max(12, colors.radius - 2) }]}>
+          <Text style={[styles.priorityActionText, { color: colors.primaryForeground }]}>{priority.buttonLabel}</Text>
+          <Feather name="arrow-right" size={17} color={colors.primaryForeground} />
         </View>
-        <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
       </Pressable>
 
       {isCharity ? (
@@ -322,7 +327,14 @@ const styles = StyleSheet.create({
   workspaceDetail: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
   noticeCard: { minHeight: 58, borderWidth: 1, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   noticeText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium' },
-  attentionCard: { minHeight: 78, borderWidth: 1, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  attentionCard: { borderWidth: 1, padding: 14, gap: 13 },
+  priorityHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  priorityIcon: { width: 44, height: 44, flexShrink: 0, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  priorityCopy: { flex: 1, minWidth: 0, paddingTop: 1, gap: 4 },
+  priorityTitle: { fontSize: 14, lineHeight: 19, letterSpacing: -0.2, fontFamily: 'Inter_700Bold' },
+  priorityDetail: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
+  priorityAction: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15 },
+  priorityActionText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   impactCard: { minHeight: 78, borderWidth: 1, borderRadius: 16, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
   impactMetric: { fontSize: 24, lineHeight: 29, fontFamily: 'Inter_700Bold' },
   experienceCard: { minHeight: 80, borderWidth: 1, borderRadius: 16, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
