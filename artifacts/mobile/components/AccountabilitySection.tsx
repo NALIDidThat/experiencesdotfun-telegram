@@ -725,6 +725,7 @@ export function AccountabilitySection({
         <AccountabilityGoalsPanel
           goals={goals}
           commitments={commitments}
+          goalsAvailable={dashboard.data?.goalsAvailable ?? false}
           userId={user.id}
           activePartnerName={activePartner?.partner.name ?? null}
           onRefresh={refreshDashboard}

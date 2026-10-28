@@ -5126,6 +5126,7 @@ export const GetAccountabilityDashboardResponse = zod.object({
   "updatedAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullable()
 })),
+  "goalsAvailable": zod.boolean(),
   "activity": zod.array(zod.object({
   "id": zod.number().int(),
   "type": zod.enum(['partner_invite', 'partner_accepted', 'partner_declined', 'partnership_ended', 'commitment_created', 'check_in_completed', 'check_in_partial', 'check_in_missed', 'check_in_rescheduled', 'check_in_confirmed', 'encouragement_received']),

@@ -17,6 +17,7 @@ export interface AccountabilityDashboard {
   outgoingInvitations: AccountabilityInvitation[];
   commitments: AccountabilityCommitment[];
   goals: AccountabilityGoal[];
+  goalsAvailable: boolean;
   activity: AccountabilityActivity[];
   notifications: AccountabilityActivity[];
   unreadCount: number;

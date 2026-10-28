@@ -32,6 +32,7 @@ function messageFromError(error: unknown, fallback: string) {
 export function AccountabilityGoalsPanel({
   goals,
   commitments,
+  goalsAvailable,
   userId,
   activePartnerName,
   onRefresh,
@@ -39,6 +40,7 @@ export function AccountabilityGoalsPanel({
 }: {
   goals: Goal[];
   commitments: Commitment[];
+  goalsAvailable: boolean;
   userId: number;
   activePartnerName: string | null;
   onRefresh: () => void;
@@ -76,6 +78,24 @@ export function AccountabilityGoalsPanel({
     backgroundColor: colors.primary,
     borderRadius: colors.radius - 4,
   } as const;
+
+  if (!goalsAvailable) {
+    return (
+      <View testID="accountability-goals-panel" style={[cardStyle, { gap: 10, padding: 16 }]}>
+        <View style={{ alignItems: "center", flexDirection: "row", gap: 10 }}>
+          <View style={{ alignItems: "center", backgroundColor: colors.teal + "16", borderRadius: 11, height: 34, justifyContent: "center", width: 34 }}>
+            <Feather name="target" size={17} color={colors.teal} />
+          </View>
+          <Text style={{ color: colors.foreground, flex: 1, fontSize: 16, fontWeight: "700" }}>
+            Your goals
+          </Text>
+        </View>
+        <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>
+          Goal tracking is unavailable until its database update is installed. Your partner and existing commitments are still available.
+        </Text>
+      </View>
+    );
+  }
 
   const runAction = async (
     action: () => Promise<unknown>,

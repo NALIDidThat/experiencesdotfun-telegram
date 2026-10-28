@@ -10702,7 +10702,7 @@ return customFetch<AccountabilityGoal>(getCreateAccountabilityGoalUrl(),
 
 export const getCreateAccountabilityGoalMutationKey = () => ['createAccountabilityGoal'] as const;
 
-export const getCreateAccountabilityGoalMutationOptions = <TError = ErrorType<UnauthorizedResponse | ConflictResponse>,
+export const getCreateAccountabilityGoalMutationOptions = <TError = ErrorType<UnauthorizedResponse | ConflictResponse | ServiceUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityGoal>>, TError,CreateAccountabilityGoalMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityGoal>>, TError,CreateAccountabilityGoalMutationVariables, TContext> => {
 
@@ -10731,13 +10731,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateAccountabilityGoalMutationResult = NonNullable<Awaited<ReturnType<typeof createAccountabilityGoal>>>
     export type CreateAccountabilityGoalMutationBody = BodyType<AccountabilityGoalInput>
-    export type CreateAccountabilityGoalMutationError = ErrorType<UnauthorizedResponse | ConflictResponse>
+    export type CreateAccountabilityGoalMutationError = ErrorType<UnauthorizedResponse | ConflictResponse | ServiceUnavailableResponse>
     export type CreateAccountabilityGoalMutationVariables = {data: BodyType<AccountabilityGoalInput>}
 
     /**
  * @summary Create a private goal or share one with an active accountability partner
  */
-export const useCreateAccountabilityGoal = <TError = ErrorType<UnauthorizedResponse | ConflictResponse>,
+export const useCreateAccountabilityGoal = <TError = ErrorType<UnauthorizedResponse | ConflictResponse | ServiceUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityGoal>>, TError,CreateAccountabilityGoalMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createAccountabilityGoal>>,
@@ -10791,7 +10791,7 @@ return customFetch<AccountabilityGoal>(getUpdateAccountabilityGoalUrl(goalId),
 
 export const getUpdateAccountabilityGoalMutationKey = () => ['updateAccountabilityGoal'] as const;
 
-export const getUpdateAccountabilityGoalMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+export const getUpdateAccountabilityGoalMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccountabilityGoal>>, TError,UpdateAccountabilityGoalMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateAccountabilityGoal>>, TError,UpdateAccountabilityGoalMutationVariables, TContext> => {
 
@@ -10820,13 +10820,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type UpdateAccountabilityGoalMutationResult = NonNullable<Awaited<ReturnType<typeof updateAccountabilityGoal>>>
     export type UpdateAccountabilityGoalMutationBody = BodyType<AccountabilityGoalUpdateInput>
-    export type UpdateAccountabilityGoalMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+    export type UpdateAccountabilityGoalMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>
     export type UpdateAccountabilityGoalMutationVariables = {goalId: number;data: BodyType<AccountabilityGoalUpdateInput>}
 
     /**
  * @summary Update or change the status of an owned accountability goal
  */
-export const useUpdateAccountabilityGoal = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+export const useUpdateAccountabilityGoal = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccountabilityGoal>>, TError,UpdateAccountabilityGoalMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateAccountabilityGoal>>,
@@ -11189,7 +11189,7 @@ return customFetch<AccountabilityCommitment>(getCreateAccountabilityCommitmentUr
 
 export const getCreateAccountabilityCommitmentMutationKey = () => ['createAccountabilityCommitment'] as const;
 
-export const getCreateAccountabilityCommitmentMutationOptions = <TError = ErrorType<UnauthorizedResponse | ConflictResponse>,
+export const getCreateAccountabilityCommitmentMutationOptions = <TError = ErrorType<UnauthorizedResponse | ConflictResponse | ServiceUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityCommitment>>, TError,CreateAccountabilityCommitmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityCommitment>>, TError,CreateAccountabilityCommitmentMutationVariables, TContext> => {
 
@@ -11218,13 +11218,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateAccountabilityCommitmentMutationResult = NonNullable<Awaited<ReturnType<typeof createAccountabilityCommitment>>>
     export type CreateAccountabilityCommitmentMutationBody = BodyType<AccountabilityCommitmentInput>
-    export type CreateAccountabilityCommitmentMutationError = ErrorType<UnauthorizedResponse | ConflictResponse>
+    export type CreateAccountabilityCommitmentMutationError = ErrorType<UnauthorizedResponse | ConflictResponse | ServiceUnavailableResponse>
     export type CreateAccountabilityCommitmentMutationVariables = {data: BodyType<AccountabilityCommitmentInput>}
 
     /**
  * @summary Create a shared commitment for an active partnership
  */
-export const useCreateAccountabilityCommitment = <TError = ErrorType<UnauthorizedResponse | ConflictResponse>,
+export const useCreateAccountabilityCommitment = <TError = ErrorType<UnauthorizedResponse | ConflictResponse | ServiceUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountabilityCommitment>>, TError,CreateAccountabilityCommitmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createAccountabilityCommitment>>,

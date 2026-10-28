@@ -38,4 +38,5 @@
 - [3D visual direction](3d-visual-direction.md) — app imagery and icons should be 3D and directly relevant to the feature or activity.
 - [Community XP admin adjustments](community-xp-admin-adjustments.md) — signed admin changes must preserve zero-floor, audit, and daily-cap safeguards.
 - [PostgreSQL migration guards](postgres-migration-guards.md) — verify normalized constraint semantics, not raw PostgreSQL constraint-definition text.
+- [Staged database features](staged-feature-migrations.md) — gate schema-dependent features until an external migration is applied, keeping existing page flows operational.
 - [Organisation operating milestones](organisation-operating-milestones.md) — use four real-world milestones; keep verification separate and avoid XP ranks or public badges.

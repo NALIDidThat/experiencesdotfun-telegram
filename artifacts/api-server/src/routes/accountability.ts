@@ -42,6 +42,8 @@ const checkInVerifier = alias(usersTable, "accountability_checkin_verifier");
 const commitmentCreator = alias(usersTable, "accountability_commitment_creator");
 const commitmentAssignee = alias(usersTable, "accountability_commitment_assignee");
 
+let accountabilityGoalsSchemaPromise: Promise<boolean> | undefined;
+
 type AccountabilityTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 type AccountabilityEventType =
@@ -81,6 +83,70 @@ function participantSummary(user: User) {
     name: user.name,
     username: user.username,
     avatarUrl: user.avatarUrl,
+  };
+}
+
+async function accountabilityGoalsSchemaAvailable() {
+  accountabilityGoalsSchemaPromise ??= db
+    .execute(sql`
+      SELECT
+        to_regclass('public.accountability_goals') IS NOT NULL AS goals_table,
+        EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'accountability_commitments'
+            AND column_name = 'goal_id'
+        ) AS commitment_goal_id,
+        EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'accountability_commitments'
+            AND column_name = 'partnership_id'
+            AND is_nullable = 'YES'
+        ) AS commitment_partnership_nullable,
+        EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'accountability_check_ins'
+            AND column_name = 'partnership_id'
+            AND is_nullable = 'YES'
+        ) AS checkin_partnership_nullable
+    `)
+    .then((result) => {
+      const row = result.rows[0] as {
+        goals_table: boolean;
+        commitment_goal_id: boolean;
+        commitment_partnership_nullable: boolean;
+        checkin_partnership_nullable: boolean;
+      } | undefined;
+      return Boolean(
+        row?.goals_table
+        && row.commitment_goal_id
+        && row.commitment_partnership_nullable
+        && row.checkin_partnership_nullable,
+      );
+    });
+  return accountabilityGoalsSchemaPromise;
+}
+
+function accountabilityCommitmentSelection(goalsAvailable: boolean) {
+  return {
+    id: accountabilityCommitmentsTable.id,
+    partnershipId: accountabilityCommitmentsTable.partnershipId,
+    goalId: goalsAvailable
+      ? accountabilityCommitmentsTable.goalId
+      : sql<number | null>`NULL`.as("goalId"),
+    createdByUserId: accountabilityCommitmentsTable.createdByUserId,
+    assignedUserId: accountabilityCommitmentsTable.assignedUserId,
+    title: accountabilityCommitmentsTable.title,
+    description: accountabilityCommitmentsTable.description,
+    targetValue: accountabilityCommitmentsTable.targetValue,
+    currentValue: accountabilityCommitmentsTable.currentValue,
+    deadline: accountabilityCommitmentsTable.deadline,
+    status: accountabilityCommitmentsTable.status,
+    verificationStatus: accountabilityCommitmentsTable.verificationStatus,
+    createdAt: accountabilityCommitmentsTable.createdAt,
+    completedAt: accountabilityCommitmentsTable.completedAt,
   };
 }
 
@@ -194,7 +260,7 @@ async function eventResponses(where: SQL<unknown> | undefined, currentUserId: nu
     .select({
       event: accountabilityEventsTable,
       actor: eventActor,
-      commitment: accountabilityCommitmentsTable,
+      commitment: { title: accountabilityCommitmentsTable.title },
       checkIn: accountabilityCheckInsTable,
       confirmedBy: checkInVerifier,
     })
@@ -256,7 +322,7 @@ async function activePartnershipForUser(userId: number, partnershipId?: number) 
   return partnership;
 }
 
-async function dashboardFor(user: User) {
+async function dashboardFor(user: User, goalsAvailable: boolean) {
   const now = new Date();
   await db
     .update(accountabilityPartnershipsTable)
@@ -333,25 +399,28 @@ async function dashboardFor(user: User) {
     expiresAt: partnership.expiresAt.toISOString(),
   }));
 
-  const goalConditions = [eq(accountabilityGoalsTable.ownerUserId, user.id)];
-  if (active) {
-    goalConditions.push(
-      and(
-        eq(accountabilityGoalsTable.partnershipId, active.partnership.id),
-        eq(accountabilityGoalsTable.visibility, "shared"),
-      )!,
+  let goals: ReturnType<typeof accountabilityGoalResponse>[] = [];
+  if (goalsAvailable) {
+    const goalConditions = [eq(accountabilityGoalsTable.ownerUserId, user.id)];
+    if (active) {
+      goalConditions.push(
+        and(
+          eq(accountabilityGoalsTable.partnershipId, active.partnership.id),
+          eq(accountabilityGoalsTable.visibility, "shared"),
+        )!,
+      );
+    }
+    const goalRows = await db
+      .select({ goal: accountabilityGoalsTable, owner: usersTable })
+      .from(accountabilityGoalsTable)
+      .innerJoin(usersTable, eq(usersTable.id, accountabilityGoalsTable.ownerUserId))
+      .where(or(...goalConditions))
+      .orderBy(desc(accountabilityGoalsTable.createdAt))
+      .limit(50);
+    goals = goalRows.map(({ goal, owner }) =>
+      accountabilityGoalResponse(goal, owner, user.id, active?.partnership.id ?? null),
     );
   }
-  const goalRows = await db
-    .select({ goal: accountabilityGoalsTable, owner: usersTable })
-    .from(accountabilityGoalsTable)
-    .innerJoin(usersTable, eq(usersTable.id, accountabilityGoalsTable.ownerUserId))
-    .where(or(...goalConditions))
-    .orderBy(desc(accountabilityGoalsTable.createdAt))
-    .limit(50);
-  const goals = goalRows.map(({ goal, owner }) =>
-    accountabilityGoalResponse(goal, owner, user.id, active?.partnership.id ?? null),
-  );
 
   let commitments: Array<Record<string, unknown>> = [];
   let activity: Array<Record<string, unknown>> = [];
@@ -370,7 +439,7 @@ async function dashboardFor(user: User) {
         );
     const commitmentRows = await db
       .select({
-        commitment: accountabilityCommitmentsTable,
+        commitment: accountabilityCommitmentSelection(goalsAvailable),
         createdBy: commitmentCreator,
         assignedTo: commitmentAssignee,
       })
@@ -455,6 +524,7 @@ async function dashboardFor(user: User) {
     outgoingInvitations,
     commitments,
     goals,
+    goalsAvailable,
     activity,
     notifications,
     unreadCount: unread?.value ?? 0,
@@ -464,6 +534,7 @@ async function dashboardFor(user: User) {
 router.get("/", async (req, res) => {
   const user = participantForRequest(req, res);
   if (!user) return;
+  const goalsAvailable = await accountabilityGoalsSchemaAvailable();
   const activeRows = await db
     .select({ id: accountabilityPartnershipsTable.id })
     .from(accountabilityPartnershipsTable)
@@ -478,12 +549,16 @@ router.get("/", async (req, res) => {
     error(res, 500, "Your active partner record needs support. Please try again later.");
     return;
   }
-  res.json(await dashboardFor(user));
+  res.json(await dashboardFor(user, goalsAvailable));
 });
 
 router.post("/goals", async (req, res) => {
   const user = participantForRequest(req, res);
   if (!user) return;
+  if (!(await accountabilityGoalsSchemaAvailable())) {
+    error(res, 503, "Goals are temporarily unavailable while their database update is pending.");
+    return;
+  }
   const parsed = CreateAccountabilityGoalBody.safeParse(req.body);
   if (!parsed.success) {
     error(res, 400, "Add a goal title and check the optional details.");
@@ -577,6 +652,10 @@ router.post("/goals", async (req, res) => {
 router.patch("/goals/:goalId", async (req, res) => {
   const user = participantForRequest(req, res);
   if (!user) return;
+  if (!(await accountabilityGoalsSchemaAvailable())) {
+    error(res, 503, "Goals are temporarily unavailable while their database update is pending.");
+    return;
+  }
 
   const parsedParams = UpdateAccountabilityGoalParams.safeParse({
     goalId: Number(req.params.goalId),
@@ -981,6 +1060,11 @@ router.post("/commitments", async (req, res) => {
     error(res, 400, "Add a commitment title and check the optional details.");
     return;
   }
+  const goalsAvailable = await accountabilityGoalsSchemaAvailable();
+  if (parsed.data.goalId !== undefined && !goalsAvailable) {
+    error(res, 503, "Goal-linked commitments are temporarily unavailable while their database update is pending.");
+    return;
+  }
   const title = parsed.data.title.trim();
   const description = parsed.data.description?.trim() || null;
   if (!title) {
@@ -1029,9 +1113,12 @@ router.post("/commitments", async (req, res) => {
       if (!activePartner) return { outcome: "no_partner" as const };
       partner = activePartner;
     }
+    if (!goalsAvailable && !partnership) {
+      return { outcome: "goals_unavailable" as const };
+    }
 
     let goal: typeof accountabilityGoalsTable.$inferSelect | null = null;
-    if (parsed.data.goalId !== undefined) {
+    if (goalsAvailable && parsed.data.goalId !== undefined) {
       const [selectedGoal] = await tx
         .select()
         .from(accountabilityGoalsTable)
@@ -1061,7 +1148,7 @@ router.post("/commitments", async (req, res) => {
       .insert(accountabilityCommitmentsTable)
       .values({
         partnershipId: scope.partnershipId,
-        goalId: goal?.id ?? null,
+        ...(goalsAvailable ? { goalId: goal?.id ?? null } : {}),
         createdByUserId: user.id,
         assignedUserId: assignee.id,
         title,
@@ -1069,7 +1156,7 @@ router.post("/commitments", async (req, res) => {
         targetValue: parsed.data.targetValue ?? 1,
         deadline: parsed.data.deadline?.toISOString().slice(0, 10) ?? null,
       })
-      .returning();
+      .returning(accountabilityCommitmentSelection(goalsAvailable));
     if (!commitment) throw new Error("Unable to create the commitment.");
 
     if (scope.scope === "shared" && partnership && partner) {
@@ -1111,6 +1198,10 @@ router.post("/commitments", async (req, res) => {
     error(res, 404, "That accountability goal could not be found.");
     return;
   }
+  if (result.outcome === "goals_unavailable") {
+    error(res, 503, "Personal commitments are temporarily unavailable while their database update is pending.");
+    return;
+  }
   if (result.outcome !== "created") {
     error(res, 409, "That commitment could not be created in the current accountability scope.");
     return;
@@ -1149,17 +1240,18 @@ router.post("/commitments/:commitmentId/check-ins", async (req, res) => {
     return;
   }
   const note = parsedBody.data.note?.trim() || null;
+  const goalsAvailable = await accountabilityGoalsSchemaAvailable();
 
   const result = await db.transaction(async (tx) => {
     const [initialCommitment] = await tx
-      .select()
+      .select(accountabilityCommitmentSelection(goalsAvailable))
       .from(accountabilityCommitmentsTable)
       .where(eq(accountabilityCommitmentsTable.id, parsedParams.data.commitmentId))
       .limit(1);
     if (!initialCommitment) return { outcome: "not_found" as const };
     if (initialCommitment.partnershipId === null) {
       const [commitment] = await tx
-        .select()
+        .select(accountabilityCommitmentSelection(goalsAvailable))
         .from(accountabilityCommitmentsTable)
         .where(
           and(
@@ -1230,7 +1322,7 @@ router.post("/commitments/:commitmentId/check-ins", async (req, res) => {
       )
       .limit(1);
     const [commitment] = await tx
-      .select()
+      .select(accountabilityCommitmentSelection(goalsAvailable))
       .from(accountabilityCommitmentsTable)
       .where(
         and(
@@ -1346,6 +1438,7 @@ router.post("/check-ins/:checkInId/confirm", async (req, res) => {
     error(res, 400, "That check-in is not valid.");
     return;
   }
+  const goalsAvailable = await accountabilityGoalsSchemaAvailable();
 
   const result = await db.transaction(async (tx) => {
     const [initialCheckIn] = await tx
@@ -1400,7 +1493,7 @@ router.post("/check-ins/:checkInId/confirm", async (req, res) => {
     }
     const [author] = await tx.select().from(usersTable).where(eq(usersTable.id, authorId)).limit(1);
     const [commitment] = await tx
-      .select()
+      .select(accountabilityCommitmentSelection(goalsAvailable))
       .from(accountabilityCommitmentsTable)
       .where(eq(accountabilityCommitmentsTable.id, checkIn.commitmentId))
       .for("update")
