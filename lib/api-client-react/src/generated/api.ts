@@ -134,12 +134,16 @@ import type {
   OrganisationVerificationSubmission,
   Participation,
   ParticipationReviewReasonInput,
+  PersonalMemory,
+  PersonalMemoryInput,
   PrivateEvidenceAccessInput,
   PrivateEvidenceUploadInput,
   PrivateEvidenceUploadResult,
   ProfilePostsResponse,
   ProfileUpdateInput,
   RedeemXpAwardsResponse,
+  SavedExperience,
+  SavedExperienceInput,
   SearchDirectMessageProfilesParams,
   ServiceUnavailableResponse,
   SocialInvite,
@@ -1263,6 +1267,573 @@ export const useUpdateOrganisationFund = <TError = ErrorType<BadRequestResponse 
         TContext
       > => {
       return useMutation(getUpdateOrganisationFundMutationOptions(options));
+    }
+
+export const getListMySavedExperiencesUrl = () => {
+
+
+
+
+  return `/api/me/saved-experiences`
+}
+
+/**
+ * @summary List experiences saved by the signed-in participant
+ */
+export const listMySavedExperiences = async ( options?: Parameters<typeof customFetch>[1]): Promise<SavedExperience[]> => {
+
+  return customFetch<SavedExperience[]>(getListMySavedExperiencesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMySavedExperiencesQueryKey = () => {
+    return [
+    `/api/me/saved-experiences`
+    ] as const;
+    }
+
+
+export const getListMySavedExperiencesQueryOptions = <TData = Awaited<ReturnType<typeof listMySavedExperiences>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMySavedExperiences>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMySavedExperiencesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMySavedExperiences>>> = ({ signal }) => listMySavedExperiences({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMySavedExperiences>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMySavedExperiencesQueryResult = NonNullable<Awaited<ReturnType<typeof listMySavedExperiences>>>
+export type ListMySavedExperiencesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List experiences saved by the signed-in participant
+ */
+
+export function useListMySavedExperiences<TData = Awaited<ReturnType<typeof listMySavedExperiences>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMySavedExperiences>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMySavedExperiencesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveMyExperienceUrl = () => {
+
+
+
+
+  return `/api/me/saved-experiences`
+}
+
+/**
+ * @summary Save or recategorize an experience for the signed-in participant
+ */
+export const saveMyExperience = async (savedExperienceInput: SavedExperienceInput, options?: Parameters<typeof customFetch>[1]): Promise<SavedExperience> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SavedExperience>(getSaveMyExperienceUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(savedExperienceInput)
+  }
+);}
+
+
+
+
+
+export const getSaveMyExperienceMutationKey = () => ['saveMyExperience'] as const;
+
+export const getSaveMyExperienceMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveMyExperience>>, TError,SaveMyExperienceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveMyExperience>>, TError,SaveMyExperienceMutationVariables, TContext> => {
+
+const mutationKey = getSaveMyExperienceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveMyExperience>>, SaveMyExperienceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveMyExperience(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveMyExperienceMutationResult = NonNullable<Awaited<ReturnType<typeof saveMyExperience>>>
+    export type SaveMyExperienceMutationBody = BodyType<SavedExperienceInput>
+    export type SaveMyExperienceMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type SaveMyExperienceMutationVariables = {data: BodyType<SavedExperienceInput>}
+
+    /**
+ * @summary Save or recategorize an experience for the signed-in participant
+ */
+export const useSaveMyExperience = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveMyExperience>>, TError,SaveMyExperienceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveMyExperience>>,
+        TError,
+        SaveMyExperienceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveMyExperienceMutationOptions(options));
+    }
+
+export const getRemoveMySavedExperienceUrl = (experienceId: number,) => {
+
+
+
+
+  return `/api/me/saved-experiences/${experienceId}`
+}
+
+/**
+ * @summary Remove an experience from the signed-in participant's saved list
+ */
+export const removeMySavedExperience = async (experienceId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRemoveMySavedExperienceUrl(experienceId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveMySavedExperienceMutationKey = () => ['removeMySavedExperience'] as const;
+
+export const getRemoveMySavedExperienceMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMySavedExperience>>, TError,RemoveMySavedExperienceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeMySavedExperience>>, TError,RemoveMySavedExperienceMutationVariables, TContext> => {
+
+const mutationKey = getRemoveMySavedExperienceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeMySavedExperience>>, RemoveMySavedExperienceMutationVariables> = (props) => {
+          const {experienceId} = props ?? {};
+
+          return  removeMySavedExperience(experienceId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveMySavedExperienceMutationResult = NonNullable<Awaited<ReturnType<typeof removeMySavedExperience>>>
+
+    export type RemoveMySavedExperienceMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+    export type RemoveMySavedExperienceMutationVariables = {experienceId: number}
+
+    /**
+ * @summary Remove an experience from the signed-in participant's saved list
+ */
+export const useRemoveMySavedExperience = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMySavedExperience>>, TError,RemoveMySavedExperienceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeMySavedExperience>>,
+        TError,
+        RemoveMySavedExperienceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveMySavedExperienceMutationOptions(options));
+    }
+
+export const getListMyMemoriesUrl = () => {
+
+
+
+
+  return `/api/me/memories`
+}
+
+/**
+ * @summary List private memories owned by the signed-in participant
+ */
+export const listMyMemories = async ( options?: Parameters<typeof customFetch>[1]): Promise<PersonalMemory[]> => {
+
+  return customFetch<PersonalMemory[]>(getListMyMemoriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyMemoriesQueryKey = () => {
+    return [
+    `/api/me/memories`
+    ] as const;
+    }
+
+
+export const getListMyMemoriesQueryOptions = <TData = Awaited<ReturnType<typeof listMyMemories>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyMemories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyMemoriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyMemories>>> = ({ signal }) => listMyMemories({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyMemories>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyMemoriesQueryResult = NonNullable<Awaited<ReturnType<typeof listMyMemories>>>
+export type ListMyMemoriesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List private memories owned by the signed-in participant
+ */
+
+export function useListMyMemories<TData = Awaited<ReturnType<typeof listMyMemories>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyMemories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyMemoriesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateMyMemoryUrl = () => {
+
+
+
+
+  return `/api/me/memories`
+}
+
+/**
+ * @summary Create a private text, photo, or link memory
+ */
+export const createMyMemory = async (personalMemoryInput: PersonalMemoryInput, options?: Parameters<typeof customFetch>[1]): Promise<PersonalMemory> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PersonalMemory>(getCreateMyMemoryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(personalMemoryInput)
+  }
+);}
+
+
+
+
+
+export const getCreateMyMemoryMutationKey = () => ['createMyMemory'] as const;
+
+export const getCreateMyMemoryMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMyMemory>>, TError,CreateMyMemoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMyMemory>>, TError,CreateMyMemoryMutationVariables, TContext> => {
+
+const mutationKey = getCreateMyMemoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMyMemory>>, CreateMyMemoryMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMyMemory(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMyMemoryMutationResult = NonNullable<Awaited<ReturnType<typeof createMyMemory>>>
+    export type CreateMyMemoryMutationBody = BodyType<PersonalMemoryInput>
+    export type CreateMyMemoryMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+    export type CreateMyMemoryMutationVariables = {data: BodyType<PersonalMemoryInput>}
+
+    /**
+ * @summary Create a private text, photo, or link memory
+ */
+export const useCreateMyMemory = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMyMemory>>, TError,CreateMyMemoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMyMemory>>,
+        TError,
+        CreateMyMemoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateMyMemoryMutationOptions(options));
+    }
+
+export const getUpdateMyMemoryUrl = (memoryId: number,) => {
+
+
+
+
+  return `/api/me/memories/${memoryId}`
+}
+
+/**
+ * @summary Update a private memory owned by the signed-in participant
+ */
+export const updateMyMemory = async (memoryId: number,
+    personalMemoryInput: PersonalMemoryInput, options?: Parameters<typeof customFetch>[1]): Promise<PersonalMemory> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PersonalMemory>(getUpdateMyMemoryUrl(memoryId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(personalMemoryInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateMyMemoryMutationKey = () => ['updateMyMemory'] as const;
+
+export const getUpdateMyMemoryMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyMemory>>, TError,UpdateMyMemoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMyMemory>>, TError,UpdateMyMemoryMutationVariables, TContext> => {
+
+const mutationKey = getUpdateMyMemoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMyMemory>>, UpdateMyMemoryMutationVariables> = (props) => {
+          const {memoryId,data} = props ?? {};
+
+          return  updateMyMemory(memoryId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMyMemoryMutationResult = NonNullable<Awaited<ReturnType<typeof updateMyMemory>>>
+    export type UpdateMyMemoryMutationBody = BodyType<PersonalMemoryInput>
+    export type UpdateMyMemoryMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type UpdateMyMemoryMutationVariables = {memoryId: number;data: BodyType<PersonalMemoryInput>}
+
+    /**
+ * @summary Update a private memory owned by the signed-in participant
+ */
+export const useUpdateMyMemory = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyMemory>>, TError,UpdateMyMemoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMyMemory>>,
+        TError,
+        UpdateMyMemoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateMyMemoryMutationOptions(options));
+    }
+
+export const getDeleteMyMemoryUrl = (memoryId: number,) => {
+
+
+
+
+  return `/api/me/memories/${memoryId}`
+}
+
+/**
+ * @summary Delete a private memory owned by the signed-in participant
+ */
+export const deleteMyMemory = async (memoryId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteMyMemoryUrl(memoryId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteMyMemoryMutationKey = () => ['deleteMyMemory'] as const;
+
+export const getDeleteMyMemoryMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMyMemory>>, TError,DeleteMyMemoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMyMemory>>, TError,DeleteMyMemoryMutationVariables, TContext> => {
+
+const mutationKey = getDeleteMyMemoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMyMemory>>, DeleteMyMemoryMutationVariables> = (props) => {
+          const {memoryId} = props ?? {};
+
+          return  deleteMyMemory(memoryId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMyMemoryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMyMemory>>>
+
+    export type DeleteMyMemoryMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type DeleteMyMemoryMutationVariables = {memoryId: number}
+
+    /**
+ * @summary Delete a private memory owned by the signed-in participant
+ */
+export const useDeleteMyMemory = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMyMemory>>, TError,DeleteMyMemoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMyMemory>>,
+        TError,
+        DeleteMyMemoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteMyMemoryMutationOptions(options));
     }
 
 export const getUploadPrivateEvidenceUrl = () => {

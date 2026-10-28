@@ -67,6 +67,7 @@ import {
   useListTopFriends,
   useListHostExperiences,
   useListMyParticipations,
+  useListMySavedExperiences,
   useListSentFriendRequests,
   useMarkAttendance,
   usePromoteNextWaitlistedParticipant,
@@ -76,6 +77,8 @@ import {
   useSubmitExperienceMilestone,
   useTrackAnalyticsEvent,
   useSaveTopFriends,
+  useSaveMyExperience,
+  useRemoveMySavedExperience,
   useUpdateMe,
   useVerifyParticipation,
   useReviewExperienceMilestoneSubmission,
@@ -84,6 +87,7 @@ import {
   getGetExperienceQueryKey,
   getGetFriendProfileQueryKey,
   getGetMyXpAwardsQueryKey,
+  getListMySavedExperiencesQueryKey,
   getListMyParticipationsQueryKey,
   getListHostExperiencesQueryKey,
   getListExperienceParticipantsQueryKey,
@@ -3130,8 +3134,18 @@ function Detail({
     activity: false,
     host: false,
   });
+  const [bookmarkOptionsOpen, setBookmarkOptionsOpen] = useState(false);
+  const [bookmarkError, setBookmarkError] = useState<string | null>(null);
   const query = useGetExperience(id, { query: { queryKey: getGetExperienceQueryKey(id), enabled: Number.isSafeInteger(id) && id > 0 } });
+  const savedExperiencesQuery = useListMySavedExperiences({
+    query: {
+      queryKey: [...getListMySavedExperiencesQueryKey(), user?.id],
+      enabled: user?.userType === 'participant',
+    },
+  });
   const join = useJoinExperience({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const saveMyExperience = useSaveMyExperience();
+  const deleteMySavedExperience = useRemoveMySavedExperience();
   const leaveWaitlist = useLeaveWaitlist({ mutation: { onSuccess: () => { setConfirmWaitlistLeave(false); invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const submit = useSubmitCompletion({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const submitMilestone = useSubmitExperienceMilestone({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
@@ -3245,9 +3259,33 @@ function Detail({
   const canEditExperience = user?.userType === 'organisation'
     && user.organisation?.id === item.organisation.id
     && ['published', 'full'].includes(item.status);
+  const savedExperience = savedExperiencesQuery.data?.find((saved) => saved.experienceId === id);
+  const isBookmarkSaving = saveMyExperience.isPending || deleteMySavedExperience.isPending;
   const toggleDetailSection = (section: keyof typeof expandedSections) => {
     triggerHaptic();
     setExpandedSections((current) => ({ ...current, [section]: !current[section] }));
+  };
+  const saveExperienceToCategory = async (category: 'personal' | 'professional') => {
+    setBookmarkError(null);
+    try {
+      await saveMyExperience.mutateAsync({ data: { experienceId: id, category } });
+      await queryClient.invalidateQueries({ queryKey: [...getListMySavedExperiencesQueryKey(), user?.id] });
+      setBookmarkOptionsOpen(false);
+      triggerHaptic();
+    } catch (error) {
+      setBookmarkError(requestErrorMessage(error, 'This experience couldn’t be saved. Please try again.'));
+    }
+  };
+  const removeSavedExperience = async () => {
+    setBookmarkError(null);
+    try {
+      await deleteMySavedExperience.mutateAsync({ experienceId: id });
+      await queryClient.invalidateQueries({ queryKey: [...getListMySavedExperiencesQueryKey(), user?.id] });
+      setBookmarkOptionsOpen(false);
+      triggerHaptic();
+    } catch (error) {
+      setBookmarkError(requestErrorMessage(error, 'This experience couldn’t be removed. Please try again.'));
+    }
   };
 
   return (
@@ -3283,6 +3321,22 @@ function Detail({
             style={styles.experienceDetailToolbarButton}
           >
             <Feather name="edit-2" size={17} color={colors.foreground} />
+          </Pressable>
+        ) : user?.userType === 'participant' ? (
+          <Pressable
+            testID="experience-save-toggle"
+            accessibilityRole="button"
+            accessibilityLabel={savedExperience ? `Saved to ${savedExperience.category}` : 'Save experience'}
+            accessibilityState={{ expanded: bookmarkOptionsOpen, disabled: isBookmarkSaving }}
+            disabled={isBookmarkSaving}
+            onPress={() => {
+              triggerHaptic();
+              setBookmarkError(null);
+              setBookmarkOptionsOpen((open) => !open);
+            }}
+            style={[styles.experienceDetailToolbarButton, { opacity: isBookmarkSaving ? 0.5 : 1 }]}
+          >
+            <Feather name="bookmark" size={17} color={savedExperience ? colors.primary : colors.foreground} />
           </Pressable>
         ) : (
           <View style={styles.experienceDetailToolbarButton} />
@@ -3334,6 +3388,73 @@ function Detail({
             </Text>
           </View>
         </View>
+
+        {user?.userType === 'participant' && bookmarkOptionsOpen ? (
+          <View
+            testID="experience-bookmark-options"
+            style={[
+              styles.bookmarkOptions,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderRadius: colors.radius,
+              },
+            ]}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.bookmarkOptionsTitle, { color: colors.foreground }]}>
+                {savedExperience ? `Saved to ${savedExperience.category}` : 'Save this experience'}
+              </Text>
+              <Text style={[styles.bookmarkOptionsHint, { color: colors.mutedForeground }]}>
+                Choose a collection
+              </Text>
+            </View>
+            {(['personal', 'professional'] as const).map((category) => {
+              const selected = savedExperience?.category === category;
+              return (
+                <Pressable
+                  key={category}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Save to ${category}`}
+                  accessibilityState={{ selected, disabled: isBookmarkSaving || selected }}
+                  disabled={isBookmarkSaving || selected}
+                  testID={`experience-save-${category}`}
+                  onPress={() => void saveExperienceToCategory(category)}
+                  style={[
+                    styles.bookmarkCategoryButton,
+                    {
+                      backgroundColor: selected ? colors.primary + '14' : colors.muted,
+                      borderColor: selected ? colors.primary : colors.border,
+                      borderRadius: colors.radius,
+                      opacity: isBookmarkSaving ? 0.55 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.bookmarkCategoryText, { color: selected ? colors.primary : colors.foreground }]}>
+                    {category === 'personal' ? 'Personal' : 'Professional'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+            {savedExperience ? (
+              <Pressable
+                accessibilityRole="button"
+                testID="experience-remove-saved"
+                accessibilityLabel="Remove from saved experiences"
+                disabled={isBookmarkSaving}
+                onPress={() => void removeSavedExperience()}
+                style={[styles.bookmarkRemoveButton, { opacity: isBookmarkSaving ? 0.55 : 1 }]}
+              >
+                <Feather name="trash-2" size={15} color={colors.destructive} />
+              </Pressable>
+            ) : null}
+            {bookmarkError ? (
+              <Text accessibilityRole="alert" style={[styles.bookmarkError, { color: colors.destructive }]}>
+                {bookmarkError}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
 
         <View testID="participant-detail-facts" style={styles.hostDetailFacts}>
           <View style={[styles.hostDetailFact, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
@@ -9711,6 +9832,7 @@ export default function App() {
     if (screen === 'activity') {
       return (
         <PersonalActivityScreen
+          profileId={user?.id ?? 0}
           onOpenExperience={(id) => go('experience', { id: String(id) })}
           onOpenChallenges={() => go('challenges')}
           onExplore={() => go('explore')}
@@ -10313,6 +10435,13 @@ const styles = StyleSheet.create({
   detailScrollContent: { paddingHorizontal: 14, paddingTop: 6, paddingBottom: 28 },
   experienceDetailToolbar: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingTop: 4, paddingBottom: 6, borderBottomWidth: StyleSheet.hairlineWidth },
   experienceDetailToolbarButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  bookmarkOptions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 7, borderWidth: 1, padding: 11, marginBottom: 13 },
+  bookmarkOptionsTitle: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  bookmarkOptionsHint: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  bookmarkCategoryButton: { minHeight: 35, alignItems: 'center', justifyContent: 'center', borderWidth: 1, paddingHorizontal: 10 },
+  bookmarkCategoryText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  bookmarkRemoveButton: { width: 35, height: 35, alignItems: 'center', justifyContent: 'center' },
+  bookmarkError: { flexBasis: '100%', fontSize: 10, lineHeight: 15, fontFamily: 'Inter_500Medium' },
   experienceDetailToolbarTitle: { flex: 1, minWidth: 0, textAlign: 'center', fontSize: 15, fontFamily: 'Inter_600SemiBold' },
   detailHero: { height: 182, marginBottom: 12, overflow: 'hidden' },
   detailCoverFill: { flex: 1, justifyContent: 'flex-end' },

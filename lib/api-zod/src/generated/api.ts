@@ -420,6 +420,177 @@ export const UpdateOrganisationFundResponse = zod.object({
 
 
 /**
+ * @summary List experiences saved by the signed-in participant
+ */
+export const ListMySavedExperiencesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "experienceId": zod.number().int(),
+  "category": zod.enum(['personal', 'professional']),
+  "savedAt": zod.coerce.date(),
+  "experience": zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "date": zod.string(),
+  "city": zod.string(),
+  "location": zod.string(),
+  "xpReward": zod.number().int(),
+  "status": zod.string(),
+  "organisationName": zod.string()
+})
+})
+export const ListMySavedExperiencesResponse = zod.array(ListMySavedExperiencesResponseItem)
+
+
+/**
+ * @summary Save or recategorize an experience for the signed-in participant
+ */
+
+
+
+export const SaveMyExperienceBody = zod.object({
+  "experienceId": zod.number().int().min(1),
+  "category": zod.enum(['personal', 'professional'])
+})
+
+export const SaveMyExperienceResponse = zod.object({
+  "id": zod.number().int(),
+  "experienceId": zod.number().int(),
+  "category": zod.enum(['personal', 'professional']),
+  "savedAt": zod.coerce.date(),
+  "experience": zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "date": zod.string(),
+  "city": zod.string(),
+  "location": zod.string(),
+  "xpReward": zod.number().int(),
+  "status": zod.string(),
+  "organisationName": zod.string()
+})
+})
+
+
+/**
+ * @summary Remove an experience from the signed-in participant's saved list
+ */
+
+
+
+export const RemoveMySavedExperienceParams = zod.object({
+  "experienceId": zod.coerce.number().int().min(1)
+})
+
+export const RemoveMySavedExperienceResponse = zod.void()
+
+
+/**
+ * @summary List private memories owned by the signed-in participant
+ */
+export const ListMyMemoriesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string().nullable(),
+  "body": zod.string().nullable(),
+  "photoObjectKeys": zod.array(zod.string()),
+  "links": zod.array(zod.string().url()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListMyMemoriesResponse = zod.array(ListMyMemoriesResponseItem)
+
+
+/**
+ * @summary Create a private text, photo, or link memory
+ */
+export const createMyMemoryBodyTitleMax = 120;
+
+export const createMyMemoryBodyBodyMax = 5000;
+
+export const createMyMemoryBodyPhotoObjectKeysItemMax = 200;
+
+export const createMyMemoryBodyPhotoObjectKeysMax = 5;
+
+export const createMyMemoryBodyLinksItemMax = 2048;
+
+export const createMyMemoryBodyLinksMax = 5;
+
+
+
+export const CreateMyMemoryBody = zod.object({
+  "title": zod.string().max(createMyMemoryBodyTitleMax).nullish(),
+  "body": zod.string().max(createMyMemoryBodyBodyMax).nullish(),
+  "photoObjectKeys": zod.array(zod.string().max(createMyMemoryBodyPhotoObjectKeysItemMax)).max(createMyMemoryBodyPhotoObjectKeysMax).optional(),
+  "links": zod.array(zod.string().url().max(createMyMemoryBodyLinksItemMax)).max(createMyMemoryBodyLinksMax).optional()
+})
+
+export const CreateMyMemoryResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string().nullable(),
+  "body": zod.string().nullable(),
+  "photoObjectKeys": zod.array(zod.string()),
+  "links": zod.array(zod.string().url()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a private memory owned by the signed-in participant
+ */
+
+
+
+export const UpdateMyMemoryParams = zod.object({
+  "memoryId": zod.coerce.number().int().min(1)
+})
+
+export const updateMyMemoryBodyTitleMax = 120;
+
+export const updateMyMemoryBodyBodyMax = 5000;
+
+export const updateMyMemoryBodyPhotoObjectKeysItemMax = 200;
+
+export const updateMyMemoryBodyPhotoObjectKeysMax = 5;
+
+export const updateMyMemoryBodyLinksItemMax = 2048;
+
+export const updateMyMemoryBodyLinksMax = 5;
+
+
+
+export const UpdateMyMemoryBody = zod.object({
+  "title": zod.string().max(updateMyMemoryBodyTitleMax).nullish(),
+  "body": zod.string().max(updateMyMemoryBodyBodyMax).nullish(),
+  "photoObjectKeys": zod.array(zod.string().max(updateMyMemoryBodyPhotoObjectKeysItemMax)).max(updateMyMemoryBodyPhotoObjectKeysMax).optional(),
+  "links": zod.array(zod.string().url().max(updateMyMemoryBodyLinksItemMax)).max(updateMyMemoryBodyLinksMax).optional()
+})
+
+export const UpdateMyMemoryResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string().nullable(),
+  "body": zod.string().nullable(),
+  "photoObjectKeys": zod.array(zod.string()),
+  "links": zod.array(zod.string().url()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a private memory owned by the signed-in participant
+ */
+
+
+
+export const DeleteMyMemoryParams = zod.object({
+  "memoryId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteMyMemoryResponse = zod.void()
+
+
+/**
  * @summary Upload a private verification evidence image
  */
 export const uploadPrivateEvidenceBodyDataMax = 5592406;
@@ -427,6 +598,7 @@ export const uploadPrivateEvidenceBodyDataMax = 5592406;
 
 
 export const UploadPrivateEvidenceBody = zod.object({
+  "purpose": zod.enum(['evidence', 'memory']).optional(),
   "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp']),
   "data": zod.string().max(uploadPrivateEvidenceBodyDataMax).describe('Base64-encoded image, at most 4 MB decoded')
 })

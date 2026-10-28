@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PrivateEvidenceUploadInputContentType } from './privateEvidenceUploadInputContentType';
+import type { PrivateEvidenceUploadInputPurpose } from './privateEvidenceUploadInputPurpose';
 
 export interface PrivateEvidenceUploadInput {
+  purpose?: PrivateEvidenceUploadInputPurpose;
   contentType: PrivateEvidenceUploadInputContentType;
   /**
      * Base64-encoded image, at most 4 MB decoded

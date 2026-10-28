@@ -284,6 +284,91 @@ export interface OrganisationVerificationApplicationInput {
   evidenceObjectKeys?: string[];
 }
 
+export type SavedExperienceInputCategory = typeof SavedExperienceInputCategory[keyof typeof SavedExperienceInputCategory];
+
+
+export const SavedExperienceInputCategory = {
+  personal: 'personal',
+  professional: 'professional',
+} as const;
+
+export interface SavedExperienceInput {
+  /** @minimum 1 */
+  experienceId: number;
+  category: SavedExperienceInputCategory;
+}
+
+export type SavedExperienceCategory = typeof SavedExperienceCategory[keyof typeof SavedExperienceCategory];
+
+
+export const SavedExperienceCategory = {
+  personal: 'personal',
+  professional: 'professional',
+} as const;
+
+export type SavedExperienceExperience = {
+  id: number;
+  title: string;
+  category: string;
+  date: string;
+  city: string;
+  location: string;
+  xpReward: number;
+  status: string;
+  organisationName: string;
+};
+
+export interface SavedExperience {
+  id: number;
+  experienceId: number;
+  category: SavedExperienceCategory;
+  savedAt: string;
+  experience: SavedExperienceExperience;
+}
+
+export interface PersonalMemoryInput {
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  title?: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  body?: string | null;
+  /**
+     * @maxItems 5
+     * @items.maxLength 200
+     */
+  photoObjectKeys?: string[];
+  /**
+     * @maxItems 5
+     * @items.maxLength 2048
+     */
+  links?: string[];
+}
+
+export interface PersonalMemory {
+  id: number;
+  /** @nullable */
+  title: string | null;
+  /** @nullable */
+  body: string | null;
+  photoObjectKeys: string[];
+  links: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PrivateEvidenceUploadInputPurpose = typeof PrivateEvidenceUploadInputPurpose[keyof typeof PrivateEvidenceUploadInputPurpose];
+
+
+export const PrivateEvidenceUploadInputPurpose = {
+  evidence: 'evidence',
+  memory: 'memory',
+} as const;
+
 export type PrivateEvidenceUploadInputContentType = typeof PrivateEvidenceUploadInputContentType[keyof typeof PrivateEvidenceUploadInputContentType];
 
 
@@ -294,6 +379,7 @@ export const PrivateEvidenceUploadInputContentType = {
 } as const;
 
 export interface PrivateEvidenceUploadInput {
+  purpose?: PrivateEvidenceUploadInputPurpose;
   contentType: PrivateEvidenceUploadInputContentType;
   /**
      * Base64-encoded image, at most 4 MB decoded

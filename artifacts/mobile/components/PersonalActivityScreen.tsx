@@ -19,6 +19,9 @@ import {
   type XpAward,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { ProfilePosts } from '@/components/ProfilePosts';
+import { PersonalMemoriesPanel, SavedExperiencesPanel } from '@/components/PersonalCollections';
 
 type ActivityFilter = 'all' | 'experiences' | 'challenges' | 'xp';
 type ActivityKind = Exclude<ActivityFilter, 'all'>;
@@ -40,10 +43,20 @@ type ActivityItem = {
 };
 
 type Props = {
+  profileId: number;
   onOpenExperience: (experienceId: number) => void;
   onOpenChallenges: () => void;
   onExplore: () => void;
 };
+
+type PersonalSection = 'activity' | 'saved-experiences' | 'memories' | 'posts';
+
+const personalSections: Array<{ key: PersonalSection; label: string }> = [
+  { key: 'activity', label: 'Activity' },
+  { key: 'saved-experiences', label: 'Saved experiences' },
+  { key: 'memories', label: 'Memories' },
+  { key: 'posts', label: 'Posts' },
+];
 
 const filters: Array<{ key: ActivityFilter; label: string }> = [
   { key: 'all', label: 'All' },
@@ -167,12 +180,13 @@ function queryCount(isLoading: boolean, isError: boolean, count: number | undefi
   return String(count ?? 0);
 }
 
-export function PersonalActivityScreen({ onOpenExperience, onOpenChallenges, onExplore }: Props) {
+export function PersonalActivityScreen({ profileId, onOpenExperience, onOpenChallenges, onExplore }: Props) {
   const colors = useColors();
   const participationsQuery = useListMyParticipations();
   const challengesQuery = useListExperienceChallenges();
   const xpQuery = useGetMyXpAwards();
   const [filter, setFilter] = useState<ActivityFilter>('all');
+  const [section, setSection] = useState<PersonalSection>('activity');
 
   const items = useMemo(() => {
     const participationItems = (participationsQuery.data ?? []).map(participationItem);
@@ -216,18 +230,56 @@ export function PersonalActivityScreen({ onOpenExperience, onOpenChallenges, onE
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <ScrollView
+      <KeyboardAwareScrollViewCompat
+        style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={96}
+        refreshControl={section === 'activity' ? (
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={retryAll}
             tintColor={colors.primary}
             colors={[colors.primary]}
           />
-        }
+        ) : undefined}
       >
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.sectionTabs}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+        >
+          {personalSections.map((item) => {
+            const selected = section === item.key;
+            return (
+              <Pressable
+                key={item.key}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${item.label}`}
+                accessibilityState={{ selected }}
+                testID={`personal-record-tab-${item.key}`}
+                onPress={() => setSection(item.key)}
+                style={[
+                  styles.sectionTab,
+                  {
+                    backgroundColor: selected ? colors.primary : colors.card,
+                    borderColor: selected ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.sectionTabText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>
+                  {item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {section === 'activity' ? (
+          <>
         <View style={styles.header}>
           <Text style={[styles.kicker, { color: colors.primary }]}>YOUR PERSONAL RECORD</Text>
           <Text style={[styles.title, { color: colors.foreground }]}>Activity</Text>
@@ -487,7 +539,15 @@ export function PersonalActivityScreen({ onOpenExperience, onOpenChallenges, onE
             </Pressable>
           </View>
         )}
-      </ScrollView>
+          </>
+        ) : section === 'saved-experiences' ? (
+          <SavedExperiencesPanel profileId={profileId} onOpenExperience={onOpenExperience} onExplore={onExplore} />
+        ) : section === 'memories' ? (
+          <PersonalMemoriesPanel profileId={profileId} />
+        ) : (
+          <ProfilePosts profileId={profileId} />
+        )}
+      </KeyboardAwareScrollViewCompat>
     </View>
   );
 }
@@ -516,11 +576,15 @@ function SummaryCard({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, minHeight: 0 },
+  scroll: { flex: 1, minHeight: 0 },
   content: {
     paddingHorizontal: 18,
     paddingTop: Platform.OS === 'web' ? 70 : 14,
     paddingBottom: Platform.OS === 'web' ? 100 : 110,
   },
+  sectionTabs: { gap: 7, paddingBottom: 16 },
+  sectionTab: { minHeight: 36, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderWidth: 1, borderRadius: 18 },
+  sectionTabText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
   header: { marginBottom: 19 },
   kicker: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.4 },
   title: { fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', letterSpacing: -0.7, marginTop: 4 },

@@ -39,12 +39,13 @@ function matchesImageSignature(contentType: string, bytes: Buffer): boolean {
 router.use("/evidence", requireTelegramUser);
 
 router.post("/evidence/upload", async (req, res) => {
-  const { contentType, data } = req.body ?? {};
+  const { contentType, data, purpose } = req.body ?? {};
   if (
     typeof contentType !== "string" ||
     !allowedTypes.has(contentType) ||
     typeof data !== "string" ||
-    !/^[A-Za-z0-9+/]*={0,2}$/.test(data)
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(data) ||
+    (purpose !== undefined && purpose !== "evidence" && purpose !== "memory")
   ) {
     res.status(400).json({ message: "Upload a JPEG, PNG, or WebP evidence image." });
     return;
@@ -61,7 +62,9 @@ router.post("/evidence/upload", async (req, res) => {
   }
   const user = currentUser(req);
   const storage = getSupabaseAdminClient().storage;
-  const path = `${user.id}/${crypto.randomUUID()}`;
+  const path = purpose === "memory"
+    ? `${user.id}/memories/${crypto.randomUUID()}`
+    : `${user.id}/${crypto.randomUUID()}`;
   try {
     const existingBucket = await storage.getBucket(BUCKET);
     if (existingBucket.error) {

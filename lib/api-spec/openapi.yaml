@@ -34,6 +34,8 @@ tags:
     description: Challenges between accepted friends
   - name: ai-assistant
     description: Persistent AI experience discovery conversations
+  - name: personal-collections
+    description: Private saved experiences and personal memories
 paths:
   /funds/payout-candidates:
     get:
@@ -288,6 +290,135 @@ paths:
               schema: { $ref: "#/components/schemas/OrganisationFund" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /me/saved-experiences:
+    get:
+      operationId: listMySavedExperiences
+      tags: [personal-collections]
+      summary: List experiences saved by the signed-in participant
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: The participant's personal and professional saved experiences
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SavedExperience" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      operationId: saveMyExperience
+      tags: [personal-collections]
+      summary: Save or recategorize an experience for the signed-in participant
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SavedExperienceInput" }
+      responses:
+        "200":
+          description: The saved experience
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SavedExperience" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /me/saved-experiences/{experienceId}:
+    delete:
+      operationId: removeMySavedExperience
+      tags: [personal-collections]
+      summary: Remove an experience from the signed-in participant's saved list
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: experienceId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "204": { description: The saved experience was removed }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /me/memories:
+    get:
+      operationId: listMyMemories
+      tags: [personal-collections]
+      summary: List private memories owned by the signed-in participant
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: The participant's private memories
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PersonalMemory" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      operationId: createMyMemory
+      tags: [personal-collections]
+      summary: Create a private text, photo, or link memory
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PersonalMemoryInput" }
+      responses:
+        "201":
+          description: The created private memory
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PersonalMemory" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /me/memories/{memoryId}:
+    patch:
+      operationId: updateMyMemory
+      tags: [personal-collections]
+      summary: Update a private memory owned by the signed-in participant
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: memoryId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PersonalMemoryInput" }
+      responses:
+        "200":
+          description: The updated private memory
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PersonalMemory" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      operationId: deleteMyMemory
+      tags: [personal-collections]
+      summary: Delete a private memory owned by the signed-in participant
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: memoryId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "204": { description: The private memory was deleted }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
   /evidence/upload:
     post:
@@ -3395,9 +3526,65 @@ components:
           maxItems: 5
           items: { type: string, maxLength: 200 }
       required: [legalName, organisationType, jurisdiction, representativeName, representativeRole, contactEmail]
+    SavedExperienceInput:
+      type: object
+      properties:
+        experienceId: { type: integer, minimum: 1 }
+        category: { type: string, enum: [personal, professional] }
+      required: [experienceId, category]
+    SavedExperience:
+      type: object
+      properties:
+        id: { type: integer }
+        experienceId: { type: integer }
+        category: { type: string, enum: [personal, professional] }
+        savedAt: { type: string, format: date-time }
+        experience:
+          type: object
+          properties:
+            id: { type: integer }
+            title: { type: string }
+            category: { type: string }
+            date: { type: string }
+            city: { type: string }
+            location: { type: string }
+            xpReward: { type: integer }
+            status: { type: string }
+            organisationName: { type: string }
+          required: [id, title, category, date, city, location, xpReward, status, organisationName]
+      required: [id, experienceId, category, savedAt, experience]
+    PersonalMemoryInput:
+      type: object
+      properties:
+        title: { type: [string, "null"], maxLength: 120 }
+        body: { type: [string, "null"], maxLength: 5000 }
+        photoObjectKeys:
+          type: array
+          maxItems: 5
+          items: { type: string, maxLength: 200 }
+        links:
+          type: array
+          maxItems: 5
+          items: { type: string, format: uri, maxLength: 2048 }
+    PersonalMemory:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: [string, "null"] }
+        body: { type: [string, "null"] }
+        photoObjectKeys:
+          type: array
+          items: { type: string }
+        links:
+          type: array
+          items: { type: string, format: uri }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, title, body, photoObjectKeys, links, createdAt, updatedAt]
     PrivateEvidenceUploadInput:
       type: object
       properties:
+        purpose: { type: string, enum: [evidence, memory] }
         contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
         data:
           type: string

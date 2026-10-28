@@ -15,6 +15,7 @@ import aiAssistantRouter from "./ai-assistant";
 import memoryGameRouter from "./memory-game";
 import fundsRouter from "./funds";
 import privateEvidenceRouter from "./private-evidence";
+import personalCollectionsRouter from "./personal-collections";
 
 const router: IRouter = Router();
 
@@ -31,6 +32,7 @@ router.use("/ai", aiAssistantRouter);
 router.use("/memory-game", memoryGameRouter);
 router.use("/funds", fundsRouter);
 router.use(privateEvidenceRouter);
+router.use(personalCollectionsRouter);
 // Telegram/email auth routes are public and must be checked before the
 // community router's authentication middleware.
 router.use(experiencesRouter);

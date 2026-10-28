@@ -194,6 +194,11 @@ async function tapTestId(client, testId, { scrollIntoView = true } = {}) {
   });
 }
 
+async function enterTextInTestId(client, testId, text) {
+  await tapTestId(client, testId);
+  await client.send("Input.insertText", { text });
+}
+
 function apiResponseHeaders(request, origin) {
   return [
     { name: "Content-Type", value: "application/json" },
@@ -337,6 +342,44 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
     acceptedAt: null,
     completedAt: null,
   }];
+  let savedExperiences = [
+    {
+      id: 1,
+      experienceId: 7001,
+      category: "personal",
+      savedAt: "2026-10-10T10:00:00.000Z",
+      experience: {
+        id: 7001,
+        title: "Community Garden Morning",
+        category: "community",
+        date: "2026-11-15",
+        city: "London",
+        location: "Southwark",
+        xpReward: 60,
+        status: "published",
+        organisationName: "Neighbourhood Growers",
+      },
+    },
+    {
+      id: 2,
+      experienceId: 7002,
+      category: "professional",
+      savedAt: "2026-10-09T10:00:00.000Z",
+      experience: {
+        id: 7002,
+        title: "Community Design Workshop",
+        category: "learning",
+        date: "2026-11-20",
+        city: "London",
+        location: "Camden",
+        xpReward: 45,
+        status: "published",
+        organisationName: "Open Skills Lab",
+      },
+    },
+  ];
+  let personalMemories = [];
+  let nextMemoryId = 900;
   const xpAwards = {
     balanceXp: 210,
     pendingXp: 80,
@@ -368,7 +411,7 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
             responseCode: 204,
             responseHeaders: [
               ...apiResponseHeaders(params.request, appOrigin),
-              { name: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
+              { name: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
               {
                 name: "Access-Control-Allow-Headers",
                 value: params.request.headers["Access-Control-Request-Headers"]
@@ -406,6 +449,58 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
           response = activityChallenges;
         } else if (url.pathname === "/api/me/xp-awards" && method === "GET") {
           response = xpAwards;
+        } else if (url.pathname === "/api/me/saved-experiences" && method === "GET") {
+          response = savedExperiences;
+        } else if (url.pathname === "/api/me/saved-experiences" && method === "PUT") {
+          const input = JSON.parse(params.request.postData ?? "{}");
+          const existing = savedExperiences.find((item) => item.experienceId === input.experienceId);
+          if (existing) existing.category = input.category;
+          response = existing;
+        } else if (url.pathname === "/api/experiences/7001" && method === "GET") {
+          response = {
+            id: 7001,
+            organisation,
+            title: "Community Garden Morning",
+            description: "Help local volunteers prepare a shared garden.",
+            category: "community",
+            date: "2026-11-15",
+            startTime: "10:00",
+            endTime: "12:00",
+            location: "Southwark",
+            city: "London",
+            verifiedLocation: null,
+            capacity: 20,
+            participantCount: 0,
+            availablePlaces: 20,
+            xpReward: 60,
+            monetaryRewardPence: null,
+            status: "published",
+            whatToBring: null,
+            whatYouWillDo: null,
+            joined: false,
+            participation: null,
+            milestones: [],
+          };
+        } else if (url.pathname === "/api/me/memories" && method === "GET") {
+          response = personalMemories;
+        } else if (url.pathname === "/api/me/memories" && method === "POST") {
+          const input = JSON.parse(params.request.postData ?? "{}");
+          const createdAt = new Date().toISOString();
+          const memory = {
+            id: nextMemoryId++,
+            userId: user.id,
+            title: input.title ?? null,
+            body: input.body ?? null,
+            photoObjectKeys: input.photoObjectKeys ?? [],
+            links: input.links ?? [],
+            createdAt,
+            updatedAt: createdAt,
+          };
+          personalMemories = [memory, ...personalMemories];
+          status = 201;
+          response = memory;
+        } else if (/^\/api\/profiles\/\d+\/posts$/.test(url.pathname) && method === "GET") {
+          response = { items: [] };
         } else if (url.pathname === "/api/feed" && method === "GET") {
           response = {
             items: [],
@@ -783,6 +878,105 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
     1,
     "The Challenges filter should show only challenge records.",
   );
+
+  await tapTestId(client, "personal-record-tab-saved-experiences");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="saved-experience-7001"]'))`,
+    Boolean,
+    "the Personal saved-experience collection",
+  );
+  assert.equal(
+    await client.evaluate(`document.body.innerText.includes('Community Design Workshop')`),
+    false,
+    "The Personal collection should not show Professional bookmarks.",
+  );
+  await tapTestId(client, "saved-experience-7001");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="participant-detail-hero"]'))`,
+    Boolean,
+    "the details for a saved experience",
+  );
+  await tapTestId(client, "experience-save-toggle");
+  await tapTestId(client, "experience-save-professional");
+  await waitForValue(
+    client,
+    `!document.querySelector('[data-testid="experience-bookmark-options"]')`,
+    Boolean,
+    "the saved experience to be recategorized",
+  );
+  assert.ok(
+    apiTraffic.includes("PUT /api/me/saved-experiences"),
+    "Changing the saved category should persist through the API.",
+  );
+  assert.equal(
+    savedExperiences.find((item) => item.experienceId === 7001)?.category,
+    "professional",
+    "The saved-experience API fixture should retain the new category.",
+  );
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=activity` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="personal-record-tab-saved-experiences"]'))`,
+    Boolean,
+    "the Activity tabs after changing a saved category",
+  );
+  await tapTestId(client, "personal-record-tab-saved-experiences");
+  try {
+    await waitForValue(
+      client,
+      `document.body.innerText.includes('Nothing saved to personal')`,
+      Boolean,
+      "the Personal collection after the experience was moved",
+      5_000,
+    );
+  } catch (error) {
+    const screenText = await client.evaluate(`document.body.innerText`);
+    const requests = apiTraffic.filter((request) => request.includes("saved-experiences"));
+    throw new Error(`${error.message}\nSaved category: ${savedExperiences.find((item) => item.experienceId === 7001)?.category}\nRequests: ${requests.join(", ")}\nScreen: ${screenText}`);
+  }
+  await tapTestId(client, "saved-experiences-category-professional");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="saved-experience-7002"]'))`,
+    Boolean,
+    "the Professional saved-experience collection",
+  );
+
+  await tapTestId(client, "personal-record-tab-memories");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="memory-add"]'))`,
+    Boolean,
+    "the private Memories collection",
+  );
+  await tapTestId(client, "memory-add");
+  await enterTextInTestId(client, "memory-body", "A good day at my first community garden.");
+  await tapTestId(client, "memory-save");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="memory-entry-900"]'))`,
+    Boolean,
+    "the newly saved private memory",
+  );
+  assert.match(await client.evaluate(`document.body.innerText`), /Only you/);
+
+  await tapTestId(client, "personal-record-tab-posts");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="profile-posts"]'))`,
+    Boolean,
+    "the existing profile Posts component inside Activity",
+  );
+  assert.match(await client.evaluate(`document.body.innerText`), /No posts to show yet/);
+  await tapTestId(client, "personal-record-tab-activity");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="activity-entry-challenge-52"]'))`,
+    Boolean,
+    "the Activity timeline after switching between all four tabs",
+  );
   await tapTestId(client, "activity-entry-challenge-52");
   await waitForValue(
     client,
@@ -868,6 +1062,22 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
   assert.ok(
     apiTraffic.some((request) => request === "GET /api/me/xp-awards"),
     "Activity should load the signed-in user's XP awards.",
+  );
+  assert.ok(
+    apiTraffic.some((request) => request === "GET /api/me/saved-experiences"),
+    "Saved experiences should load from the authenticated API.",
+  );
+  assert.ok(
+    apiTraffic.some((request) => request === "GET /api/me/memories"),
+    "Memories should load from the authenticated API.",
+  );
+  assert.ok(
+    apiTraffic.some((request) => request === "POST /api/me/memories"),
+    "Creating a memory should persist it through the API.",
+  );
+  assert.ok(
+    apiTraffic.some((request) => request === `GET /api/profiles/${user.id}/posts`),
+    "Posts should reuse the signed-in profile's existing feed.",
   );
   assert.deepEqual(unexpectedApiRequests, [], "The Home flow should only request the fixture-backed APIs.");
 });

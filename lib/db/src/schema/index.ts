@@ -34,3 +34,4 @@ export * from "./ai-assistant";
 export * from "./fundraising";
 export * from "./organisation-verification";
 export * from "./participation-review-events";
+export * from "./personal-collections";
