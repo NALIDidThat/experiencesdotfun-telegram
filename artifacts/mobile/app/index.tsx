@@ -6206,7 +6206,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
             ]}
           >
             <Feather name="plus" size={17} color={colors.primaryForeground} />
-            <Text style={[styles.hostHeroButtonText, { color: colors.primaryForeground }]}>Create experience</Text>
+            <Text style={[styles.hostHeroButtonText, { color: '#ffffff' }]}>Create experience</Text>
           </Pressable>
         </View>
       </View>
