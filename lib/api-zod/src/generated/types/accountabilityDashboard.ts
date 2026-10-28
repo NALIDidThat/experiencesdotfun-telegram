@@ -8,6 +8,7 @@
 import type { AccountabilityActivePartner } from './accountabilityActivePartner';
 import type { AccountabilityActivity } from './accountabilityActivity';
 import type { AccountabilityCommitment } from './accountabilityCommitment';
+import type { AccountabilityGoal } from './accountabilityGoal';
 import type { AccountabilityInvitation } from './accountabilityInvitation';
 
 export interface AccountabilityDashboard {
@@ -15,6 +16,7 @@ export interface AccountabilityDashboard {
   incomingInvitations: AccountabilityInvitation[];
   outgoingInvitations: AccountabilityInvitation[];
   commitments: AccountabilityCommitment[];
+  goals: AccountabilityGoal[];
   activity: AccountabilityActivity[];
   notifications: AccountabilityActivity[];
   unreadCount: number;

@@ -5070,6 +5070,8 @@ export const GetAccountabilityDashboardResponse = zod.object({
   "id": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
+  "goalId": zod.number().int().nullable(),
+  "scope": zod.enum(['personal', 'shared']),
   "createdBy": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -5103,6 +5105,25 @@ export const GetAccountabilityDashboardResponse = zod.object({
   "createdAt": zod.coerce.date()
 }),zod.null()]),
   "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable()
+})),
+  "goals": zod.array(zod.object({
+  "id": zod.number().int(),
+  "owner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "canEdit": zod.boolean(),
+  "sharedWithActivePartner": zod.boolean(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "targetDate": zod.coerce.date().nullable(),
+  "visibility": zod.enum(['private', 'shared']),
+  "status": zod.enum(['active', 'completed', 'archived']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullable()
 })),
   "activity": zod.array(zod.object({
@@ -5170,6 +5191,87 @@ export const GetAccountabilityDashboardResponse = zod.object({
   "createdAt": zod.coerce.date()
 })),
   "unreadCount": zod.number().int()
+})
+
+
+/**
+ * @summary Create a private goal or share one with an active accountability partner
+ */
+export const createAccountabilityGoalBodyTitleMax = 120;
+
+export const createAccountabilityGoalBodyDescriptionMax = 500;
+
+
+
+export const CreateAccountabilityGoalBody = zod.object({
+  "title": zod.string().min(1).max(createAccountabilityGoalBodyTitleMax),
+  "description": zod.string().max(createAccountabilityGoalBodyDescriptionMax).nullish(),
+  "targetDate": zod.coerce.date().nullish(),
+  "visibility": zod.enum(['private', 'shared']).optional()
+})
+
+export const CreateAccountabilityGoalResponse = zod.object({
+  "id": zod.number().int(),
+  "owner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "canEdit": zod.boolean(),
+  "sharedWithActivePartner": zod.boolean(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "targetDate": zod.coerce.date().nullable(),
+  "visibility": zod.enum(['private', 'shared']),
+  "status": zod.enum(['active', 'completed', 'archived']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Update or change the status of an owned accountability goal
+ */
+
+
+
+export const UpdateAccountabilityGoalParams = zod.object({
+  "goalId": zod.coerce.number().int().min(1)
+})
+
+export const updateAccountabilityGoalBodyTitleMax = 120;
+
+export const updateAccountabilityGoalBodyDescriptionMax = 500;
+
+
+
+export const UpdateAccountabilityGoalBody = zod.object({
+  "title": zod.string().min(1).max(updateAccountabilityGoalBodyTitleMax).optional(),
+  "description": zod.string().max(updateAccountabilityGoalBodyDescriptionMax).nullish(),
+  "targetDate": zod.coerce.date().nullish(),
+  "status": zod.enum(['active', 'completed', 'archived']).optional()
+})
+
+export const UpdateAccountabilityGoalResponse = zod.object({
+  "id": zod.number().int(),
+  "owner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "canEdit": zod.boolean(),
+  "sharedWithActivePartner": zod.boolean(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "targetDate": zod.coerce.date().nullable(),
+  "visibility": zod.enum(['private', 'shared']),
+  "status": zod.enum(['active', 'completed', 'archived']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable()
 })
 
 
@@ -5245,6 +5347,7 @@ export const createAccountabilityCommitmentBodyTitleMax = 120;
 export const createAccountabilityCommitmentBodyDescriptionMax = 500;
 
 
+
 export const createAccountabilityCommitmentBodyTargetValueMax = 100;
 
 
@@ -5252,7 +5355,8 @@ export const createAccountabilityCommitmentBodyTargetValueMax = 100;
 export const CreateAccountabilityCommitmentBody = zod.object({
   "title": zod.string().min(1).max(createAccountabilityCommitmentBodyTitleMax),
   "description": zod.string().max(createAccountabilityCommitmentBodyDescriptionMax).optional(),
-  "assignedUserId": zod.number().int().min(1),
+  "assignedUserId": zod.number().int().min(1).optional(),
+  "goalId": zod.number().int().min(1).optional(),
   "targetValue": zod.number().int().min(1).max(createAccountabilityCommitmentBodyTargetValueMax).optional(),
   "deadline": zod.coerce.date().optional()
 })
@@ -5261,6 +5365,8 @@ export const CreateAccountabilityCommitmentResponse = zod.object({
   "id": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
+  "goalId": zod.number().int().nullable(),
+  "scope": zod.enum(['personal', 'shared']),
   "createdBy": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),

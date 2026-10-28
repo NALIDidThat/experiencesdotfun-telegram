@@ -3021,6 +3021,54 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "409":
           $ref: "#/components/responses/Conflict"
+  /accountability/goals:
+    post:
+      operationId: createAccountabilityGoal
+      tags: [friends]
+      summary: Create a private goal or share one with an active accountability partner
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountabilityGoalInput"
+      responses:
+        "201":
+          description: Goal created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountabilityGoal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /accountability/goals/{goalId}:
+    patch:
+      operationId: updateAccountabilityGoal
+      tags: [friends]
+      summary: Update or change the status of an owned accountability goal
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AccountabilityGoalId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountabilityGoalUpdateInput"
+      responses:
+        "200":
+          description: Goal updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountabilityGoal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /accountability/invitations:
     post:
       operationId: createAccountabilityInvitation
@@ -3278,6 +3326,13 @@ components:
         minimum: 1
     AccountabilityCommitmentId:
       name: commitmentId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    AccountabilityGoalId:
+      name: goalId
       in: path
       required: true
       schema:
@@ -5620,6 +5675,52 @@ components:
           type: string
           format: date-time
       required: [partnershipId, partner, acceptedAt]
+    AccountabilityGoal:
+      type: object
+      properties:
+        id:
+          type: integer
+        owner:
+          $ref: "#/components/schemas/ParticipantSummary"
+        canEdit:
+          type: boolean
+        sharedWithActivePartner:
+          type: boolean
+        title:
+          type: string
+        description:
+          type: [string, "null"]
+        targetDate:
+          type: [string, "null"]
+          format: date
+        visibility:
+          type: string
+          enum: [private, shared]
+        status:
+          type: string
+          enum: [active, completed, archived]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: [string, "null"]
+          format: date-time
+      required:
+        - id
+        - owner
+        - canEdit
+        - sharedWithActivePartner
+        - title
+        - description
+        - targetDate
+        - visibility
+        - status
+        - createdAt
+        - updatedAt
+        - completedAt
     AccountabilityCheckIn:
       type: object
       properties:
@@ -5654,6 +5755,11 @@ components:
           type: string
         description:
           type: [string, "null"]
+        goalId:
+          type: [integer, "null"]
+        scope:
+          type: string
+          enum: [personal, shared]
         createdBy:
           $ref: "#/components/schemas/ParticipantSummary"
         assignedTo:
@@ -5685,6 +5791,8 @@ components:
         - id
         - title
         - description
+        - goalId
+        - scope
         - createdBy
         - assignedTo
         - targetValue
@@ -5767,6 +5875,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AccountabilityCommitment"
+        goals:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountabilityGoal"
         activity:
           type: array
           items:
@@ -5782,6 +5894,7 @@ components:
         - incomingInvitations
         - outgoingInvitations
         - commitments
+        - goals
         - activity
         - notifications
         - unreadCount
@@ -5813,6 +5926,9 @@ components:
         assignedUserId:
           type: integer
           minimum: 1
+        goalId:
+          type: integer
+          minimum: 1
         targetValue:
           type: integer
           minimum: 1
@@ -5820,7 +5936,40 @@ components:
         deadline:
           type: string
           format: date
-      required: [title, assignedUserId]
+      required: [title]
+    AccountabilityGoalInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: [string, "null"]
+          maxLength: 500
+        targetDate:
+          type: [string, "null"]
+          format: date
+        visibility:
+          type: string
+          enum: [private, shared]
+      required: [title]
+    AccountabilityGoalUpdateInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: [string, "null"]
+          maxLength: 500
+        targetDate:
+          type: [string, "null"]
+          format: date
+        status:
+          type: string
+          enum: [active, completed, archived]
     AccountabilityCheckInInput:
       type: object
       properties:

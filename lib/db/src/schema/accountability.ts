@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   date,
   index,
   integer,
@@ -47,13 +48,67 @@ export const accountabilityPartnershipsTable = pgTable(
   }),
 );
 
+export const accountabilityGoalsTable = pgTable(
+  "accountability_goals",
+  {
+    id: serial("id").primaryKey(),
+    ownerUserId: integer("owner_user_id")
+      .notNull()
+      .references(() => usersTable.id),
+    partnershipId: integer("partnership_id").references(() => accountabilityPartnershipsTable.id),
+    title: text("title").notNull(),
+    description: text("description"),
+    targetDate: date("target_date", { mode: "string" }),
+    visibility: text("visibility", { enum: ["private", "shared"] })
+      .notNull()
+      .default("private"),
+    status: text("status", { enum: ["active", "completed", "archived"] })
+      .notNull()
+      .default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => ({
+    titleLengthCheck: check(
+      "accountability_goal_title_length_check",
+      sql`char_length(btrim(${table.title})) BETWEEN 1 AND 120`,
+    ),
+    descriptionLengthCheck: check(
+      "accountability_goal_description_length_check",
+      sql`${table.description} IS NULL OR char_length(${table.description}) <= 500`,
+    ),
+    visibilityCheck: check(
+      "accountability_goal_visibility_check",
+      sql`${table.visibility} IN ('private', 'shared')`,
+    ),
+    statusCheck: check(
+      "accountability_goal_status_check",
+      sql`${table.status} IN ('active', 'completed', 'archived')`,
+    ),
+    ownerStatusIndex: index("accountability_goal_owner_status_idx").on(
+      table.ownerUserId,
+      table.status,
+      table.createdAt,
+    ),
+    partnershipIndex: index("accountability_goal_partnership_idx").on(
+      table.partnershipId,
+      table.createdAt,
+    ),
+    visibilityPartnershipCheck: check(
+      "accountability_goal_visibility_partnership_check",
+      sql`(${table.visibility} = 'private' AND ${table.partnershipId} IS NULL) OR (${table.visibility} = 'shared' AND ${table.partnershipId} IS NOT NULL)`,
+    ),
+  }),
+);
+
 export const accountabilityCommitmentsTable = pgTable(
   "accountability_commitments",
   {
     id: serial("id").primaryKey(),
     partnershipId: integer("partnership_id")
-      .notNull()
       .references(() => accountabilityPartnershipsTable.id),
+    goalId: integer("goal_id").references(() => accountabilityGoalsTable.id),
     createdByUserId: integer("created_by_user_id")
       .notNull()
       .references(() => usersTable.id),
@@ -85,6 +140,10 @@ export const accountabilityCommitmentsTable = pgTable(
       table.assignedUserId,
       table.status,
     ),
+    goalCreatedIndex: index("accountability_commitment_goal_created_idx").on(
+      table.goalId,
+      table.createdAt,
+    ),
   }),
 );
 
@@ -93,7 +152,6 @@ export const accountabilityCheckInsTable = pgTable(
   {
     id: serial("id").primaryKey(),
     partnershipId: integer("partnership_id")
-      .notNull()
       .references(() => accountabilityPartnershipsTable.id),
     commitmentId: integer("commitment_id")
       .notNull()
@@ -172,11 +230,13 @@ export const accountabilityEventsTable = pgTable(
 );
 
 export const insertAccountabilityPartnershipSchema = createInsertSchema(accountabilityPartnershipsTable);
+export const insertAccountabilityGoalSchema = createInsertSchema(accountabilityGoalsTable);
 export const insertAccountabilityCommitmentSchema = createInsertSchema(accountabilityCommitmentsTable);
 export const insertAccountabilityCheckInSchema = createInsertSchema(accountabilityCheckInsTable);
 export const insertAccountabilityEventSchema = createInsertSchema(accountabilityEventsTable);
 
 export type AccountabilityPartnership = typeof accountabilityPartnershipsTable.$inferSelect;
+export type AccountabilityGoal = typeof accountabilityGoalsTable.$inferSelect;
 export type AccountabilityCommitment = typeof accountabilityCommitmentsTable.$inferSelect;
 export type AccountabilityCheckIn = typeof accountabilityCheckInsTable.$inferSelect;
 export type AccountabilityEvent = typeof accountabilityEventsTable.$inferSelect;

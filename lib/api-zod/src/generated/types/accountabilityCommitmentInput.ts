@@ -15,7 +15,9 @@ export interface AccountabilityCommitmentInput {
   /** @maxLength 500 */
   description?: string;
   /** @minimum 1 */
-  assignedUserId: number;
+  assignedUserId?: number;
+  /** @minimum 1 */
+  goalId?: number;
   /**
      * @minimum 1
      * @maximum 100

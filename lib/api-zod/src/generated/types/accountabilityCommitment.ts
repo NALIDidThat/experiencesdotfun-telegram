@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AccountabilityCheckIn } from './accountabilityCheckIn';
+import type { AccountabilityCommitmentScope } from './accountabilityCommitmentScope';
 import type { AccountabilityCommitmentStatus } from './accountabilityCommitmentStatus';
 import type { AccountabilityCommitmentVerificationStatus } from './accountabilityCommitmentVerificationStatus';
 import type { ParticipantSummary } from './participantSummary';
@@ -15,6 +16,9 @@ export interface AccountabilityCommitment {
   title: string;
   /** @nullable */
   description: string | null;
+  /** @nullable */
+  goalId: number | null;
+  scope: AccountabilityCommitmentScope;
   createdBy: ParticipantSummary;
   assignedTo: ParticipantSummary;
   targetValue: number;

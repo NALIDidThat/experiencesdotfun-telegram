@@ -12,6 +12,7 @@
     "push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
     "migrate-supabase-data": "node ./scripts/migrate-supabase-data.mjs",
     "migrate:personal-collections": "node ./scripts/apply-personal-collections.mjs",
+    "migrate:accountability-goals": "node ./scripts/apply-accountability-goals.mjs",
     "migrate:fundraising": "node ./scripts/apply-fundraising-ledger.mjs",
     "migrate:fund-experience-link": "node ./scripts/apply-fund-experience-link.mjs",
     "migrate:fund-milestones": "node ./scripts/apply-fund-campaign-milestones.mjs",

@@ -31,6 +31,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { UserAvatar } from "@/components/UserAvatar";
+import { AccountabilityGoalsPanel } from "@/components/AccountabilityGoalsPanel";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { createSocialInviteShareContent } from "@/lib/social-invite-copy";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -182,11 +183,13 @@ export function AccountabilitySection({
   const incoming = dashboard.data?.incomingInvitations ?? [];
   const outgoing = dashboard.data?.outgoingInvitations ?? [];
   const commitments = dashboard.data?.commitments ?? [];
-  const activeCommitments = commitments.filter((commitment) => commitment.status === "active");
-  const completedCommitments = commitments.filter((commitment) => commitment.status === "completed").slice(0, 2);
+  const sharedCommitments = commitments.filter((commitment) => commitment.scope !== "personal");
+  const goals = dashboard.data?.goals ?? [];
+  const activeCommitments = sharedCommitments.filter((commitment) => commitment.status === "active");
+  const completedCommitments = sharedCommitments.filter((commitment) => commitment.status === "completed").slice(0, 2);
   const visibleCommitments = [...activeCommitments, ...completedCommitments];
-  const completedCommitmentCount = commitments.filter((commitment) => commitment.status === "completed").length;
-  const completedCheckInCount = commitments
+  const completedCommitmentCount = sharedCommitments.filter((commitment) => commitment.status === "completed").length;
+  const completedCheckInCount = sharedCommitments
     .filter((commitment) => commitment.status === "active" || commitment.status === "completed")
     .reduce((total, commitment) => total + Math.min(commitment.currentValue, commitment.targetValue), 0);
   const todayCommitment = activeCommitments.find((commitment) => commitment.assignedTo.id === user?.id) ?? null;
@@ -331,12 +334,14 @@ export function AccountabilitySection({
   };
 
   const submitCheckIn = (commitmentId: number, status: CheckInStatus) => {
+    const commitment = commitments.find((item) => item.id === commitmentId);
+    const isPersonal = commitment?.scope === "personal";
     void runAction(
       () => createCheckIn.mutateAsync({
         commitmentId,
         data: { status, note: checkInNote.trim() || undefined },
       }),
-      "Check-in shared with your partner.",
+      isPersonal ? "Private check-in saved. No XP was awarded." : "Check-in shared with your partner.",
       "That check-in could not be saved. Please try again.",
     ).then((saved) => {
       if (!saved) return;
@@ -716,6 +721,17 @@ export function AccountabilitySection({
         </View>
       ) : null}
 
+      {!dashboard.isLoading && !dashboard.isError ? (
+        <AccountabilityGoalsPanel
+          goals={goals}
+          commitments={commitments}
+          userId={user.id}
+          activePartnerName={activePartner?.partner.name ?? null}
+          onRefresh={refreshDashboard}
+          onFeedback={(message, tone) => setFeedback({ message, tone })}
+        />
+      ) : null}
+
       {activePartner ? (
         <>
           <View style={[cardStyle, { gap: 16, padding: 18 }]}>
@@ -949,7 +965,7 @@ export function AccountabilitySection({
                   No active commitments yet
                 </Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16, textAlign: "center" }}>
-                  Add a shared goal to see progress here.
+                  Add a shared commitment to see progress here.
                 </Text>
               </View>
             )}
@@ -957,9 +973,9 @@ export function AccountabilitySection({
 
           <View testID="accountability-dashboard-metrics" style={{ flexDirection: "row", gap: 8 }}>
             {([
-              { label: "Active goals", value: activeCommitments.length, icon: "target" as const, color: colors.teal },
-              { label: "Goals met", value: completedCommitmentCount, icon: "check-circle" as const, color: colors.success },
-              { label: "Check-ins", value: completedCheckInCount, icon: "activity" as const, color: colors.secondary },
+              { label: "Active commitments", value: activeCommitments.length, icon: "target" as const, color: colors.teal },
+              { label: "Commitments met", value: completedCommitmentCount, icon: "check-circle" as const, color: colors.success },
+              { label: "Completed check-ins", value: completedCheckInCount, icon: "activity" as const, color: colors.secondary },
             ]).map((metric) => (
               <View key={metric.label} style={{ backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 4, borderWidth: 1, flex: 1, gap: 8, minWidth: 0, paddingHorizontal: 10, paddingVertical: 11 }}>
                 <Feather name={metric.icon} size={15} color={metric.color} />

@@ -6,18 +6,22 @@ import {
   ConfirmAccountabilityCheckInParams,
   CreateAccountabilityCheckInBody,
   CreateAccountabilityCheckInParams,
+  CreateAccountabilityGoalBody,
   CreateAccountabilityInvitationBody,
   CreateAccountabilityCommitmentBody,
   DeclineAccountabilityInvitationParams,
   EndAccountabilityPartnershipParams,
   MarkAccountabilityNotificationReadParams,
   SendAccountabilityEncouragementBody,
+  UpdateAccountabilityGoalBody,
+  UpdateAccountabilityGoalParams,
 } from "@workspace/api-zod";
 import { db } from "@workspace/db";
 import {
   accountabilityCheckInsTable,
   accountabilityCommitmentsTable,
   accountabilityEventsTable,
+  accountabilityGoalsTable,
   accountabilityPartnershipsTable,
   feedActivityEventsTable,
   friendshipsTable,
@@ -26,6 +30,7 @@ import {
 } from "@workspace/db/schema";
 import { currentUser, requireTelegramUser } from "../lib/auth";
 import { automaticActivityVisibility } from "../lib/feed-privacy";
+import { resolveAccountabilityCommitmentScope } from "../lib/accountability-goal-rules";
 import { hasSameTelegramIdentity } from "../lib/telegram-identity";
 import { escapeTelegramHtml, sendTelegramMessage } from "../lib/telegram";
 
@@ -79,7 +84,32 @@ function participantSummary(user: User) {
   };
 }
 
-function sendPrivateTelegramNotice(user: User | undefined, message: string) {
+function accountabilityGoalResponse(
+  goal: typeof accountabilityGoalsTable.$inferSelect,
+  owner: User,
+  viewerId: number,
+  activePartnershipId: number | null,
+) {
+  return {
+    id: goal.id,
+    owner: participantSummary(owner),
+    canEdit: goal.ownerUserId === viewerId,
+    sharedWithActivePartner:
+      goal.visibility === "shared"
+      && goal.partnershipId !== null
+      && goal.partnershipId === activePartnershipId,
+    title: goal.title,
+    description: goal.description,
+    targetDate: goal.targetDate,
+    visibility: goal.visibility,
+    status: goal.status,
+    createdAt: goal.createdAt.toISOString(),
+    updatedAt: goal.updatedAt.toISOString(),
+    completedAt: goal.completedAt?.toISOString() ?? null,
+  };
+}
+
+function sendPrivateTelegramNotice(user: User | null | undefined, message: string) {
   if (!user || !/^\d+$/.test(user.telegramId)) return;
   void sendTelegramMessage(user.telegramId, message);
 }
@@ -303,9 +333,41 @@ async function dashboardFor(user: User) {
     expiresAt: partnership.expiresAt.toISOString(),
   }));
 
+  const goalConditions = [eq(accountabilityGoalsTable.ownerUserId, user.id)];
+  if (active) {
+    goalConditions.push(
+      and(
+        eq(accountabilityGoalsTable.partnershipId, active.partnership.id),
+        eq(accountabilityGoalsTable.visibility, "shared"),
+      )!,
+    );
+  }
+  const goalRows = await db
+    .select({ goal: accountabilityGoalsTable, owner: usersTable })
+    .from(accountabilityGoalsTable)
+    .innerJoin(usersTable, eq(usersTable.id, accountabilityGoalsTable.ownerUserId))
+    .where(or(...goalConditions))
+    .orderBy(desc(accountabilityGoalsTable.createdAt))
+    .limit(50);
+  const goals = goalRows.map(({ goal, owner }) =>
+    accountabilityGoalResponse(goal, owner, user.id, active?.partnership.id ?? null),
+  );
+
   let commitments: Array<Record<string, unknown>> = [];
   let activity: Array<Record<string, unknown>> = [];
-  if (active) {
+  {
+    const commitmentScope = active
+      ? or(
+          eq(accountabilityCommitmentsTable.partnershipId, active.partnership.id),
+          and(
+            isNull(accountabilityCommitmentsTable.partnershipId),
+            eq(accountabilityCommitmentsTable.assignedUserId, user.id),
+          ),
+        )
+      : and(
+          isNull(accountabilityCommitmentsTable.partnershipId),
+          eq(accountabilityCommitmentsTable.assignedUserId, user.id),
+        );
     const commitmentRows = await db
       .select({
         commitment: accountabilityCommitmentsTable,
@@ -321,7 +383,7 @@ async function dashboardFor(user: User) {
         commitmentAssignee,
         eq(commitmentAssignee.id, accountabilityCommitmentsTable.assignedUserId),
       )
-      .where(eq(accountabilityCommitmentsTable.partnershipId, active.partnership.id))
+      .where(commitmentScope)
       .orderBy(desc(accountabilityCommitmentsTable.createdAt))
       .limit(30);
     const commitmentIds = commitmentRows.map(({ commitment }) => commitment.id);
@@ -343,6 +405,8 @@ async function dashboardFor(user: User) {
         id: commitment.id,
         title: commitment.title,
         description: commitment.description,
+        goalId: commitment.goalId,
+        scope: commitment.partnershipId === null ? "personal" : "shared",
         createdBy: participantSummary(createdBy),
         assignedTo: participantSummary(assignedTo),
         targetValue: commitment.targetValue,
@@ -355,11 +419,13 @@ async function dashboardFor(user: User) {
         completedAt: commitment.completedAt?.toISOString() ?? null,
       };
     });
-    activity = await eventResponses(
-      eq(accountabilityEventsTable.partnershipId, active.partnership.id),
-      user.id,
-      30,
-    );
+    if (active) {
+      activity = await eventResponses(
+        eq(accountabilityEventsTable.partnershipId, active.partnership.id),
+        user.id,
+        30,
+      );
+    }
   }
 
   const notifications = await eventResponses(
@@ -388,6 +454,7 @@ async function dashboardFor(user: User) {
     incomingInvitations,
     outgoingInvitations,
     commitments,
+    goals,
     activity,
     notifications,
     unreadCount: unread?.value ?? 0,
@@ -412,6 +479,155 @@ router.get("/", async (req, res) => {
     return;
   }
   res.json(await dashboardFor(user));
+});
+
+router.post("/goals", async (req, res) => {
+  const user = participantForRequest(req, res);
+  if (!user) return;
+  const parsed = CreateAccountabilityGoalBody.safeParse(req.body);
+  if (!parsed.success) {
+    error(res, 400, "Add a goal title and check the optional details.");
+    return;
+  }
+
+  const title = parsed.data.title.trim();
+  const description = parsed.data.description?.trim() || null;
+  const visibility = parsed.data.visibility ?? "private";
+  if (!title) {
+    error(res, 400, "Add a goal title.");
+    return;
+  }
+
+  const result = await db.transaction(async (tx) => {
+    let partnershipId: number | null = null;
+    let partner: User | null = null;
+
+    if (visibility === "shared") {
+      const [initialPartnership] = await tx
+        .select()
+        .from(accountabilityPartnershipsTable)
+        .where(
+          and(
+            eq(accountabilityPartnershipsTable.status, "active"),
+            partnershipContainsEitherUser(user.id),
+          ),
+        )
+        .limit(1);
+      if (!initialPartnership) return { outcome: "no_partner" as const };
+
+      const partnerId =
+        initialPartnership.requesterUserId === user.id
+          ? initialPartnership.recipientUserId
+          : initialPartnership.requesterUserId;
+      await lockParticipants(tx, user.id, partnerId);
+
+      const [activePartnership] = await tx
+        .select()
+        .from(accountabilityPartnershipsTable)
+        .where(
+          and(
+            eq(accountabilityPartnershipsTable.id, initialPartnership.id),
+            eq(accountabilityPartnershipsTable.status, "active"),
+            partnershipContainsEitherUser(user.id),
+          ),
+        )
+        .limit(1);
+      if (!activePartnership) return { outcome: "no_partner" as const };
+
+      const [activePartner] = await tx
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, partnerId))
+        .limit(1);
+      if (!activePartner) return { outcome: "no_partner" as const };
+      partnershipId = activePartnership.id;
+      partner = activePartner;
+    }
+
+    const [goal] = await tx
+      .insert(accountabilityGoalsTable)
+      .values({
+        ownerUserId: user.id,
+        partnershipId,
+        title,
+        description,
+        targetDate: parsed.data.targetDate?.toISOString().slice(0, 10) ?? null,
+        visibility,
+      })
+      .returning();
+    if (!goal) throw new Error("Unable to create the accountability goal.");
+    return { outcome: "created" as const, goal, partner };
+  });
+
+  if (result.outcome === "no_partner") {
+    error(res, 409, "Start an active partnership before sharing a goal.");
+    return;
+  }
+  if (result.partner) {
+    sendPrivateTelegramNotice(
+      result.partner,
+      `${user.name} shared an accountability goal with you. Open Experiences.fun to see it.`,
+    );
+  }
+  res.status(201).json(
+    accountabilityGoalResponse(result.goal, user, user.id, result.goal.partnershipId),
+  );
+});
+
+router.patch("/goals/:goalId", async (req, res) => {
+  const user = participantForRequest(req, res);
+  if (!user) return;
+
+  const parsedParams = UpdateAccountabilityGoalParams.safeParse({
+    goalId: Number(req.params.goalId),
+  });
+  const parsedBody = UpdateAccountabilityGoalBody.safeParse(req.body);
+  if (!parsedParams.success || !parsedBody.success) {
+    error(res, 400, "Check the goal details and try again.");
+    return;
+  }
+  const body = parsedBody.data;
+  if (Object.keys(req.body ?? {}).length === 0) {
+    error(res, 400, "Change at least one goal detail.");
+    return;
+  }
+  if (body.title !== undefined && !body.title.trim()) {
+    error(res, 400, "A goal title cannot be blank.");
+    return;
+  }
+
+  const update: Partial<typeof accountabilityGoalsTable.$inferInsert> = {
+    updatedAt: new Date(),
+  };
+  if (body.title !== undefined) update.title = body.title.trim();
+  if (Object.prototype.hasOwnProperty.call(req.body, "description")) {
+    update.description = body.description?.trim() || null;
+  }
+  if (Object.prototype.hasOwnProperty.call(req.body, "targetDate")) {
+    update.targetDate = body.targetDate?.toISOString().slice(0, 10) ?? null;
+  }
+  if (body.status !== undefined) {
+    update.status = body.status;
+    if (body.status === "completed") update.completedAt = new Date();
+    if (body.status === "active") update.completedAt = null;
+  }
+
+  const [goal] = await db
+    .update(accountabilityGoalsTable)
+    .set(update)
+    .where(
+      and(
+        eq(accountabilityGoalsTable.id, parsedParams.data.goalId),
+        eq(accountabilityGoalsTable.ownerUserId, user.id),
+      ),
+    )
+    .returning();
+  if (!goal) {
+    error(res, 404, "That goal could not be found.");
+    return;
+  }
+  const activePartnership = await activePartnershipForUser(user.id);
+  res.json(accountabilityGoalResponse(goal, user, user.id, activePartnership?.id ?? null));
 });
 
 router.post("/invitations", async (req, res) => {
@@ -762,7 +978,7 @@ router.post("/commitments", async (req, res) => {
   if (!user) return;
   const parsed = CreateAccountabilityCommitmentBody.safeParse(req.body);
   if (!parsed.success) {
-    error(res, 400, "Add a commitment title and choose who it is for.");
+    error(res, 400, "Add a commitment title and check the optional details.");
     return;
   }
   const title = parsed.data.title.trim();
@@ -783,40 +999,69 @@ router.post("/commitments", async (req, res) => {
         ),
       )
       .limit(1);
-    if (!initialPartnership) return { outcome: "no_partner" as const };
-    const partnerId =
-      initialPartnership.requesterUserId === user.id
-        ? initialPartnership.recipientUserId
-        : initialPartnership.requesterUserId;
-    await lockParticipants(tx, user.id, partnerId);
-
-    const [partnership] = await tx
-      .select()
-      .from(accountabilityPartnershipsTable)
-      .where(
-        and(
-          eq(accountabilityPartnershipsTable.id, initialPartnership.id),
-          eq(accountabilityPartnershipsTable.status, "active"),
-          partnershipContainsEitherUser(user.id),
-        ),
-      )
-      .limit(1);
-    if (!partnership) return { outcome: "no_partner" as const };
-    if (parsed.data.assignedUserId !== user.id && parsed.data.assignedUserId !== partnerId) {
-      return { outcome: "invalid_assignee" as const };
+    let partnership: typeof accountabilityPartnershipsTable.$inferSelect | null = null;
+    let partner: User | null = null;
+    let partnerId: number | null = null;
+    if (initialPartnership) {
+      partnerId =
+        initialPartnership.requesterUserId === user.id
+          ? initialPartnership.recipientUserId
+          : initialPartnership.requesterUserId;
+      await lockParticipants(tx, user.id, partnerId);
+      const [currentPartnership] = await tx
+        .select()
+        .from(accountabilityPartnershipsTable)
+        .where(
+          and(
+            eq(accountabilityPartnershipsTable.id, initialPartnership.id),
+            eq(accountabilityPartnershipsTable.status, "active"),
+            partnershipContainsEitherUser(user.id),
+          ),
+        )
+        .limit(1);
+      if (!currentPartnership) return { outcome: "no_partner" as const };
+      partnership = currentPartnership;
+      const [activePartner] = await tx
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, partnerId))
+        .limit(1);
+      if (!activePartner) return { outcome: "no_partner" as const };
+      partner = activePartner;
     }
+
+    let goal: typeof accountabilityGoalsTable.$inferSelect | null = null;
+    if (parsed.data.goalId !== undefined) {
+      const [selectedGoal] = await tx
+        .select()
+        .from(accountabilityGoalsTable)
+        .where(eq(accountabilityGoalsTable.id, parsed.data.goalId))
+        .limit(1);
+      if (!selectedGoal) return { outcome: "no_goal" as const };
+      goal = selectedGoal;
+    }
+
+    const assignedUserId = parsed.data.assignedUserId ?? user.id;
+    const scope = resolveAccountabilityCommitmentScope({
+      userId: user.id,
+      assignedUserId,
+      partnerUserId: partnerId,
+      partnershipId: partnership?.id ?? null,
+      goal,
+    });
+    if (!scope.ok) return { outcome: scope.reason };
     const [assignee] = await tx
       .select()
       .from(usersTable)
-      .where(eq(usersTable.id, parsed.data.assignedUserId))
+      .where(eq(usersTable.id, assignedUserId))
       .limit(1);
-    const [partner] = await tx.select().from(usersTable).where(eq(usersTable.id, partnerId)).limit(1);
-    if (!assignee || !partner) return { outcome: "no_partner" as const };
+    if (!assignee) return { outcome: "invalid_assignee" as const };
 
     const [commitment] = await tx
       .insert(accountabilityCommitmentsTable)
       .values({
-        partnershipId: partnership.id,
+        partnershipId: scope.partnershipId,
+        goalId: goal?.id ?? null,
         createdByUserId: user.id,
         assignedUserId: assignee.id,
         title,
@@ -825,31 +1070,60 @@ router.post("/commitments", async (req, res) => {
         deadline: parsed.data.deadline?.toISOString().slice(0, 10) ?? null,
       })
       .returning();
-    if (!commitment) throw new Error("Unable to create the shared commitment.");
-    await createEvent(tx, {
-      partnershipId: partnership.id,
-      actorUserId: user.id,
-      recipientUserId: partner.id,
-      commitmentId: commitment.id,
-      type: "commitment_created",
-      title: "A new commitment",
-      message: `${user.name} added “${commitment.title}” to your shared plan.`,
-    });
-    return { outcome: "created" as const, commitment, assignee, partner, partnership };
+    if (!commitment) throw new Error("Unable to create the commitment.");
+
+    if (scope.scope === "shared" && partnership && partner) {
+      await createEvent(tx, {
+        partnershipId: partnership.id,
+        actorUserId: user.id,
+        recipientUserId: partner.id,
+        commitmentId: commitment.id,
+        type: "commitment_created",
+        title: "A new commitment",
+        message: `${user.name} added “${commitment.title}” to your shared plan.`,
+      });
+    }
+    return {
+      outcome: "created" as const,
+      commitment,
+      assignee,
+      partner: scope.scope === "shared" ? partner : null,
+      scope: scope.scope,
+    };
   });
   if (result.outcome === "no_partner") {
-    error(res, 409, "Create an active accountability partnership before adding commitments.");
+    error(res, 409, "That shared commitment needs an active accountability partnership.");
     return;
   }
   if (result.outcome === "invalid_assignee") {
     error(res, 400, "A commitment can only be assigned to you or your accountability partner.");
     return;
   }
-  sendPrivateTelegramNotice(result.partner, "A new shared commitment is ready in Experiences.fun. Open Friends & Partners to see it.");
+  if (result.outcome === "private_goal") {
+    error(res, 404, "That goal is not available to your profile.");
+    return;
+  }
+  if (result.outcome === "inactive_shared_goal") {
+    error(res, 404, "That shared goal is not available in your active partnership.");
+    return;
+  }
+  if (result.outcome === "no_goal") {
+    error(res, 404, "That accountability goal could not be found.");
+    return;
+  }
+  if (result.outcome !== "created") {
+    error(res, 409, "That commitment could not be created in the current accountability scope.");
+    return;
+  }
+  if (result.partner) {
+    sendPrivateTelegramNotice(result.partner, "A new shared commitment is ready in Experiences.fun. Open Friends & Partners to see it.");
+  }
   res.status(201).json({
     id: result.commitment.id,
     title: result.commitment.title,
     description: result.commitment.description,
+    goalId: result.commitment.goalId,
+    scope: result.scope,
     createdBy: participantSummary(user),
     assignedTo: participantSummary(result.assignee),
     targetValue: result.commitment.targetValue,
@@ -883,6 +1157,49 @@ router.post("/commitments/:commitmentId/check-ins", async (req, res) => {
       .where(eq(accountabilityCommitmentsTable.id, parsedParams.data.commitmentId))
       .limit(1);
     if (!initialCommitment) return { outcome: "not_found" as const };
+    if (initialCommitment.partnershipId === null) {
+      const [commitment] = await tx
+        .select()
+        .from(accountabilityCommitmentsTable)
+        .where(
+          and(
+            eq(accountabilityCommitmentsTable.id, initialCommitment.id),
+            isNull(accountabilityCommitmentsTable.partnershipId),
+          ),
+        )
+        .for("update")
+        .limit(1);
+      if (!commitment) return { outcome: "not_found" as const };
+      if (commitment.assignedUserId !== user.id) return { outcome: "not_assignee" as const };
+      if (commitment.status !== "active") return { outcome: "not_active" as const };
+
+      const [checkIn] = await tx
+        .insert(accountabilityCheckInsTable)
+        .values({
+          partnershipId: null,
+          commitmentId: commitment.id,
+          userId: user.id,
+          status: parsedBody.data.status,
+          note,
+          verificationStatus: "self_reported",
+        })
+        .returning();
+      if (!checkIn) throw new Error("Unable to save the check-in.");
+
+      const progress = commitment.currentValue + (checkIn.status === "completed" ? 1 : 0);
+      const isComplete = checkIn.status === "completed" && progress >= commitment.targetValue;
+      await tx
+        .update(accountabilityCommitmentsTable)
+        .set({
+          currentValue: progress,
+          status: isComplete ? "completed" : commitment.status,
+          verificationStatus: checkIn.status === "completed" ? "self_reported" : commitment.verificationStatus,
+          completedAt: isComplete ? new Date() : commitment.completedAt,
+        })
+        .where(eq(accountabilityCommitmentsTable.id, commitment.id));
+      return { outcome: "created" as const, checkIn, partner: null };
+    }
+
     const [initialPartnership] = await tx
       .select()
       .from(accountabilityPartnershipsTable)
@@ -1013,7 +1330,9 @@ router.post("/commitments/:commitmentId/check-ins", async (req, res) => {
     error(res, 409, "This commitment is no longer active.");
     return;
   }
-  sendPrivateTelegramNotice(result.partner, "Your accountability partner added a commitment check-in. Open Experiences.fun to see their update.");
+  if (result.partner) {
+    sendPrivateTelegramNotice(result.partner, "Your accountability partner added a commitment check-in. Open Experiences.fun to see their update.");
+  }
   res.status(201).json(checkInResponse(result.checkIn, null));
 });
 
@@ -1034,7 +1353,9 @@ router.post("/check-ins/:checkInId/confirm", async (req, res) => {
       .from(accountabilityCheckInsTable)
       .where(eq(accountabilityCheckInsTable.id, parsed.data.checkInId))
       .limit(1);
-    if (!initialCheckIn) return { outcome: "not_found" as const };
+    if (!initialCheckIn || initialCheckIn.partnershipId === null) {
+      return { outcome: "not_found" as const };
+    }
     const [initialPartnership] = await tx
       .select()
       .from(accountabilityPartnershipsTable)

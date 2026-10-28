@@ -2250,6 +2250,41 @@ export interface AccountabilityActivePartner {
   acceptedAt: string;
 }
 
+export type AccountabilityGoalVisibility = typeof AccountabilityGoalVisibility[keyof typeof AccountabilityGoalVisibility];
+
+
+export const AccountabilityGoalVisibility = {
+  private: 'private',
+  shared: 'shared',
+} as const;
+
+export type AccountabilityGoalStatus = typeof AccountabilityGoalStatus[keyof typeof AccountabilityGoalStatus];
+
+
+export const AccountabilityGoalStatus = {
+  active: 'active',
+  completed: 'completed',
+  archived: 'archived',
+} as const;
+
+export interface AccountabilityGoal {
+  id: number;
+  owner: ParticipantSummary;
+  canEdit: boolean;
+  sharedWithActivePartner: boolean;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  targetDate: string | null;
+  visibility: AccountabilityGoalVisibility;
+  status: AccountabilityGoalStatus;
+  createdAt: string;
+  updatedAt: string;
+  /** @nullable */
+  completedAt: string | null;
+}
+
 export type AccountabilityCheckInStatus = typeof AccountabilityCheckInStatus[keyof typeof AccountabilityCheckInStatus];
 
 
@@ -2281,6 +2316,14 @@ export interface AccountabilityCheckIn {
   createdAt: string;
 }
 
+export type AccountabilityCommitmentScope = typeof AccountabilityCommitmentScope[keyof typeof AccountabilityCommitmentScope];
+
+
+export const AccountabilityCommitmentScope = {
+  personal: 'personal',
+  shared: 'shared',
+} as const;
+
 export type AccountabilityCommitmentStatus = typeof AccountabilityCommitmentStatus[keyof typeof AccountabilityCommitmentStatus];
 
 
@@ -2305,6 +2348,9 @@ export interface AccountabilityCommitment {
   title: string;
   /** @nullable */
   description: string | null;
+  /** @nullable */
+  goalId: number | null;
+  scope: AccountabilityCommitmentScope;
   createdBy: ParticipantSummary;
   assignedTo: ParticipantSummary;
   targetValue: number;
@@ -2358,6 +2404,7 @@ export interface AccountabilityDashboard {
   incomingInvitations: AccountabilityInvitation[];
   outgoingInvitations: AccountabilityInvitation[];
   commitments: AccountabilityCommitment[];
+  goals: AccountabilityGoal[];
   activity: AccountabilityActivity[];
   notifications: AccountabilityActivity[];
   unreadCount: number;
@@ -2382,13 +2429,64 @@ export interface AccountabilityCommitmentInput {
   /** @maxLength 500 */
   description?: string;
   /** @minimum 1 */
-  assignedUserId: number;
+  assignedUserId?: number;
+  /** @minimum 1 */
+  goalId?: number;
   /**
      * @minimum 1
      * @maximum 100
      */
   targetValue?: number;
   deadline?: string;
+}
+
+export type AccountabilityGoalInputVisibility = typeof AccountabilityGoalInputVisibility[keyof typeof AccountabilityGoalInputVisibility];
+
+
+export const AccountabilityGoalInputVisibility = {
+  private: 'private',
+  shared: 'shared',
+} as const;
+
+export interface AccountabilityGoalInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title: string;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  description?: string | null;
+  /** @nullable */
+  targetDate?: string | null;
+  visibility?: AccountabilityGoalInputVisibility;
+}
+
+export type AccountabilityGoalUpdateInputStatus = typeof AccountabilityGoalUpdateInputStatus[keyof typeof AccountabilityGoalUpdateInputStatus];
+
+
+export const AccountabilityGoalUpdateInputStatus = {
+  active: 'active',
+  completed: 'completed',
+  archived: 'archived',
+} as const;
+
+export interface AccountabilityGoalUpdateInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title?: string;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  description?: string | null;
+  /** @nullable */
+  targetDate?: string | null;
+  status?: AccountabilityGoalUpdateInputStatus;
 }
 
 export type AccountabilityCheckInInputStatus = typeof AccountabilityCheckInInputStatus[keyof typeof AccountabilityCheckInInputStatus];
