@@ -351,16 +351,27 @@ export function OrganisationHomeScreen({ user, go }: Props) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Open community treasury"
+          accessibilityHint="View the organisation’s Solana balance and treasury activity."
           onPress={() => go('funds')}
-          style={({ pressed }) => [styles.treasuryCard, { opacity: pressed ? 0.94 : 1 }]}
+          style={({ pressed }) => [styles.treasuryCard, { opacity: pressed ? 0.96 : 1 }]}
         >
-          <LinearGradient colors={[colors.foreground, colors.secondary, colors.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          <LinearGradient colors={[colors.secondary, colors.primary, colors.teal]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
           <View style={styles.treasuryTop}>
             <View style={styles.treasuryTitleRow}>
-              <Feather name="database" size={17} color={colors.primaryForeground} />
-              <Text style={[styles.treasuryTitle, { color: colors.primaryForeground }]}>Community treasury</Text>
+              <View style={[styles.treasurySolanaMark, { backgroundColor: colors.primaryForeground + "18", borderColor: colors.primaryForeground + "35" }]}>
+                <View style={[styles.treasurySolanaBar, { alignSelf: "flex-start", backgroundColor: colors.primaryForeground }]} />
+                <View style={[styles.treasurySolanaBar, { alignSelf: "center", backgroundColor: colors.primaryForeground }]} />
+                <View style={[styles.treasurySolanaBar, { alignSelf: "flex-end", backgroundColor: colors.primaryForeground }]} />
+              </View>
+              <View style={styles.treasuryTitleCopy}>
+                <Text style={[styles.treasuryEyebrow, { color: colors.primaryForeground + "CC" }]}>SOLANA · SHARED TREASURY</Text>
+                <Text style={[styles.treasuryTitle, { color: colors.primaryForeground }]}>Community treasury</Text>
+              </View>
             </View>
-            <View style={styles.treasuryOpen}><Text style={[styles.treasuryOpenText, { color: colors.primaryForeground }]}>View treasury</Text><Feather name="arrow-right" size={13} color={colors.primaryForeground} /></View>
+            <View style={[styles.treasuryOpen, { backgroundColor: colors.primaryForeground + "18", borderColor: colors.primaryForeground + "30" }]}>
+              <Text style={[styles.treasuryOpenText, { color: colors.primaryForeground }]}>View</Text>
+              <Feather name="arrow-up-right" size={13} color={colors.primaryForeground} />
+            </View>
           </View>
           {treasury.isLoading ? (
             <View style={styles.balanceRow}><ActivityIndicator color={colors.primaryForeground} /><Text style={[styles.treasurySub, { color: colors.primaryForeground }]}>Checking on-chain balance…</Text></View>
@@ -551,12 +562,16 @@ const styles = StyleSheet.create({
   orgMeta: { fontSize: 11, textTransform: 'capitalize', fontFamily: 'Inter_400Regular' },
   editButton: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 18, paddingHorizontal: 11 },
   editText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
-  treasuryCard: { minHeight: 152, overflow: 'hidden', borderRadius: 22, padding: 17, gap: 4 },
-  treasuryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  treasuryTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  treasuryTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  treasuryOpen: { minHeight: 31, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 18, paddingHorizontal: 10, backgroundColor: 'rgba(255,255,255,0.13)' },
-  treasuryOpenText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  treasuryCard: { minHeight: 156, overflow: 'hidden', borderRadius: 24, padding: 17, gap: 4 },
+  treasuryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  treasuryTitleRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  treasurySolanaMark: { width: 34, height: 34, flexShrink: 0, alignItems: 'center', justifyContent: 'center', gap: 3, borderWidth: 1, borderRadius: 12 },
+  treasurySolanaBar: { width: 17, height: 3, borderRadius: 2, transform: [{ skewX: '-20deg' }] },
+  treasuryTitleCopy: { flex: 1, minWidth: 0, gap: 2 },
+  treasuryEyebrow: { fontSize: 8, letterSpacing: 0.8, fontFamily: 'Inter_700Bold' },
+  treasuryTitle: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_700Bold' },
+  treasuryOpen: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 18, paddingHorizontal: 10 },
+  treasuryOpenText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
   balance: { fontSize: 32, lineHeight: 38, fontFamily: 'Inter_700Bold', letterSpacing: -0.7, marginTop: 8 },
   treasurySub: { fontSize: 11, fontFamily: 'Inter_400Regular' },
   balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 18 },
