@@ -1676,6 +1676,8 @@ test("charity treasury dashboard shows live values and supports private balance 
             pendingMilestoneReviews: 0,
             totalExperiences: 0,
           };
+        } else if (url.pathname === "/api/host/experiences" && method === "GET") {
+          response = [];
         } else if (url.pathname === "/api/funds/treasury" && method === "GET") {
           response = treasuryDashboard;
         } else if (url.pathname === `/api/funds/${user.id}` && method === "GET") {
@@ -1741,7 +1743,30 @@ test("charity treasury dashboard shows live values and supports private balance 
     deviceScaleFactor: 1,
     mobile: true,
   });
-  await client.send("Page.navigate", { url: `${appBaseUrl}/?screen=funds` });
+  await client.send("Page.navigate", { url: `${appBaseUrl}/?screen=home` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-home-treasury"]'))`,
+    Boolean,
+    "the charity community treasury card on organisation home",
+  );
+  const homeTreasuryText = await client.evaluate(
+    `document.querySelector('[data-testid="organisation-home-treasury"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+  );
+  assert.ok(homeTreasuryText.includes("SOLANA · SHARED TREASURY"), "The home card should show Solana branding.");
+  assert.ok(homeTreasuryText.includes("Community treasury"), "The home card should retain its community treasury label.");
+  await client.evaluate(
+    `document.querySelector('[data-testid="organisation-home-treasury"]')?.scrollIntoView({ block: "center" })`,
+  );
+  await delay(240);
+  if (process.env.ORGANISATION_HOME_TREASURY_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(
+      process.env.ORGANISATION_HOME_TREASURY_SCREENSHOT_PATH,
+      Buffer.from(screenshot.data, "base64"),
+    );
+  }
+  await tapTestId(client, "organisation-home-treasury");
 
   await waitForValue(
     client,

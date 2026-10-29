@@ -349,6 +349,7 @@ export function OrganisationHomeScreen({ user, go }: Props) {
 
       {isCharity ? (
         <Pressable
+          testID="organisation-home-treasury"
           accessibilityRole="button"
           accessibilityLabel="Open community treasury"
           accessibilityHint="View the organisation’s Solana balance and treasury activity."
