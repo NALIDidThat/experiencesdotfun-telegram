@@ -1,0 +1,1 @@
+import { ScrollView } from "@/components/mockups/accountability-partner-page/native"; export function KeyboardAwareScrollViewCompat({ children, ...props }: any) { return <ScrollView {...props}>{children}</ScrollView>; }

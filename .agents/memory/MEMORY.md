@@ -40,3 +40,4 @@
 - [PostgreSQL migration guards](postgres-migration-guards.md) — verify normalized constraint semantics, not raw PostgreSQL constraint-definition text.
 - [Staged database features](staged-feature-migrations.md) — gate schema-dependent features until an external migration is applied, keeping existing page flows operational.
 - [Organisation operating milestones](organisation-operating-milestones.md) — use four real-world milestones; keep verification separate and avoid XP ranks or public badges.
+- [React Native mockup rendering](react-native-mockup-rendering.md) — normalize numeric line heights and horizontal spacing before rendering native screen styles as HTML.

@@ -1,0 +1,30 @@
+:root {
+  --accountability-background: #ffffff;
+  --accountability-foreground: #111111;
+  --accountability-primary: #f20789;
+  --accountability-secondary: #6805f2;
+  --accountability-muted: #f7f7f8;
+  --accountability-muted-foreground: #666666;
+  --accountability-border: #eaeaea;
+  --accountability-success: #05727d;
+  --accountability-destructive: #c73663;
+}
+
+@font-face {
+  font-family: "accountability-feather";
+  src: url("/__mockup/fonts/Feather.ttf") format("truetype");
+  font-style: normal;
+  font-weight: normal;
+  font-display: block;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}

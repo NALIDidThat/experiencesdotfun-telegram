@@ -3,6 +3,13 @@ type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/accountability-partner/Current.tsx": () => import("../components/mockups/accountability-partner/Current.tsx"),
   "./components/mockups/accountability-partner/Refined.tsx": () => import("../components/mockups/accountability-partner/Refined.tsx"),
+  "./components/mockups/accountability-partner-page/AccountabilityGoalsPanel.tsx": () => import("../components/mockups/accountability-partner-page/AccountabilityGoalsPanel.tsx"),
+  "./components/mockups/accountability-partner-page/Current.tsx": () => import("../components/mockups/accountability-partner-page/Current.tsx"),
+  "./components/mockups/accountability-partner-page/Feather.tsx": () => import("../components/mockups/accountability-partner-page/Feather.tsx"),
+  "./components/mockups/accountability-partner-page/KeyboardAwareScrollViewCompat.tsx": () => import("../components/mockups/accountability-partner-page/KeyboardAwareScrollViewCompat.tsx"),
+  "./components/mockups/accountability-partner-page/Redesigned.tsx": () => import("../components/mockups/accountability-partner-page/Redesigned.tsx"),
+  "./components/mockups/accountability-partner-page/UserAvatar.tsx": () => import("../components/mockups/accountability-partner-page/UserAvatar.tsx"),
+  "./components/mockups/accountability-partner-page/native.tsx": () => import("../components/mockups/accountability-partner-page/native.tsx"),
   "./components/mockups/campaign-tracker/Current.tsx": () => import("../components/mockups/campaign-tracker/Current.tsx"),
   "./components/mockups/campaign-tracker/Unified.tsx": () => import("../components/mockups/campaign-tracker/Unified.tsx"),
   "./components/mockups/create-experience/Current.tsx": () => import("../components/mockups/create-experience/Current.tsx"),

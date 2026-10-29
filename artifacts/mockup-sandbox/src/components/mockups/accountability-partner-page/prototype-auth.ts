@@ -1,0 +1,1 @@
+const user = { id: 601, name: "Alex Morgan", username: "alexmorgan", avatarUrl: null, userType: "participant" as const }; export function useAuth() { return { user }; } export function useSafeAreaInsets() { return { top: 0, bottom: 0, left: 0, right: 0 }; }
