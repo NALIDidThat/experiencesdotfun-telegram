@@ -81,18 +81,33 @@ export function AccountabilityGoalsPanel({
 
   if (!goalsAvailable) {
     return (
-      <View testID="accountability-goals-panel" style={[cardStyle, { gap: 10, padding: 16 }]}>
-        <View style={{ alignItems: "center", flexDirection: "row", gap: 10 }}>
-          <View style={{ alignItems: "center", backgroundColor: colors.teal + "16", borderRadius: 11, height: 34, justifyContent: "center", width: 34 }}>
-            <Feather name="target" size={17} color={colors.teal} />
+      <View
+        testID="accountability-goals-panel"
+        style={{
+          alignItems: "flex-start",
+          backgroundColor: colors.teal + "0D",
+          borderColor: colors.teal + "30",
+          borderRadius: colors.radius - 2,
+          borderWidth: 1,
+          flexDirection: "row",
+          gap: 10,
+          padding: 12,
+        }}
+      >
+        <View style={{ alignItems: "center", backgroundColor: colors.teal + "16", borderRadius: 10, height: 32, justifyContent: "center", width: 32 }}>
+          <Feather name="target" size={16} color={colors.teal} />
+        </View>
+        <View style={{ flex: 1, gap: 3 }}>
+          <View style={{ alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+            <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "700" }}>Goals</Text>
+            <View style={{ backgroundColor: colors.teal + "18", borderRadius: 12, paddingHorizontal: 7, paddingVertical: 3 }}>
+              <Text style={{ color: colors.teal, fontSize: 10, fontWeight: "700" }}>Not available yet</Text>
+            </View>
           </View>
-          <Text style={{ color: colors.foreground, flex: 1, fontSize: 16, fontWeight: "700" }}>
-            Your goals
+          <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
+            Goal tracking is unavailable until its database update is installed. Your partner and existing commitments are still available.
           </Text>
         </View>
-        <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>
-          Goal tracking is unavailable until its database update is installed. Your partner and existing commitments are still available.
-        </Text>
       </View>
     );
   }

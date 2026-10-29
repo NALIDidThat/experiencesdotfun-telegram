@@ -89,9 +89,9 @@ export function AccountabilityPartnerScreen({
   return (
     <KeyboardAwareScrollViewCompat
       testID="accountability-screen"
-      style={{ backgroundColor: colors.background, flex: 1 }}
+      style={{ backgroundColor: colors.muted, flex: 1 }}
       contentContainerStyle={{
-        gap: 14,
+        gap: 16,
         paddingBottom: Math.max(insets.bottom, 28),
         paddingHorizontal: 16,
         paddingTop: Math.max(insets.top, 12),
@@ -112,12 +112,15 @@ export function AccountabilityPartnerScreen({
         >
           <Feather name="arrow-left" size={21} color={colors.foreground} />
         </Pressable>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "700" }}>
-            Accountability Partner
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text style={{ color: colors.teal, fontSize: 9, fontWeight: "700", letterSpacing: 1.1 }}>
+            EXPERIENCES.FUN
+          </Text>
+          <Text style={{ color: colors.foreground, fontFamily: "serif", fontSize: 24, fontWeight: "400" }}>
+            Accountability
           </Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
-            Stay consistent. Achieve more together.
+            One step at a time, in good company.
           </Text>
         </View>
       </View>
@@ -193,7 +196,6 @@ export function AccountabilitySection({
     .filter((commitment) => commitment.status === "active" || commitment.status === "completed")
     .reduce((total, commitment) => total + Math.min(commitment.currentValue, commitment.targetValue), 0);
   const todayCommitment = activeCommitments.find((commitment) => commitment.assignedTo.id === user?.id) ?? null;
-  const progressCommitments = activeCommitments.slice(0, 4);
   const notifications = dashboard.data?.notifications ?? [];
   const searchTerm = friendSearch.trim().replace(/^@+/, "").toLowerCase();
   const matchingFriends = friends
@@ -376,8 +378,8 @@ export function AccountabilitySection({
 
   const cardStyle = {
     backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: colors.radius + 2,
+    borderColor: colors.border + "B0",
+    borderRadius: colors.radius + 5,
     borderWidth: 1,
   } as const;
   const primaryButton = {
@@ -390,8 +392,19 @@ export function AccountabilitySection({
     borderRadius: colors.radius - 4,
     borderWidth: 1,
   } as const;
-
   if (user?.userType !== "participant") return null;
+
+  const goalsPanel = !dashboard.isLoading && !dashboard.isError ? (
+    <AccountabilityGoalsPanel
+      goals={goals}
+      commitments={commitments}
+      goalsAvailable={dashboard.data?.goalsAvailable ?? false}
+      userId={user.id}
+      activePartnerName={activePartner?.partner.name ?? null}
+      onRefresh={refreshDashboard}
+      onFeedback={(message, tone) => setFeedback({ message, tone })}
+    />
+  ) : null;
 
   return (
     <View testID="accountability-section" style={{ gap: 20, marginBottom: 22 }}>
@@ -447,14 +460,14 @@ export function AccountabilitySection({
       ) : null}
 
       {!dashboard.isLoading && !dashboard.isError && !activePartner ? (
-        <View style={[cardStyle, { gap: 16, padding: 18 }]}>
+        <View style={[cardStyle, { borderColor: colors.teal + "38", gap: 16, padding: 18 }]}>
           <View style={{ alignItems: "flex-start", flexDirection: "row", gap: 12 }}>
-            <View style={{ alignItems: "center", backgroundColor: colors.primary + "14", borderRadius: 24, height: 44, justifyContent: "center", width: 44 }}>
-              <Feather name="users" size={19} color={colors.primary} />
+            <View style={{ alignItems: "center", backgroundColor: colors.teal + "16", borderRadius: 24, height: 44, justifyContent: "center", width: 44 }}>
+              <Feather name="users" size={19} color={colors.teal} />
             </View>
             <View style={{ flex: 1, gap: 4 }}>
-              <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "700" }}>
-                Accountability works better together
+              <Text style={{ color: colors.foreground, fontFamily: "serif", fontSize: 20, fontWeight: "400" }}>
+                Find someone in your corner
               </Text>
               <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>
                 Invite someone you trust. They must accept before either of you can share commitments.
@@ -721,21 +734,22 @@ export function AccountabilitySection({
         </View>
       ) : null}
 
-      {!dashboard.isLoading && !dashboard.isError ? (
-        <AccountabilityGoalsPanel
-          goals={goals}
-          commitments={commitments}
-          goalsAvailable={dashboard.data?.goalsAvailable ?? false}
-          userId={user.id}
-          activePartnerName={activePartner?.partner.name ?? null}
-          onRefresh={refreshDashboard}
-          onFeedback={(message, tone) => setFeedback({ message, tone })}
-        />
-      ) : null}
+      {!activePartner ? goalsPanel : null}
 
       {activePartner ? (
         <>
-          <View style={[cardStyle, { gap: 16, padding: 18 }]}>
+          <View style={[cardStyle, { borderColor: colors.teal + "38", gap: 18, padding: 18 }]}>
+            <View style={{ gap: 5 }}>
+              <Text style={{ color: colors.teal, fontSize: 9, fontWeight: "700", letterSpacing: 1.1 }}>
+                ACCOUNTABILITY, TOGETHER
+              </Text>
+              <Text style={{ color: colors.foreground, fontFamily: "serif", fontSize: 27, fontWeight: "400", lineHeight: 33 }}>
+                Small steps. In good company.
+              </Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
+                A shared space to encourage each other and follow through.
+              </Text>
+            </View>
             <View style={{ gap: 12 }}>
               <View style={{ alignItems: "center", flexDirection: "row", gap: 10, justifyContent: "space-between" }}>
                 <Text style={{ color: colors.mutedForeground, flex: 1, fontSize: 10, fontWeight: "700", letterSpacing: 0.85, textTransform: "uppercase" }}>
@@ -920,95 +934,37 @@ export function AccountabilitySection({
             )}
           </View>
 
-          <View testID="accountability-progress" style={[cardStyle, { gap: 15, padding: 16 }]}>
-            <View style={{ alignItems: "flex-start", flexDirection: "row", gap: 10 }}>
-              <View style={{ alignItems: "center", backgroundColor: colors.teal + "16", borderRadius: 11, height: 34, justifyContent: "center", width: 34 }}>
-                <Feather name="bar-chart-2" size={17} color={colors.teal} />
-              </View>
-              <View style={{ flex: 1, gap: 3 }}>
-                <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "700" }}>
-                  Our contributions
-                </Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 3 }}>
-                  Check-ins against each person’s shared commitments.
-                </Text>
-              </View>
-            </View>
-            {progressCommitments.length ? (
-              <View style={{ gap: 14 }}>
-                {progressCommitments.map((commitment) => {
-                  const progress = Math.min(100, Math.round((commitment.currentValue / commitment.targetValue) * 100));
-                  const assignedToUser = commitment.assignedTo.id === user?.id;
-                  const progressColor = assignedToUser ? colors.primary : colors.secondary;
-                  return (
-                    <View key={commitment.id} style={{ gap: 6 }}>
-                      <View style={{ alignItems: "center", flexDirection: "row", gap: 8 }}>
-                        <Text numberOfLines={1} style={{ color: colors.foreground, flex: 1, fontSize: 12, fontWeight: "600" }}>
-                          {commitment.title}
-                        </Text>
-                        <Text style={{ color: progressColor, fontSize: 11, fontWeight: "700", fontVariant: ["tabular-nums"] }}>
-                          {commitment.currentValue}/{commitment.targetValue}
-                        </Text>
-                      </View>
-                      <View style={{ backgroundColor: colors.border, borderRadius: 5, height: 7, overflow: "hidden" }}>
-                        <View style={{ backgroundColor: progressColor, borderRadius: 5, height: 7, width: `${progress}%` }} />
-                      </View>
-                      <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>
-                        For {assignedToUser ? "you" : commitment.assignedTo.name}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            ) : (
-              <View style={{ alignItems: "center", backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 5, padding: 13 }}>
-                <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600" }}>
-                  No active commitments yet
-                </Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16, textAlign: "center" }}>
-                  Add a shared commitment to see progress here.
-                </Text>
-              </View>
-            )}
-          </View>
+          {goalsPanel}
 
-          <View testID="accountability-dashboard-metrics" style={{ flexDirection: "row", gap: 8 }}>
-            {([
-              { label: "Active commitments", value: activeCommitments.length, icon: "target" as const, color: colors.teal },
-              { label: "Commitments met", value: completedCommitmentCount, icon: "check-circle" as const, color: colors.success },
-              { label: "Completed check-ins", value: completedCheckInCount, icon: "activity" as const, color: colors.secondary },
-            ]).map((metric) => (
-              <View key={metric.label} style={{ backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 4, borderWidth: 1, flex: 1, gap: 8, minWidth: 0, paddingHorizontal: 10, paddingVertical: 11 }}>
-                <Feather name={metric.icon} size={15} color={metric.color} />
-                <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "700", fontVariant: ["tabular-nums"] }}>
-                  {metric.value}
-                </Text>
-                <Text numberOfLines={2} style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 13 }}>
-                  {metric.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          <View testID="accountability-today-card" style={[cardStyle, { gap: 12, padding: 16 }]}>
+          <View testID="accountability-today-card" style={[cardStyle, { backgroundColor: colors.teal + "0A", borderColor: colors.teal + "35", gap: 14, padding: 16 }]}>
             <View style={{ alignItems: "center", flexDirection: "row", gap: 9 }}>
-              <View style={{ alignItems: "center", backgroundColor: colors.primary + "16", borderRadius: 10, height: 32, justifyContent: "center", width: 32 }}>
-                <Feather name="calendar" size={16} color={colors.primary} />
+              <View style={{ alignItems: "center", backgroundColor: colors.teal + "18", borderRadius: 10, height: 34, justifyContent: "center", width: 34 }}>
+                <Feather name="sun" size={16} color={colors.teal} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700" }}>Today’s check-in</Text>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={{ color: colors.foreground, fontFamily: "serif", fontSize: 20, fontWeight: "400" }}>Today, at your pace</Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 2 }}>
-                  {todayCommitment ? "Your next step, shared with your partner." : "A small plan makes it easier to show up."}
+                  {todayCommitment ? "One next step, shared with your partner." : "A small plan makes it easier to show up."}
                 </Text>
               </View>
             </View>
             {todayCommitment ? (
               <>
-                <View style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 4, padding: 12 }}>
+                <View style={{ backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 4, borderWidth: 1, gap: 8, padding: 12 }}>
                   <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "700" }}>{todayCommitment.title}</Text>
                   <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
                     {todayCommitment.description || `${todayCommitment.currentValue} of ${todayCommitment.targetValue} check-ins completed`}
                   </Text>
+                  <View style={{ backgroundColor: colors.border, borderRadius: 5, height: 5, overflow: "hidden" }}>
+                    <View
+                      style={{
+                        backgroundColor: colors.teal,
+                        borderRadius: 5,
+                        height: 5,
+                        width: `${Math.min(100, Math.round((todayCommitment.currentValue / todayCommitment.targetValue) * 100))}%`,
+                      }}
+                    />
+                  </View>
                 </View>
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <Pressable
@@ -1059,7 +1015,7 @@ export function AccountabilitySection({
                   ]}
                 >
                   <Feather name="plus" size={13} color={colors.primary} />
-                  <Text style={{ color: colors.foreground, fontSize: 11, fontWeight: "700" }}>Create a shared goal</Text>
+                  <Text style={{ color: colors.foreground, fontSize: 11, fontWeight: "700" }}>Add a commitment</Text>
                 </Pressable>
               </View>
             )}
@@ -1068,7 +1024,7 @@ export function AccountabilitySection({
           <View style={[cardStyle, { gap: 16, padding: 18 }]}>
             <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
               <View>
-                <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "700" }}>
+                <Text style={{ color: colors.foreground, fontFamily: "serif", fontSize: 20, fontWeight: "400" }}>
                   Shared commitments
                 </Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 3 }}>
@@ -1092,6 +1048,20 @@ export function AccountabilitySection({
                   {commitmentFormOpen ? "Close" : "Add"}
                 </Text>
               </Pressable>
+            </View>
+
+            <View
+              testID="accountability-dashboard-metrics"
+              accessibilityLabel={`${activeCommitments.length} active commitments, ${completedCommitmentCount} completed commitments, ${completedCheckInCount} completed check-ins`}
+              style={{ backgroundColor: colors.muted, borderRadius: colors.radius - 4, paddingHorizontal: 10, paddingVertical: 8 }}
+            >
+              <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
+                <Text style={{ color: colors.teal, fontWeight: "700" }}>{activeCommitments.length}</Text> active
+                {"  ·  "}
+                <Text style={{ color: colors.success, fontWeight: "700" }}>{completedCommitmentCount}</Text> met
+                {"  ·  "}
+                <Text style={{ color: colors.secondary, fontWeight: "700" }}>{completedCheckInCount}</Text> check-ins
+              </Text>
             </View>
 
             {commitmentFormOpen ? (
@@ -1208,7 +1178,7 @@ export function AccountabilitySection({
                   : "Self-reported";
               const checking = checkInCommitmentId === commitment.id;
               return (
-                <View key={commitment.id} style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 9, padding: 12 }}>
+                <View key={commitment.id} style={{ backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius - 3, borderWidth: 1, gap: 9, padding: 12 }}>
                   <View style={{ alignItems: "flex-start", flexDirection: "row", gap: 9 }}>
                     <View style={{ alignItems: "center", backgroundColor: commitment.status === "completed" ? colors.success + "18" : colors.teal + "18", borderRadius: 18, height: 36, justifyContent: "center", width: 36 }}>
                       <Feather name={commitment.status === "completed" ? "check-circle" : "target"} size={16} color={commitment.status === "completed" ? colors.success : colors.teal} />
