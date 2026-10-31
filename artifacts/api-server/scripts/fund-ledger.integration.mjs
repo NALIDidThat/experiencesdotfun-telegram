@@ -43,7 +43,14 @@ try {
       CREATE TABLE experiences (id serial PRIMARY KEY, organisation_id integer REFERENCES organisations(id), title text);
       CREATE TABLE participations (id serial PRIMARY KEY, experience_id integer REFERENCES experiences(id), user_id integer REFERENCES users(id));
     `);
-    for (const name of ["0013_organisation_funds.sql", "0014_organisation_treasuries.sql", "0019_fund_contribution_ledger.sql", "0020_fund_experience_link.sql"]) {
+    for (const name of [
+      "0013_organisation_funds.sql",
+      "0014_organisation_treasuries.sql",
+      "0019_fund_contribution_ledger.sql",
+      "0020_fund_experience_link.sql",
+      "0023_fund_campaign_milestones.sql",
+      "0024_fund_milestone_outcome_reports.sql",
+    ]) {
       await client.query(await readFile(`${root}/lib/db/migrations/${name}`, "utf8"));
     }
     // The new migration is safe to re-run, and never rewrites old financial rows.
