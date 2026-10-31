@@ -8,6 +8,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { safeStaticPath } = require('./static-path');
 
 const STATIC_ROOT = path.resolve(__dirname, '..', 'web-dist');
 const INDEX_FILE = path.join(STATIC_ROOT, 'index.html');
@@ -46,35 +47,37 @@ function sendFile(filePath, res) {
   fs.createReadStream(filePath).pipe(res);
 }
 
-function safeStaticPath(pathname) {
-  const withoutBase = basePath && pathname.startsWith(basePath)
-    ? pathname.slice(basePath.length) || '/'
-    : pathname;
-  const decoded = decodeURIComponent(withoutBase);
-  const relative = decoded.replace(/^\/+/, '');
-  const filePath = path.resolve(STATIC_ROOT, relative);
-  return filePath.startsWith(STATIC_ROOT) ? filePath : null;
+function createServer({ staticRoot = STATIC_ROOT, appBasePath = basePath } = {}) {
+  const resolvedRoot = path.resolve(staticRoot);
+  const indexFile = path.join(resolvedRoot, 'index.html');
+
+  return http.createServer((req, res) => {
+    const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+    const filePath = safeStaticPath(url.pathname, {
+      staticRoot: resolvedRoot,
+      basePath: appBasePath,
+    });
+
+    if (!filePath) {
+      res.writeHead(403);
+      res.end('Forbidden');
+      return;
+    }
+
+    if (filePath === resolvedRoot || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+      sendFile(indexFile, res);
+      return;
+    }
+
+    sendFile(filePath, res);
+  });
 }
 
-const server = http.createServer((req, res) => {
-  const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-  const filePath = safeStaticPath(url.pathname);
+if (require.main === module) {
+  const port = parseInt(process.env.PORT || '3000', 10);
+  createServer().listen(port, '0.0.0.0', () => {
+    console.log(`Serving Experiences.fun web app on port ${port}`);
+  });
+}
 
-  if (!filePath) {
-    res.writeHead(403);
-    res.end('Forbidden');
-    return;
-  }
-
-  if (filePath === STATIC_ROOT || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-    sendFile(INDEX_FILE, res);
-    return;
-  }
-
-  sendFile(filePath, res);
-});
-
-const port = parseInt(process.env.PORT || '3000', 10);
-server.listen(port, '0.0.0.0', () => {
-  console.log(`Serving Experiences.fun web app on port ${port}`);
-});
+module.exports = { createServer };

@@ -8,11 +8,12 @@
     "build": "node scripts/build-web.js",
     "serve": "node server/serve.js",
     "test": "pnpm run test:unit",
-    "test:unit": "pnpm run test:auth && pnpm run test:organisation-onboarding-copy && pnpm run test:solana-pay && pnpm run test:campaign-tracker && pnpm run test:campaign-list && pnpm run test:location-resolution && pnpm run test:memory-game && pnpm run test:home-priority",
+    "test:unit": "pnpm run test:auth && pnpm run test:organisation-onboarding-copy && pnpm run test:solana-pay && pnpm run test:campaign-tracker && pnpm run test:campaign-list && pnpm run test:location-resolution && pnpm run test:memory-game && pnpm run test:home-priority && pnpm run test:static-server",
     "test:e2e": "pnpm run test:auth && pnpm run test:home-prompt && pnpm run test:host && pnpm run test:keyboard && pnpm run test:explore",
     "test:auth": "node --test --test-concurrency=1 scripts/email-signup-login.test.mjs",
     "test:organisation-onboarding-copy": "node --experimental-strip-types --test scripts/organisation-onboarding-copy.test.mjs",
     "test:home-priority": "node --experimental-strip-types --test scripts/home-priority.test.mjs",
+    "test:static-server": "node --test server/serve.test.cjs",
     "test:home-prompt": "node --test scripts/home-prompt-interaction.test.mjs",
     "test:host": "node --test --test-concurrency=1 scripts/host-management-interaction.test.mjs",
     "test:solana-pay": "node --test scripts/solana-pay.test.mjs",
@@ -66,8 +67,7 @@
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.10.1",
     "typescript": "~6.0.3",
-    "zod": "catalog:",
-    "zod-validation-error": "^3.4.0"
+    "zod": "catalog:"
   },
   "dependencies": {
     "@types/google.maps": "^3.66.5",
