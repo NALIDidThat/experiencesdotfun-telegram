@@ -1579,8 +1579,9 @@ router.post("/encouragement", async (req, res) => {
     error(res, 400, "Write a message before sending it.");
     return;
   }
-  const message = parsed.data.message
-    ? encouragementMessages[parsed.data.message]
+  const presetMessage: keyof typeof encouragementMessages | undefined = parsed.data.message;
+  const message = presetMessage
+    ? encouragementMessages[presetMessage]
     : customMessage!;
 
   const result = await db.transaction(async (tx) => {

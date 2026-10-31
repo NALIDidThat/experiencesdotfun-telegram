@@ -168,6 +168,8 @@ overrides:
   "xcode>uuid": "11.1.1"
   # Keep Express 5's parser within its declared range while fixing GHSA-27r3-jxmh-p828.
   "express>body-parser": "2.4.0"
+  # Expo CLI still requests vulnerable Zod 3; pin its compatible schema API to the fixed Zod 4 release.
+  "@expo/cli>zod": "4.6.7"
   # query-string v7 expects a CommonJS callable; unwrap the ESM decoder's default export via the package patch.
   "query-string>decode-uri-component": "0.5.1"
   # Keep TypeDoc's Markdown API on v14 while fixing its high-severity advisories.

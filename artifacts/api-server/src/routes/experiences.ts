@@ -116,6 +116,12 @@ import {
   verificationReviewReasonError,
 } from "../lib/organisation-verification-rules.mjs";
 
+type ExperienceMilestoneInput = {
+  title: string;
+  description?: string | null;
+  xpReward: number;
+};
+
 const router: IRouter = Router();
 const EXPLORE_ACTIVITY_WINDOW_DAYS = 30;
 const evidenceKeysForUser = (value: unknown, userId: number): string[] | undefined => {
@@ -1144,7 +1150,7 @@ router.patch("/me", async (req, res) => {
   }
   if (
     patch.socialLinks &&
-    Object.entries(patch.socialLinks).some(
+    (Object.entries(patch.socialLinks) as [string, string | undefined][]).some(
       ([platform, value]) => value !== undefined && !isAllowedSocialLink(platform, value),
     )
   ) {
@@ -1171,7 +1177,7 @@ router.patch("/me", async (req, res) => {
           where: eq(usersTable.id, user.id),
         });
         const normalizedPatch = Object.fromEntries(
-          Object.entries(patch.socialLinks).flatMap(([platform, value]) =>
+          (Object.entries(patch.socialLinks) as [string, string | undefined][]).flatMap(([platform, value]) =>
             value === undefined ? [] : [[platform, value.trim()]],
           ),
         );
@@ -1296,7 +1302,7 @@ router.post("/experiences", async (req, res) => {
   if (!enforceAccountType(req, res, "organisation")) return;
   const parsed = CreateExperienceBody.safeParse(req.body);
   if (!parsed.success) {
-    const hasScheduleIssue = parsed.error.issues.some(({ path }) =>
+    const hasScheduleIssue = parsed.error.issues.some(({ path }: { path: unknown[] }) =>
       ["date", "startTime", "endTime"].includes(String(path[0])),
     );
     error(
@@ -1361,7 +1367,7 @@ router.post("/experiences", async (req, res) => {
       if (!createdExperience) throw new Error("Unable to create experience.");
       if (input.milestones?.length) {
         await transaction.insert(experienceMilestonesTable).values(
-          input.milestones.map((milestone, index) => ({
+          input.milestones.map((milestone: ExperienceMilestoneInput, index: number) => ({
             experienceId: createdExperience.id,
             position: index + 1,
             title: milestone.title.trim(),
@@ -2020,7 +2026,7 @@ router.patch("/host/experiences/:experienceId", async (req, res) => {
   }
   const parsedBody = UpdateHostExperienceBody.safeParse(req.body);
   if (!parsedBody.success) {
-    const hasScheduleIssue = parsedBody.error.issues.some(({ path }) =>
+    const hasScheduleIssue = parsedBody.error.issues.some(({ path }: { path: unknown[] }) =>
       ["date", "startTime", "endTime"].includes(String(path[0])),
     );
     error(
@@ -2116,7 +2122,7 @@ router.patch("/host/experiences/:experienceId", async (req, res) => {
       requestedMilestones !== undefined &&
       (
         requestedMilestones.length !== existingMilestones.length ||
-        requestedMilestones.some((milestone, index) => {
+        requestedMilestones.some((milestone: ExperienceMilestoneInput, index: number) => {
           const previous = existingMilestones[index];
           return !previous
             || milestone.title.trim() !== previous.title
@@ -2145,7 +2151,7 @@ router.patch("/host/experiences/:experienceId", async (req, res) => {
         .where(eq(experienceMilestonesTable.experienceId, existing.id));
       if (requestedMilestones.length) {
         await tx.insert(experienceMilestonesTable).values(
-          requestedMilestones.map((milestone, index) => ({
+          requestedMilestones.map((milestone: ExperienceMilestoneInput, index: number) => ({
             experienceId: existing.id,
             position: index + 1,
             title: milestone.title.trim(),

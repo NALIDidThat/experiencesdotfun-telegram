@@ -103,7 +103,7 @@ router.put("/friends/top", requireTelegramUser, async (req, res): Promise<void> 
           row.requesterUserId === user.id ? row.recipientUserId : row.requesterUserId,
         ),
       );
-      if (!friendIds.every((friendId) => acceptedIds.has(friendId))) {
+      if (!friendIds.every((friendId: number) => acceptedIds.has(friendId))) {
         return { saved: false as const };
       }
     }
@@ -114,7 +114,7 @@ router.put("/friends/top", requireTelegramUser, async (req, res): Promise<void> 
 
     if (friendIds.length > 0) {
       await transaction.insert(pinnedFriendsTable).values(
-        friendIds.map((friendUserId, position) => ({
+        friendIds.map((friendUserId: number, position: number) => ({
           userId: user.id,
           friendUserId,
           position,

@@ -478,7 +478,7 @@ router.post("/attempts/:attemptId/submit", async (req, res): Promise<void> => {
       return { kind: "expired" as const };
     }
     const tileCount = attempt.gridRows * attempt.gridColumns;
-    if (parsed.data.selectedIndices.some((index) => index >= tileCount)) {
+    if (parsed.data.selectedIndices.some((index: number) => index >= tileCount)) {
       return { kind: "invalid-selection" as const };
     }
     if (now.getTime() < attempt.memorizeUntilAt.getTime()) {

@@ -97,3 +97,12 @@ test('serves valid assets and keeps SPA route fallback working', async () => {
   assert.equal(route.status, 200);
   assert.equal(route.body, '<main>app shell</main>');
 });
+
+test('does not serve files reached through symlink or encoded traversal paths', async () => {
+  const symlink = await get('/escape.txt');
+  assert.equal(symlink.status, 403);
+  assert.notEqual(symlink.body, 'outside the static root');
+
+  const traversal = await get('/%2e%2e/web-dist-escape/secret.txt');
+  assert.notEqual(traversal.body, 'outside the static root');
+});
