@@ -66,7 +66,13 @@ async function request(path: string, { user = 2, method = "GET", body, expected 
     method, headers: { "content-type": "application/json", ...(user ? { authorization: `Bearer ${tokens[user]}` } : {}) },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
-  const data = await response.json();
+  const responseText = await response.text();
+  let data: any;
+  try {
+    data = JSON.parse(responseText);
+  } catch {
+    throw new Error(`${method} ${path} returned non-JSON (${response.status}): ${responseText.slice(0, 160)}`);
+  }
   assert.equal(response.status, expected, `${method} ${path}: ${JSON.stringify(data)}`);
   checks++;
   return data;
@@ -88,7 +94,62 @@ try {
   })));
   await pool.query("INSERT INTO experiences (id, organisation_id) VALUES (1,1); INSERT INTO participations (experience_id,user_id) VALUES (1,4)");
   await request("/treasury", { user: 1, method: "PUT", body: { walletAddress: addresses[0], cluster: "devnet" } });
-  await request("/", { user: 1, method: "POST", body: { title: "Community garden", description: "Supplies for local volunteers", goalSol: 2 }, expected: 201 });
+  const campaign = await request("/", {
+    user: 1, method: "POST", expected: 201,
+    body: {
+      title: "Community garden", description: "Supplies for local volunteers", goalSol: 2,
+      milestones: [
+        { title: "Prepare garden beds", outcome: "Volunteers prepare the beds for planting", targetSol: "0.5" },
+        { title: "Plant seasonal herbs", outcome: "The garden beds are planted with seasonal herbs", targetSol: "1.5" },
+      ],
+    },
+  });
+  const firstMilestone = campaign.milestones.find((milestone: { title: string }) => milestone.title === "Prepare garden beds");
+  assert.ok(firstMilestone, "campaign creation returns its first milestone");
+  const reportPath = `/${campaign.id}/milestones/${firstMilestone.id}/outcome-reports`;
+  const validReport = {
+    status: "in_progress",
+    updateText: "Volunteers cleared the site and prepared the first bed.",
+    evidenceUrl: "https://example.org/garden-progress",
+  };
+  await request(reportPath, { user: 1, method: "POST", body: { ...validReport, status: "done" }, expected: 400 });
+  await request(reportPath, { user: 1, method: "POST", body: { ...validReport, updateText: "Too short" }, expected: 400 });
+  await request(reportPath, {
+    user: 1, method: "POST", body: { ...validReport, evidenceUrl: "http://example.org/garden-progress" }, expected: 400,
+  });
+  const createdReport = await request(reportPath, { user: 1, method: "POST", body: validReport, expected: 201 });
+  assert.equal(createdReport.milestoneId, firstMilestone.id);
+  assert.equal(createdReport.milestoneTitle, firstMilestone.title);
+  assert.equal(createdReport.plannedOutcome, firstMilestone.outcome);
+  assert.equal(createdReport.status, validReport.status);
+  assert.equal(createdReport.updateText, validReport.updateText);
+  assert.equal(createdReport.evidenceUrl, validReport.evidenceUrl);
+
+  await request(reportPath, { user: 3, method: "POST", body: validReport, expected: 404 });
+  await request("/treasury", { user: 3, method: "PUT", body: { walletAddress: addresses[5], cluster: "devnet" } });
+  const otherCampaign = await request("/", {
+    user: 3, method: "POST", expected: 201,
+    body: {
+      title: "Neighbourhood food bank", description: "Support local food bank supplies", goalSol: 1,
+      milestones: [{ title: "Stock pantry", outcome: "Restock essential pantry supplies", targetSol: "1" }],
+    },
+  });
+  const foreignMilestone = otherCampaign.milestones[0];
+  await request(`/${campaign.id}/milestones/${foreignMilestone.id}/outcome-reports`, {
+    user: 1, method: "POST", body: validReport, expected: 404,
+  });
+
+  const ownerCampaigns = await request("/1", { user: 0 });
+  const reloadedCampaign = ownerCampaigns.find((item: { id: number }) => item.id === campaign.id);
+  assert.ok(reloadedCampaign, "campaign remains available after a fresh API read");
+  const reloadedMilestone = reloadedCampaign.milestones.find((milestone: { id: number }) => milestone.id === firstMilestone.id);
+  assert.ok(reloadedMilestone, "the report's milestone remains attached to its campaign");
+  assert.equal(reloadedMilestone.outcomeReports.length, 1, "only the accepted report is persisted");
+  assert.deepEqual(reloadedMilestone.outcomeReports[0], createdReport, "the report is returned on its original milestone after reload");
+  const reloadedOtherCampaign = (await request("/3", { user: 0 }))
+    .find((item: { id: number }) => item.id === otherCampaign.id);
+  assert.equal(reloadedOtherCampaign.milestones[0].outcomeReports.length, 0, "a mismatched milestone receives no report");
+
   await request("/contributions", { user: 0, expected: 401 });
   await request("/ledger", { user: 2, expected: 403 });
   await request("/payout-candidates", { user: 2, expected: 403 });
@@ -137,8 +198,8 @@ try {
   assert.equal((await request(`/contributions/${late.id}/verify`, { method: "POST" })).status, "confirmed", "closed/cancelled request can still receive late payment");
   const beforeGoalEdit = (await request("/1"))[0];
   assert.equal(beforeGoalEdit.raisedSol, "0.300000000");
-  const editedGoal = await request("/campaigns/1", { user: 1, method: "PATCH", body: { goalSol: 0.600000001 } });
-  assert.equal(editedGoal.goalSol, 0.600000001);
+  const editedGoal = await request("/campaigns/1", { user: 1, method: "PATCH", body: { goalSol: 1.600000001 } });
+  assert.equal(editedGoal.goalSol, 1.600000001);
   assert.equal(editedGoal.raisedSol, beforeGoalEdit.raisedSol, "editing the goal does not change recorded deposits");
   assert.equal(editedGoal.contributionCount, beforeGoalEdit.contributionCount, "editing the goal does not change the deposit count");
   assert.equal(editedGoal.status, "closed", "editing the goal does not change campaign status");
@@ -176,7 +237,7 @@ try {
   await request(`/payouts/${proposal.id}/verify`, { user: 1, method: "POST", body: { signature: signatures[3] } });
   const protectedTables = await pool.query("SELECT relname FROM pg_class WHERE relnamespace=current_schema()::regnamespace AND relrowsecurity");
   assert.equal(protectedTables.rows.length, 3, "financial tables must have RLS enabled");
-  console.log(`Fundraising integration passed: ${checks} authenticated API requests plus exact ledger, concurrency, privacy, late-payment and payout assertions.`);
+  console.log(`Fundraising integration passed: ${checks} authenticated API requests plus milestone report persistence, exact ledger, concurrency, privacy, late-payment and payout assertions.`);
 } finally {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await pool.end();
