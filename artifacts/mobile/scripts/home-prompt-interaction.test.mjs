@@ -152,7 +152,12 @@ async function waitForValue(client, expression, predicate, description, timeoutM
     if (predicate(lastValue)) return lastValue;
     await delay(100);
   }
-  throw new Error(`Timed out waiting for ${description}. Last value: ${JSON.stringify(lastValue)}`);
+  const pageState = await client.evaluate(
+    `JSON.stringify({ url: location.href, title: document.title, text: document.body?.innerText?.replace(/\\s+/g, ' ').slice(0, 700) ?? '' })`,
+  ).catch(() => "unavailable");
+  throw new Error(
+    `Timed out waiting for ${description}. Last value: ${JSON.stringify(lastValue)}. Page: ${pageState}`,
+  );
 }
 
 async function tapTestId(client, testId, { scrollIntoView = true } = {}) {
@@ -1026,10 +1031,15 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
   assert.equal(progressBounds.viewportWidth, viewport.width);
   assert.ok(progressBounds.cardWidth <= viewport.width, "The progress card should fit the phone viewport.");
   assert.ok(progressBounds.scrollWidth <= progressBounds.clientWidth + 2, "The progress card should not overflow horizontally.");
-  assert.equal(
-    await client.evaluate(`document.querySelector('[data-testid="organisation-progress-milestone-first_experience"]')?.getAttribute('aria-label')`),
-    "First experience: Next",
-    "The current operating milestone should be clearly announced.",
+  assert.deepEqual(
+    await client.evaluate(`Array.from(document.querySelectorAll('[data-testid^="organisation-progress-milestone-"]')).map((item) => item.getAttribute('aria-label'))`),
+    [
+      "Profile ready: Complete",
+      "First experience: Next",
+      "First verified delivery: Later",
+      "Repeat participation: Later",
+    ],
+    "Milestones should remain in journey order with each progress state clearly announced.",
   );
   if (screenshotDir) {
     await client.evaluate(`document.querySelector('[data-testid="organisation-progress"]')?.scrollIntoView({ block: 'center' })`);

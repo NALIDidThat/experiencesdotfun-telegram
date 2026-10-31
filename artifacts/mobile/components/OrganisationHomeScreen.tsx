@@ -453,32 +453,90 @@ export function OrganisationHomeScreen({ user, go }: Props) {
             />
           </View>
           <View style={styles.progressMilestones}>
-            {organisationProgress.milestones.map((milestone) => {
+            {organisationProgress.milestones.length > 1 ? (
+              <View
+                pointerEvents="none"
+                style={[styles.progressMilestoneConnector, { backgroundColor: colors.border }]}
+              />
+            ) : null}
+            {organisationProgress.milestones.map((milestone, index) => {
               const isCurrent = milestone.id === currentMilestoneId;
+              const isComplete = milestone.completed;
               const stateLabel = milestone.completed ? 'Complete' : isCurrent ? 'Next' : 'Later';
               return (
                 <View
                   key={milestone.id}
                   testID={`organisation-progress-milestone-${milestone.id}`}
                   accessibilityLabel={`${organisationMilestones[milestone.id]}: ${stateLabel}`}
-                  style={styles.progressMilestone}
+                  style={[
+                    styles.progressMilestone,
+                    isCurrent && {
+                      backgroundColor: `${colors.primary}0C`,
+                      borderColor: `${colors.primary}35`,
+                    },
+                  ]}
                 >
-                  <Feather
-                    name={milestone.completed ? 'check-circle' : 'circle'}
-                    size={17}
-                    color={milestone.completed ? colors.accent : isCurrent ? colors.primary : colors.mutedForeground}
-                  />
+                  <View
+                    style={[
+                      styles.progressMilestoneMarker,
+                      {
+                        backgroundColor: isComplete ? colors.success : colors.card,
+                        borderColor: isComplete ? colors.success : isCurrent ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    {isComplete ? (
+                      <Feather name="check" size={12} color={colors.primaryForeground} />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.progressMilestoneNumber,
+                          { color: isCurrent ? colors.primary : colors.mutedForeground },
+                        ]}
+                      >
+                        {index + 1}
+                      </Text>
+                    )}
+                  </View>
                   <Text
+                    numberOfLines={1}
                     style={[
                       styles.progressMilestoneTitle,
-                      { color: milestone.completed || isCurrent ? colors.foreground : colors.mutedForeground },
+                      {
+                        color: isComplete || isCurrent ? colors.foreground : colors.mutedForeground,
+                        fontFamily: isCurrent ? 'Inter_700Bold' : 'Inter_600SemiBold',
+                      },
                     ]}
                   >
                     {organisationMilestones[milestone.id]}
                   </Text>
-                  <Text style={[styles.progressMilestoneState, { color: isCurrent ? colors.primary : colors.mutedForeground }]}>
-                    {stateLabel}
-                  </Text>
+                  <View
+                    style={[
+                      styles.progressMilestoneBadge,
+                      {
+                        backgroundColor: isComplete
+                          ? `${colors.success}12`
+                          : isCurrent
+                            ? `${colors.primary}12`
+                            : colors.muted,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.progressMilestoneState,
+                        {
+                          color: isComplete
+                            ? colors.success
+                            : isCurrent
+                              ? colors.primary
+                              : colors.mutedForeground,
+                        },
+                      ]}
+                    >
+                      {stateLabel}
+                    </Text>
+                  </View>
                 </View>
               );
             })}
@@ -601,10 +659,14 @@ const styles = StyleSheet.create({
   progressCount: { fontSize: 14, lineHeight: 19, fontFamily: 'Inter_700Bold' },
   progressTrack: { height: 6, overflow: 'hidden', borderRadius: 3 },
   progressFill: { height: '100%', borderRadius: 3 },
-  progressMilestones: { gap: 2 },
-  progressMilestone: { minHeight: 31, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  progressMilestones: { position: 'relative', gap: 4 },
+  progressMilestoneConnector: { position: 'absolute', top: 22, bottom: 22, left: 18, width: 2, borderRadius: 1 },
+  progressMilestone: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: 'transparent', borderRadius: 13, paddingHorizontal: 8 },
+  progressMilestoneMarker: { zIndex: 1, width: 22, height: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderRadius: 11 },
+  progressMilestoneNumber: { fontSize: 9, lineHeight: 12, fontFamily: 'Inter_700Bold' },
   progressMilestoneTitle: { flex: 1, minWidth: 0, fontSize: 12, lineHeight: 17, fontFamily: 'Inter_600SemiBold' },
-  progressMilestoneState: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  progressMilestoneBadge: { width: 58, minHeight: 23, alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingHorizontal: 5 },
+  progressMilestoneState: { fontSize: 9, fontFamily: 'Inter_700Bold' },
   progressNextStep: { borderRadius: 14, padding: 12, gap: 10 },
   progressNextCopy: { gap: 4 },
   progressNextTitle: { fontSize: 14, lineHeight: 19, fontFamily: 'Inter_700Bold' },
