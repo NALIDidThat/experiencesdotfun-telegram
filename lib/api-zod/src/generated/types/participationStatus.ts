@@ -16,4 +16,5 @@ export const ParticipationStatus = {
   verified: 'verified',
   rejected: 'rejected',
   waitlisted: 'waitlisted',
+  cancelled: 'cancelled',
 } as const;

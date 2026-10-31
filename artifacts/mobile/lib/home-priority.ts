@@ -1,6 +1,6 @@
 export type ParticipantHomeParticipation = {
   id: number;
-  status: "joined" | "attended" | "submitted" | "verified" | "rejected" | "waitlisted";
+  status: "joined" | "attended" | "submitted" | "verified" | "rejected" | "waitlisted" | "cancelled";
   experience: {
     id: number;
     title: string;
@@ -101,7 +101,7 @@ export function getParticipantHomeCommitments(
   now = Date.now(),
 ): ParticipantCommitment[] {
   return (participations ?? [])
-    .filter((participation) => participation.status !== "verified")
+    .filter((participation) => participation.status !== "verified" && participation.status !== "cancelled")
     .sort((left, right) => {
       const rankDifference = commitmentRank(left, now) - commitmentRank(right, now);
       if (rankDifference !== 0) return rankDifference;

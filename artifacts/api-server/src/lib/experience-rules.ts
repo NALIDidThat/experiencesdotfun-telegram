@@ -21,6 +21,53 @@ export function canSubmitCompletion(status: string): boolean {
   return status === "joined" || status === "attended" || status === "rejected";
 }
 
+export function canCancelParticipation(
+  participation: {
+    status: string;
+    attendedAt: Date | null;
+    submittedAt: Date | null;
+    completionStatement: string | null;
+    evidenceObjectKeys: string[];
+    submissionVersion: number;
+    verifiedAt: Date | null;
+    reviewReason: string | null;
+    reviewedByUserId: number | null;
+    reviewedAt: Date | null;
+    rewardStatus: string;
+  },
+  hasReviewHistory: boolean,
+  hasMilestoneActivity: boolean,
+): boolean {
+  return participation.status === "joined"
+    && participation.attendedAt === null
+    && participation.submittedAt === null
+    && participation.completionStatement === null
+    && participation.evidenceObjectKeys.length === 0
+    && participation.submissionVersion === 0
+    && participation.verifiedAt === null
+    && participation.reviewReason === null
+    && participation.reviewedByUserId === null
+    && participation.reviewedAt === null
+    && participation.rewardStatus === "pending"
+    && !hasReviewHistory
+    && !hasMilestoneActivity;
+}
+
+export function isExperienceCancellationDateUpcoming(
+  experienceDate: string,
+  now = new Date(),
+): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(experienceDate)) return false;
+  const parsedDate = new Date(`${experienceDate}T00:00:00.000Z`);
+  if (
+    Number.isNaN(parsedDate.getTime()) ||
+    parsedDate.toISOString().slice(0, 10) !== experienceDate
+  ) {
+    return false;
+  }
+  return experienceDate > now.toISOString().slice(0, 10);
+}
+
 export function isValidExperienceSchedule(
   date: string,
   startTime: string,

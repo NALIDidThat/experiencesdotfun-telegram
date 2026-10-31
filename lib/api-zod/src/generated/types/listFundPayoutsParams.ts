@@ -7,5 +7,8 @@
  */
 
 export type ListFundPayoutsParams = {
+/**
+ * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+ */
 before?: string;
 };

@@ -12,4 +12,5 @@ export type ListMyParticipationsStatus = typeof ListMyParticipationsStatus[keyof
 export const ListMyParticipationsStatus = {
   upcoming: 'upcoming',
   completed: 'completed',
+  cancelled: 'cancelled',
 } as const;

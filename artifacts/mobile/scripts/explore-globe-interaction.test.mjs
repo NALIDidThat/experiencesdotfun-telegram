@@ -428,6 +428,25 @@ const experiences = [
   makeExperience(764, "Toronto Park Planting", "environmental", "Toronto"),
   makeExperience(765, "Springfield Food Sharing", "community", "Springfield"),
 ];
+function makeParticipation(status) {
+  return {
+    id: 7610,
+    experience: experiences[0],
+    participant: { id: user.id, name: user.name, username: user.username, avatarUrl: null },
+    status,
+    joinedAt: "2026-10-01T10:00:00.000Z",
+    attendedAt: null,
+    submittedAt: null,
+    completionStatement: null,
+    evidenceObjectKeys: [],
+    submissionVersion: 0,
+    reviewReason: null,
+    reviewedAt: null,
+    reviewHistory: [],
+    verifiedAt: null,
+    rewardStatus: "pending",
+  };
+}
 const friends = [
   { id: 901, name: "Ava Harper", username: "ava", avatarUrl: null, city: "London" },
   { id: 902, name: "Milo Chen", username: "milo", avatarUrl: null, city: "Toronto" },
@@ -444,6 +463,7 @@ test("Participant experience details keep navigation visible and present concise
   const unexpectedApiRequests = [];
   const browserErrors = [];
   let interceptionError;
+  let participantRegistration = null;
 
   client.on("Runtime.exceptionThrown", ({ params }) => {
     browserErrors.push(params.exceptionDetails.exception?.description ?? params.exceptionDetails.text ?? "Browser exception");
@@ -508,10 +528,20 @@ test("Participant experience details keep navigation visible and present concise
             ...experiences[0],
             whatToBring: "Wear gloves for the cleanup.",
             whatYouWillDo: "Join the riverbank cleanup with local volunteers.",
-            joined: false,
-            participation: null,
+            joined: Boolean(participantRegistration),
+            participation: participantRegistration,
             milestones: [],
           };
+        } else if (url.pathname === "/api/participations/7610/cancel" && method === "POST") {
+          if (participantRegistration?.status !== "joined") {
+            status = 409;
+            response = { message: "This registration is no longer eligible for cancellation." };
+          } else {
+            participantRegistration = { ...participantRegistration, status: "cancelled" };
+            experiences[0].participantCount -= 1;
+            experiences[0].availablePlaces += 1;
+            response = participantRegistration;
+          }
         } else if (url.pathname === "/api/host/experiences/761/milestones" && method === "GET") {
           response = { milestones: [], submissions: [], milestonesEditable: true };
         } else if (url.pathname === "/api/experiences" && method === "GET") {
@@ -1165,6 +1195,39 @@ Object.defineProperty(navigator, 'geolocation', {
   }
   user.userType = "participant";
   user.organisation = null;
+  participantRegistration = makeParticipation("joined");
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=experience&id=761` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="cancel-registration"]'))`,
+    Boolean,
+    "the cancel action for a confirmed future registration",
+  );
+  await tapTestId(client, "cancel-registration");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('If someone is waiting, the host can promote them next.')`,
+    Boolean,
+    "the cancellation confirmation and waitlist explanation",
+  );
+  await tapTestId(client, "cancel-registration-confirm");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('Your registration is cancelled') && document.body.innerText.includes('Your place has been released.')`,
+    Boolean,
+    "the refreshed cancelled registration status",
+  );
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="cancel-registration"]'))`),
+    false,
+    "A cancelled registration should no longer offer cancellation.",
+  );
+  assert.ok(
+    apiTraffic.includes("POST /api/participations/7610/cancel"),
+    "The confirmation action should call the cancellation API.",
+  );
+
+  participantRegistration = null;
   experiences[0].status = "cancelled";
   await client.send("Page.navigate", { url: `${appUrl}/?screen=experience&id=761&cancelled=1` });
   await waitForValue(

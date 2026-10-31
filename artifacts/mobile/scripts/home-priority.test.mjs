@@ -85,6 +85,13 @@ test("participant commitments surface current status and omit verified history",
   ]);
 });
 
+test("cancelled registrations do not appear as active home commitments", () => {
+  const commitments = getParticipantHomeCommitments([
+    participation(1, "cancelled"),
+  ], now);
+  assert.deepEqual(commitments, []);
+});
+
 test("organisation priorities put reviews ahead of campaigns and treasury information", () => {
   const result = selectOrganisationHomePriority({
     pendingReviews: 2,

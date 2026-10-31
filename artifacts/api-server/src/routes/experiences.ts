@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, ne, notExi
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   AcceptFriendRequestParams,
+  CancelParticipationParams,
   CreateExperienceBody,
   CancelHostExperienceParams,
   CreateFriendRequestBody,
@@ -70,8 +71,10 @@ import { logger } from "../lib/logger";
 import { recordAnalyticsEvent } from "../lib/analytics";
 import {
   canJoinOrWaitlist,
+  canCancelParticipation,
   canMarkAttendance,
   canSubmitCompletion,
+  isExperienceCancellationDateUpcoming,
   participationStatusForCapacity,
   isValidExperienceSchedule,
 } from "../lib/experience-rules";
@@ -1574,6 +1577,8 @@ router.get("/participations", async (req, res) => {
       ? results.filter((item) => item.status === "verified")
       : parsed.data.status === "upcoming"
         ? results.filter((item) => ["joined", "attended", "waitlisted"].includes(item.status))
+        : parsed.data.status === "cancelled"
+          ? results.filter((item) => item.status === "cancelled")
         : results,
   );
 });
@@ -1637,6 +1642,141 @@ router.delete("/participations/:participationId", async (req, res) => {
     return;
   }
   res.status(204).end();
+});
+
+router.post("/participations/:participationId/cancel", async (req, res) => {
+  if (!enforceAccountType(req, res, "participant")) return;
+  const parsed = CancelParticipationParams.safeParse({
+    participationId: Number(req.params.participationId),
+  });
+  if (!parsed.success) {
+    error(res, 400, "Invalid participation.");
+    return;
+  }
+
+  const user = currentUser(req);
+  const existing = await db.query.participationsTable.findFirst({
+    where: and(
+      eq(participationsTable.id, parsed.data.participationId),
+      eq(participationsTable.userId, user.id),
+    ),
+  });
+  if (!existing) {
+    error(res, 404, "Participation not found.");
+    return;
+  }
+
+  const outcome = await db.transaction(async (tx) => {
+    // Keep the same experience-first lock order used by waitlist promotion.
+    const [experience] = await tx
+      .select()
+      .from(experiencesTable)
+      .where(eq(experiencesTable.id, existing.experienceId))
+      .for("update");
+    if (!experience) return { kind: "not-found" as const };
+
+    const [participation] = await tx
+      .select()
+      .from(participationsTable)
+      .where(
+        and(
+          eq(participationsTable.id, existing.id),
+          eq(participationsTable.userId, user.id),
+        ),
+      )
+      .for("update");
+    if (!participation) return { kind: "not-found" as const };
+    if (!["published", "full"].includes(experience.status)) {
+      return { kind: "closed" as const };
+    }
+    if (!isExperienceCancellationDateUpcoming(experience.date)) {
+      return { kind: "not-upcoming" as const };
+    }
+
+    const [[reviewCount], [milestoneActivityCount]] = await Promise.all([
+      tx
+        .select({ value: count() })
+        .from(participationReviewEventsTable)
+        .where(eq(participationReviewEventsTable.participationId, participation.id)),
+      tx
+        .select({ value: count() })
+        .from(experienceMilestoneSubmissionsTable)
+        .where(
+          eq(experienceMilestoneSubmissionsTable.participationId, participation.id),
+        ),
+    ]);
+    if (
+      !canCancelParticipation(
+        participation,
+        Number(reviewCount?.value ?? 0) > 0,
+        Number(milestoneActivityCount?.value ?? 0) > 0,
+      )
+    ) {
+      return { kind: "ineligible" as const };
+    }
+
+    const [cancelled] = await tx
+      .update(participationsTable)
+      .set({ status: "cancelled" })
+      .where(
+        and(
+          eq(participationsTable.id, participation.id),
+          eq(participationsTable.userId, user.id),
+          eq(participationsTable.status, "joined"),
+        ),
+      )
+      .returning();
+    if (!cancelled) return { kind: "race" as const };
+
+    const [participantCount] = await tx
+      .select({ value: count() })
+      .from(participationsTable)
+      .where(
+        and(
+          eq(participationsTable.experienceId, experience.id),
+          inArray(participationsTable.status, [
+            "joined",
+            "attended",
+            "submitted",
+            "verified",
+          ]),
+        ),
+      );
+    if (
+      experience.status === "full" &&
+      Number(participantCount?.value ?? 0) < experience.capacity
+    ) {
+      await tx
+        .update(experiencesTable)
+        .set({ status: "published" })
+        .where(eq(experiencesTable.id, experience.id));
+    }
+
+    return { kind: "cancelled" as const, participation: cancelled };
+  });
+
+  if (outcome.kind === "not-found") {
+    error(res, 404, "Participation not found.");
+    return;
+  }
+  if (outcome.kind === "closed") {
+    error(res, 409, "This experience is no longer open for cancellation.");
+    return;
+  }
+  if (outcome.kind === "not-upcoming") {
+    error(res, 409, "Registration cancellation is only available before the experience date.");
+    return;
+  }
+  if (outcome.kind === "ineligible") {
+    error(res, 409, "This registration has attendance or contribution activity and can no longer be cancelled.");
+    return;
+  }
+  if (outcome.kind === "race") {
+    error(res, 409, "This registration changed before it could be cancelled. Refresh and try again.");
+    return;
+  }
+
+  res.json(await participationResponse(outcome.participation));
 });
 
 router.post("/participations/:participationId/submit", async (req, res) => {

@@ -1286,6 +1286,7 @@ export const ParticipationStatus = {
   verified: 'verified',
   rejected: 'rejected',
   waitlisted: 'waitlisted',
+  cancelled: 'cancelled',
 } as const;
 
 export type RewardStatus = typeof RewardStatus[keyof typeof RewardStatus];
@@ -2742,10 +2743,16 @@ export type ListCharityPayoutCandidates200Item = {
 };
 
 export type ListFundPayoutsParams = {
+/**
+ * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+ */
 before?: string;
 };
 
 export type ListMyContributionsParams = {
+/**
+ * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+ */
 before?: string;
 };
 
@@ -2807,6 +2814,7 @@ export type ListMyParticipationsStatus = typeof ListMyParticipationsStatus[keyof
 export const ListMyParticipationsStatus = {
   upcoming: 'upcoming',
   completed: 'completed',
+  cancelled: 'cancelled',
 } as const;
 
 export type SearchDirectMessageProfilesParams = {

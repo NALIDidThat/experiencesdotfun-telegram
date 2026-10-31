@@ -66,7 +66,7 @@ paths:
       summary: List owned charity payout proposals or payouts addressed to the signed-in participant
       security: [{ telegramInitData: [] }]
       parameters:
-        - { name: before, in: query, schema: { type: string, format: uuid } }
+        - { name: before, in: query, schema: { type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" } }
       responses:
         "200":
           description: Profile-scoped payout records
@@ -102,7 +102,7 @@ paths:
       summary: Verify a finalized treasury-to-recipient transfer with this proposal's memo
       security: [{ telegramInitData: [] }]
       parameters:
-        - { name: payoutId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: payoutId, in: path, required: true, schema: { type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" } }
       requestBody:
         required: true
         content:
@@ -125,7 +125,7 @@ paths:
       summary: Dismiss an owned unpaid proposal; does not cancel an external multisig transaction
       security: [{ telegramInitData: [] }]
       parameters:
-        - { name: payoutId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: payoutId, in: path, required: true, schema: { type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" } }
       responses:
         "200":
           description: Current proposal
@@ -141,7 +141,7 @@ paths:
       summary: List payment requests and verified contributions for the signed-in profile
       security: [{ telegramInitData: [] }]
       parameters:
-        - { name: before, in: query, schema: { type: string, format: uuid } }
+        - { name: before, in: query, schema: { type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" } }
       responses:
         "200":
           description: Private profile contribution history
@@ -198,7 +198,7 @@ paths:
       summary: Find and verify a finalized payment using its unique reference
       security: [{ telegramInitData: [] }]
       parameters:
-        - { name: contributionId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: contributionId, in: path, required: true, schema: { type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" } }
       responses:
         "200":
           description: Current contribution state; pending is not a confirmed payment
@@ -215,7 +215,7 @@ paths:
       summary: Dismiss an unpaid request; this cannot cancel a blockchain transaction
       security: [{ telegramInitData: [] }]
       parameters:
-        - { name: contributionId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: contributionId, in: path, required: true, schema: { type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" } }
       responses:
         "200":
           description: Current contribution state
@@ -1952,7 +1952,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [upcoming, completed]
+            enum: [upcoming, completed, cancelled]
       responses:
         "200":
           description: Participation history
@@ -1986,6 +1986,31 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           description: Participation is no longer waitlisted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /participations/{participationId}/cancel:
+    post:
+      operationId: cancelParticipation
+      tags: [experiences]
+      summary: Cancel an eligible upcoming confirmed registration
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ParticipationId"
+      responses:
+        "200":
+          description: Cancelled participation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Participation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Registration cannot be cancelled
           content:
             application/json:
               schema:
@@ -2594,7 +2619,7 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
       requestBody:
         required: true
         content:
@@ -2628,7 +2653,7 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
       responses:
         "200":
           description: Paused attempt
@@ -2654,7 +2679,7 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
       responses:
         "200":
           description: Resumed attempt
@@ -4364,7 +4389,7 @@ components:
       enum: [published, full, completed, archived, cancelled]
     ParticipationStatus:
       type: string
-      enum: [joined, attended, submitted, verified, rejected, waitlisted]
+      enum: [joined, attended, submitted, verified, rejected, waitlisted, cancelled]
     RewardStatus:
       type: string
       enum: [pending, issued]

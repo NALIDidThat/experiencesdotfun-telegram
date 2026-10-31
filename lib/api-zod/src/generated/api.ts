@@ -22,8 +22,11 @@ export const ListCharityPayoutCandidatesResponse = zod.array(ListCharityPayoutCa
 /**
  * @summary List owned charity payout proposals or payouts addressed to the signed-in participant
  */
+export const listFundPayoutsQueryBeforeRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
 export const ListFundPayoutsQueryParams = zod.object({
-  "before": zod.coerce.string().uuid().optional()
+  "before": zod.coerce.string().regex(listFundPayoutsQueryBeforeRegExp).optional()
 })
 
 export const ListFundPayoutsResponseItem = zod.object({
@@ -88,8 +91,11 @@ export const CreateFundPayoutResponse = zod.object({
 /**
  * @summary Verify a finalized treasury-to-recipient transfer with this proposal's memo
  */
+export const verifyFundPayoutPathPayoutIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
 export const VerifyFundPayoutParams = zod.object({
-  "payoutId": zod.coerce.string().uuid()
+  "payoutId": zod.coerce.string().regex(verifyFundPayoutPathPayoutIdRegExp)
 })
 
 export const VerifyFundPayoutBody = zod.object({
@@ -119,8 +125,11 @@ export const VerifyFundPayoutResponse = zod.object({
 /**
  * @summary Dismiss an owned unpaid proposal; does not cancel an external multisig transaction
  */
+export const cancelFundPayoutPathPayoutIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
 export const CancelFundPayoutParams = zod.object({
-  "payoutId": zod.coerce.string().uuid()
+  "payoutId": zod.coerce.string().regex(cancelFundPayoutPathPayoutIdRegExp)
 })
 
 export const CancelFundPayoutResponse = zod.object({
@@ -146,8 +155,11 @@ export const CancelFundPayoutResponse = zod.object({
 /**
  * @summary List payment requests and verified contributions for the signed-in profile
  */
+export const listMyContributionsQueryBeforeRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
 export const ListMyContributionsQueryParams = zod.object({
-  "before": zod.coerce.string().uuid().optional()
+  "before": zod.coerce.string().regex(listMyContributionsQueryBeforeRegExp).optional()
 })
 
 export const ListMyContributionsResponseItem = zod.object({
@@ -237,8 +249,11 @@ export const CreateFundContributionResponse = zod.object({
 /**
  * @summary Find and verify a finalized payment using its unique reference
  */
+export const verifyFundContributionPathContributionIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
 export const VerifyFundContributionParams = zod.object({
-  "contributionId": zod.coerce.string().uuid()
+  "contributionId": zod.coerce.string().regex(verifyFundContributionPathContributionIdRegExp)
 })
 
 export const VerifyFundContributionResponse = zod.object({
@@ -264,8 +279,11 @@ export const VerifyFundContributionResponse = zod.object({
 /**
  * @summary Dismiss an unpaid request; this cannot cancel a blockchain transaction
  */
+export const cancelFundContributionPathContributionIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
 export const CancelFundContributionParams = zod.object({
-  "contributionId": zod.coerce.string().uuid()
+  "contributionId": zod.coerce.string().regex(cancelFundContributionPathContributionIdRegExp)
 })
 
 export const CancelFundContributionResponse = zod.object({
@@ -3065,7 +3083,7 @@ export const GetExperienceResponse = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted', 'cancelled']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -3168,7 +3186,7 @@ export const JoinExperienceResponse = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted', 'cancelled']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -3192,7 +3210,7 @@ export const JoinExperienceResponse = zod.object({
  * @summary List the current user's participation history
  */
 export const ListMyParticipationsQueryParams = zod.object({
-  "status": zod.enum(['upcoming', 'completed']).optional()
+  "status": zod.enum(['upcoming', 'completed', 'cancelled']).optional()
 })
 
 export const listMyParticipationsResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
@@ -3249,7 +3267,7 @@ export const ListMyParticipationsResponseItem = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted', 'cancelled']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -3281,6 +3299,87 @@ export const LeaveWaitlistParams = zod.object({
 })
 
 export const LeaveWaitlistResponse = zod.void()
+
+
+/**
+ * @summary Cancel an eligible upcoming confirmed registration
+ */
+export const CancelParticipationParams = zod.object({
+  "participationId": zod.coerce.number().int()
+})
+
+export const cancelParticipationResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const cancelParticipationResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const cancelParticipationResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const cancelParticipationResponseExperienceVerifiedLocationOneLatitudeMin = -90;
+export const cancelParticipationResponseExperienceVerifiedLocationOneLatitudeMax = 90;
+
+export const cancelParticipationResponseExperienceVerifiedLocationOneLongitudeMin = -180;
+export const cancelParticipationResponseExperienceVerifiedLocationOneLongitudeMax = 180;
+
+
+
+export const CancelParticipationResponse = zod.object({
+  "id": zod.number().int(),
+  "experience": zod.object({
+  "id": zod.number().int(),
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "type": zod.union([zod.enum(['charity', 'nonprofit', 'school', 'community_centre', 'library', 'youth_organisation', 'business', 'other']),zod.null()]),
+  "verified": zod.boolean()
+}),
+  "title": zod.string(),
+  "description": zod.string(),
+  "category": zod.enum(['environmental', 'education', 'community']),
+  "date": zod.string().regex(cancelParticipationResponseExperienceDateRegExp),
+  "startTime": zod.string().regex(cancelParticipationResponseExperienceStartTimeRegExp),
+  "endTime": zod.string().regex(cancelParticipationResponseExperienceEndTimeRegExp),
+  "location": zod.string(),
+  "city": zod.string(),
+  "verifiedLocation": zod.union([zod.object({
+  "latitude": zod.number().min(cancelParticipationResponseExperienceVerifiedLocationOneLatitudeMin).max(cancelParticipationResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
+  "longitude": zod.number().min(cancelParticipationResponseExperienceVerifiedLocationOneLongitudeMin).max(cancelParticipationResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
+  "precision": zod.enum(['city', 'neighborhood', 'venue_area']),
+  "sourceType": zod.enum(['organisation_site', 'venue_site', 'public_partner_event']),
+  "sourceUrl": zod.string().url().describe('Public listing reviewed as evidence for this location.'),
+  "verifiedAt": zod.coerce.date()
+}),zod.null()]).describe('Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null.'),
+  "capacity": zod.number().int(),
+  "participantCount": zod.number().int(),
+  "availablePlaces": zod.number().int(),
+  "xpReward": zod.number().int(),
+  "monetaryRewardPence": zod.number().int().nullable(),
+  "status": zod.enum(['published', 'full', 'completed', 'archived', 'cancelled'])
+}),
+  "participant": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullish()
+}),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted', 'cancelled']),
+  "joinedAt": zod.coerce.date(),
+  "attendedAt": zod.coerce.date().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "completionStatement": zod.string().nullable(),
+  "evidenceObjectKeys": zod.array(zod.string()),
+  "submissionVersion": zod.number().int(),
+  "reviewReason": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewHistory": zod.array(zod.object({
+  "decision": zod.enum(['verified', 'rejected']),
+  "reason": zod.string().nullable(),
+  "reviewerName": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
+  "verifiedAt": zod.coerce.date().nullable(),
+  "rewardStatus": zod.enum(['pending', 'issued'])
+})
 
 
 /**
@@ -3358,7 +3457,7 @@ export const SubmitCompletionResponse = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted', 'cancelled']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -3805,7 +3904,7 @@ export const ListExperienceParticipantsResponseItem = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted', 'cancelled']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -3887,7 +3986,7 @@ export const PromoteNextWaitlistedParticipantResponse = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted', 'cancelled']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -3968,7 +4067,7 @@ export const MarkAttendanceResponse = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted', 'cancelled']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -4049,7 +4148,7 @@ export const VerifyParticipationResponse = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted', 'cancelled']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -4139,7 +4238,7 @@ export const RejectParticipationResponse = zod.object({
   "username": zod.string().nullable(),
   "avatarUrl": zod.string().url().nullish()
 }),
-  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted']),
+  "status": zod.enum(['joined', 'attended', 'submitted', 'verified', 'rejected', 'waitlisted', 'cancelled']),
   "joinedAt": zod.coerce.date(),
   "attendedAt": zod.coerce.date().nullable(),
   "submittedAt": zod.coerce.date().nullable(),
@@ -4497,8 +4596,11 @@ export const StartMemoryGameAttemptResponse = zod.object({
 /**
  * @summary Submit recalled tile positions for a server-validated attempt
  */
+export const submitMemoryGameAttemptPathAttemptIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
 export const SubmitMemoryGameAttemptParams = zod.object({
-  "attemptId": zod.coerce.string().uuid()
+  "attemptId": zod.coerce.string().regex(submitMemoryGameAttemptPathAttemptIdRegExp)
 })
 
 export const submitMemoryGameAttemptBodySelectedIndicesItemMin = 0;
@@ -4558,8 +4660,11 @@ export const SubmitMemoryGameAttemptResponse = zod.object({
 /**
  * @summary Pause the signed-in profile's active Memory Game attempt
  */
+export const pauseMemoryGameAttemptPathAttemptIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
 export const PauseMemoryGameAttemptParams = zod.object({
-  "attemptId": zod.coerce.string().uuid()
+  "attemptId": zod.coerce.string().regex(pauseMemoryGameAttemptPathAttemptIdRegExp)
 })
 
 export const pauseMemoryGameAttemptResponseLevelMax = 100;
@@ -4595,8 +4700,11 @@ export const PauseMemoryGameAttemptResponse = zod.object({
 /**
  * @summary Resume a paused Memory Game attempt owned by the signed-in profile
  */
+export const resumeMemoryGameAttemptPathAttemptIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
 export const ResumeMemoryGameAttemptParams = zod.object({
-  "attemptId": zod.coerce.string().uuid()
+  "attemptId": zod.coerce.string().regex(resumeMemoryGameAttemptPathAttemptIdRegExp)
 })
 
 export const resumeMemoryGameAttemptResponseLevelMax = 100;

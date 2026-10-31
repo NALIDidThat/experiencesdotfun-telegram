@@ -7138,6 +7138,80 @@ export const useLeaveWaitlist = <TError = ErrorType<UnauthorizedResponse | NotFo
       return useMutation(getLeaveWaitlistMutationOptions(options));
     }
 
+export const getCancelParticipationUrl = (participationId: number,) => {
+
+
+
+
+  return `/api/participations/${participationId}/cancel`
+}
+
+/**
+ * @summary Cancel an eligible upcoming confirmed registration
+ */
+export const cancelParticipation = async (participationId: number, options?: Parameters<typeof customFetch>[1]): Promise<Participation> => {
+
+  return customFetch<Participation>(getCancelParticipationUrl(participationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelParticipationMutationKey = () => ['cancelParticipation'] as const;
+
+export const getCancelParticipationMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelParticipation>>, TError,CancelParticipationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelParticipation>>, TError,CancelParticipationMutationVariables, TContext> => {
+
+const mutationKey = getCancelParticipationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelParticipation>>, CancelParticipationMutationVariables> = (props) => {
+          const {participationId} = props ?? {};
+
+          return  cancelParticipation(participationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelParticipationMutationResult = NonNullable<Awaited<ReturnType<typeof cancelParticipation>>>
+
+    export type CancelParticipationMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | Error>
+    export type CancelParticipationMutationVariables = {participationId: number}
+
+    /**
+ * @summary Cancel an eligible upcoming confirmed registration
+ */
+export const useCancelParticipation = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelParticipation>>, TError,CancelParticipationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelParticipation>>,
+        TError,
+        CancelParticipationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelParticipationMutationOptions(options));
+    }
+
 export const getSubmitCompletionUrl = (participationId: number,) => {
 
 

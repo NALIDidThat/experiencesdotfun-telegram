@@ -56,6 +56,7 @@ import {
   useGetMe,
   useGetMyXpAwards,
   useJoinExperience,
+  useCancelParticipation,
   useLeaveWaitlist,
   useListExploreActivity,
   useListExperienceParticipants,
@@ -346,6 +347,7 @@ const hostParticipationStatusLabels: Record<Participation['status'], string> = {
   verified: 'Verified',
   rejected: 'Rejected',
   waitlisted: 'Waitlisted',
+  cancelled: 'Cancelled',
 };
 
 function money(pence: number | null | undefined) {
@@ -372,6 +374,11 @@ function dateLabel(date: string) {
   return Number.isNaN(value.getTime())
     ? date
     : value.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function isFutureExperienceDate(date: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(date)
+    && date > new Date().toISOString().slice(0, 10);
 }
 
 function hostTimestampLabel(timestamp: string | null | undefined) {
@@ -3144,6 +3151,7 @@ function Detail({
     },
   });
   const join = useJoinExperience({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
+  const cancelParticipation = useCancelParticipation({ mutation: { onSuccess: () => { setConfirmRegistrationCancel(false); invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const saveMyExperience = useSaveMyExperience();
   const deleteMySavedExperience = useRemoveMySavedExperience();
   const leaveWaitlist = useLeaveWaitlist({ mutation: { onSuccess: () => { setConfirmWaitlistLeave(false); invalidateAppQueries(queryClient); triggerHaptic(); } } });
@@ -3151,6 +3159,7 @@ function Detail({
   const submitMilestone = useSubmitExperienceMilestone({ mutation: { onSuccess: () => { invalidateAppQueries(queryClient); triggerHaptic(); } } });
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmWaitlistLeave, setConfirmWaitlistLeave] = useState(false);
+  const [confirmRegistrationCancel, setConfirmRegistrationCancel] = useState(false);
   const [completionStatement, setCompletionStatement] = useState('');
   const [completionEvidenceKeys, setCompletionEvidenceKeys] = useState<string[]>([]);
   const [milestoneEvidenceKeys, setMilestoneEvidenceKeys] = useState<Record<number, string[]>>({});
@@ -3173,6 +3182,15 @@ function Detail({
       setConfirmWaitlistLeave(false);
     } catch (error) {
       setActionError(requestErrorMessage(error, 'You couldn’t leave the waitlist. Please try again.'));
+    }
+  };
+  const cancelConfirmedPlace = async (participationId: number) => {
+    setActionError(null);
+    try {
+      await cancelParticipation.mutateAsync({ participationId });
+      setConfirmRegistrationCancel(false);
+    } catch (error) {
+      setActionError(requestErrorMessage(error, 'You couldn’t cancel this place. Please try again.'));
     }
   };
   const submitCompletion = async (participationId: number) => {
@@ -3234,6 +3252,9 @@ function Detail({
 
   const participation = item.participation as Participation | null;
   const isWaitlisted = participation?.status === 'waitlisted';
+  const isCancelled = participation?.status === 'cancelled';
+  const canCancelConfirmedPlace = participation?.status === 'joined'
+    && isFutureExperienceDate(item.date);
   const configuredMilestones = item.milestones ?? [];
   const hasConfiguredMilestones = configuredMilestones.length > 0;
   const legacyTimelineStatus = participation?.status === 'verified'
@@ -3760,12 +3781,14 @@ function Detail({
           </View>
         ) : item.joined && participation ? (
           <View>
-            <View style={[styles.joinedBanner, { backgroundColor: (isWaitlisted ? colors.secondary : colors.success) + '15', borderRadius: colors.radius }]}>
-              <Feather name={isWaitlisted ? 'clock' : 'check-circle'} size={28} color={isWaitlisted ? colors.secondary : colors.success} />
+            <View style={[styles.joinedBanner, { backgroundColor: (isCancelled ? colors.mutedForeground : isWaitlisted ? colors.secondary : colors.success) + '15', borderRadius: colors.radius }]}>
+              <Feather name={isCancelled ? 'x-circle' : isWaitlisted ? 'clock' : 'check-circle'} size={28} color={isCancelled ? colors.mutedForeground : isWaitlisted ? colors.secondary : colors.success} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.joinedTitle, { color: isWaitlisted ? colors.secondary : colors.success }]}>{isWaitlisted ? "You're on the waitlist" : "You're participating"}</Text>
-                <Text style={[styles.joinedSub, { color: isWaitlisted ? colors.mutedForeground : colors.success }]}>
-                  {isWaitlisted
+                <Text style={[styles.joinedTitle, { color: isCancelled ? colors.mutedForeground : isWaitlisted ? colors.secondary : colors.success }]}>{isCancelled ? 'Your registration is cancelled' : isWaitlisted ? "You're on the waitlist" : "You're participating"}</Text>
+                <Text style={[styles.joinedSub, { color: isCancelled || isWaitlisted ? colors.mutedForeground : colors.success }]}>
+                  {isCancelled
+                    ? 'Your place has been released. The host can promote the next person waiting.'
+                    : isWaitlisted
                     ? 'Your place is not confirmed. The host will promote you when a place opens.'
                     : participation.status === 'verified'
                       ? hasConfiguredMilestones
@@ -3861,6 +3884,39 @@ function Detail({
                   else void query.refetch();
                 }}
               />
+              {canCancelConfirmedPlace ? (
+                confirmRegistrationCancel ? (
+                  <View style={{ gap: 6, marginTop: 10 }}>
+                    <Text style={[styles.joinedSub, { color: colors.mutedForeground }]}>
+                      Cancel your confirmed place? If someone is waiting, the host can promote them next.
+                    </Text>
+                    <View style={styles.detailActionRow}>
+                      <Button
+                        label="Keep my place"
+                        variant="secondary"
+                        disabled={cancelParticipation.isPending}
+                        onPress={() => setConfirmRegistrationCancel(false)}
+                      />
+                      <Button
+                        label={cancelParticipation.isPending ? 'Cancelling…' : 'Confirm cancellation'}
+                        disabled={cancelParticipation.isPending}
+                        color={colors.destructive}
+                        onPress={() => void cancelConfirmedPlace(participation.id)}
+                        testID="cancel-registration-confirm"
+                      />
+                    </View>
+                  </View>
+                ) : (
+                  <Button
+                    label="Cancel my place"
+                    variant="secondary"
+                    disabled={cancelParticipation.isPending}
+                    onPress={() => setConfirmRegistrationCancel(true)}
+                    testID="cancel-registration"
+                    style={{ marginTop: 10 }}
+                  />
+                )
+              ) : null}
               </>
             ) : null}
           </View>
@@ -3893,17 +3949,22 @@ function Experiences({ go }: { go: (screen: Screen, params?: Record<string, stri
   const colors = useColors();
   const upcoming = useListMyParticipations({ status: 'upcoming' });
   const completed = useListMyParticipations({ status: 'completed' });
-  const [tab, setTab] = useState<'upcoming' | 'completed'>('upcoming');
-  const data = tab === 'upcoming' ? upcoming.data : completed.data;
-  const activeQuery = tab === 'upcoming' ? upcoming : completed;
+  const cancelled = useListMyParticipations({ status: 'cancelled' });
+  const [tab, setTab] = useState<'upcoming' | 'completed' | 'cancelled'>('upcoming');
+  const data = tab === 'upcoming'
+    ? upcoming.data
+    : tab === 'completed'
+      ? completed.data
+      : cancelled.data;
+  const activeQuery = tab === 'upcoming' ? upcoming : tab === 'completed' ? completed : cancelled;
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.scrollContent}>
       <Header title="My journey" subtitle="Your contribution, in progress." />
       <View style={[styles.segment, { backgroundColor: colors.muted, borderRadius: colors.radius }]}>
-        {(['upcoming', 'completed'] as const).map((key) => (
+        {(['upcoming', 'completed', 'cancelled'] as const).map((key) => (
           <Pressable key={key} onPress={() => { triggerHaptic(); setTab(key); }} style={[styles.segmentItem, tab === key && { backgroundColor: colors.card, borderRadius: colors.radius - 4 }]}>
-            <Text style={[styles.segmentText, { color: tab === key ? colors.foreground : colors.mutedForeground }]}>{key === 'upcoming' ? 'Upcoming' : 'Completed'}</Text>
+            <Text style={[styles.segmentText, { color: tab === key ? colors.foreground : colors.mutedForeground }]}>{key === 'upcoming' ? 'Upcoming' : key === 'completed' ? 'Completed' : 'Cancelled'}</Text>
           </Pressable>
         ))}
       </View>
@@ -3923,25 +3984,33 @@ function Experiences({ go }: { go: (screen: Screen, params?: Record<string, stri
             <Feather name="chevron-right" size={24} color={colors.mutedForeground} />
           </View>
           <View style={styles.statusRow}>
-            <View style={[styles.statusPill, { backgroundColor: item.status === 'verified' ? colors.success + '15' : colors.secondary + '15' }]}>
-              <Text style={[styles.statusText, { color: item.status === 'verified' ? colors.success : colors.secondary }]}>
+            <View style={[styles.statusPill, { backgroundColor: item.status === 'verified' ? colors.success + '15' : item.status === 'cancelled' ? colors.mutedForeground + '15' : colors.secondary + '15' }]}>
+              <Text style={[styles.statusText, { color: item.status === 'verified' ? colors.success : item.status === 'cancelled' ? colors.mutedForeground : colors.secondary }]}>
                 {item.status === 'verified'
                   ? 'Verified'
                   : item.status === 'submitted'
                     ? 'Awaiting verification'
                     : item.status === 'waitlisted'
                       ? 'Waitlisted · no place confirmed'
+                      : item.status === 'cancelled'
+                        ? 'Registration cancelled'
                       : item.status}
               </Text>
             </View>
-            <Text style={[styles.places, { color: colors.primary, fontFamily: 'Inter_700Bold' }]}>+{item.experience.xpReward} XP</Text>
+            {item.status === 'cancelled' ? null : (
+              <Text style={[styles.places, { color: colors.primary, fontFamily: 'Inter_700Bold' }]}>+{item.experience.xpReward} XP</Text>
+            )}
           </View>
         </Pressable>
       )) : (
         <EmptyState
-          title={tab === 'upcoming' ? 'Nothing booked yet' : 'Your impact history starts here'}
-          body={tab === 'upcoming' ? 'Find an experience that fits your time and interests.' : 'Once a host verifies your contribution, it will show up here.'}
-          icon={tab === 'upcoming' ? 'calendar' : 'award'}
+          title={tab === 'upcoming' ? 'Nothing booked yet' : tab === 'completed' ? 'Your impact history starts here' : 'No cancelled sign-ups'}
+          body={tab === 'upcoming'
+            ? 'Find an experience that fits your time and interests.'
+            : tab === 'completed'
+              ? 'Once a host verifies your contribution, it will show up here.'
+              : 'Confirmed places you release stay here so you can keep track.'}
+          icon={tab === 'upcoming' ? 'calendar' : tab === 'completed' ? 'award' : 'x-circle'}
           actionLabel={tab === 'upcoming' ? 'Explore experiences' : undefined}
           onAction={tab === 'upcoming' ? () => { triggerHaptic(); go('explore'); } : undefined}
         />
@@ -6538,7 +6607,9 @@ function HostExperienceDetail({
     .sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime() || a.id - b.id);
   const waitlistPosition = new Map<number, number>(waitlistedParticipants.map((item, index) => [item.id, index + 1] as const));
   const pendingReviewCount = allParticipants.filter((item) => item.status === 'submitted').length;
-  const participantCount = allParticipants.filter((item) => item.status !== 'waitlisted').length;
+  const participantCount = allParticipants.filter((item) => (
+    item.status !== 'waitlisted' && item.status !== 'cancelled'
+  )).length;
   const filterCounts: Record<HostParticipantFilter, number> = {
     all: allParticipants.length,
     participants: participantCount,
@@ -6550,7 +6621,7 @@ function HostExperienceDetail({
     const matchesSearch = !participantTerm || [item.participant.name, item.participant.username ?? '']
       .some((value) => value.toLowerCase().includes(participantTerm));
     const matchesFilter = participantFilter === 'all'
-      || (participantFilter === 'participants' && item.status !== 'waitlisted')
+      || (participantFilter === 'participants' && item.status !== 'waitlisted' && item.status !== 'cancelled')
       || (participantFilter === 'review' && item.status === 'submitted')
       || (participantFilter === 'waitlisted' && item.status === 'waitlisted');
     return matchesSearch && matchesFilter;
@@ -7666,6 +7737,10 @@ function HostExperienceDetail({
                     ) : selectedParticipant.status === 'waitlisted' ? (
                       <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>
                         This participant is on the waitlist. Use “Promote next” when a place is available.
+                      </Text>
+                    ) : selectedParticipant.status === 'cancelled' ? (
+                      <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>
+                        This participant cancelled their place before attendance or contribution activity.
                       </Text>
                     ) : selectedParticipant.status === 'verified' ? (
                       <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>This completion has been approved. Its reward status is shown above.</Text>
