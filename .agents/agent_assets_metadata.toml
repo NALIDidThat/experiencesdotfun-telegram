@@ -1,0 +1,44 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "q8nxkWzgzg_6EUpNmF1g1"
+uri = "file://.local/outputs/audit-security.chart.html"
+type = "text"
+title = "Twelve high dependency findings remain"
+description = "Dependency scan counts by severity. The static-file guard is a separate high-priority source-level finding; deployment exposure is conditional and unverified."
+logical_id = "903f4534-79fa-4400-b1f9-f32c1f04a78c"
+content_hash = "sha256:3f4bb4f75e65e52aa8c7a77644204ea926ad5c6801cce56e6c6705f22c0562e4"
+size = 3394
+mtime_ms = 1793427011265
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:af28df0c-74dc-48c2-82d3-b5c9f1f11716/903f4534-79fa-4400-b1f9-f32c1f04a78c/01a4b381-e37d-4c2e-bb6d-1f3e560ba0e3"
+storage_version_token = "1793427012205943"
+content_type = "text/html;profile=replit-chart"
+
+[[outputs]]
+id = "JyTc0TlxEtFJTmdVTphNw"
+uri = "file://.local/outputs/audit-tests.chart.html"
+type = "text"
+title = "Scoped test groups passed independently"
+description = "Counts of passing tests in selected audit checks. Three mobile interaction suites each had one test failure; those failures appear to be harness issues, not confirmed product defects."
+logical_id = "f5dae4ef-94b1-4139-8416-248b3539912a"
+content_hash = "sha256:90772e88604f0afacdde2d59e44d57ebabb89fd962f1bbc03ed5798bf4f84f6c"
+size = 3509
+mtime_ms = 1793427013429
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:af28df0c-74dc-48c2-82d3-b5c9f1f11716/f5dae4ef-94b1-4139-8416-248b3539912a/8a71c1e7-09b4-4ce5-aa43-f0f8f00b83b9"
+storage_version_token = "1793427013852454"
+content_type = "text/html;profile=replit-chart"
+
+[[outputs]]
+id = "mmaV0fO9vvu7dHOlgnB63"
+uri = "file://.local/outputs/audit-roadmap.chart.html"
+type = "text"
+title = "Roadmap items are concentrated at P1–P2"
+description = "Count of recommendations by audit priority. P0 is the static-file path boundary fix; production readiness and end-to-end validation account for several P1 items."
+logical_id = "15bda0f2-73aa-47e6-8ad4-d7dc4a354f70"
+content_hash = "sha256:605f68ba8aee8ac3cbd3ff07d5f12eec30f679e2d2f34f479b7e08b121135f49"
+size = 3400
+mtime_ms = 1793427015213
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:af28df0c-74dc-48c2-82d3-b5c9f1f11716/15bda0f2-73aa-47e6-8ad4-d7dc4a354f70/0438000f-f888-4103-ace7-e02105d6e14b"
+storage_version_token = "1793427015570879"
+content_type = "text/html;profile=replit-chart"
