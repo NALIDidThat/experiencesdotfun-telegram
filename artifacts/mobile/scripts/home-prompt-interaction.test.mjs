@@ -152,12 +152,7 @@ async function waitForValue(client, expression, predicate, description, timeoutM
     if (predicate(lastValue)) return lastValue;
     await delay(100);
   }
-  const pageState = await client.evaluate(
-    `JSON.stringify({ url: location.href, title: document.title, text: document.body?.innerText?.replace(/\\s+/g, ' ').slice(0, 700) ?? '' })`,
-  ).catch(() => "unavailable");
-  throw new Error(
-    `Timed out waiting for ${description}. Last value: ${JSON.stringify(lastValue)}. Page: ${pageState}`,
-  );
+  throw new Error(`Timed out waiting for ${description}. Last value: ${JSON.stringify(lastValue)}`);
 }
 
 async function tapTestId(client, testId, { scrollIntoView = true } = {}) {
