@@ -32,6 +32,9 @@ async function installProfileApiMock(client) {
     organisation: null,
     xp: 0,
     level: "Explorer",
+    levelProgress: 0,
+    nextLevelXp: 500,
+    xpToNextLevel: 500,
     completedCount: 0,
     hostedCount: 0,
     rewardsPence: 0,
@@ -361,25 +364,45 @@ async function checkRealFormKeyboardBehavior(client, {
 
   let scrolled = keyboardOpen;
   if (requireScroll) {
-    const wheelY = Math.round((scrolled.scrollTopEdge + scrolled.scrollBottomEdge) / 2);
-    const effectiveScrollDelta = scrollDeltaY ?? await client.evaluate(`(() => {
-      const scroller = document.querySelector('[data-testid="${scrollerTestId}"]');
-      const target = document.querySelector('[data-testid="${targetInputTestId}"]');
-      const scrollRect = scroller?.getBoundingClientRect();
-      const targetRect = target?.getBoundingClientRect();
-      return Math.max(120, Math.round((targetRect?.bottom ?? 0) - (scrollRect?.bottom ?? 0) + 40));
-    })()`);
-    await client.send("Input.dispatchMouseEvent", {
-      type: "mouseWheel",
-      x: Math.round(initialViewport.width / 2),
-      y: wheelY,
-      deltaX: 0,
-      deltaY: effectiveScrollDelta,
-    });
-    await delay(100);
-    scrolled = await client.evaluate(stateExpression);
-    assert.equal(scrolled.activeTestId, focusInputTestId,
-      `Scrolling ${description} should preserve the previously focused field.`);
+    const swipeX = Math.round(initialViewport.width / 2);
+    for (let swipe = 0; swipe < 4; swipe += 1) {
+      const previousScrollTop = scrolled.scrollTop;
+      const startY = Math.round(scrolled.scrollBottomEdge - 18);
+      const desiredDistance = scrollDeltaY ?? scrolled.scrollBottomEdge - scrolled.scrollTopEdge - 36;
+      const endY = Math.max(
+        Math.round(scrolled.scrollTopEdge + 100),
+        Math.round(startY - desiredDistance),
+      );
+      await client.send("Input.dispatchTouchEvent", {
+        type: "touchStart",
+        touchPoints: [{ id: 1, x: swipeX, y: startY, force: 1 }],
+      });
+      for (const progress of [0.33, 0.66, 1]) {
+        await delay(16);
+        await client.send("Input.dispatchTouchEvent", {
+          type: "touchMove",
+          touchPoints: [{
+            id: 1,
+            x: swipeX,
+            y: Math.round(startY + (endY - startY) * progress),
+            force: 1,
+          }],
+        });
+      }
+      await client.send("Input.dispatchTouchEvent", {
+        type: "touchEnd",
+        touchPoints: [],
+      });
+      scrolled = await waitForValue(
+        client,
+        stateExpression,
+        (state) => state.scrollTop > previousScrollTop + 1 || state.targetVisible,
+        `${description} to respond to an upward touch swipe`,
+      );
+      assert.equal(scrolled.activeTestId, focusInputTestId,
+        `Scrolling ${description} should preserve the previously focused field.`);
+      if (scrolled.targetVisible && scrolled.scrollTop > keyboardOpen.scrollTop + 1) break;
+    }
     assert.ok(scrolled.scrollTop > keyboardOpen.scrollTop + 1,
       `Scrolling ${description} should move its form content.`);
   }

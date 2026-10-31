@@ -227,6 +227,9 @@ const user = {
   organisation: null,
   xp: 320,
   level: "Explorer",
+  levelProgress: 64,
+  nextLevelXp: 500,
+  xpToNextLevel: 180,
   completedCount: 2,
   hostedCount: 0,
   rewardsPence: 0,
@@ -968,6 +971,12 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
     `Boolean(document.querySelector('[data-testid="profile-posts"]'))`,
     Boolean,
     "the existing profile Posts component inside Activity",
+  );
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('No posts to show yet.')`,
+    Boolean,
+    "the empty Posts state after the profile query settles",
   );
   assert.match(await client.evaluate(`document.body.innerText`), /No posts to show yet/);
   await tapTestId(client, "personal-record-tab-activity");

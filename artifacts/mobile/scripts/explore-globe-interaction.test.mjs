@@ -373,6 +373,9 @@ const user = {
   organisation: null,
   xp: 120,
   level: "Explorer",
+  levelProgress: 24,
+  nextLevelXp: 500,
+  xpToNextLevel: 380,
   completedCount: 0,
   hostedCount: 0,
   rewardsPence: 0,
@@ -491,6 +494,8 @@ test("Participant experience details keep navigation visible and present concise
           } else {
             response = user;
           }
+        } else if (url.pathname === "/api/me/saved-experiences" && method === "GET") {
+          response = [];
         } else if (url.pathname === "/api/friends" && method === "GET") {
           response = friends;
         } else if (url.pathname === "/api/explore/activity" && method === "GET") {
@@ -1180,6 +1185,7 @@ Object.defineProperty(navigator, 'geolocation', {
     "A cancelled experience should not imply that its remaining places are available to join.",
   );
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/me")), "The mock-auth session should load.");
+  assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/me/saved-experiences")), "Explore should load the signed-in participant's saved experiences.");
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/experiences/761")), "The backed experience detail should load.");
   assert.equal(interceptionError, undefined, "API request interception should complete without errors.");
   assert.deepEqual(unexpectedApiRequests, [], "The Explore screen should make no unexpected API requests.");
@@ -1262,6 +1268,8 @@ test("Google Maps and nearby Places work with the configured browser key", {
           } else {
             response = user;
           }
+        } else if (path === "/api/me/saved-experiences" && params.request.method === "GET") {
+          response = [];
         } else if (path === "/api/friends" && params.request.method === "GET") {
           response = friends;
         } else if (path === "/api/explore/activity" && params.request.method === "GET") {
