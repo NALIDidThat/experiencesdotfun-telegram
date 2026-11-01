@@ -1797,6 +1797,9 @@ test("charity treasury dashboard shows live values and supports private balance 
       Buffer.from(screenshot.data, "base64"),
     );
   }
+  const treasuryRequestCountBeforeCampaignTracker = apiTraffic.filter(
+    (request) => request === "GET /api/funds/treasury",
+  ).length;
   await client.send("Page.navigate", {
     url: `${appBaseUrl}/?screen=campaigns&id=${activeCampaign.id}`,
   });
@@ -1805,6 +1808,28 @@ test("charity treasury dashboard shows live values and supports private balance 
     `Boolean(document.querySelector('[data-testid="campaign-detail-tab-overview"]')) && Boolean(document.querySelector('[data-testid="campaign-detail-tab-manage"]'))`,
     Boolean,
     "campaign tracker tabs including the charity owner management tab",
+  );
+  const campaignOverviewState = await client.evaluate(`(() => {
+    const text = document.body?.innerText ?? "";
+    return {
+      sharedTreasuryCard: text.includes("One shared charity treasury"),
+      treasuryAddress: text.includes(${JSON.stringify(walletAddress)}),
+      sharedTreasuryBalance: text.includes("SHARED TREASURY BALANCE"),
+      contributionForm: text.includes("Make a contribution"),
+    };
+  })()`);
+  assert.equal(campaignOverviewState.sharedTreasuryCard, false, "The shared charity treasury card should not appear in campaign details.");
+  assert.equal(campaignOverviewState.treasuryAddress, false, "The campaign tracker should not repeat the treasury address.");
+  assert.equal(campaignOverviewState.sharedTreasuryBalance, false, "The campaign tracker should not show the treasury balance.");
+  assert.equal(campaignOverviewState.contributionForm, true, "Removing the treasury card should not remove campaign contributions.");
+  if (process.env.CAMPAIGN_OVERVIEW_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(process.env.CAMPAIGN_OVERVIEW_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
+  }
+  assert.equal(
+    apiTraffic.filter((request) => request === "GET /api/funds/treasury").length,
+    treasuryRequestCountBeforeCampaignTracker,
+    "The campaign tracker should not fetch treasury data for a removed card.",
   );
   const overviewManagePanelVisible = await client.evaluate(`(() => {
     const panel = document.querySelector('[data-testid="campaign-detail-manage-panel"]');

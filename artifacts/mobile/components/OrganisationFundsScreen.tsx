@@ -797,6 +797,7 @@ export function OrganisationFundsScreen({
       queryKey: getGetOrganisationTreasuryQueryKey({ limit: 20, before }),
       staleTime: 15_000,
       retry: false,
+      enabled: stage === "dashboard" || stage === "create",
     },
   });
   const balanceIsLong = balanceVisible && (treasuryQuery.data?.balanceSol.length ?? 0) > 9;
@@ -1491,10 +1492,6 @@ export function OrganisationFundsScreen({
     const fund = fundsQuery.data?.find((row) => row.id === activeSelectedFund.id) ?? activeSelectedFund;
     const canManage = user?.userType === "organisation" && user.id === fund.organisationUserId;
     const launchedDate = transactionDateLabel(fund.createdAt);
-    const sharedTreasury = treasuryQuery.data?.treasury.walletAddress === fund.walletAddress
-      && treasuryQuery.data.treasury.cluster === fund.cluster
-      ? treasuryQuery.data
-      : undefined;
     const campaignDetailTabs = [
       ["overview", "Overview", "bar-chart-2"],
       ["milestones", "Milestones", "flag"],
@@ -1574,42 +1571,6 @@ export function OrganisationFundsScreen({
           {campaignDetailTab === "overview" ? (
             <>
           <CampaignTrackerInsights fund={fund} section="overview" />
-          <View style={{ borderWidth: 1, borderColor: colors.primary + "30", backgroundColor: colors.primary + "08", borderRadius: colors.radius + 3, padding: 15, gap: 10 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
-              <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.primary + "16", alignItems: "center", justifyContent: "center" }}>
-                <Feather name="shield" size={16} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_700Bold" }}>One shared charity treasury</Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Your transfer goes to the organisation, not a campaign-specific wallet.</Text>
-              </View>
-            </View>
-            <View style={{ borderTopWidth: 1, borderTopColor: colors.primary + "20", paddingTop: 10, gap: 6 }}>
-              <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.6 }}>TREASURY ADDRESS</Text>
-              <Text selectable style={{ color: colors.foreground, fontSize: 11, lineHeight: 17, fontFamily: "Inter_600SemiBold" }}>{fund.walletAddress}</Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Solana · {fund.cluster === "mainnet-beta" ? "Mainnet" : fund.cluster}</Text>
-              {sharedTreasury ? (
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, borderTopWidth: 1, borderTopColor: colors.primary + "20", paddingTop: 9 }}>
-                  <View style={{ flex: 1, gap: 3 }}>
-                    <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.4 }}>SHARED TREASURY BALANCE</Text>
-                    <Text style={{ color: colors.foreground, fontSize: 16, fontFamily: "Inter_700Bold" }}>{sharedTreasury.balanceSol} SOL</Text>
-                    <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>Checked {transactionDateLabel(sharedTreasury.checkedAt) ?? "recently"}</Text>
-                  </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={treasuryQuery.isFetching ? "Refreshing shared treasury balance" : "Refresh shared treasury balance"}
-                    testID={`fund-detail-refresh-treasury-${fund.id}`}
-                    disabled={treasuryQuery.isFetching}
-                    onPress={() => { void treasuryQuery.refetch(); }}
-                    style={{ minHeight: 40, minWidth: 40, alignItems: "center", justifyContent: "center", opacity: treasuryQuery.isFetching ? 0.55 : 1 }}
-                  >
-                    <Feather name="refresh-cw" size={15} color={colors.primary} />
-                  </Pressable>
-                </View>
-              ) : null}
-            </View>
-            <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>Raised totals count only verified payment requests and recorded deposits. Funds share one treasury, so other transfers may not be attributable to this fund.</Text>
-          </View>
 
           <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: colors.radius + 3, padding: 15, gap: 12 }}>
             <Text accessibilityRole="header" style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Make a contribution</Text>
