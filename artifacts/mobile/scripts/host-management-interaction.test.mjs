@@ -1620,6 +1620,25 @@ test("charity treasury dashboard shows live values and supports private balance 
     hasMore: false,
     checkedAt: "2026-10-24T10:00:00.000Z",
   };
+  const activeCampaign = {
+    id: 83,
+    organisationId: user.organisation.id,
+    organisationUserId: user.id,
+    organisationName: user.organisation.name,
+    creatorUsername: user.username,
+    title: "Fund Test 3",
+    description: "Support local community activity.",
+    experienceId: null,
+    experienceTitle: null,
+    walletAddress,
+    cluster: "devnet",
+    goalSol: 25,
+    raisedSol: "0.000000000",
+    contributionCount: 0,
+    milestones: [],
+    status: "active",
+    createdAt: "2026-10-24T10:00:00.000Z",
+  };
   const apiTraffic = [];
   const unexpectedApiRequests = [];
   let createdPayoutBody;
@@ -1674,14 +1693,14 @@ test("charity treasury dashboard shows live values and supports private balance 
             pendingVerifications: 0,
             pendingCompletionReviews: 0,
             pendingMilestoneReviews: 0,
-            totalExperiences: 0,
+            totalExperiences: 1,
           };
         } else if (url.pathname === "/api/host/experiences" && method === "GET") {
           response = [];
         } else if (url.pathname === "/api/funds/treasury" && method === "GET") {
           response = treasuryDashboard;
         } else if (url.pathname === `/api/funds/${user.id}` && method === "GET") {
-          response = [];
+          response = [activeCampaign];
         } else if (url.pathname === "/api/funds/payout-candidates" && method === "GET") {
           response = [{ id: 42, name: "Taylor Volunteer", username: "taylor" }];
         } else if (url.pathname === "/api/funds/payouts" && method === "GET") {
@@ -1746,27 +1765,31 @@ test("charity treasury dashboard shows live values and supports private balance 
   await client.send("Page.navigate", { url: `${appBaseUrl}/?screen=home` });
   await waitForValue(
     client,
-    `Boolean(document.querySelector('[data-testid="organisation-home-treasury"]'))`,
+    `Boolean(document.querySelector('[data-testid="organisation-home"]')) && Boolean(document.querySelector('[data-testid="organisation-home-priority-campaign-artwork"]'))`,
     Boolean,
-    "the charity community treasury card on organisation home",
+    "the organisation homepage and 3D active-campaign artwork",
   );
-  const homeTreasuryText = await client.evaluate(
-    `document.querySelector('[data-testid="organisation-home-treasury"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
-  );
-  assert.ok(homeTreasuryText.includes("SOLANA · SHARED TREASURY"), "The home card should show Solana branding.");
-  assert.ok(homeTreasuryText.includes("Community treasury"), "The home card should retain its community treasury label.");
+  const homeState = await client.evaluate(`(() => ({
+    priority: document.querySelector('[data-testid="organisation-home-priority"]')?.getAttribute('aria-label') ?? '',
+    treasuryCard: Boolean(document.querySelector('[data-testid="organisation-home-treasury"]')),
+    treasuryShortcut: Boolean(document.querySelector('[data-testid="organisation-workspace-treasury"]')),
+    treasuryTab: Boolean(document.querySelector('[data-testid="bottom-nav-tab-funds"]')),
+  }))()`);
+  assert.match(homeState.priority, /Review your active campaign/);
+  assert.equal(homeState.treasuryCard, false, "The treasury balance card should not appear on the homepage.");
+  assert.equal(homeState.treasuryShortcut, false, "The workspace should not duplicate a treasury shortcut.");
+  assert.equal(homeState.treasuryTab, true, "The dedicated Treasury tab should remain available.");
   await client.evaluate(
-    `document.querySelector('[data-testid="organisation-home-treasury"]')?.scrollIntoView({ block: "center" })`,
+    `document.querySelector('[data-testid="organisation-home"]')?.scrollIntoView({ block: "start" })`,
   );
-  await delay(240);
-  if (process.env.ORGANISATION_HOME_TREASURY_SCREENSHOT_PATH) {
+  if (process.env.ORGANISATION_HOME_SCREENSHOT_PATH) {
     const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
     await writeFile(
-      process.env.ORGANISATION_HOME_TREASURY_SCREENSHOT_PATH,
+      process.env.ORGANISATION_HOME_SCREENSHOT_PATH,
       Buffer.from(screenshot.data, "base64"),
     );
   }
-  await tapTestId(client, "organisation-home-treasury");
+  await tapTestId(client, "bottom-nav-tab-funds");
 
   await waitForValue(
     client,

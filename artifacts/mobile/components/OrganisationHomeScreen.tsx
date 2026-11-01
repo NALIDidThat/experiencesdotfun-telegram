@@ -4,10 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  getGetOrganisationTreasuryQueryKey,
   getListOrganisationFundsQueryKey,
   useGetHostOverview,
-  useGetOrganisationTreasury,
   useListHostExperiences,
   useListOrganisationFunds,
 } from '@workspace/api-client-react';
@@ -18,7 +16,6 @@ import type {
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { UserAvatar } from '@/components/UserAvatar';
-import { LinearGradient } from '@/components/LinearGradient';
 import { selectOrganisationHomePriority } from '@/lib/home-priority';
 
 type Props = {
@@ -77,10 +74,6 @@ export function OrganisationHomeScreen({ user, go }: Props) {
       retry: false,
     },
   });
-  const treasury = useGetOrganisationTreasury(
-    { limit: 1 },
-    { query: { queryKey: getGetOrganisationTreasuryQueryKey({ limit: 1 }), enabled: isCharity, retry: false } },
-  );
   const org = overview.data?.organisation ?? user.organisation;
   const hostedExperiences = experiences.data ?? [];
   const activeExperiences = hostedExperiences.filter((item) => ['published', 'full'].includes(item.status));
@@ -150,7 +143,7 @@ export function OrganisationHomeScreen({ user, go }: Props) {
     void Promise.all([
       overview.refetch(),
       experiences.refetch(),
-      ...(isCharity ? [treasury.refetch(), funds.refetch()] : []),
+      ...(isCharity ? [funds.refetch()] : []),
     ]);
   };
   const openHost = () => go('host');
@@ -200,7 +193,6 @@ export function OrganisationHomeScreen({ user, go }: Props) {
     { title: 'Experiences', image: require('../assets/images/organisation-experiences-3d.png'), tint: colors.primary, target: 'host' as const },
     { title: 'Reviews', image: require('../assets/images/organisation-reviews-3d.png'), tint: colors.teal, target: 'host' as const },
     { title: isCharity ? 'Fundraising' : 'Organisation profile', image: isCharity ? require('../assets/images/organisation-fundraising-3d.png') : require('../assets/images/organisation-profile-3d.png'), tint: colors.secondary, target: isCharity ? 'funds' as const : 'profile' as const },
-    ...(isCharity ? [{ title: 'Treasury', image: require('../assets/images/organisation-treasury-3d.png'), tint: colors.primary, target: 'funds' as const }] : []),
   ];
 
   return (
@@ -211,7 +203,7 @@ export function OrganisationHomeScreen({ user, go }: Props) {
         paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 67) : insets.top + 8,
         paddingBottom: Platform.OS === 'web' ? 34 : Math.max(insets.bottom, 24),
       }]}
-      refreshControl={<RefreshControl refreshing={overview.isRefetching || experiences.isRefetching || treasury.isRefetching || funds.isRefetching} onRefresh={refresh} tintColor={colors.primary} />}
+      refreshControl={<RefreshControl refreshing={overview.isRefetching || experiences.isRefetching || funds.isRefetching} onRefresh={refresh} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.brandRow}>
@@ -325,13 +317,23 @@ export function OrganisationHomeScreen({ user, go }: Props) {
                 <View style={[styles.priorityIcon, {
                   backgroundColor: priority.kind === 'error' ? `${colors.destructive}18` : `${colors.primary}14`,
                 }]}>
-                  {priority.kind === 'loading'
-                    ? <ActivityIndicator color={colors.primary} />
-                    : <Feather
-                        name={priority.icon}
-                        size={21}
-                        color={priority.kind === 'error' ? colors.destructive : colors.primary}
-                      />}
+                  {priority.kind === 'loading' ? (
+                    <ActivityIndicator color={colors.primary} />
+                  ) : priority.kind === 'campaign' || priority.kind === 'create-campaign' ? (
+                    <Image
+                      testID="organisation-home-priority-campaign-artwork"
+                      source={require('../assets/images/organisation-campaign-review-3d.png')}
+                      style={styles.priorityArtwork}
+                      resizeMode="contain"
+                      accessible={false}
+                    />
+                  ) : (
+                    <Feather
+                      name={priority.icon}
+                      size={21}
+                      color={priority.kind === 'error' ? colors.destructive : colors.primary}
+                    />
+                  )}
                 </View>
                 <View style={styles.priorityCopy}>
                   <Text style={[styles.priorityTitle, { color: colors.foreground }]}>{priority.title}</Text>
@@ -345,47 +347,6 @@ export function OrganisationHomeScreen({ user, go }: Props) {
             </Pressable>
           )}
         </>
-      ) : null}
-
-      {isCharity ? (
-        <Pressable
-          testID="organisation-home-treasury"
-          accessibilityRole="button"
-          accessibilityLabel="Open community treasury"
-          accessibilityHint="View the organisation’s Solana balance and treasury activity."
-          onPress={() => go('funds')}
-          style={({ pressed }) => [styles.treasuryCard, { opacity: pressed ? 0.96 : 1 }]}
-        >
-          <LinearGradient colors={[colors.secondary, colors.primary, colors.teal]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-          <View style={styles.treasuryTop}>
-            <View style={styles.treasuryTitleRow}>
-              <View style={[styles.treasurySolanaMark, { backgroundColor: colors.primaryForeground + "18", borderColor: colors.primaryForeground + "35" }]}>
-                <View style={[styles.treasurySolanaBar, { alignSelf: "flex-start", backgroundColor: colors.primaryForeground }]} />
-                <View style={[styles.treasurySolanaBar, { alignSelf: "center", backgroundColor: colors.primaryForeground }]} />
-                <View style={[styles.treasurySolanaBar, { alignSelf: "flex-end", backgroundColor: colors.primaryForeground }]} />
-              </View>
-              <View style={styles.treasuryTitleCopy}>
-                <Text style={[styles.treasuryEyebrow, { color: colors.primaryForeground + "CC" }]}>SOLANA · SHARED TREASURY</Text>
-                <Text style={[styles.treasuryTitle, { color: colors.primaryForeground }]}>Community treasury</Text>
-              </View>
-            </View>
-            <View style={[styles.treasuryOpen, { backgroundColor: colors.primaryForeground + "18", borderColor: colors.primaryForeground + "30" }]}>
-              <Text style={[styles.treasuryOpenText, { color: colors.primaryForeground }]}>View</Text>
-              <Feather name="arrow-up-right" size={13} color={colors.primaryForeground} />
-            </View>
-          </View>
-          {treasury.isLoading ? (
-            <View style={styles.balanceRow}><ActivityIndicator color={colors.primaryForeground} /><Text style={[styles.treasurySub, { color: colors.primaryForeground }]}>Checking on-chain balance…</Text></View>
-          ) : treasury.data ? (
-            <>
-              <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.balance, { color: colors.primaryForeground }]}>{treasury.data.balanceSol} SOL</Text>
-              <Text style={[styles.treasurySub, { color: colors.primaryForeground }]}>On-chain balance · Solana {treasury.data.treasury.cluster === 'mainnet-beta' ? 'Mainnet' : treasury.data.treasury.cluster}</Text>
-            </>
-          ) : (
-            <Text style={[styles.unavailable, { color: colors.primaryForeground }]}>{treasury.isError ? 'Balance unavailable. Open treasury to check or register a wallet.' : 'Treasury balance not available.'}</Text>
-          )}
-          {treasury.data?.checkedAt ? <Text style={[styles.checkedAt, { color: colors.primaryForeground }]}>Updated {new Date(treasury.data.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text> : null}
-        </Pressable>
       ) : null}
 
       {sectionTitle('Your workspace', 'Manage organisation', () => go('profile'))}
@@ -621,21 +582,6 @@ const styles = StyleSheet.create({
   orgMeta: { fontSize: 11, textTransform: 'capitalize', fontFamily: 'Inter_400Regular' },
   editButton: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 18, paddingHorizontal: 11 },
   editText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
-  treasuryCard: { minHeight: 156, overflow: 'hidden', borderRadius: 24, padding: 17, gap: 4 },
-  treasuryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  treasuryTitleRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  treasurySolanaMark: { width: 34, height: 34, flexShrink: 0, alignItems: 'center', justifyContent: 'center', gap: 3, borderWidth: 1, borderRadius: 12 },
-  treasurySolanaBar: { width: 17, height: 3, borderRadius: 2, transform: [{ skewX: '-20deg' }] },
-  treasuryTitleCopy: { flex: 1, minWidth: 0, gap: 2 },
-  treasuryEyebrow: { fontSize: 8, letterSpacing: 0.8, fontFamily: 'Inter_700Bold' },
-  treasuryTitle: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_700Bold' },
-  treasuryOpen: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 18, paddingHorizontal: 10 },
-  treasuryOpenText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
-  balance: { fontSize: 32, lineHeight: 38, fontFamily: 'Inter_700Bold', letterSpacing: -0.7, marginTop: 8 },
-  treasurySub: { fontSize: 11, fontFamily: 'Inter_400Regular' },
-  balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 18 },
-  unavailable: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_500Medium', marginTop: 18 },
-  checkedAt: { color: 'rgba(255,255,255,0.68)', fontSize: 9, fontFamily: 'Inter_400Regular', marginTop: 4 },
   sectionHeading: { minHeight: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   sectionTitle: { fontSize: 18, letterSpacing: -0.3, fontFamily: 'Inter_700Bold' },
   textAction: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -688,7 +634,8 @@ const styles = StyleSheet.create({
   firstExperienceAction: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15, backgroundColor: '#f20789' },
   firstExperienceActionText: { color: '#111111', fontSize: 13, fontFamily: 'Inter_700Bold' },
   priorityHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  priorityIcon: { width: 44, height: 44, flexShrink: 0, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  priorityIcon: { width: 54, height: 54, flexShrink: 0, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  priorityArtwork: { width: 52, height: 52 },
   priorityCopy: { flex: 1, minWidth: 0, paddingTop: 1, gap: 4 },
   priorityTitle: { fontSize: 14, lineHeight: 19, letterSpacing: -0.2, fontFamily: 'Inter_700Bold' },
   priorityDetail: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
