@@ -759,6 +759,11 @@ test("organisation hosts can manage experience participants from a phone-sized d
 
   await tapTestId(client, "host-stat-live-experiences");
   await waitForValue(client, `Boolean(document.querySelector('[data-testid="host-metric-sheet"]'))`, Boolean, "the live experiences summary sheet");
+  await waitForStableElementBounds(client, '[data-testid="host-metric-sheet"]', "the live experiences sheet to finish opening");
+  if (process.env.HOST_METRIC_SHEET_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(process.env.HOST_METRIC_SHEET_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
+  }
   await tapTestId(client, `host-metric-experience-${experience.id}`);
   await waitForValue(
     client,
@@ -775,6 +780,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
 
   await tapTestId(client, "host-stat-participants");
   await waitForValue(client, `Boolean(document.querySelector('[data-testid="host-metric-sheet"]'))`, Boolean, "the participant summary sheet");
+  await waitForStableElementBounds(client, '[data-testid="host-metric-sheet"]', "the participant sheet to finish opening");
   await tapTestId(client, `host-metric-experience-${experience.id}`);
   await waitForValue(
     client,
@@ -799,6 +805,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
 
   await tapTestId(client, "host-stat-waitlist");
   await waitForValue(client, `Boolean(document.querySelector('[data-testid="host-metric-sheet"]'))`, Boolean, "the waitlist summary sheet");
+  await waitForStableElementBounds(client, '[data-testid="host-metric-sheet"]', "the waitlist sheet to finish opening");
   await tapTestId(client, `host-metric-experience-${experience.id}`);
   await waitForValue(
     client,
@@ -815,6 +822,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
 
   await tapTestId(client, "host-stat-completion-reviews");
   await waitForValue(client, `Boolean(document.querySelector('[data-testid="host-metric-sheet"]'))`, Boolean, "the completion review summary sheet");
+  await waitForStableElementBounds(client, '[data-testid="host-metric-sheet"]', "the completion review sheet to finish opening");
   await tapTestId(client, `host-metric-experience-${experience.id}`);
   await waitForValue(
     client,
@@ -831,6 +839,7 @@ test("organisation hosts can manage experience participants from a phone-sized d
 
   await tapTestId(client, "host-stat-milestone-reviews");
   await waitForValue(client, `Boolean(document.querySelector('[data-testid="host-metric-sheet"]'))`, Boolean, "the milestone review summary sheet");
+  await waitForStableElementBounds(client, '[data-testid="host-metric-sheet"]', "the milestone review sheet to finish opening");
   await tapTestId(client, `host-metric-experience-${experience.id}`);
   await waitForValue(
     client,
