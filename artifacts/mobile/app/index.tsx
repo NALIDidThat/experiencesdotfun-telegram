@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
 import {
   Alert,
   ActivityIndicator,
@@ -154,6 +154,7 @@ import {
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
 type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-community-dashboard' | 'email';
+type ScreenTransitionDirection = 'forward' | 'back' | 'switch';
 type ScreenRouteParams = {
   id?: string;
   friendId?: string;
@@ -9578,25 +9579,29 @@ function AppShell({
   bottomNav,
   showFeedbackBanner = true,
   screenTransitionKey,
+  screenTransitionDirection = 'switch',
 }: {
   children: React.ReactNode;
   bottomNav?: React.ReactNode;
   showFeedbackBanner?: boolean;
   screenTransitionKey?: string;
+  screenTransitionDirection?: ScreenTransitionDirection;
 }) {
   const colors = useColors();
   const { reduceMotion } = useMotionPreferences();
   const [webViewportHeight, setWebViewportHeight] = useState<number | undefined>();
   const screenOpacity = useRef(new Animated.Value(1)).current;
   const screenOffset = useRef(new Animated.Value(0)).current;
+  const screenScale = useRef(new Animated.Value(1)).current;
   const previousTransitionKey = useRef(screenTransitionKey);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!screenTransitionKey) return;
     if (previousTransitionKey.current === screenTransitionKey) {
       if (reduceMotion) {
         screenOpacity.setValue(1);
         screenOffset.setValue(0);
+        screenScale.setValue(1);
       }
       return;
     }
@@ -9604,29 +9609,46 @@ function AppShell({
     previousTransitionKey.current = screenTransitionKey;
     screenOpacity.stopAnimation();
     screenOffset.stopAnimation();
+    screenScale.stopAnimation();
     if (reduceMotion) {
       screenOpacity.setValue(1);
       screenOffset.setValue(0);
+      screenScale.setValue(1);
       return;
     }
 
     screenOpacity.setValue(0);
-    screenOffset.setValue(5);
+    screenOffset.setValue(
+      screenTransitionDirection === 'forward'
+        ? 12
+        : screenTransitionDirection === 'back'
+          ? -12
+          : 0,
+    );
+    screenScale.setValue(screenTransitionDirection === 'switch' ? 0.996 : 0.99);
     const animation = Animated.parallel([
       Animated.timing(screenOpacity, {
         toValue: 1,
-        duration: 160,
+        duration: 125,
+        easing: Easing.out(Easing.quad),
         useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(screenOffset, {
         toValue: 0,
-        duration: 180,
+        duration: 155,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+      Animated.timing(screenScale, {
+        toValue: 1,
+        duration: 155,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: Platform.OS !== 'web',
       }),
     ]);
     animation.start();
     return () => animation.stop();
-  }, [reduceMotion, screenOpacity, screenOffset, screenTransitionKey]);
+  }, [reduceMotion, screenOpacity, screenOffset, screenScale, screenTransitionDirection, screenTransitionKey]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
@@ -9678,12 +9700,13 @@ function AppShell({
     >
       {showFeedbackBanner ? <FeedbackBanner /> : null}
       <Animated.View
+        testID="app-screen-transition"
         style={[
           styles.appContent,
           screenTransitionKey
             ? {
                 opacity: screenOpacity,
-                transform: [{ translateY: screenOffset }],
+                transform: [{ translateX: screenOffset }, { scale: screenScale }],
               }
             : null,
         ]}
@@ -9691,6 +9714,90 @@ function AppShell({
         {children}
       </Animated.View>
       {bottomNav}
+    </View>
+  );
+}
+
+function AuthLoadingScreen() {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const { reduceMotion } = useMotionPreferences();
+  const loadingProgress = useRef(new Animated.Value(0)).current;
+  const loadingTranslate = loadingProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-44, 124],
+  });
+
+  useEffect(() => {
+    loadingProgress.stopAnimation();
+    loadingProgress.setValue(0);
+    if (reduceMotion) return;
+
+    const animation = Animated.loop(Animated.timing(loadingProgress, {
+      toValue: 1,
+      duration: 1050,
+      easing: Easing.linear,
+      useNativeDriver: Platform.OS !== 'web',
+    }));
+    animation.start();
+    return () => animation.stop();
+  }, [loadingProgress, reduceMotion]);
+
+  const topInset = Platform.OS === 'web' ? Math.max(67, insets.top) : insets.top;
+  const bottomInset = Platform.OS === 'web' ? 34 : insets.bottom;
+
+  return (
+    <View
+      testID="auth-loading-screen"
+      style={[
+        styles.authLoadingScreen,
+        {
+          backgroundColor: colors.background,
+          paddingTop: topInset + 22,
+          paddingBottom: bottomInset + 12,
+        },
+      ]}
+    >
+      <View style={styles.authLoadingBrand}>
+        <View style={[styles.authLoadingBrandMark, { borderColor: colors.primary + '30', backgroundColor: colors.primary + '0A' }]}>
+          <Feather name="compass" size={17} color={colors.primary} />
+        </View>
+        <Text style={[styles.authLoadingWordmark, { color: colors.foreground }]}>
+          experiences<Text style={{ color: colors.primary }}>.fun</Text>
+        </Text>
+      </View>
+
+      <View style={styles.authLoadingCenter}>
+        <View style={[styles.authLoadingEmblem, { borderColor: colors.primary + '20' }]}>
+          <View style={[styles.authLoadingEmblemInner, { backgroundColor: colors.muted }]}>
+            <Feather name="users" size={23} color={colors.primary} />
+          </View>
+          <View style={[styles.authLoadingEmblemDot, { backgroundColor: colors.primary, borderColor: colors.background }]} />
+        </View>
+        <View style={styles.authLoadingCopy}>
+          <Text style={[styles.authLoadingTitle, { color: colors.foreground }]}>Good things start here.</Text>
+          <Text style={[styles.authLoadingSubtitle, { color: colors.mutedForeground }]}>Connecting to your community</Text>
+        </View>
+        <View
+          testID="auth-loading-progress"
+          accessibilityRole="progressbar"
+          accessibilityLabel="Connecting to Experiences.fun"
+          style={[styles.authLoadingTrack, { backgroundColor: colors.border }]}
+        >
+          {reduceMotion
+            ? <View style={[styles.authLoadingSegment, styles.authLoadingSegmentStatic, { backgroundColor: colors.primary }]} />
+            : (
+              <Animated.View
+                style={[
+                  styles.authLoadingSegment,
+                  { backgroundColor: colors.primary, transform: [{ translateX: loadingTranslate }] },
+                ]}
+              />
+            )}
+        </View>
+      </View>
+
+      <Text style={[styles.authLoadingFooter, { color: colors.mutedForeground }]}>REAL PEOPLE · REAL EXPERIENCES</Text>
     </View>
   );
 }
@@ -9703,6 +9810,8 @@ function BottomNavInteractionHarness({ userType = 'participant' }: { userType?: 
   return (
     <AppShell
       showFeedbackBanner={false}
+      screenTransitionKey={active}
+      screenTransitionDirection="switch"
       bottomNav={(
         <BottomNav
           active={active}
@@ -9751,6 +9860,7 @@ export default function App() {
     ? params.screen as Screen
     : 'home';
   const [screen, setScreen] = useState<Screen>(initialScreen);
+  const [screenTransitionDirection, setScreenTransitionDirection] = useState<ScreenTransitionDirection>('switch');
   const initialRouteEntry = createScreenHistoryEntry(initialScreen, {
     id: routeParamString(params.id),
     friendId: routeParamString(params.friendId),
@@ -9800,6 +9910,7 @@ export default function App() {
       screenHistoryRef.current = [];
       setNavigationDepth(0);
       currentRouteRef.current = routeEntry;
+      setScreenTransitionDirection('switch');
       setScreen(routeEntry.screen);
     }
     const screenUsesExperienceId = routeEntry.screen === 'experience'
@@ -9838,9 +9949,10 @@ export default function App() {
     });
   }, [screen, user?.id]);
 
-  const applyScreenRoute = (entry: ScreenHistoryEntry) => {
+  const applyScreenRoute = (entry: ScreenHistoryEntry, direction: ScreenTransitionDirection = 'switch') => {
     Keyboard.dismiss();
     currentRouteRef.current = entry;
+    setScreenTransitionDirection(direction);
     setScreen(entry.screen);
     const screenUsesExperienceId = entry.screen === 'experience'
       || entry.screen === 'host-detail'
@@ -9888,14 +10000,17 @@ export default function App() {
       }
     }
     setNavigationDepth(screenHistoryRef.current.length);
-    applyScreenRoute(nextEntry);
+    applyScreenRoute(nextEntry, isPrimaryDestination ? 'switch' : 'forward');
   };
   const goBack = (fallback?: Screen, fallbackParams?: Record<string, string>) => {
     const previous = screenHistoryRef.current.pop();
     setNavigationDepth(screenHistoryRef.current.length);
-    applyScreenRoute(previous ?? (fallback
-      ? createScreenHistoryEntry(fallback, fallbackParams)
-      : defaultBackEntry(currentRouteRef.current)));
+    applyScreenRoute(
+      previous ?? (fallback
+        ? createScreenHistoryEntry(fallback, fallbackParams)
+        : defaultBackEntry(currentRouteRef.current)),
+      'back',
+    );
   };
   goBackHandlerRef.current = goBack;
   useEffect(() => {
@@ -10027,11 +10142,8 @@ export default function App() {
 
   if (loading && screen !== 'email') {
     return (
-      <AppShell>
-        <View style={[styles.center, { backgroundColor: colors.background }]}>
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Connecting to experiences.fun…</Text>
-        </View>
+      <AppShell showFeedbackBanner={false}>
+        <AuthLoadingScreen />
       </AppShell>
     );
   }
@@ -10457,6 +10569,7 @@ export default function App() {
     <AppShell
       showFeedbackBanner={screen !== 'funds' && screen !== 'payout-proposal'}
       screenTransitionKey={`${screen}:${transitionEntityId ?? ''}`}
+      screenTransitionDirection={screenTransitionDirection}
       bottomNav={!noNav
         ? (
           <BottomNav
@@ -10511,6 +10624,21 @@ const styles = StyleSheet.create({
 
   loading: { padding: 40, alignItems: 'center', justifyContent: 'center' },
   loadingText: { marginTop: 16, fontSize: 15, fontFamily: 'Inter_500Medium' },
+  authLoadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 28 },
+  authLoadingBrand: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10 },
+  authLoadingBrandMark: { width: 34, height: 34, borderWidth: 1, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  authLoadingWordmark: { fontSize: 15, fontFamily: 'Inter_700Bold', letterSpacing: -0.2 },
+  authLoadingCenter: { alignItems: 'center', gap: 22, marginTop: -30 },
+  authLoadingEmblem: { width: 88, height: 88, borderWidth: 1, borderRadius: 44, alignItems: 'center', justifyContent: 'center' },
+  authLoadingEmblemInner: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
+  authLoadingEmblemDot: { position: 'absolute', top: 10, right: 10, width: 11, height: 11, borderWidth: 3, borderRadius: 6 },
+  authLoadingCopy: { alignItems: 'center', gap: 7 },
+  authLoadingTitle: { fontSize: 25, lineHeight: 32, fontFamily: 'Inter_700Bold', letterSpacing: -0.5, textAlign: 'center' },
+  authLoadingSubtitle: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  authLoadingTrack: { width: 128, height: 3, borderRadius: 2, overflow: 'hidden' },
+  authLoadingSegment: { width: 40, height: 3, borderRadius: 2 },
+  authLoadingSegmentStatic: { alignSelf: 'center' },
+  authLoadingFooter: { fontSize: 9, letterSpacing: 1.7, fontFamily: 'Inter_600SemiBold' },
   telegramCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderWidth: 1, marginBottom: 16 },
   telegramIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   telegramCopy: { flex: 1, minWidth: 0 },

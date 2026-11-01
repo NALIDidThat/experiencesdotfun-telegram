@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -13,7 +13,7 @@ const keyboardViewportHeight = 430;
 const chromiumPath = process.env.CHROMIUM_PATH
   ?? (existsSync("/repl/tools/bin/chromium") ? "/repl/tools/bin/chromium" : "chromium");
 
-async function installProfileApiMock(client) {
+async function installProfileApiMock(client, { meDelayMs = 0 } = {}) {
   const profileUser = {
     id: 880,
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -53,6 +53,7 @@ async function installProfileApiMock(client) {
       let status = 200;
       let data;
       if (url.pathname === "/api/me" && method === "GET") {
+        if (${meDelayMs} > 0) await new Promise((resolve) => setTimeout(resolve, ${meDelayMs}));
         data = user;
       } else if (url.pathname === "/api/friends/notifications" && method === "GET") {
         data = { notifications: [], unreadCount: 0 };
@@ -800,6 +801,37 @@ test("experience review returns to the overview after saving an edited answer", 
   );
 });
 
+test("session restoration shows the branded loading screen while authentication is pending", async (t) => {
+  const appUrl = getAppPreviewUrl("The mobile preview interaction test");
+  const client = await launchBrowser(t);
+  await setViewport(client, initialViewport.height);
+  await installProfileApiMock(client, { meDelayMs: 900 });
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=home` });
+
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="auth-loading-screen"]'))`,
+    Boolean,
+    "the branded loading screen during session restoration",
+  );
+  const loadingCopy = await client.evaluate(`document.querySelector('[data-testid="auth-loading-screen"]')?.innerText.replace(/\\s+/g, ' ').trim() ?? ''`);
+  assert.ok(loadingCopy.includes("experiences.fun"), "The loading screen should show the product wordmark.");
+  assert.ok(loadingCopy.includes("Good things start here."), "The loading screen should use the new minimal headline.");
+  assert.ok(loadingCopy.includes("Connecting to your community"), "The loading screen should explain what is happening.");
+
+  if (process.env.AUTH_LOADING_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(process.env.AUTH_LOADING_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
+  }
+
+  await waitForValue(
+    client,
+    `!document.querySelector('[data-testid="auth-loading-screen"]') && Boolean(document.querySelector('[data-testid="bottom-nav-tab-home"]'))`,
+    Boolean,
+    "the home screen immediately after authentication finishes",
+  );
+});
+
 test("bottom navigation can be changed by holding and sliding", async (t) => {
   const appUrl = getAppPreviewUrl("The mobile preview interaction test");
 
@@ -809,6 +841,11 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
 
   const activeTab = `document.querySelector('[data-testid="nav-test-active"]')?.textContent?.trim() ?? null`;
   await waitForValue(client, activeTab, (value) => value === "home", "the bottom-navigation test screen");
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="app-screen-transition"]'))`),
+    true,
+    "The app shell should expose its screen transition container.",
+  );
 
   await tapTestId(client, "bottom-nav-tab-explore");
   await waitForValue(client, activeTab, (value) => value === "explore", "a standard navigation tap");
