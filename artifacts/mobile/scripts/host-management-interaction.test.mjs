@@ -1701,6 +1701,14 @@ test("charity treasury dashboard shows live values and supports private balance 
           response = treasuryDashboard;
         } else if (url.pathname === `/api/funds/${user.id}` && method === "GET") {
           response = [activeCampaign];
+        } else if (
+          method === "GET"
+          && (
+            url.pathname === `/api/funds/campaigns/${activeCampaign.id}/activity/all`
+            || url.pathname === `/api/funds/campaigns/${activeCampaign.id}/activity/month`
+          )
+        ) {
+          response = { supporterWalletCount: 0, recentContributions: [], topSupporters: [] };
         } else if (url.pathname === "/api/funds/payout-candidates" && method === "GET") {
           response = [{ id: 42, name: "Taylor Volunteer", username: "taylor" }];
         } else if (url.pathname === "/api/funds/payouts" && method === "GET") {
@@ -1789,6 +1797,51 @@ test("charity treasury dashboard shows live values and supports private balance 
       Buffer.from(screenshot.data, "base64"),
     );
   }
+  await client.send("Page.navigate", {
+    url: `${appBaseUrl}/?screen=campaigns&id=${activeCampaign.id}`,
+  });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="campaign-detail-tab-overview"]')) && Boolean(document.querySelector('[data-testid="campaign-detail-tab-manage"]'))`,
+    Boolean,
+    "campaign tracker tabs including the charity owner management tab",
+  );
+  const overviewManagePanelVisible = await client.evaluate(`(() => {
+    const panel = document.querySelector('[data-testid="campaign-detail-manage-panel"]');
+    return Boolean(panel && getComputedStyle(panel).display !== "none");
+  })()`);
+  assert.equal(overviewManagePanelVisible, false, "Campaign editing should not take up space in the Overview tab.");
+  await tapTestId(client, "campaign-detail-tab-manage");
+  await waitForValue(
+    client,
+    `(() => {
+      const panel = document.querySelector('[data-testid="campaign-detail-manage-panel"]');
+      return Boolean(panel && getComputedStyle(panel).display !== "none" && panel.querySelector('[data-testid="fund-edit-title"]'));
+    })()`,
+    Boolean,
+    "the campaign editing form inside the Manage tab",
+  );
+  if (process.env.CAMPAIGN_MANAGE_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(process.env.CAMPAIGN_MANAGE_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
+  }
+  await tapTestId(client, "campaign-detail-tab-overview");
+  await waitForValue(
+    client,
+    `(() => {
+      const panel = document.querySelector('[data-testid="campaign-detail-manage-panel"]');
+      return Boolean(panel && getComputedStyle(panel).display === "none");
+    })()`,
+    Boolean,
+    "the management form to stay out of Overview after switching tabs",
+  );
+  await client.send("Page.navigate", { url: `${appBaseUrl}/?screen=home` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-home"]'))`,
+    Boolean,
+    "the organisation homepage after leaving the campaign tracker",
+  );
   await tapTestId(client, "bottom-nav-tab-funds");
 
   await waitForValue(

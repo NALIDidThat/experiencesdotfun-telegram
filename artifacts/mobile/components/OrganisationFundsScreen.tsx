@@ -37,7 +37,7 @@ function shortAddress(address: string) {
 }
 
 type FundMilestoneDraft = { title: string; outcome: string; targetSol: string };
-type CampaignDetailTab = "overview" | "milestones" | "community" | "impact";
+type CampaignDetailTab = "overview" | "milestones" | "community" | "impact" | "manage";
 type CampaignSort = "recent" | "raised" | "progress";
 
 function solscanUrl(path: string, cluster: string) {
@@ -1489,11 +1489,19 @@ export function OrganisationFundsScreen({
   if (stage === "detail" && (selectedFund || selectedFundFromRoute)) {
     const activeSelectedFund = selectedFund ?? selectedFundFromRoute!;
     const fund = fundsQuery.data?.find((row) => row.id === activeSelectedFund.id) ?? activeSelectedFund;
+    const canManage = user?.userType === "organisation" && user.id === fund.organisationUserId;
     const launchedDate = transactionDateLabel(fund.createdAt);
     const sharedTreasury = treasuryQuery.data?.treasury.walletAddress === fund.walletAddress
       && treasuryQuery.data.treasury.cluster === fund.cluster
       ? treasuryQuery.data
       : undefined;
+    const campaignDetailTabs = [
+      ["overview", "Overview", "bar-chart-2"],
+      ["milestones", "Milestones", "flag"],
+      ["community", "Community", "users"],
+      ["impact", "Impact", "heart"],
+      ...(canManage ? [["manage", "Manage", "edit-3"] as const] : []),
+    ] as const;
     const shareFund = () => Share.share({
       message: `${fund.title}\n\n${fund.description}\n\nCampaign goal: ${fund.goalSol.toLocaleString()} SOL\n\nContributions are sent to ${fund.organisationName}'s shared charity treasury. On-chain transfers may not be attributable to this specific fund.\n\nTreasury: ${fund.walletAddress}`,
     });
@@ -1543,12 +1551,7 @@ export function OrganisationFundsScreen({
           </View>
 
           <View accessibilityRole="tablist" accessibilityLabel="Campaign details" style={{ flexDirection: "row", gap: 5, padding: 4, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius + 1, backgroundColor: colors.card }}>
-            {([
-              ["overview", "Overview", "bar-chart-2"],
-              ["milestones", "Milestones", "flag"],
-              ["community", "Community", "users"],
-              ["impact", "Impact", "heart"],
-            ] as const).map(([value, label, icon]) => {
+            {campaignDetailTabs.map(([value, label, icon]) => {
               const selected = campaignDetailTab === value;
               return (
                 <Pressable
@@ -1559,10 +1562,10 @@ export function OrganisationFundsScreen({
                   aria-selected={selected}
                   testID={`campaign-detail-tab-${value}`}
                   onPress={() => setCampaignDetailTab(value)}
-                  style={{ flex: 1, minWidth: 0, minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, borderRadius: colors.radius - 3, backgroundColor: selected ? colors.primary : "transparent", paddingHorizontal: 3 }}
+                  style={{ flex: 1, minWidth: 0, minHeight: 50, flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, borderRadius: colors.radius - 3, backgroundColor: selected ? colors.primary : "transparent", paddingHorizontal: 1 }}
                 >
                   <Feather name={icon} size={12} color={selected ? colors.primaryForeground : colors.mutedForeground} />
-                  <Text numberOfLines={1} style={{ color: selected ? colors.primaryForeground : colors.mutedForeground, fontSize: 9, fontFamily: "Inter_700Bold" }}>{label}</Text>
+                  <Text numberOfLines={1} style={{ color: selected ? colors.primaryForeground : colors.mutedForeground, fontSize: 8, fontFamily: "Inter_700Bold" }}>{label}</Text>
                 </Pressable>
               );
             })}
@@ -1612,11 +1615,6 @@ export function OrganisationFundsScreen({
             <Text accessibilityRole="header" style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Make a contribution</Text>
             <ContributeToFund fund={fund} />
           </View>
-          <FundOwnerControls key={fund.id} fund={fund} onUpdated={(updated) => {
-            setSelectedFund(updated);
-            queryClient.setQueryData<OrganisationFund[]>(getListOrganisationFundsQueryKey(organisationUserId), (current) =>
-              current?.map((row) => row.id === updated.id ? updated : row));
-          }} />
 
           <View style={{ flexDirection: "row", gap: 9 }}>
             <Pressable
@@ -1645,6 +1643,19 @@ export function OrganisationFundsScreen({
             </Pressable>
           </View>
             </>
+          ) : null}
+
+          {canManage ? (
+            <View
+              testID="campaign-detail-manage-panel"
+              style={{ display: campaignDetailTab === "manage" ? "flex" : "none" }}
+            >
+              <FundOwnerControls key={fund.id} fund={fund} onUpdated={(updated) => {
+                setSelectedFund(updated);
+                queryClient.setQueryData<OrganisationFund[]>(getListOrganisationFundsQueryKey(organisationUserId), (current) =>
+                  current?.map((row) => row.id === updated.id ? updated : row));
+              }} />
+            </View>
           ) : null}
 
           {campaignDetailTab === "milestones" ? (
