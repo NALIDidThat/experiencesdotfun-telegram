@@ -744,6 +744,123 @@ test("organisation hosts can manage experience participants from a phone-sized d
       Buffer.from(screenshot.data, "base64"),
     );
   }
+
+  await client.send("Page.navigate", { url: `${appBaseUrl}/?screen=host` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-hero"]')) && Boolean(document.querySelector('[data-testid="host-stat-participants"]')) && Boolean(document.querySelector('[data-testid="host-experience-${experience.id}"]'))`,
+    Boolean,
+    "the loaded Host tools dashboard and experience listing",
+  );
+  if (process.env.HOST_TOOLS_METRICS_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(process.env.HOST_TOOLS_METRICS_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
+  }
+
+  await tapTestId(client, "host-stat-live-experiences");
+  await waitForValue(client, `Boolean(document.querySelector('[data-testid="host-metric-sheet"]'))`, Boolean, "the live experiences summary sheet");
+  await tapTestId(client, `host-metric-experience-${experience.id}`);
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="host-metric-experience-expanded-${experience.id}"]')?.innerText.includes('Tend the neighbourhood garden together.') ?? false`,
+    Boolean,
+    "the expanded live experience details",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="host-metric-experience-expanded-${experience.id}"]')?.innerText.includes('Community Garden') ?? false`),
+    true,
+    "The expanded experience should include its location and listing details.",
+  );
+  await tapTestId(client, "host-metric-close", { scrollIntoView: false, waitForStable: true });
+
+  await tapTestId(client, "host-stat-participants");
+  await waitForValue(client, `Boolean(document.querySelector('[data-testid="host-metric-sheet"]'))`, Boolean, "the participant summary sheet");
+  await tapTestId(client, `host-metric-experience-${experience.id}`);
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-metric-participant-${experience.id}-7401"]'))`,
+    Boolean,
+    "the expanded participant list",
+  );
+  if (process.env.HOST_METRIC_DETAILS_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(process.env.HOST_METRIC_DETAILS_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
+  }
+  await tapTestId(client, `host-metric-participant-${experience.id}-7401`);
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-participant-sheet"]')) && document.querySelector('[data-testid="host-participant-sheet"]')?.innerText.includes('Avery Joined')`,
+    Boolean,
+    "the participant contribution page opened from the summary",
+  );
+  await tapTestId(client, "host-participant-sheet-close", { scrollIntoView: false, waitForStable: true });
+  await tapSelector(client, '[aria-label="Go back"]');
+  await waitForValue(client, `Boolean(document.querySelector('[data-testid="host-hero"]'))`, Boolean, "returning to Host tools after opening a participant");
+
+  await tapTestId(client, "host-stat-waitlist");
+  await waitForValue(client, `Boolean(document.querySelector('[data-testid="host-metric-sheet"]'))`, Boolean, "the waitlist summary sheet");
+  await tapTestId(client, `host-metric-experience-${experience.id}`);
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-metric-participant-${experience.id}-7405"]'))`,
+    Boolean,
+    "the expanded waitlist",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="host-metric-participant-${experience.id}-7405"]')?.innerText.includes('Emery Waitlisted') ?? false`),
+    true,
+    "The waitlist summary should show the person waiting for a place.",
+  );
+  await tapTestId(client, "host-metric-close", { scrollIntoView: false, waitForStable: true });
+
+  await tapTestId(client, "host-stat-completion-reviews");
+  await waitForValue(client, `Boolean(document.querySelector('[data-testid="host-metric-sheet"]'))`, Boolean, "the completion review summary sheet");
+  await tapTestId(client, `host-metric-experience-${experience.id}`);
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-metric-participant-${experience.id}-7403"]'))`,
+    Boolean,
+    "the expanded completion review queue",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="host-metric-participant-${experience.id}-7403"]')?.innerText.includes('Casey Submitted') ?? false`),
+    true,
+    "Completion reviews should show the participant and submission details.",
+  );
+  await tapTestId(client, "host-metric-close", { scrollIntoView: false, waitForStable: true });
+
+  await tapTestId(client, "host-stat-milestone-reviews");
+  await waitForValue(client, `Boolean(document.querySelector('[data-testid="host-metric-sheet"]'))`, Boolean, "the milestone review summary sheet");
+  await tapTestId(client, `host-metric-experience-${experience.id}`);
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-metric-milestone-${experience.id}-7411"]'))`,
+    Boolean,
+    "the expanded milestone review queue",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="host-metric-milestone-${experience.id}-7411"]')?.innerText.includes('Avery Joined') ?? false`),
+    true,
+    "Milestone reviews should identify the participant and milestone awaiting review.",
+  );
+  await tapTestId(client, `host-metric-milestone-${experience.id}-7411`);
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="host-participant-sheet"]')) && Boolean(document.querySelector('[data-testid="host-participant-milestone-7411"]'))`,
+    Boolean,
+    "the participant's milestone contribution page",
+  );
+  await tapTestId(client, "host-participant-sheet-close", { scrollIntoView: false, waitForStable: true });
+  await tapSelector(client, '[aria-label="Go back"]');
+  await waitForValue(client, `Boolean(document.querySelector('[data-testid="host-hero"]'))`, Boolean, "returning to Host tools after reviewing a milestone participant");
+  await client.send("Page.navigate", { url: `${appBaseUrl}/?screen=profile` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-activity-experience-${experience.id}"]'))`,
+    Boolean,
+    "returning to the organisation profile",
+  );
+
   await tapTestId(client, `organisation-activity-experience-${experience.id}`);
   await waitForValue(
     client,

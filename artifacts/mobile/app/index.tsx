@@ -161,6 +161,7 @@ type ScreenRouteParams = {
   category?: string;
   step?: string;
   focus?: string;
+  participantId?: string;
   experienceId?: string;
   experienceTitle?: string;
 };
@@ -178,6 +179,7 @@ type IconName = keyof typeof Feather.glyphMap;
 type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'assistant' | 'challenges' | 'accountability' | 'memory-game' | 'telegram-communities';
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
+type HostSummaryMetric = 'live' | 'participants' | 'waitlist' | 'completion-reviews' | 'milestone-reviews';
 const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'explore', label: 'Explore', icon: 'compass' },
   { key: 'social', label: 'Social', icon: 'users' },
@@ -206,6 +208,7 @@ function createScreenHistoryEntry(screen: Screen, params: ScreenRouteParams = {}
       category: screen === 'explore' ? params.category : undefined,
       step: screen === 'create' ? params.step : undefined,
       focus: screen === 'host-detail' ? params.focus : undefined,
+      participantId: screen === 'host-detail' ? params.participantId : undefined,
       experienceId: screen === 'funds' ? params.experienceId : undefined,
       experienceTitle: screen === 'funds' ? params.experienceTitle : undefined,
     },
@@ -349,6 +352,12 @@ const hostParticipationStatusLabels: Record<Participation['status'], string> = {
   waitlisted: 'Waitlisted',
   cancelled: 'Cancelled',
 };
+
+function hostExperienceWaitlistCount(experience: Experience) {
+  return 'waitlistCount' in experience && typeof experience.waitlistCount === 'number'
+    ? experience.waitlistCount
+    : 0;
+}
 
 function money(pence: number | null | undefined) {
   return pence ? `£${(pence / 100).toFixed(2)}` : null;
@@ -6197,6 +6206,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
   const experiences = useListHostExperiences();
   const [experienceSearch, setExperienceSearch] = useState('');
   const [experienceFilter, setExperienceFilter] = useState<HostExperienceFilter>('all');
+  const [selectedHostMetric, setSelectedHostMetric] = useState<HostSummaryMetric | null>(null);
   const allExperiences = experiences.data ?? [];
   const hostArtworkCategory = user?.interests?.[0] ?? 'community';
   const searchTerm = experienceSearch.trim().toLowerCase();
@@ -6216,12 +6226,50 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
     if (!item) return;
     go('host-detail', { id: String(item.id), ...(focus ? { focus } : {}) });
   };
+  const hostMetrics: Array<{ key: HostSummaryMetric; label: string; value: number; icon: IconName }> = [
+    { key: 'live', label: 'Live experiences', value: overview.data?.upcomingExperiences ?? 0, icon: 'calendar' },
+    { key: 'participants', label: 'Participants', value: overview.data?.participantCount ?? 0, icon: 'users' },
+    { key: 'waitlist', label: 'Waitlist', value: overview.data?.waitlistCount ?? 0, icon: 'clock' },
+    { key: 'completion-reviews', label: 'Completion reviews', value: overview.data?.pendingCompletionReviews ?? 0, icon: 'check-circle' },
+    { key: 'milestone-reviews', label: 'Milestone reviews', value: overview.data?.pendingMilestoneReviews ?? 0, icon: 'award' },
+  ];
 
   if (user?.userType !== 'organisation') {
     return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Organisation tools" onBack={() => go('profile')} /><EmptyState title="Organisation account required" body="Participant accounts can explore and join experiences. Only Organisation accounts can create and manage experiences." actionLabel="Go home" onAction={() => go('home')} /></View>;
   }
 
   return (
+    <>
+    {selectedHostMetric ? (
+      <HostMetricDetailsSheet
+        metric={selectedHostMetric}
+        count={overview.isError ? null : hostMetrics.find((item) => item.key === selectedHostMetric)?.value ?? 0}
+        experiences={allExperiences}
+        experiencesLoading={experiences.isLoading}
+        experiencesError={experiences.isError}
+        onRetry={() => { void experiences.refetch(); }}
+        onClose={() => setSelectedHostMetric(null)}
+        onOpenExperience={(id) => {
+          setSelectedHostMetric(null);
+          go('host-detail', { id: String(id) });
+        }}
+        onOpenParticipant={(experienceId, participationId) => {
+          const focus = selectedHostMetric === 'completion-reviews'
+            ? 'review'
+            : selectedHostMetric === 'waitlist'
+              ? 'waitlisted'
+              : selectedHostMetric === 'milestone-reviews'
+                ? 'milestone-review'
+                : 'participants';
+          setSelectedHostMetric(null);
+          go('host-detail', {
+            id: String(experienceId),
+            focus,
+            participantId: String(participationId),
+          });
+        }}
+      />
+    ) : null}
     <KeyboardAwareScrollViewCompat
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.scrollContent}
@@ -6281,19 +6329,16 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
       </View>
 
       <View style={styles.hostStats}>
-        {[
-          { label: 'Live experiences', value: overview.data?.upcomingExperiences ?? 0, icon: 'calendar' as const, action: () => setExperienceFilter('published') },
-          { label: 'Participants', value: overview.data?.participantCount ?? 0, icon: 'users' as const, action: () => openExperience(experienceForPeople) },
-          { label: 'Waitlist', value: overview.data?.waitlistCount ?? 0, icon: 'clock' as const, action: () => openExperience(allExperiences.find((item) => item.waitlistCount > 0) ?? experienceForPeople, 'waitlisted') },
-          { label: 'Completion reviews', value: overview.data?.pendingCompletionReviews ?? 0, icon: 'check-circle' as const, action: () => openExperience(experienceForPeople, 'review') },
-          { label: 'Milestone reviews', value: overview.data?.pendingMilestoneReviews ?? 0, icon: 'award' as const, action: () => openExperience(allExperiences[0]) },
-        ].map((item, index) => (
+        {hostMetrics.map((item, index) => (
           <Pressable
             key={item.label}
             accessibilityRole="button"
             accessibilityLabel={`${item.label}: ${overview.isLoading ? 'loading' : overview.isError ? 'unavailable' : item.value}. Open related host tools.`}
             testID={`host-stat-${item.label.toLowerCase().replaceAll(' ', '-')}`}
-            onPress={item.action}
+            onPress={() => {
+              triggerHaptic();
+              setSelectedHostMetric(item.key);
+            }}
             style={({ pressed }) => [
               styles.hostStat,
               index === 4 ? styles.hostStatWide : null,
@@ -6518,6 +6563,368 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
 
       <View style={{ height: 120 }} />
     </KeyboardAwareScrollViewCompat>
+    </>
+  );
+}
+
+function HostMetricDetailsSheet({
+  metric,
+  count,
+  experiences,
+  experiencesLoading,
+  experiencesError,
+  onRetry,
+  onClose,
+  onOpenExperience,
+  onOpenParticipant,
+}: {
+  metric: HostSummaryMetric;
+  count: number | null;
+  experiences: Experience[];
+  experiencesLoading: boolean;
+  experiencesError: boolean;
+  onRetry: () => void;
+  onClose: () => void;
+  onOpenExperience: (experienceId: number) => void;
+  onOpenParticipant: (experienceId: number, participationId: number) => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const details = {
+    live: {
+      title: 'Live experiences',
+      description: 'Current listings, places and participant activity.',
+      icon: 'calendar' as const,
+      empty: 'There are no live experiences to show.',
+    },
+    participants: {
+      title: 'Participants',
+      description: 'See who has joined each experience and their participation status.',
+      icon: 'users' as const,
+      empty: 'No participant records are available yet.',
+    },
+    waitlist: {
+      title: 'Waitlist',
+      description: 'Review the people waiting for an open place.',
+      icon: 'clock' as const,
+      empty: 'No one is currently on a waitlist.',
+    },
+    'completion-reviews': {
+      title: 'Completion reviews',
+      description: 'Open submitted completions and review each participant’s contribution.',
+      icon: 'check-circle' as const,
+      empty: 'There are no completion reviews waiting.',
+    },
+    'milestone-reviews': {
+      title: 'Milestone reviews',
+      description: 'Review milestone submissions and the participant evidence.',
+      icon: 'award' as const,
+      empty: 'There are no milestone reviews waiting.',
+    },
+  }[metric];
+  const listedExperiences = experiences.filter((experience) => {
+    if (metric === 'live') return experience.status === 'published' || experience.status === 'full';
+    if (metric === 'participants') return experience.participantCount > 0;
+    if (metric === 'waitlist') return hostExperienceWaitlistCount(experience) > 0;
+    return true;
+  });
+
+  return (
+    <Modal transparent visible animationType="slide" onRequestClose={onClose}>
+      <View style={styles.profileMetricOverlay}>
+        <Pressable
+          testID="host-metric-backdrop"
+          accessibilityRole="button"
+          accessibilityLabel="Close host summary"
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+        />
+        <View
+          testID="host-metric-sheet"
+          accessibilityViewIsModal
+          style={[
+            styles.profileMetricSheet,
+            { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 20) },
+          ]}
+        >
+          <View style={[styles.profileMetricHandle, { backgroundColor: colors.border }]} />
+          <View style={styles.profileMetricSheetHeader}>
+            <View style={styles.profileMetricSheetTitleWrap}>
+              <Text style={[styles.profileMetricEyebrow, { color: colors.primary }]}>HOST OVERVIEW</Text>
+              <Text style={[styles.profileMetricSheetTitle, { color: colors.foreground }]}>{details.title}</Text>
+            </View>
+            <Pressable
+              testID="host-metric-close"
+              accessibilityRole="button"
+              accessibilityLabel="Close host summary"
+              onPress={onClose}
+              style={({ pressed }) => [styles.profileMetricClose, { backgroundColor: colors.muted, opacity: pressed ? 0.65 : 1 }]}
+            >
+              <Feather name="x" size={20} color={colors.foreground} />
+            </Pressable>
+          </View>
+          <View style={[styles.profileMetricSummary, { backgroundColor: colors.muted, borderRadius: colors.radius }]}>
+            <Text style={[styles.profileMetricSummaryCount, { color: colors.primary }]}>{count ?? '—'}</Text>
+            <View style={styles.profileMetricSummaryCopy}>
+              <Text style={[styles.profileMetricSummaryLabel, { color: colors.foreground }]}>{details.title}</Text>
+              <Text style={[styles.profileMetricSummaryDescription, { color: colors.mutedForeground }]}>{details.description}</Text>
+            </View>
+            <Feather name={details.icon} size={20} color={colors.primary} />
+          </View>
+          <ScrollView
+            testID="host-metric-experience-list"
+            style={styles.profileMetricScroll}
+            contentContainerStyle={styles.profileMetricScrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {experiencesLoading ? (
+              <View style={styles.profileMetricState}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.profileMetricStateBody, { color: colors.mutedForeground }]}>Loading experiences…</Text>
+              </View>
+            ) : experiencesError ? (
+              <View style={styles.profileMetricState}>
+                <View style={[styles.profileMetricStateIcon, { backgroundColor: colors.destructive + '12' }]}>
+                  <Feather name="alert-circle" size={20} color={colors.destructive} />
+                </View>
+                <Text style={[styles.profileMetricStateTitle, { color: colors.foreground }]}>Experiences couldn’t be loaded</Text>
+                <Text style={[styles.profileMetricStateBody, { color: colors.mutedForeground }]}>Try again to reload this host summary.</Text>
+                <Button testID="host-metric-retry" label="Try again" variant="secondary" icon="refresh-cw" onPress={onRetry} style={styles.profileMetricStateButton} />
+              </View>
+            ) : !listedExperiences.length ? (
+              <View style={styles.profileMetricState}>
+                <View style={[styles.profileMetricStateIcon, { backgroundColor: colors.primary + '12' }]}>
+                  <Feather name={details.icon} size={20} color={colors.primary} />
+                </View>
+                <Text style={[styles.profileMetricStateTitle, { color: colors.foreground }]}>{details.empty}</Text>
+                <Text style={[styles.profileMetricStateBody, { color: colors.mutedForeground }]}>Experience records will appear here when available.</Text>
+              </View>
+            ) : (
+              listedExperiences.map((experience) => (
+                <HostMetricExperienceCard
+                  key={`${metric}-${experience.id}`}
+                  metric={metric}
+                  experience={experience}
+                  onOpenExperience={onOpenExperience}
+                  onOpenParticipant={onOpenParticipant}
+                />
+              ))
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function HostMetricExperienceCard({
+  metric,
+  experience,
+  onOpenExperience,
+  onOpenParticipant,
+}: {
+  metric: HostSummaryMetric;
+  experience: Experience;
+  onOpenExperience: (experienceId: number) => void;
+  onOpenParticipant: (experienceId: number, participationId: number) => void;
+}) {
+  const colors = useColors();
+  const [expanded, setExpanded] = useState(false);
+  const participants = useListExperienceParticipants(experience.id, {
+    query: {
+      queryKey: getListExperienceParticipantsQueryKey(experience.id),
+      enabled: expanded && metric !== 'milestone-reviews',
+    },
+  });
+  const milestones = useGetHostExperienceMilestones(experience.id, {
+    query: {
+      queryKey: getGetHostExperienceMilestonesQueryKey(experience.id),
+      enabled: expanded && metric === 'milestone-reviews',
+    },
+  });
+  const participationRecords = participants.data ?? [];
+  const relevantParticipants = participationRecords
+    .filter((item) => {
+      if (item.status === 'cancelled') return false;
+      if (metric === 'participants') return item.status !== 'waitlisted';
+      if (metric === 'waitlist') return item.status === 'waitlisted';
+      if (metric === 'completion-reviews') return item.status === 'submitted';
+      return true;
+    })
+    .sort((left, right) => (
+      left.status === 'waitlisted' && right.status === 'waitlisted'
+        ? new Date(left.joinedAt).getTime() - new Date(right.joinedAt).getTime() || left.id - right.id
+        : new Date(right.joinedAt).getTime() - new Date(left.joinedAt).getTime() || right.id - left.id
+    ));
+  const pendingMilestoneSubmissions = (milestones.data?.submissions ?? [])
+    .filter((submission) => submission.status === 'submitted');
+
+  const openParticipant = (participationId: number) => {
+    triggerHaptic();
+    onOpenParticipant(experience.id, participationId);
+  };
+
+  return (
+    <View
+      testID={`host-metric-experience-card-${experience.id}`}
+      style={[
+        styles.hostMetricExperienceCard,
+        { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+      ]}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${experience.title}. ${dateLabel(experience.date)} in ${experience.city}. Expand experience details.`}
+        accessibilityState={{ expanded }}
+        testID={`host-metric-experience-${experience.id}`}
+        onPress={() => {
+          setExpanded((current) => !current);
+          triggerHaptic();
+        }}
+        style={styles.hostMetricExperienceHeader}
+      >
+        <View style={[styles.hostMetricExperienceIcon, { backgroundColor: colors.primary + '12' }]}>
+          <Feather name="calendar" size={16} color={colors.primary} />
+        </View>
+        <View style={styles.hostMetricExperienceCopy}>
+          <Text numberOfLines={2} style={[styles.hostMetricExperienceTitle, { color: colors.foreground }]}>{experience.title}</Text>
+          <Text numberOfLines={1} style={[styles.hostMetricExperienceMeta, { color: colors.mutedForeground }]}>
+            {dateLabel(experience.date)} · {experience.city} · {hostExperienceStatusLabels[experience.status]}
+          </Text>
+        </View>
+        <Feather name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.mutedForeground} />
+      </Pressable>
+      <View style={styles.hostMetricExperienceStats}>
+        <Text style={[styles.hostMetricExperienceStat, { color: colors.mutedForeground }]}>
+          {experience.participantCount} joined
+        </Text>
+        <Text style={[styles.hostMetricExperienceStat, { color: colors.mutedForeground }]}>
+          {hostExperienceWaitlistCount(experience)} waitlisted
+        </Text>
+        <Text style={[styles.hostMetricExperienceStat, { color: colors.primary }]}>
+          {experience.xpReward} XP
+        </Text>
+      </View>
+      {expanded ? (
+        <View testID={`host-metric-experience-expanded-${experience.id}`} style={[styles.hostMetricExperienceDetails, { borderTopColor: colors.border }]}>
+          <Text style={[styles.hostMetricExperienceDescription, { color: colors.foreground }]}>{experience.description}</Text>
+          <View style={styles.hostMetricExperienceFacts}>
+            {[
+              { label: 'When', value: `${dateLabel(experience.date)} · ${experience.startTime}–${experience.endTime}` },
+              { label: 'Where', value: `${experience.location} · ${experience.city}` },
+              { label: 'Places', value: `${experience.participantCount}/${experience.capacity} joined · ${experience.availablePlaces} available` },
+              { label: 'Reward', value: `${experience.xpReward} XP${experience.monetaryRewardPence ? ` · ${money(experience.monetaryRewardPence)}` : ''}` },
+            ].map((fact) => (
+              <View key={fact.label} style={[styles.hostMetricExperienceFact, { backgroundColor: colors.muted, borderRadius: colors.radius - 4 }]}>
+                <Text style={[styles.hostMetricExperienceFactLabel, { color: colors.mutedForeground }]}>{fact.label}</Text>
+                <Text style={[styles.hostMetricExperienceFactValue, { color: colors.foreground }]}>{fact.value}</Text>
+              </View>
+            ))}
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open full details for ${experience.title}`}
+            testID={`host-metric-open-experience-${experience.id}`}
+            onPress={() => onOpenExperience(experience.id)}
+            style={({ pressed }) => [styles.hostMetricOpenExperience, { borderColor: colors.border, opacity: pressed ? 0.72 : 1 }]}
+          >
+            <Text style={[styles.hostMetricOpenExperienceText, { color: colors.primary }]}>Open experience management</Text>
+            <Feather name="arrow-up-right" size={14} color={colors.primary} />
+          </Pressable>
+          <View style={[styles.hostMetricExperienceActivity, { borderTopColor: colors.border }]}>
+            <View style={styles.hostMetricActivityHeading}>
+              <Text style={[styles.hostMetricActivityTitle, { color: colors.foreground }]}>
+                {metric === 'milestone-reviews' ? 'Milestone reviews' : metric === 'completion-reviews' ? 'Completion reviews' : metric === 'waitlist' ? 'Waitlist' : 'Participant activity'}
+              </Text>
+              <Text style={[styles.hostMetricActivityCount, { color: colors.primary }]}>
+                {metric === 'milestone-reviews'
+                  ? milestones.isLoading ? '…' : milestones.isError ? '—' : pendingMilestoneSubmissions.length
+                  : participants.isLoading ? '…' : participants.isError ? '—' : relevantParticipants.length}
+              </Text>
+            </View>
+            {metric === 'milestone-reviews' ? (
+              milestones.isLoading ? (
+                <View style={styles.hostMetricLoading}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.hostMetricActivityMeta, { color: colors.mutedForeground }]}>Loading milestone submissions…</Text>
+                </View>
+              ) : milestones.isError ? (
+                <Text accessibilityRole="alert" style={[styles.hostMetricActivityMeta, { color: colors.destructive }]}>Milestone submissions couldn’t be loaded. Open the experience or try again later.</Text>
+              ) : pendingMilestoneSubmissions.length ? (
+                pendingMilestoneSubmissions.map((submission) => (
+                  <Pressable
+                    key={submission.id}
+                    testID={`host-metric-milestone-${experience.id}-${submission.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${submission.participant.name}, ${submission.milestoneTitle}, submitted for review. Open participant details.`}
+                    onPress={() => openParticipant(submission.participationId)}
+                    style={({ pressed }) => [styles.hostMetricParticipantRow, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                  >
+                    <View style={[styles.participantAvatar, { backgroundColor: colors.secondary + '15' }]}>
+                      <Text style={[styles.participantInitial, { color: colors.secondary }]}>{submission.participant.name.slice(0, 1).toUpperCase()}</Text>
+                    </View>
+                    <View style={styles.hostMetricParticipantCopy}>
+                      <Text numberOfLines={1} style={[styles.hostMetricParticipantName, { color: colors.foreground }]}>{submission.participant.name}</Text>
+                      <Text numberOfLines={2} style={[styles.hostMetricActivityMeta, { color: colors.mutedForeground }]}>
+                        {submission.milestoneTitle} · {submission.xpReward} XP · Submitted {hostTimestampLabel(submission.submittedAt) ?? 'date unavailable'}
+                      </Text>
+                      {submission.evidenceObjectKeys.length ? (
+                        <Text style={[styles.hostMetricActivityMeta, { color: colors.secondary }]}>{submission.evidenceObjectKeys.length} evidence file{submission.evidenceObjectKeys.length === 1 ? '' : 's'}</Text>
+                      ) : null}
+                    </View>
+                    <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                  </Pressable>
+                ))
+              ) : (
+                <Text style={[styles.hostMetricActivityMeta, { color: colors.mutedForeground }]}>No pending milestone reviews for this experience.</Text>
+              )
+            ) : participants.isLoading ? (
+              <View style={styles.hostMetricLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.hostMetricActivityMeta, { color: colors.mutedForeground }]}>Loading participant records…</Text>
+              </View>
+            ) : participants.isError ? (
+              <Text accessibilityRole="alert" style={[styles.hostMetricActivityMeta, { color: colors.destructive }]}>Participant records couldn’t be loaded. Open the experience or try again later.</Text>
+            ) : relevantParticipants.length ? (
+              relevantParticipants.map((participant, index) => (
+                <Pressable
+                  key={participant.id}
+                  testID={`host-metric-participant-${experience.id}-${participant.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${participant.participant.name}, ${hostParticipationStatusLabels[participant.status]}. Open participant details.`}
+                  onPress={() => openParticipant(participant.id)}
+                  style={({ pressed }) => [styles.hostMetricParticipantRow, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                >
+                  <View style={[styles.participantAvatar, { backgroundColor: colors.primary + '15' }]}>
+                    <Text style={[styles.participantInitial, { color: colors.primary }]}>{participant.participant.name.slice(0, 1).toUpperCase()}</Text>
+                  </View>
+                  <View style={styles.hostMetricParticipantCopy}>
+                    <Text numberOfLines={1} style={[styles.hostMetricParticipantName, { color: colors.foreground }]}>{participant.participant.name}</Text>
+                    <Text numberOfLines={2} style={[styles.hostMetricActivityMeta, { color: colors.mutedForeground }]}>
+                      {metric === 'waitlist' ? `Waitlist position ${index + 1} · ` : ''}
+                      {participant.participant.username ? `@${participant.participant.username} · ` : ''}
+                      {hostParticipationStatusLabels[participant.status]} · {hostTimestampLabel(participant.status === 'submitted' ? participant.submittedAt : participant.joinedAt) ?? 'Date unavailable'}
+                    </Text>
+                    {metric === 'completion-reviews' && participant.completionStatement ? (
+                      <Text numberOfLines={2} style={[styles.hostMetricActivityMeta, { color: colors.foreground }]}>{participant.completionStatement}</Text>
+                    ) : null}
+                    {metric === 'completion-reviews' && participant.evidenceObjectKeys.length ? (
+                      <Text style={[styles.hostMetricActivityMeta, { color: colors.secondary }]}>{participant.evidenceObjectKeys.length} evidence file{participant.evidenceObjectKeys.length === 1 ? '' : 's'}</Text>
+                    ) : null}
+                  </View>
+                  <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                </Pressable>
+              ))
+            ) : (
+              <Text style={[styles.hostMetricActivityMeta, { color: colors.mutedForeground }]}>
+                {metric === 'waitlist' ? 'No one is waiting for this experience.' : metric === 'completion-reviews' ? 'No pending completion reviews for this experience.' : 'No participant records for this experience yet.'}
+              </Text>
+            )}
+          </View>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -6526,11 +6933,13 @@ function HostExperienceDetail({
   go,
   onBack,
   initialFocus,
+  initialParticipantId,
 }: {
   experienceId: number;
   go: (screen: Screen, params?: Record<string, string>) => void;
   onBack: () => void;
-  initialFocus?: 'review' | 'waitlisted';
+  initialFocus?: 'review' | 'waitlisted' | 'participants' | 'milestone-review';
+  initialParticipantId?: number;
 }) {
   const colors = useColors();
   const queryClient = useQueryClient();
@@ -6558,9 +6967,13 @@ function HostExperienceDetail({
     },
   });
   const [participantSearch, setParticipantSearch] = useState('');
-  const [participantFilter, setParticipantFilter] = useState<HostParticipantFilter>(initialFocus ?? 'all');
-  const [selectedParticipantId, setSelectedParticipantId] = useState<number | null>(null);
-  const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'participants' | 'milestones' | 'fundraising' | 'analytics'>(initialFocus ? 'participants' : 'overview');
+  const [participantFilter, setParticipantFilter] = useState<HostParticipantFilter>(initialFocus === 'milestone-review' ? 'all' : initialFocus ?? 'all');
+  const [selectedParticipantId, setSelectedParticipantId] = useState<number | null>(
+    Number.isSafeInteger(initialParticipantId) && (initialParticipantId ?? 0) > 0 ? initialParticipantId! : null,
+  );
+  const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'participants' | 'milestones' | 'fundraising' | 'analytics'>(
+    initialFocus === 'milestone-review' ? 'milestones' : initialFocus ? 'participants' : 'overview',
+  );
   const [rejectReasons, setRejectReasons] = useState<Record<number, string>>({});
   const [milestoneRejectReasons, setMilestoneRejectReasons] = useState<Record<number, string>>({});
   const [actionError, setActionError] = useState<string | null>(null);
@@ -9321,7 +9734,7 @@ function BottomNavInteractionHarness({ userType = 'participant' }: { userType?: 
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; chatId?: string; category?: string; step?: string; focus?: string; experienceId?: string; experienceTitle?: string; keyboardTest?: string; navTest?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; chatId?: string; category?: string; step?: string; focus?: string; participantId?: string; experienceId?: string; experienceTitle?: string; keyboardTest?: string; navTest?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -9345,6 +9758,7 @@ export default function App() {
     category: routeParamString(params.category),
     step: routeParamString(params.step),
     focus: routeParamString(params.focus),
+    participantId: routeParamString(params.participantId),
     experienceId: routeParamString(params.experienceId),
     experienceTitle: routeParamString(params.experienceTitle),
   });
@@ -9378,6 +9792,7 @@ export default function App() {
       category: routeParamString(params.category),
       step: routeParamString(params.step),
       focus: routeParamString(params.focus),
+      participantId: routeParamString(params.participantId),
       experienceId: routeParamString(params.experienceId),
       experienceTitle: routeParamString(params.experienceTitle),
     });
@@ -9399,6 +9814,7 @@ export default function App() {
     params.category,
     params.step,
     params.focus,
+    params.participantId,
     params.experienceId,
     params.experienceTitle,
   ]);
@@ -9440,6 +9856,7 @@ export default function App() {
       category: entry.params.category,
       step: entry.params.step,
       focus: entry.params.focus,
+      participantId: entry.params.participantId,
       experienceId: entry.params.experienceId,
       experienceTitle: entry.params.experienceTitle,
       chatId: entry.params.chatId,
@@ -9833,7 +10250,25 @@ export default function App() {
 
   const content = (() => {
     if (screen === 'experience') return <Detail key={`experience-detail-${experienceId ?? 'missing'}`} id={Number(experienceId)} go={go} onBack={() => goBack('explore')} />;
-    if (screen === 'host-detail') return <HostExperienceDetail experienceId={Number(experienceId)} go={go} onBack={() => goBack('host')} initialFocus={params.focus === 'review' || params.focus === 'waitlisted' ? params.focus : undefined} />;
+    if (screen === 'host-detail') {
+      const initialFocus = params.focus === 'review'
+        || params.focus === 'waitlisted'
+        || params.focus === 'participants'
+        || params.focus === 'milestone-review'
+        ? params.focus
+        : undefined;
+      const initialParticipantId = Number(params.participantId);
+      return (
+        <HostExperienceDetail
+          key={`host-detail-${experienceId ?? 'missing'}-${params.participantId ?? 'none'}`}
+          experienceId={Number(experienceId)}
+          go={go}
+          onBack={() => goBack('host')}
+          initialFocus={initialFocus}
+          initialParticipantId={initialParticipantId}
+        />
+      );
+    }
     if (screen === 'messages') {
       return (
         <DirectMessagesScreen
@@ -10832,6 +11267,31 @@ const styles = StyleSheet.create({
   hostStatCopy: { flex: 1, minWidth: 0, gap: 2 },
   hostStatValue: { fontSize: 21, lineHeight: 24, fontFamily: 'Inter_700Bold' },
   hostStatLabel: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_500Medium' },
+  hostMetricExperienceCard: { borderWidth: 1, padding: 12, marginBottom: 10, gap: 9 },
+  hostMetricExperienceHeader: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  hostMetricExperienceIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
+  hostMetricExperienceCopy: { flex: 1, minWidth: 0, gap: 3 },
+  hostMetricExperienceTitle: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_700Bold' },
+  hostMetricExperienceMeta: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
+  hostMetricExperienceStats: { minHeight: 28, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 9, paddingLeft: 46 },
+  hostMetricExperienceStat: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_600SemiBold' },
+  hostMetricExperienceDetails: { borderTopWidth: 1, paddingTop: 10, gap: 10 },
+  hostMetricExperienceDescription: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular' },
+  hostMetricExperienceFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  hostMetricExperienceFact: { width: '48%', minWidth: 0, padding: 9, gap: 3 },
+  hostMetricExperienceFactLabel: { fontSize: 9, letterSpacing: 0.5, fontFamily: 'Inter_700Bold', textTransform: 'uppercase' },
+  hostMetricExperienceFactValue: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_600SemiBold' },
+  hostMetricOpenExperience: { minHeight: 40, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12, borderRadius: 12 },
+  hostMetricOpenExperienceText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  hostMetricExperienceActivity: { borderTopWidth: 1, marginTop: 2, paddingTop: 10, gap: 8 },
+  hostMetricActivityHeading: { minHeight: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  hostMetricActivityTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  hostMetricActivityCount: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  hostMetricActivityMeta: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
+  hostMetricLoading: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hostMetricParticipantRow: { minHeight: 62, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 8 },
+  hostMetricParticipantCopy: { flex: 1, minWidth: 0, gap: 2 },
+  hostMetricParticipantName: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_700Bold' },
   hostSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 13 },
   hostListSectionHeader: { marginBottom: 9 },
   hostSectionCopy: { flex: 1, minWidth: 0 },
