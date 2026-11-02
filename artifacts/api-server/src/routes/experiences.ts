@@ -38,6 +38,8 @@ import {
   feedPreferencesTable,
   experiencesTable,
   experienceChallengesTable,
+  nodeExperiencesTable,
+  nodesTable,
   friendNotificationsTable,
   friendshipsTable,
   organisationsTable,
@@ -127,6 +129,45 @@ type ExperienceMilestoneInput = {
 
 const router: IRouter = Router();
 const EXPLORE_ACTIVITY_WINDOW_DAYS = 30;
+let nodeAssociationSchemaAvailable: Promise<boolean> | undefined;
+
+async function ensureNodeAssociationSchema(res: Response) {
+  if (!nodeAssociationSchemaAvailable) {
+    nodeAssociationSchemaAvailable = db.execute(sql`
+      SELECT
+        to_regclass('public.nodes') IS NOT NULL AS nodes_available,
+        to_regclass('public.node_experiences') IS NOT NULL AS links_available
+    `).then((result) => {
+      const row = result.rows[0] as { nodes_available?: boolean; links_available?: boolean } | undefined;
+      return Boolean(row?.nodes_available && row.links_available);
+    }).catch(() => false).then((available) => {
+      if (!available) nodeAssociationSchemaAvailable = undefined;
+      return available;
+    });
+  }
+  if (await nodeAssociationSchemaAvailable) return true;
+  error(res, 503, "Node linking is not available until the Node Network database setup is complete.");
+  return false;
+}
+
+async function validateOwnedNode(
+  organisationId: number,
+  nodeId: number | null,
+  res: Response,
+) {
+  if (!await ensureNodeAssociationSchema(res)) return false;
+  if (nodeId === null) return true;
+  const [node] = await db.select({ id: nodesTable.id }).from(nodesTable)
+    .where(and(
+      eq(nodesTable.id, nodeId),
+      eq(nodesTable.organisationId, organisationId),
+    ))
+    .limit(1);
+  if (node) return true;
+  error(res, 400, "Choose a Node owned by your organisation.");
+  return false;
+}
+
 const evidenceKeysForUser = (value: unknown, userId: number): string[] | undefined => {
   if (value === undefined) return [];
   if (!Array.isArray(value) || value.length > 5) return undefined;
@@ -1336,6 +1377,10 @@ router.post("/experiences", async (req, res) => {
     error(res, 409, "Complete your organisation profile before creating an experience.");
     return;
   }
+  if (
+    input.nodeId !== undefined &&
+    !await validateOwnedNode(existingOrganisation.id, input.nodeId, res)
+  ) return;
   try {
     const created = await db.transaction(async (transaction) => {
       const [organisation] = await transaction
@@ -1368,6 +1413,12 @@ router.post("/experiences", async (req, res) => {
         })
         .returning();
       if (!createdExperience) throw new Error("Unable to create experience.");
+      if (input.nodeId != null) {
+        await transaction.insert(nodeExperiencesTable).values({
+          nodeId: input.nodeId,
+          experienceId: createdExperience.id,
+        });
+      }
       if (input.milestones?.length) {
         await transaction.insert(experienceMilestonesTable).values(
           input.milestones.map((milestone: ExperienceMilestoneInput, index: number) => ({
@@ -2190,6 +2241,10 @@ router.patch("/host/experiences/:experienceId", async (req, res) => {
     error(res, 404, "Hosted experience not found.");
     return;
   }
+  if (
+    input.nodeId !== undefined &&
+    !await validateOwnedNode(organisation.id, input.nodeId, res)
+  ) return;
 
   const outcome = await db.transaction(async (tx) => {
     const [existing] = await tx
@@ -2206,7 +2261,6 @@ router.patch("/host/experiences/:experienceId", async (req, res) => {
     if (!["published", "full"].includes(existing.status)) {
       return { kind: "closed" as const };
     }
-
     const [participantCountRow] = await tx
       .select({ value: count() })
       .from(participationsTable)
@@ -2323,6 +2377,16 @@ router.patch("/host/experiences/:experienceId", async (req, res) => {
       })
       .where(eq(experiencesTable.id, existing.id))
       .returning();
+    if (updatedExperience && input.nodeId !== undefined) {
+      await tx.delete(nodeExperiencesTable)
+        .where(eq(nodeExperiencesTable.experienceId, existing.id));
+      if (input.nodeId !== null) {
+        await tx.insert(nodeExperiencesTable).values({
+          nodeId: input.nodeId,
+          experienceId: existing.id,
+        });
+      }
+    }
     return updatedExperience
       ? { kind: "updated" as const, experience: updatedExperience }
       : { kind: "not-found" as const };

@@ -23,6 +23,9 @@ import {
   useGetOrganisationVerificationReviewAccess,
   useListOrganisationVerificationReviewQueue,
   useReviewOrganisationVerificationApplication,
+  useGetNodeReviewQueue,
+  getGetNodeReviewQueueQueryKey,
+  useReviewNode,
   useUploadPrivateEvidence,
   useGetPrivateEvidenceAccess,
   type CompaniesHouseSearchResult,
@@ -68,13 +71,113 @@ function statusCopy(status: string) {
   return labels[status] ?? 'Verification status';
 }
 
+function NodeReviewQueuePanel({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
+  const colors = useColors();
+  const [isOpen, setIsOpen] = useState(initiallyOpen);
+  const [notes, setNotes] = useState<Record<number, string>>({});
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const queue = useGetNodeReviewQueue({
+    query: {
+      queryKey: getGetNodeReviewQueueQueryKey(),
+      enabled: isOpen,
+      retry: false,
+    },
+  });
+  const review = useReviewNode();
+
+  const decide = async (nodeId: number, action: 'approve' | 'reject' | 'needs_information' | 'suspend') => {
+    setError('');
+    setNotice('');
+    const note = notes[nodeId]?.trim() ?? '';
+    if ((action === 'reject' || action === 'suspend') && note.length < 5) {
+      setError('Add a reason of at least 5 characters before rejecting or suspending a Node.');
+      return;
+    }
+    try {
+      await review.mutateAsync({ nodeId, data: { action, note: note || undefined } });
+      const refreshed = await queue.refetch();
+      if (refreshed.isError) throw refreshed.error;
+      setNotice('Node location review decision recorded.');
+    } catch (cause) {
+      setError(messageFromError(cause));
+    }
+  };
+
+  return (
+    <View style={styles.reviewSection}>
+      <Pressable
+        testID="node-verification-review-queue-toggle"
+        accessibilityRole="button"
+        onPress={() => setIsOpen((open) => !open)}
+        style={[styles.secondaryButton, { borderColor: colors.border }]}
+      >
+        <Text style={[styles.secondaryText, { color: colors.foreground }]}>
+          {isOpen ? 'Hide Node review queue' : 'Review Node locations'}
+        </Text>
+      </Pressable>
+      {isOpen ? (
+        queue.isLoading ? <ActivityIndicator color={colors.primary} /> :
+          queue.isError ? (
+            <Pressable onPress={() => { void queue.refetch(); }}>
+              <Text style={[styles.message, { color: colors.destructive }]}>Couldn’t load Node applications. Tap to retry.</Text>
+            </Pressable>
+          ) : queue.data?.length ? queue.data.map((node) => (
+            <View key={node.id} style={[styles.reviewNote, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.companyName, { color: colors.foreground }]}>{node.organisationName} · {node.name}</Text>
+              <Text style={[styles.statusDescription, { color: colors.mutedForeground }]}>{node.description ?? 'No description supplied'}</Text>
+              <Text style={[styles.statusDescription, { color: colors.mutedForeground }]}>
+                {[node.addressLine1, node.addressLine2, node.city, node.postcode, node.country].filter(Boolean).join(', ') || 'Location not supplied'}
+              </Text>
+              <Text style={[styles.statusDescription, { color: colors.mutedForeground }]}>
+                Categories: {node.categories.join(', ') || 'not selected'} · Pin: {node.latitude ?? '—'}, {node.longitude ?? '—'}
+              </Text>
+              {node.publicWebsite ? <Text style={[styles.statusDescription, { color: colors.mutedForeground }]}>{node.publicWebsite}</Text> : null}
+              <TextInput
+                value={notes[node.id] ?? ''}
+                onChangeText={(value) => setNotes((previous) => ({ ...previous, [node.id]: value }))}
+                placeholder="Reviewer note (required for rejection or suspension)"
+                placeholderTextColor={colors.mutedForeground}
+                maxLength={500}
+                multiline
+                accessibilityLabel={`Reviewer note for ${node.name}`}
+                style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, borderRadius: colors.radius, minHeight: 70 }]}
+              />
+              <View style={styles.reviewActions}>
+                {(['approve', 'reject', 'needs_information', 'suspend'] as const).map((action) => (
+                  <Pressable
+                    key={action}
+                    testID={`node-review-${action}-${node.id}`}
+                    accessibilityRole="button"
+                    disabled={review.isPending}
+                    onPress={() => { void decide(node.id, action); }}
+                    style={[styles.reviewAction, { borderColor: colors.border, opacity: review.isPending ? 0.55 : 1 }]}
+                  >
+                    <Text style={[styles.reviewActionText, { color: colors.foreground }]}>{action.replace('_', ' ')}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )) : <Text style={[styles.statusDescription, { color: colors.mutedForeground }]}>No Node locations are waiting for review.</Text>
+      ) : null}
+      {error ? <Text accessibilityRole="alert" style={[styles.message, { color: colors.destructive }]}>{error}</Text> : null}
+      {notice ? <Text accessibilityLiveRegion="polite" style={[styles.message, { color: colors.success }]}>{notice}</Text> : null}
+    </View>
+  );
+}
+
 export default function OrganisationVerificationScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const statusQuery = useGetOrganisationVerification();
+  const statusQuery = useGetOrganisationVerification({
+    query: {
+      queryKey: getGetOrganisationVerificationQueryKey(),
+      enabled: user?.userType === 'organisation',
+    },
+  });
   const saveDraft = useSaveOrganisationVerificationDraft();
   const submitApplication = useSubmitOrganisationVerificationApplication();
   const searchCompanies = useSearchCompaniesHouseForOrganisationVerification();
@@ -275,7 +378,9 @@ export default function OrganisationVerificationScreen() {
         <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.backButton}>
           <Feather name="arrow-left" size={21} color={colors.foreground} />
         </Pressable>
-        <Text style={[styles.topTitle, { color: colors.foreground }]}>Organisation verification</Text>
+        <Text style={[styles.topTitle, { color: colors.foreground }]}>
+          {user?.userType === 'organisation' ? 'Organisation verification' : 'Verification reviews'}
+        </Text>
         <View style={styles.backButton} />
       </View>
       <KeyboardAwareScrollViewCompat
@@ -286,29 +391,40 @@ export default function OrganisationVerificationScreen() {
         ]}
         bottomOffset={64}
       >
-        <View style={[styles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.statusIcon, { backgroundColor: status === 'verified' ? colors.success + '15' : colors.primary + '14' }]}>
-            <Feather name={status === 'verified' ? 'check-circle' : 'shield'} size={20} color={status === 'verified' ? colors.success : colors.primary} />
+        {user?.userType === 'organisation' ? (
+          <View style={[styles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.statusIcon, { backgroundColor: status === 'verified' ? colors.success + '15' : colors.primary + '14' }]}>
+              <Feather name={status === 'verified' ? 'check-circle' : 'shield'} size={20} color={status === 'verified' ? colors.success : colors.primary} />
+            </View>
+            <View style={styles.statusCopy}>
+              <Text style={[styles.statusTitle, { color: colors.foreground }]}>{statusCopy(status)}</Text>
+              <Text style={[styles.statusDescription, { color: colors.mutedForeground }]}>
+                {status === 'verified'
+                  ? 'Your organisation has completed this review.'
+                  : 'A Companies House match helps identify a registered organisation; it does not prove your authority to represent it.'}
+              </Text>
+            </View>
+            {statusQuery.isFetching ? <ActivityIndicator color={colors.primary} /> : null}
           </View>
-          <View style={styles.statusCopy}>
-            <Text style={[styles.statusTitle, { color: colors.foreground }]}>{statusCopy(status)}</Text>
-            <Text style={[styles.statusDescription, { color: colors.mutedForeground }]}>
-              {status === 'verified'
-                ? 'Your organisation has completed this review.'
-                : 'A Companies House match helps identify a registered organisation; it does not prove your authority to represent it.'}
-            </Text>
-          </View>
-          {statusQuery.isFetching ? <ActivityIndicator color={colors.primary} /> : null}
-        </View>
+        ) : null}
 
         {user?.userType !== 'organisation' ? (
-          <Text style={[styles.message, { color: colors.destructive }]}>Switch to your organisation profile to manage verification.</Text>
+          reviewerAccess.isLoading ? (
+            <ActivityIndicator style={styles.loader} color={colors.primary} />
+          ) : reviewerAccess.data?.canReview ? (
+            <NodeReviewQueuePanel initiallyOpen />
+          ) : (
+            <Text style={[styles.message, { color: colors.destructive }]}>Switch to your organisation profile to manage verification.</Text>
+          )
         ) : statusQuery.isLoading ? (
           <ActivityIndicator style={styles.loader} color={colors.primary} />
         ) : statusQuery.isError ? (
-          <Pressable onPress={() => { void statusQuery.refetch(); }} style={[styles.secondaryButton, { borderColor: colors.border }]}>
-            <Text style={[styles.secondaryText, { color: colors.foreground }]}>Retry loading verification</Text>
-          </Pressable>
+          <>
+            <Pressable onPress={() => { void statusQuery.refetch(); }} style={[styles.secondaryButton, { borderColor: colors.border }]}>
+              <Text style={[styles.secondaryText, { color: colors.foreground }]}>Retry loading verification</Text>
+            </Pressable>
+            {reviewerAccess.data?.canReview ? <NodeReviewQueuePanel initiallyOpen /> : null}
+          </>
         ) : (
           <>
             {reviewerAccess.data?.canReview ? (
@@ -374,6 +490,7 @@ export default function OrganisationVerificationScreen() {
                       </View>
                     )) : <Text style={[styles.statusDescription, { color: colors.mutedForeground }]}>No applications are waiting for review.</Text>
                 ) : null}
+                <NodeReviewQueuePanel />
               </View>
             ) : null}
             {canSubmit || statusQuery.data?.application?.status === 'needs_information' ? (

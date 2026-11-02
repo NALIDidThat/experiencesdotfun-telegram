@@ -19,6 +19,7 @@ const ExploreMap = React.forwardRef<ExploreMapHandle, ExploreMapProps>(function 
     cities: props.cities,
     friends: props.friends,
     experienceLocations: props.experienceLocations,
+    nodes: props.nodes,
     mode: props.mode,
     selectedCity: props.selectedCity,
     selectedCityCoordinates: props.selectedCityCoordinates,
@@ -46,11 +47,12 @@ const ExploreMap = React.forwardRef<ExploreMapHandle, ExploreMapProps>(function 
 
   const onMessage = (event: WebViewMessageEvent) => {
     try {
-      const message = JSON.parse(event.nativeEvent.data) as { type?: string; city?: string; friendId?: number; experienceId?: number };
+      const message = JSON.parse(event.nativeEvent.data) as { type?: string; city?: string; friendId?: number; experienceId?: number; nodeId?: number };
       if (message.type === 'ready') setBridgeReady(true);
       if (message.type === 'city' && message.city) props.onSelectCity(message.city);
       if (message.type === 'friend' && message.friendId) props.onSelectFriend?.(message.friendId);
       if (message.type === 'experience' && message.experienceId) props.onSelectExperience?.(message.experienceId);
+      if (message.type === 'node' && message.nodeId) props.onSelectNode?.(message.nodeId);
       if (message.type === 'reset') props.onResetCity();
     } catch {
       // Ignore malformed bridge messages.
@@ -66,6 +68,7 @@ const ExploreMap = React.forwardRef<ExploreMapHandle, ExploreMapProps>(function 
           cities={props.cities}
           friends={props.friends}
           experienceLocations={props.experienceLocations}
+          nodes={props.nodes}
           mode={props.mode}
           selectedCity={props.selectedCity}
           selectedCityCoordinates={props.selectedCityCoordinates}
@@ -78,6 +81,7 @@ const ExploreMap = React.forwardRef<ExploreMapHandle, ExploreMapProps>(function 
           onSelectCity={props.onSelectCity}
           onSelectFriend={props.onSelectFriend}
           onSelectExperience={props.onSelectExperience}
+          onSelectNode={props.onSelectNode}
           onExploreCity={props.onExploreCity}
           onResetCity={props.onResetCity}
         />

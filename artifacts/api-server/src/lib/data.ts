@@ -6,6 +6,7 @@ import {
   experienceLocationEvidenceTable,
   friendshipsTable,
   organisationsTable,
+  nodeExperiencesTable,
   participationReviewEventsTable,
   participationsTable,
   usersTable,
@@ -157,7 +158,7 @@ export function organisationResponse(organisation: Organisation) {
 }
 
 export async function experienceResponse(experience: Experience) {
-  const [organisation, participantCount, locationEvidence] = await Promise.all([
+  const [organisation, participantCount, locationEvidence, nodeId] = await Promise.all([
     db.query.organisationsTable.findFirst({
       where: eq(organisationsTable.id, experience.organisationId),
     }),
@@ -179,6 +180,7 @@ export async function experienceResponse(experience: Experience) {
     db.query.experienceLocationEvidenceTable.findFirst({
       where: eq(experienceLocationEvidenceTable.experienceId, experience.id),
     }),
+    linkedNodeId(experience.id),
   ]);
   if (!organisation) throw new Error("Experience organisation is missing.");
   const participants = Number(participantCount?.value ?? 0);
@@ -193,6 +195,7 @@ export async function experienceResponse(experience: Experience) {
     endTime: experience.endTime,
     location: experience.location,
     city: experience.city,
+    nodeId,
     verifiedLocation: toPublicVerifiedLocation(locationEvidence),
     capacity: experience.capacity,
     participantCount: participants,
@@ -201,6 +204,28 @@ export async function experienceResponse(experience: Experience) {
     monetaryRewardPence: experience.monetaryRewardPence,
     status: participants >= experience.capacity ? "full" : experience.status,
   };
+}
+
+let nodeExperienceSchemaAvailable: Promise<boolean> | undefined;
+
+async function linkedNodeId(experienceId: number): Promise<number | null> {
+  if (!nodeExperienceSchemaAvailable) {
+    nodeExperienceSchemaAvailable = db.execute(sql`
+      SELECT to_regclass('public.node_experiences') IS NOT NULL AS available
+    `).then((result) => Boolean((result.rows[0] as { available?: boolean } | undefined)?.available))
+      .catch(() => false)
+      .then((available) => {
+        if (!available) nodeExperienceSchemaAvailable = undefined;
+        return available;
+      });
+  }
+  if (!await nodeExperienceSchemaAvailable) return null;
+  const [link] = await db
+    .select({ nodeId: nodeExperiencesTable.nodeId })
+    .from(nodeExperiencesTable)
+    .where(eq(nodeExperiencesTable.experienceId, experienceId))
+    .limit(1);
+  return link?.nodeId ?? null;
 }
 
 export async function participationResponse(

@@ -31,6 +31,8 @@ export * from "./connections";
 export * from "./direct-messages";
 export * from "./experience-challenges";
 export * from "./ai-assistant";
+export * from "./learning";
+export * from "./telegram-ai";
 export * from "./fundraising";
 export * from "./organisation-verification";
 export * from "./participation-review-events";

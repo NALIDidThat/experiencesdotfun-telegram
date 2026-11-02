@@ -9,14 +9,17 @@ import {
   friendshipsTable,
   participationsTable,
   usersTable,
+  type AiResearchSource,
   type AiAssistantAction,
   type User,
 } from "@workspace/db/schema";
 import { experienceResponse } from "./data";
 import { canCreateExperienceChallenge } from "./challenge-rules.mjs";
+import { runWebSearchTool, webSearchTool } from "./ai-web-search";
 import { randomUUID } from "node:crypto";
 
 export const aiAssistantTools = [
+  webSearchTool,
   {
     type: "function",
     function: {
@@ -334,10 +337,21 @@ async function proposeChallenge(user: User, args: unknown) {
 export async function executeAiAssistantTool(
   user: User,
   toolCall: ToolCall,
-): Promise<{ result: unknown; actions: AiAssistantAction[] }> {
+): Promise<{
+  result: unknown;
+  actions: AiAssistantAction[];
+  sources: AiResearchSource[];
+}> {
   const args = parseArguments(toolCall.arguments);
   let result: unknown;
+  let sources: AiResearchSource[] = [];
   switch (toolCall.name) {
+    case "search_web": {
+      const search = await runWebSearchTool(toolCall.arguments);
+      result = search.result;
+      sources = search.sources;
+      break;
+    }
     case "search_experiences":
       result = await searchExperiences(args);
       break;
@@ -362,7 +376,7 @@ export async function executeAiAssistantTool(
     result.action !== null
       ? (result.action as AiAssistantAction)
       : null;
-  return { result, actions: action ? [action] : [] };
+  return { result, actions: action ? [action] : [], sources };
 }
 
 export async function saveAssistantMessage(

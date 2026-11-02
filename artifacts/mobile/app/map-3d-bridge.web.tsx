@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import ExploreMapGoogle3D from '@/components/ExploreMapGoogle3D.web';
 import type { ExploreMapHandle, ExploreMapProps } from '@/components/ExploreMap.types';
 
-type MapData = Omit<ExploreMapProps, 'apiKey' | 'onSelectCity' | 'onSelectFriend' | 'onSelectExperience' | 'onExploreCity' | 'onResetCity'>;
+type MapData = Omit<ExploreMapProps, 'apiKey' | 'onSelectCity' | 'onSelectFriend' | 'onSelectExperience' | 'onSelectNode' | 'onExploreCity' | 'onResetCity'>;
 type BridgeMessage = { type: string; props?: MapData; latitude?: number; longitude?: number };
 type NativeBridgeWindow = Window & { ReactNativeWebView?: { postMessage: (message: string) => void } };
 
@@ -45,6 +45,7 @@ export default function Map3DBridgeRoute() {
         onSelectCity={(city) => send({ type: 'city', city })}
         onSelectFriend={(friendId) => send({ type: 'friend', friendId })}
         onSelectExperience={(experienceId) => send({ type: 'experience', experienceId })}
+        onSelectNode={(nodeId) => send({ type: 'node', nodeId })}
         onExploreCity={(city) => send({ type: 'city', city })}
         onResetCity={() => send({ type: 'reset' })}
       />

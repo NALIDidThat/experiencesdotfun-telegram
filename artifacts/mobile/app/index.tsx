@@ -38,6 +38,8 @@ import { LinearGradient } from '@/components/LinearGradient';
 import * as Haptics from 'expo-haptics';
 import {
   getGetAccountabilityDashboardQueryKey,
+  getGetNodesQueryKey,
+  getGetOrganisationNodesQueryKey,
   getGetHostExperienceMilestonesQueryKey,
   getGetHostOverviewQueryKey,
   useAcceptFriendRequest,
@@ -51,8 +53,10 @@ import {
   useGetExperience,
   useGetFriendProfile,
   useGetHostExperienceMilestones,
+  useGetOrganisationNodes,
   useGetAccountabilityDashboard,
   useGetHostOverview,
+  useGetNodes,
   useGetMe,
   useGetMyXpAwards,
   useJoinExperience,
@@ -140,13 +144,15 @@ import { DirectMessagesScreen } from '@/components/DirectMessagesScreen';
 import { AiAssistantScreen } from '@/components/AiAssistantScreen';
 import { ExperienceChallengesScreen } from '@/components/ExperienceChallengesScreen';
 import { MemoryGameScreen } from '@/components/MemoryGameScreen';
-import { ExploreGlobe, type GlobeCity, type GlobeExperienceLocation, type GlobeFriend, type GlobeMode, type WelcomeGlobeActivityCity } from '@/components/ExploreGlobe';
+import { ExploreGlobe, type GlobeCity, type GlobeExperienceLocation, type GlobeFriend, type GlobeMode, type GlobeNodeLocation, type WelcomeGlobeActivityCity } from '@/components/ExploreGlobe';
 import ExploreMap from '@/components/ExploreMap';
 import type { ExploreMapHandle } from '@/components/ExploreMap.types';
 import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSliderPicker';
 import { ExperienceLocationPicker, type ResolvedLocation } from '@/components/ExperienceLocationPicker';
 import { TimeWheelPicker } from '@/components/TimeWheelPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
+import { NodeDashboardCard, NodeManagementPanel, MyNodeConnectionsPanel } from '@/components/NodeManagementPanel';
+import { NodeProfileScreen } from '@/components/NodeProfileScreen';
 import { openTelegramBot, shareToTelegram } from '@/lib/telegram';
 import {
   TelegramCommunityDashboardScreen,
@@ -154,11 +160,12 @@ import {
 } from '@/components/TelegramCommunityManagementScreen';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-community-dashboard' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'node-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-community-dashboard' | 'email';
 type ScreenTransitionDirection = 'forward' | 'back' | 'switch';
 type ScreenRouteParams = {
   id?: string;
   friendId?: string;
+  nodeId?: string;
   chatId?: string;
   category?: string;
   step?: string;
@@ -188,7 +195,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'campaigns', 'payout-proposal', 'contributions', 'telegram-communities', 'telegram-community-dashboard', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'node-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'campaigns', 'payout-proposal', 'contributions', 'telegram-communities', 'telegram-community-dashboard', 'email'];
 
 function routeParamString(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -206,6 +213,7 @@ function createScreenHistoryEntry(screen: Screen, params: ScreenRouteParams = {}
     params: {
       id: routeId,
       friendId: screen === 'friend-profile' ? params.friendId : undefined,
+      nodeId: screen === 'node-profile' ? params.nodeId : undefined,
       chatId: screen === 'telegram-community-dashboard' ? params.chatId : undefined,
       category: screen === 'explore' ? params.category : undefined,
       step: screen === 'create' ? params.step : undefined,
@@ -231,6 +239,8 @@ function isPrimaryNavigationScreen(screen: Screen, userType?: string | null, isC
 
 function defaultBackEntry(entry: ScreenHistoryEntry): ScreenHistoryEntry {
   switch (entry.screen) {
+    case 'node-profile':
+      return createScreenHistoryEntry('explore');
     case 'experience':
       return createScreenHistoryEntry('explore');
     case 'host-detail':
@@ -2669,6 +2679,10 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
   }, [collapsedSheetHeight, expandedSheetHeight, screenHeight, sheetExpanded, sheetHeight]);
   const query = useListExperiences({ category: category === 'all' ? undefined : category, search: search.trim() || undefined, availableOnly: false });
   const verifiedActivityQuery = useListExploreActivity();
+  const nodesQuery = useGetNodes(
+    { limit: 100 },
+    { query: { queryKey: getGetNodesQueryKey({ limit: 100 }), retry: false } },
+  );
   const friendsQuery = useListFriends({ query: { queryKey: getListFriendsQueryKey(), enabled: Boolean(user) } });
   const profileCityCenter = user?.city
     ? exploreCityCoordinates[normalizeExploreCityName(user.city)] ?? null
@@ -2736,6 +2750,21 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         : [];
     }),
     [query.data],
+  );
+  const verifiedNodeLocations = useMemo<GlobeNodeLocation[]>(
+    () => (nodesQuery.data ?? []).flatMap((node) => (
+      typeof node.latitude === 'number' && typeof node.longitude === 'number'
+        ? [{
+            nodeId: node.id,
+            name: node.name,
+            organisationName: node.organisationName,
+            city: node.city,
+            latitude: node.latitude,
+            longitude: node.longitude,
+          }]
+        : []
+    )),
+    [nodesQuery.data],
   );
   const visibleExperiences = selectedCity
     ? (query.data ?? []).filter((experience) => normalizeExploreCityName(experience.city) === normalizeExploreCityName(selectedCity))
@@ -2881,6 +2910,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           cities={globeCities}
           friends={friendLocations}
           experienceLocations={verifiedExperienceLocations}
+          nodes={verifiedNodeLocations}
           mode={mode}
           selectedCity={selectedCity}
           selectedCityCoordinates={selectedCity ? exploreCityCoordinates[normalizeExploreCityName(selectedCity)] : undefined}
@@ -2893,6 +2923,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
           onSelectCity={selectCity}
           onSelectFriend={(friendId) => go('friend-profile', { friendId: String(friendId) })}
           onSelectExperience={(experienceId) => go('experience', { id: String(experienceId) })}
+          onSelectNode={(nodeId) => go('node-profile', { nodeId: String(nodeId) })}
           onExploreCity={selectCity}
           onResetCity={clearSelectedCity}
         />
@@ -6175,6 +6206,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           onCreateExperience={() => go('create')}
         />
       ) : null}
+      {current.userType === 'organisation' ? <NodeManagementPanel /> : null}
       {current.userType === 'organisation' && current.organisation?.type === 'charity' ? (
         <OrganisationFundraiserSection organisationUserId={current.id} canLaunch onLaunch={() => go('funds')} />
       ) : null}
@@ -6182,6 +6214,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       {current.userType === 'participant' ? (
         <>
           <ContributionDashboard user={current} completed={completed.data} />
+          <MyNodeConnectionsPanel onOpenNode={(nodeId) => go('node-profile', { nodeId: String(nodeId) })} />
           <CommunityXpPanel />
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent impact</Text>
           {completed.isLoading ? <LoadingState /> : completed.isError ? (
@@ -8348,6 +8381,9 @@ function CreateExperienceForm({
   const { user } = useAuth();
   const create = useCreateExperience();
   const update = useUpdateHostExperience();
+  const nodeOptions = useGetOrganisationNodes({
+    query: { queryKey: getGetOrganisationNodesQueryKey(), enabled: user?.userType === 'organisation', retry: false },
+  });
   const isEditing = editingExperienceId !== undefined;
   const inputStepCount = createExperienceQuestions.length;
   const totalSteps = inputStepCount + 1;
@@ -8365,6 +8401,7 @@ function CreateExperienceForm({
     startTime: initialExperience?.startTime,
     endTime: initialExperience?.endTime,
     location: initialExperience?.location,
+    nodeId: initialExperience?.nodeId ?? null,
     city: initialExperience?.city ?? user?.city ?? 'London',
     capacity: initialExperience?.capacity ?? 12,
     xpReward: initialExperience?.xpReward ?? 150,
@@ -8384,7 +8421,7 @@ function CreateExperienceForm({
       : [{ title: '', description: '', xpReward: '150' }]);
 
   const set = (key: Exclude<keyof ExperienceCreateInput, 'milestones'>, value: string | number | null) => {
-    const numeric = key === 'capacity' || key === 'xpReward' || key === 'monetaryRewardPence';
+    const numeric = key === 'capacity' || key === 'xpReward' || key === 'monetaryRewardPence' || key === 'nodeId';
     const nextValue = numeric ? (value === '' || value === null ? null : Number(value)) : value;
     setForm((current) => ({ ...current, [key]: nextValue }));
     setInputError(null);
@@ -8515,6 +8552,9 @@ function CreateExperienceForm({
         endTime: form.endTime!.trim(),
         location: form.location!.trim(),
         city: form.city!.trim(),
+        ...(nodeOptions.data !== undefined
+          ? { nodeId: form.nodeId == null ? null : Number(form.nodeId) }
+          : {}),
         capacity: Number(form.capacity),
         xpReward: Number(form.xpReward),
         monetaryRewardPence: form.monetaryRewardPence == null ? null : Number(form.monetaryRewardPence),
@@ -8598,6 +8638,9 @@ function CreateExperienceForm({
     }
     const value = form[key];
     if (value == null || value === '') return 'Not added';
+    if (key === 'nodeId') {
+      return nodeOptions.data?.find((node) => node.id === Number(value))?.name ?? 'Organisation-wide';
+    }
     if (key === 'category') return categoryLabel[value as ExperienceCategory];
     if (key === 'date') return formatExperienceDateUk(String(value));
     if (key === 'capacity') return `${value} places`;
@@ -8930,6 +8973,43 @@ function CreateExperienceForm({
                   })}
                 </View>
               ))}
+              {nodeOptions.data !== undefined ? (
+                <View testID="experience-node-association" style={[styles.createReviewCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+                  <Text style={[styles.createReviewSectionTitle, { color: colors.mutedForeground }]}>COMMUNITY NODE</Text>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
+                    Optionally link this experience to one of your Nodes. It appears on that Node’s profile after publication.
+                  </Text>
+                  <Pressable
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: form.nodeId == null }}
+                    testID="experience-node-none"
+                    onPress={() => set('nodeId', null)}
+                    style={{ minHeight: 42, paddingHorizontal: 11, borderWidth: 1, borderColor: form.nodeId == null ? colors.primary : colors.border, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                  >
+                    <Feather name={form.nodeId == null ? 'check-circle' : 'circle'} size={16} color={form.nodeId == null ? colors.primary : colors.mutedForeground} />
+                    <Text style={{ color: form.nodeId == null ? colors.primary : colors.foreground, fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>No Node · organisation-wide</Text>
+                  </Pressable>
+                  {nodeOptions.data.map((node) => {
+                    const selected = Number(form.nodeId) === node.id;
+                    return (
+                      <Pressable
+                        key={node.id}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
+                        testID={`experience-node-${node.id}`}
+                        onPress={() => set('nodeId', node.id)}
+                        style={{ minHeight: 42, paddingHorizontal: 11, borderWidth: 1, borderColor: selected ? colors.primary : colors.border, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                      >
+                        <Feather name={selected ? 'check-circle' : 'circle'} size={16} color={selected ? colors.primary : colors.mutedForeground} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: selected ? colors.primary : colors.foreground, fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>{node.name}</Text>
+                          <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{node.city ?? 'Location not set'} · {node.verificationStatus === 'verified' ? 'Verified' : 'Not yet verified'}</Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
             </View>
           )}
         </View>
@@ -9876,7 +9956,7 @@ function BottomNavInteractionHarness({ userType = 'participant' }: { userType?: 
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; chatId?: string; category?: string; step?: string; focus?: string; participantId?: string; experienceId?: string; experienceTitle?: string; keyboardTest?: string; navTest?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; nodeId?: string; chatId?: string; category?: string; step?: string; focus?: string; participantId?: string; experienceId?: string; experienceTitle?: string; keyboardTest?: string; navTest?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -9897,6 +9977,7 @@ export default function App() {
   const initialRouteEntry = createScreenHistoryEntry(initialScreen, {
     id: routeParamString(params.id),
     friendId: routeParamString(params.friendId),
+    nodeId: routeParamString(params.nodeId),
     chatId: routeParamString(params.chatId),
     category: routeParamString(params.category),
     step: routeParamString(params.step),
@@ -9931,6 +10012,7 @@ export default function App() {
     const routeEntry = createScreenHistoryEntry(routeScreen as Screen, {
       id: routeParamString(params.id),
       friendId: routeParamString(params.friendId),
+      nodeId: routeParamString(params.nodeId),
       chatId: routeParamString(params.chatId),
       category: routeParamString(params.category),
       step: routeParamString(params.step),
@@ -9954,6 +10036,7 @@ export default function App() {
     params.screen,
     params.id,
     params.friendId,
+    params.nodeId,
     params.chatId,
     params.category,
     params.step,
@@ -9972,6 +10055,8 @@ export default function App() {
       ? 'profile'
       : screen === 'payout-proposal'
         ? 'funds'
+      : screen === 'node-profile'
+        ? 'explore'
       : screen === 'host-detail'
         ? 'host'
       : screen === 'activity'
@@ -9998,6 +10083,7 @@ export default function App() {
       screen: entry.screen,
       id: routeId,
       friendId: entry.params.friendId,
+      nodeId: entry.params.nodeId,
       category: entry.params.category,
       step: entry.params.step,
       focus: entry.params.focus,
@@ -10451,6 +10537,13 @@ export default function App() {
       );
     }
     if (screen === 'friend-profile') return <FriendProfileScreen friendId={Number(params.friendId)} onBack={() => goBack('friends')} />;
+    if (screen === 'node-profile') return (
+      <NodeProfileScreen
+        nodeId={Number(params.nodeId)}
+        onBack={() => goBack()}
+        onOpenExperience={(id) => go('experience', { id: String(id) })}
+      />
+    );
     if (screen === 'friends') return <FriendsOverviewScreen go={go} />;
     if (screen === 'memory-game') {
       return (
@@ -10579,7 +10672,7 @@ export default function App() {
       );
   })();
 
-  const noNav = ['experience', 'host-detail', 'create', 'direct-message', 'memory-game', 'payout-proposal'].includes(screen);
+  const noNav = ['experience', 'node-profile', 'host-detail', 'create', 'direct-message', 'memory-game', 'payout-proposal'].includes(screen);
   const navActive = screen === 'funds' || screen === 'campaigns' || screen === 'payout-proposal'
     ? user.userType === 'organisation' && user.organisation?.type === 'charity' ? 'funds' : 'profile'
     : user.userType === 'organisation' && screen === 'experiences'
@@ -10593,6 +10686,8 @@ export default function App() {
       : screen;
   const transitionEntityId = ['experience', 'host-detail', 'direct-message'].includes(screen)
     ? params.id
+    : screen === 'node-profile'
+      ? params.nodeId
     : screen === 'friend-profile'
       ? params.friendId
       : screen === 'telegram-community-dashboard'

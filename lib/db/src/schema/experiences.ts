@@ -3,10 +3,12 @@ import {
   boolean,
   check,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
@@ -150,6 +152,139 @@ export const organisationsTable = pgTable("organisations", {
     sql`${table.verificationStatus} IN ('unsubmitted', 'pending', 'under_review', 'verified', 'rejected', 'suspended', 'expired')`,
   ),
 }));
+
+export const nodeVerificationStatuses = [
+  "draft",
+  "pending",
+  "under_review",
+  "needs_information",
+  "verified",
+  "rejected",
+  "suspended",
+] as const;
+export type NodeVerificationStatus = (typeof nodeVerificationStatuses)[number];
+
+export const nodeParticipationRoles = ["participant", "volunteer", "learner"] as const;
+export type NodeParticipationRole = (typeof nodeParticipationRoles)[number];
+
+export const nodesTable = pgTable(
+  "nodes",
+  {
+    id: serial("id").primaryKey(),
+    organisationId: integer("organisation_id")
+      .notNull()
+      .references(() => organisationsTable.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    description: text("description"),
+    categories: text("categories").array().notNull().default([]),
+    addressLine1: text("address_line1"),
+    addressLine2: text("address_line2"),
+    city: text("city"),
+    country: text("country"),
+    postcode: text("postcode"),
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
+    publicWebsite: text("public_website"),
+    publicContactEmail: text("public_contact_email"),
+    visibility: text("visibility", { enum: ["public", "unlisted"] }).notNull().default("public"),
+    approvalRequired: boolean("approval_required").notNull().default(false),
+    verificationStatus: text("verification_status", { enum: nodeVerificationStatuses }).notNull().default("draft"),
+    reviewerNotes: text("reviewer_notes"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    slugIndex: uniqueIndex("nodes_slug_idx").on(table.slug),
+    organisationNameIndex: uniqueIndex("nodes_organisation_name_idx").on(table.organisationId, table.name),
+    organisationIndex: index("nodes_organisation_idx").on(table.organisationId),
+    discoveryIndex: index("nodes_discovery_idx").on(table.verificationStatus, table.visibility, table.city),
+    coordinatesCheck: check(
+      "nodes_coordinates_pair_check",
+      sql`(${table.latitude} IS NULL AND ${table.longitude} IS NULL) OR (${table.latitude} BETWEEN -90 AND 90 AND ${table.longitude} BETWEEN -180 AND 180)`,
+    ),
+    verificationStatusCheck: check(
+      "nodes_verification_status_check",
+      sql`${table.verificationStatus} IN ('draft', 'pending', 'under_review', 'needs_information', 'verified', 'rejected', 'suspended')`,
+    ),
+    visibilityCheck: check(
+      "nodes_visibility_check",
+      sql`${table.visibility} IN ('public', 'unlisted')`,
+    ),
+  }),
+);
+
+export const nodeMembershipsTable = pgTable(
+  "node_memberships",
+  {
+    id: serial("id").primaryKey(),
+    nodeId: integer("node_id")
+      .notNull()
+      .references(() => nodesTable.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    participationRole: text("participation_role", { enum: nodeParticipationRoles }).notNull(),
+    status: text("status", { enum: ["pending", "active"] }).notNull().default("active"),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    nodeUserIndex: uniqueIndex("node_memberships_node_user_idx").on(table.nodeId, table.userId),
+    userIndex: index("node_memberships_user_idx").on(table.userId, table.status),
+    nodeStatusIndex: index("node_memberships_node_status_idx").on(table.nodeId, table.status),
+    onePrimaryPerUserIndex: uniqueIndex("node_memberships_one_primary_per_user_idx")
+      .on(table.userId)
+      .where(sql`${table.isPrimary} = true AND ${table.status} = 'active'`),
+    roleCheck: check(
+      "node_memberships_role_check",
+      sql`${table.participationRole} IN ('participant', 'volunteer', 'learner')`,
+    ),
+    statusCheck: check(
+      "node_memberships_status_check",
+      sql`${table.status} IN ('pending', 'active')`,
+    ),
+  }),
+);
+
+export const nodeVerificationEventsTable = pgTable(
+  "node_verification_events",
+  {
+    id: serial("id").primaryKey(),
+    nodeId: integer("node_id")
+      .notNull()
+      .references(() => nodesTable.id, { onDelete: "cascade" }),
+    actorUserId: integer("actor_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+    eventType: text("event_type").notNull(),
+    status: text("status", { enum: nodeVerificationStatuses }).notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    nodeCreatedIndex: index("node_verification_events_node_created_idx").on(table.nodeId, table.createdAt),
+  }),
+);
+
+export const nodeExperiencesTable = pgTable(
+  "node_experiences",
+  {
+    nodeId: integer("node_id")
+      .notNull()
+      .references(() => nodesTable.id, { onDelete: "cascade" }),
+    experienceId: integer("experience_id")
+      .notNull()
+      .references(() => experiencesTable.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    primary: primaryKey({ columns: [table.nodeId, table.experienceId], name: "node_experiences_pkey" }),
+    experienceIndex: uniqueIndex("node_experiences_experience_unique").on(table.experienceId),
+  }),
+);
 
 export const experiencesTable = pgTable("experiences", {
   id: serial("id").primaryKey(),
@@ -359,6 +494,8 @@ export const analyticsEventsTable = pgTable(
 
 export const insertUserSchema = createInsertSchema(usersTable);
 export const insertOrganisationSchema = createInsertSchema(organisationsTable);
+export const insertNodeSchema = createInsertSchema(nodesTable);
+export const insertNodeMembershipSchema = createInsertSchema(nodeMembershipsTable);
 export const insertExperienceSchema = createInsertSchema(experiencesTable);
 export const insertParticipationSchema = createInsertSchema(participationsTable);
 export const insertFriendshipSchema = createInsertSchema(friendshipsTable);
@@ -366,6 +503,10 @@ export const insertFriendNotificationSchema = createInsertSchema(friendNotificat
 
 export type User = typeof usersTable.$inferSelect;
 export type Organisation = typeof organisationsTable.$inferSelect;
+export type Node = typeof nodesTable.$inferSelect;
+export type NodeMembership = typeof nodeMembershipsTable.$inferSelect;
+export type NodeVerificationEvent = typeof nodeVerificationEventsTable.$inferSelect;
+export type NodeExperience = typeof nodeExperiencesTable.$inferSelect;
 export type Experience = typeof experiencesTable.$inferSelect;
 export type Participation = typeof participationsTable.$inferSelect;
 export type Friendship = typeof friendshipsTable.$inferSelect;

@@ -1,4 +1,4 @@
-import type { ExploreGlobeHandle, GlobeCity, GlobeExperienceLocation, GlobeFriend, GlobeMode } from '@/components/ExploreGlobe';
+import type { ExploreGlobeHandle, GlobeCity, GlobeExperienceLocation, GlobeFriend, GlobeMode, GlobeNodeLocation } from '@/components/ExploreGlobe';
 
 export type ExploreMapCategory = 'all' | 'food' | 'parks' | 'community' | 'culture' | 'shopping' | 'transit' | 'essentials';
 
@@ -7,6 +7,7 @@ export type ExploreMapProps = {
   cities: GlobeCity[];
   friends?: GlobeFriend[];
   experienceLocations?: GlobeExperienceLocation[];
+  nodes?: GlobeNodeLocation[];
   mode: GlobeMode;
   selectedCity: string | null;
   selectedCityCoordinates?: { latitude: number; longitude: number };
@@ -20,6 +21,7 @@ export type ExploreMapProps = {
   onSelectCity: (city: string) => void;
   onSelectFriend?: (friendId: number) => void;
   onSelectExperience?: (experienceId: number) => void;
+  onSelectNode?: (nodeId: number) => void;
   onExploreCity: (city: string) => void;
   onResetCity: () => void;
 };

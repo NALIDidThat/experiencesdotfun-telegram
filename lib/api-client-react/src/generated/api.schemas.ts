@@ -5,6 +5,379 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type NodeDraftInputCategoriesItem = typeof NodeDraftInputCategoriesItem[keyof typeof NodeDraftInputCategoriesItem];
+
+
+export const NodeDraftInputCategoriesItem = {
+  environmental: 'environmental',
+  education: 'education',
+  community: 'community',
+} as const;
+
+export type NodeDraftInputVisibility = typeof NodeDraftInputVisibility[keyof typeof NodeDraftInputVisibility];
+
+
+export const NodeDraftInputVisibility = {
+  public: 'public',
+  unlisted: 'unlisted',
+} as const;
+
+export interface NodeDraftInput {
+  /**
+     * @minLength 2
+     * @maxLength 100
+     */
+  name: string;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  description?: string | null;
+  /** @maxItems 8 */
+  categories?: NodeDraftInputCategoriesItem[];
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  addressLine1?: string | null;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  addressLine2?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  city?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  country?: string | null;
+  /**
+     * @maxLength 32
+     * @nullable
+     */
+  postcode?: string | null;
+  /**
+     * @minimum -90
+     * @maximum 90
+     * @nullable
+     */
+  latitude?: number | null;
+  /**
+     * @minimum -180
+     * @maximum 180
+     * @nullable
+     */
+  longitude?: number | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  publicWebsite?: string | null;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  publicContactEmail?: string | null;
+  visibility?: NodeDraftInputVisibility;
+  approvalRequired?: boolean;
+}
+
+export type NodeDraftUpdateInputCategoriesItem = typeof NodeDraftUpdateInputCategoriesItem[keyof typeof NodeDraftUpdateInputCategoriesItem];
+
+
+export const NodeDraftUpdateInputCategoriesItem = {
+  environmental: 'environmental',
+  education: 'education',
+  community: 'community',
+} as const;
+
+export type NodeDraftUpdateInputVisibility = typeof NodeDraftUpdateInputVisibility[keyof typeof NodeDraftUpdateInputVisibility];
+
+
+export const NodeDraftUpdateInputVisibility = {
+  public: 'public',
+  unlisted: 'unlisted',
+} as const;
+
+export interface NodeDraftUpdateInput {
+  /**
+     * @minLength 2
+     * @maxLength 100
+     */
+  name?: string;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  description?: string | null;
+  /** @maxItems 8 */
+  categories?: NodeDraftUpdateInputCategoriesItem[];
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  addressLine1?: string | null;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  addressLine2?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  city?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  country?: string | null;
+  /**
+     * @maxLength 32
+     * @nullable
+     */
+  postcode?: string | null;
+  /**
+     * @minimum -90
+     * @maximum 90
+     * @nullable
+     */
+  latitude?: number | null;
+  /**
+     * @minimum -180
+     * @maximum 180
+     * @nullable
+     */
+  longitude?: number | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  publicWebsite?: string | null;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  publicContactEmail?: string | null;
+  visibility?: NodeDraftUpdateInputVisibility;
+  approvalRequired?: boolean;
+}
+
+export type NodeCategoriesItem = typeof NodeCategoriesItem[keyof typeof NodeCategoriesItem];
+
+
+export const NodeCategoriesItem = {
+  environmental: 'environmental',
+  education: 'education',
+  community: 'community',
+} as const;
+
+export type NodeVisibility = typeof NodeVisibility[keyof typeof NodeVisibility];
+
+
+export const NodeVisibility = {
+  public: 'public',
+  unlisted: 'unlisted',
+} as const;
+
+export type NodeVerificationStatus = typeof NodeVerificationStatus[keyof typeof NodeVerificationStatus];
+
+
+export const NodeVerificationStatus = {
+  draft: 'draft',
+  pending: 'pending',
+  under_review: 'under_review',
+  needs_information: 'needs_information',
+  verified: 'verified',
+  rejected: 'rejected',
+  suspended: 'suspended',
+} as const;
+
+export interface Node {
+  id: number;
+  organisationId: number;
+  organisationName: string;
+  /** @nullable */
+  organisationType: string | null;
+  organisationVerified: boolean;
+  name: string;
+  slug: string;
+  /** @nullable */
+  description: string | null;
+  categories: NodeCategoriesItem[];
+  /** @nullable */
+  addressLine1: string | null;
+  /** @nullable */
+  addressLine2: string | null;
+  /** @nullable */
+  city: string | null;
+  /** @nullable */
+  country: string | null;
+  /** @nullable */
+  postcode: string | null;
+  /** @nullable */
+  latitude: number | null;
+  /** @nullable */
+  longitude: number | null;
+  /** @nullable */
+  publicWebsite: string | null;
+  /** @nullable */
+  publicContactEmail: string | null;
+  visibility: NodeVisibility;
+  approvalRequired: boolean;
+  verificationStatus: NodeVerificationStatus;
+  /** @nullable */
+  reviewerNotes?: string | null;
+  /** @nullable */
+  submittedAt: string | null;
+  /** @nullable */
+  verifiedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NodeConnectionInputRole = typeof NodeConnectionInputRole[keyof typeof NodeConnectionInputRole];
+
+
+export const NodeConnectionInputRole = {
+  participant: 'participant',
+  volunteer: 'volunteer',
+  learner: 'learner',
+} as const;
+
+export interface NodeConnectionInput {
+  role: NodeConnectionInputRole;
+}
+
+export type NodeConnectionRole = typeof NodeConnectionRole[keyof typeof NodeConnectionRole];
+
+
+export const NodeConnectionRole = {
+  participant: 'participant',
+  volunteer: 'volunteer',
+  learner: 'learner',
+} as const;
+
+export type NodeConnectionStatus = typeof NodeConnectionStatus[keyof typeof NodeConnectionStatus];
+
+
+export const NodeConnectionStatus = {
+  pending: 'pending',
+  active: 'active',
+} as const;
+
+export type NodeConnectionXpAwarded = typeof NodeConnectionXpAwarded[keyof typeof NodeConnectionXpAwarded];
+
+
+export const NodeConnectionXpAwarded = {
+  NUMBER_0: 0,
+} as const;
+
+export interface NodeConnection {
+  nodeId: number;
+  role: NodeConnectionRole;
+  status: NodeConnectionStatus;
+  isPrimary: boolean;
+  joinedAt: string;
+  xpAwarded: NodeConnectionXpAwarded;
+}
+
+export type MyNodeConnectionRole = typeof MyNodeConnectionRole[keyof typeof MyNodeConnectionRole];
+
+
+export const MyNodeConnectionRole = {
+  participant: 'participant',
+  volunteer: 'volunteer',
+  learner: 'learner',
+} as const;
+
+export type MyNodeConnectionStatus = typeof MyNodeConnectionStatus[keyof typeof MyNodeConnectionStatus];
+
+
+export const MyNodeConnectionStatus = {
+  pending: 'pending',
+  active: 'active',
+} as const;
+
+export interface MyNodeConnection {
+  node: Node;
+  role: MyNodeConnectionRole;
+  status: MyNodeConnectionStatus;
+  isPrimary: boolean;
+  joinedAt: string;
+}
+
+export interface NodeExperience {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  city: string;
+  status: string;
+}
+
+export type NodeProfileStats = {
+  connectedParticipants: number;
+  publishedExperiences: number;
+};
+
+export type NodeProfileMembershipParticipationRole = typeof NodeProfileMembershipParticipationRole[keyof typeof NodeProfileMembershipParticipationRole];
+
+
+export const NodeProfileMembershipParticipationRole = {
+  participant: 'participant',
+  volunteer: 'volunteer',
+  learner: 'learner',
+} as const;
+
+export type NodeProfileMembershipStatus = typeof NodeProfileMembershipStatus[keyof typeof NodeProfileMembershipStatus];
+
+
+export const NodeProfileMembershipStatus = {
+  pending: 'pending',
+  active: 'active',
+} as const;
+
+export type NodeProfileMembership = {
+  participationRole: NodeProfileMembershipParticipationRole;
+  status: NodeProfileMembershipStatus;
+  isPrimary: boolean;
+} | null;
+
+export interface NodeProfile {
+  node: Node;
+  stats: NodeProfileStats;
+  experiences: NodeExperience[];
+  membership: NodeProfileMembership;
+}
+
+export type NodeReviewInputAction = typeof NodeReviewInputAction[keyof typeof NodeReviewInputAction];
+
+
+export const NodeReviewInputAction = {
+  approve: 'approve',
+  reject: 'reject',
+  needs_information: 'needs_information',
+  suspend: 'suspend',
+} as const;
+
+export interface NodeReviewInput {
+  action: NodeReviewInputAction;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  note?: string | null;
+}
+
 export interface FundPayoutInput {
   /** @minimum 1 */
   recipientUserId: number;
@@ -1760,6 +2133,11 @@ export interface Experience {
   endTime: string;
   location: string;
   city: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  nodeId: number | null;
   /** Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null. */
   verifiedLocation: VerifiedExperienceLocation | null;
   capacity: number;
@@ -1859,6 +2237,11 @@ export interface ExperienceCreateInput {
   /** @pattern ^(?:[01][0-9]|2[0-3]):[0-5][0-9]$ */
   endTime: string;
   location: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  nodeId?: number | null;
   city: string;
   /** @minimum 1 */
   capacity: number;
@@ -2044,6 +2427,65 @@ export interface AiAssistantMessage {
   content: string;
   actions: AiAssistantAction[];
   createdAt: string;
+}
+
+export interface AiResearchSource {
+  title: string;
+  url: string;
+  /** @nullable */
+  publishedAt: string | null;
+}
+
+export interface AiFlashcard {
+  question: string;
+  answer: string;
+  sourceUrls: string[];
+}
+
+export interface LearningResearch {
+  id: number;
+  prompt: string;
+  title: string;
+  content: string;
+  sources: AiResearchSource[];
+  createdAt: string;
+}
+
+export interface LearningFlashcardDeck {
+  id: number;
+  /** @nullable */
+  researchId: number | null;
+  title: string;
+  description: string;
+  /**
+     * @minItems 4
+     * @maxItems 12
+     */
+  cards: AiFlashcard[];
+  createdAt: string;
+}
+
+export interface LearningResearchInput {
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  prompt: string;
+}
+
+export type LearningDeckInput = (unknown & {
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  prompt?: string;
+  /** @minimum 1 */
+  researchId?: number;
+});
+
+export interface LearningDeckCreated {
+  research: LearningResearch;
+  deck: LearningFlashcardDeck;
 }
 
 export type AiAssistantConversation = AiAssistantConversationSummary & {
@@ -2774,6 +3216,52 @@ export type SyncCharityContributionLedger200 = {
 export type GetPrivateEvidenceAccess200 = {
   url: string;
   expiresIn: number;
+};
+
+export type GetNodesParams = {
+/**
+ * @maxLength 100
+ */
+search?: string;
+/**
+ * @maxLength 120
+ */
+city?: string;
+category?: GetNodesCategory;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+};
+
+export type GetNodesCategory = typeof GetNodesCategory[keyof typeof GetNodesCategory];
+
+
+export const GetNodesCategory = {
+  environmental: 'environmental',
+  education: 'education',
+  community: 'community',
+} as const;
+
+export type SetPrimaryNode200 = {
+  nodeId: number;
+  isPrimary: boolean;
+};
+
+export type ReviewNode200Status = typeof ReviewNode200Status[keyof typeof ReviewNode200Status];
+
+
+export const ReviewNode200Status = {
+  verified: 'verified',
+  rejected: 'rejected',
+  needs_information: 'needs_information',
+  suspended: 'suspended',
+} as const;
+
+export type ReviewNode200 = {
+  nodeId: number;
+  status: ReviewNode200Status;
 };
 
 export type GetOrganisationTreasuryParams = {

@@ -15,6 +15,7 @@ import type {
   User,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
+import { NodeDashboardCard } from '@/components/NodeManagementPanel';
 import { UserAvatar } from '@/components/UserAvatar';
 import { selectOrganisationHomePriority } from '@/lib/home-priority';
 
@@ -235,6 +236,8 @@ export function OrganisationHomeScreen({ user, go }: Props) {
           <Text style={[styles.editText, { color: colors.foreground }]}>Edit</Text>
         </Pressable>
       </View>
+
+      <NodeDashboardCard onManage={() => go('profile')} />
 
       {canShowPriority ? (
         <>

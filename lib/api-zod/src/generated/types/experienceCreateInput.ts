@@ -25,6 +25,11 @@ export interface ExperienceCreateInput {
   /** @pattern ^(?:[01][0-9]|2[0-3]):[0-5][0-9]$ */
   endTime: string;
   location: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  nodeId?: number | null;
   city: string;
   /** @minimum 1 */
   capacity: number;

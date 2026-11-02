@@ -97,12 +97,18 @@ import type {
   GetCharityContributionLedgerParams,
   GetFeedParams,
   GetMemoryGameLeaderboardParams,
+  GetNodesParams,
   GetOrganisationTreasuryParams,
   GetPrivateEvidenceAccess200,
   HealthStatus,
   HostExperience,
   HostExperienceMilestonesResponse,
   HostOverview,
+  LearningDeckCreated,
+  LearningDeckInput,
+  LearningFlashcardDeck,
+  LearningResearch,
+  LearningResearchInput,
   ListCharityPayoutCandidates200Item,
   ListDirectMessagesParams,
   ListExperiencesParams,
@@ -117,6 +123,14 @@ import type {
   MemoryGameSubmitInput,
   MilestoneEvidenceInput,
   MyCommunitiesResponse,
+  MyNodeConnection,
+  Node,
+  NodeConnection,
+  NodeConnectionInput,
+  NodeDraftInput,
+  NodeDraftUpdateInput,
+  NodeProfile,
+  NodeReviewInput,
   NotFoundResponse,
   OrganisationFund,
   OrganisationFundCreateInput,
@@ -145,10 +159,12 @@ import type {
   ProfilePostsResponse,
   ProfileUpdateInput,
   RedeemXpAwardsResponse,
+  ReviewNode200,
   SavedExperience,
   SavedExperienceInput,
   SearchDirectMessageProfilesParams,
   ServiceUnavailableResponse,
+  SetPrimaryNode200,
   SocialInvite,
   SocialInviteCreateInput,
   SyncCharityContributionLedger200,
@@ -2103,6 +2119,1064 @@ export const useSearchCompaniesHouseForOrganisationVerification = <TError = Erro
       return useMutation(getSearchCompaniesHouseForOrganisationVerificationMutationOptions(options));
     }
 
+export const getGetNodesUrl = (params?: GetNodesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/nodes?${stringifiedParams}` : `/api/nodes`
+}
+
+/**
+ * @summary Discover verified public Nodes
+ */
+export const getNodes = async (params?: GetNodesParams, options?: Parameters<typeof customFetch>[1]): Promise<Node[]> => {
+
+  return customFetch<Node[]>(getGetNodesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNodesQueryKey = (params?: GetNodesParams,) => {
+    return [
+    `/api/nodes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetNodesQueryOptions = <TData = Awaited<ReturnType<typeof getNodes>>, TError = ErrorType<UnauthorizedResponse | ServiceUnavailableResponse>>(params?: GetNodesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNodesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNodes>>> = ({ signal }) => getNodes(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNodes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetNodesQueryResult = NonNullable<Awaited<ReturnType<typeof getNodes>>>
+export type GetNodesQueryError = ErrorType<UnauthorizedResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary Discover verified public Nodes
+ */
+
+export function useGetNodes<TData = Awaited<ReturnType<typeof getNodes>>, TError = ErrorType<UnauthorizedResponse | ServiceUnavailableResponse>>(
+ params?: GetNodesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetNodesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetNodeUrl = (nodeId: number,) => {
+
+
+
+
+  return `/api/nodes/${nodeId}`
+}
+
+/**
+ * @summary View an approved Node and its public experiences
+ */
+export const getNode = async (nodeId: number, options?: Parameters<typeof customFetch>[1]): Promise<NodeProfile> => {
+
+  return customFetch<NodeProfile>(getGetNodeUrl(nodeId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNodeQueryKey = (nodeId: number,) => {
+    return [
+    `/api/nodes/${nodeId}`
+    ] as const;
+    }
+
+
+export const getGetNodeQueryOptions = <TData = Awaited<ReturnType<typeof getNode>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>>(nodeId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNode>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNodeQueryKey(nodeId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNode>>> = ({ signal }) => getNode(nodeId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: nodeId !== null && nodeId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNode>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetNodeQueryResult = NonNullable<Awaited<ReturnType<typeof getNode>>>
+export type GetNodeQueryError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary View an approved Node and its public experiences
+ */
+
+export function useGetNode<TData = Awaited<ReturnType<typeof getNode>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>>(
+ nodeId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNode>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetNodeQueryOptions(nodeId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getConnectToNodeUrl = (nodeId: number,) => {
+
+
+
+
+  return `/api/nodes/${nodeId}/connect`
+}
+
+/**
+ * @summary Connect the signed-in participant to a verified Node without awarding XP
+ */
+export const connectToNode = async (nodeId: number,
+    nodeConnectionInput: NodeConnectionInput, options?: Parameters<typeof customFetch>[1]): Promise<NodeConnection> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<NodeConnection>(getConnectToNodeUrl(nodeId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(nodeConnectionInput)
+  }
+);}
+
+
+
+
+
+export const getConnectToNodeMutationKey = () => ['connectToNode'] as const;
+
+export const getConnectToNodeMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof connectToNode>>, TError,ConnectToNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof connectToNode>>, TError,ConnectToNodeMutationVariables, TContext> => {
+
+const mutationKey = getConnectToNodeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof connectToNode>>, ConnectToNodeMutationVariables> = (props) => {
+          const {nodeId,data} = props ?? {};
+
+          return  connectToNode(nodeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConnectToNodeMutationResult = NonNullable<Awaited<ReturnType<typeof connectToNode>>>
+    export type ConnectToNodeMutationBody = BodyType<NodeConnectionInput>
+    export type ConnectToNodeMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>
+    export type ConnectToNodeMutationVariables = {nodeId: number;data: BodyType<NodeConnectionInput>}
+
+    /**
+ * @summary Connect the signed-in participant to a verified Node without awarding XP
+ */
+export const useConnectToNode = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof connectToNode>>, TError,ConnectToNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof connectToNode>>,
+        TError,
+        ConnectToNodeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConnectToNodeMutationOptions(options));
+    }
+
+export const getDisconnectFromNodeUrl = (nodeId: number,) => {
+
+
+
+
+  return `/api/nodes/${nodeId}/connect`
+}
+
+/**
+ * @summary Remove the signed-in participant's connection to a Node
+ */
+export const disconnectFromNode = async (nodeId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDisconnectFromNodeUrl(nodeId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisconnectFromNodeMutationKey = () => ['disconnectFromNode'] as const;
+
+export const getDisconnectFromNodeMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectFromNode>>, TError,DisconnectFromNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disconnectFromNode>>, TError,DisconnectFromNodeMutationVariables, TContext> => {
+
+const mutationKey = getDisconnectFromNodeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disconnectFromNode>>, DisconnectFromNodeMutationVariables> = (props) => {
+          const {nodeId} = props ?? {};
+
+          return  disconnectFromNode(nodeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisconnectFromNodeMutationResult = NonNullable<Awaited<ReturnType<typeof disconnectFromNode>>>
+
+    export type DisconnectFromNodeMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+    export type DisconnectFromNodeMutationVariables = {nodeId: number}
+
+    /**
+ * @summary Remove the signed-in participant's connection to a Node
+ */
+export const useDisconnectFromNode = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectFromNode>>, TError,DisconnectFromNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disconnectFromNode>>,
+        TError,
+        DisconnectFromNodeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDisconnectFromNodeMutationOptions(options));
+    }
+
+export const getGetOrganisationNodesUrl = () => {
+
+
+
+
+  return `/api/organisations/nodes`
+}
+
+/**
+ * @summary List Nodes owned by the signed-in organisation
+ */
+export const getOrganisationNodes = async ( options?: Parameters<typeof customFetch>[1]): Promise<Node[]> => {
+
+  return customFetch<Node[]>(getGetOrganisationNodesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOrganisationNodesQueryKey = () => {
+    return [
+    `/api/organisations/nodes`
+    ] as const;
+    }
+
+
+export const getGetOrganisationNodesQueryOptions = <TData = Awaited<ReturnType<typeof getOrganisationNodes>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganisationNodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOrganisationNodesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOrganisationNodes>>> = ({ signal }) => getOrganisationNodes({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOrganisationNodes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOrganisationNodesQueryResult = NonNullable<Awaited<ReturnType<typeof getOrganisationNodes>>>
+export type GetOrganisationNodesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List Nodes owned by the signed-in organisation
+ */
+
+export function useGetOrganisationNodes<TData = Awaited<ReturnType<typeof getOrganisationNodes>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganisationNodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOrganisationNodesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateOrganisationNodeUrl = () => {
+
+
+
+
+  return `/api/organisations/nodes`
+}
+
+/**
+ * @summary Save a Node draft for the signed-in organisation
+ */
+export const createOrganisationNode = async (nodeDraftInput: NodeDraftInput, options?: Parameters<typeof customFetch>[1]): Promise<Node> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Node>(getCreateOrganisationNodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(nodeDraftInput)
+  }
+);}
+
+
+
+
+
+export const getCreateOrganisationNodeMutationKey = () => ['createOrganisationNode'] as const;
+
+export const getCreateOrganisationNodeMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrganisationNode>>, TError,CreateOrganisationNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOrganisationNode>>, TError,CreateOrganisationNodeMutationVariables, TContext> => {
+
+const mutationKey = getCreateOrganisationNodeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOrganisationNode>>, CreateOrganisationNodeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createOrganisationNode(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOrganisationNodeMutationResult = NonNullable<Awaited<ReturnType<typeof createOrganisationNode>>>
+    export type CreateOrganisationNodeMutationBody = BodyType<NodeDraftInput>
+    export type CreateOrganisationNodeMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+    export type CreateOrganisationNodeMutationVariables = {data: BodyType<NodeDraftInput>}
+
+    /**
+ * @summary Save a Node draft for the signed-in organisation
+ */
+export const useCreateOrganisationNode = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrganisationNode>>, TError,CreateOrganisationNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOrganisationNode>>,
+        TError,
+        CreateOrganisationNodeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateOrganisationNodeMutationOptions(options));
+    }
+
+export const getUpdateOrganisationNodeUrl = (nodeId: number,) => {
+
+
+
+
+  return `/api/organisations/nodes/${nodeId}`
+}
+
+/**
+ * @summary Update an owned Node draft or profile
+ */
+export const updateOrganisationNode = async (nodeId: number,
+    nodeDraftUpdateInput: NodeDraftUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<Node> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Node>(getUpdateOrganisationNodeUrl(nodeId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(nodeDraftUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateOrganisationNodeMutationKey = () => ['updateOrganisationNode'] as const;
+
+export const getUpdateOrganisationNodeMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganisationNode>>, TError,UpdateOrganisationNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOrganisationNode>>, TError,UpdateOrganisationNodeMutationVariables, TContext> => {
+
+const mutationKey = getUpdateOrganisationNodeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOrganisationNode>>, UpdateOrganisationNodeMutationVariables> = (props) => {
+          const {nodeId,data} = props ?? {};
+
+          return  updateOrganisationNode(nodeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOrganisationNodeMutationResult = NonNullable<Awaited<ReturnType<typeof updateOrganisationNode>>>
+    export type UpdateOrganisationNodeMutationBody = BodyType<NodeDraftUpdateInput>
+    export type UpdateOrganisationNodeMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>
+    export type UpdateOrganisationNodeMutationVariables = {nodeId: number;data: BodyType<NodeDraftUpdateInput>}
+
+    /**
+ * @summary Update an owned Node draft or profile
+ */
+export const useUpdateOrganisationNode = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganisationNode>>, TError,UpdateOrganisationNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateOrganisationNode>>,
+        TError,
+        UpdateOrganisationNodeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateOrganisationNodeMutationOptions(options));
+    }
+
+export const getSubmitOrganisationNodeUrl = (nodeId: number,) => {
+
+
+
+
+  return `/api/organisations/nodes/${nodeId}/submit`
+}
+
+/**
+ * @summary Submit an organisation-owned Node for location verification
+ */
+export const submitOrganisationNode = async (nodeId: number, options?: Parameters<typeof customFetch>[1]): Promise<Node> => {
+
+  return customFetch<Node>(getSubmitOrganisationNodeUrl(nodeId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSubmitOrganisationNodeMutationKey = () => ['submitOrganisationNode'] as const;
+
+export const getSubmitOrganisationNodeMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitOrganisationNode>>, TError,SubmitOrganisationNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitOrganisationNode>>, TError,SubmitOrganisationNodeMutationVariables, TContext> => {
+
+const mutationKey = getSubmitOrganisationNodeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitOrganisationNode>>, SubmitOrganisationNodeMutationVariables> = (props) => {
+          const {nodeId} = props ?? {};
+
+          return  submitOrganisationNode(nodeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitOrganisationNodeMutationResult = NonNullable<Awaited<ReturnType<typeof submitOrganisationNode>>>
+
+    export type SubmitOrganisationNodeMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>
+    export type SubmitOrganisationNodeMutationVariables = {nodeId: number}
+
+    /**
+ * @summary Submit an organisation-owned Node for location verification
+ */
+export const useSubmitOrganisationNode = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitOrganisationNode>>, TError,SubmitOrganisationNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitOrganisationNode>>,
+        TError,
+        SubmitOrganisationNodeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitOrganisationNodeMutationOptions(options));
+    }
+
+export const getGetMyNodesUrl = () => {
+
+
+
+
+  return `/api/me/nodes`
+}
+
+/**
+ * @summary List Nodes connected to the signed-in participant
+ */
+export const getMyNodes = async ( options?: Parameters<typeof customFetch>[1]): Promise<MyNodeConnection[]> => {
+
+  return customFetch<MyNodeConnection[]>(getGetMyNodesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyNodesQueryKey = () => {
+    return [
+    `/api/me/nodes`
+    ] as const;
+    }
+
+
+export const getGetMyNodesQueryOptions = <TData = Awaited<ReturnType<typeof getMyNodes>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyNodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyNodesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyNodes>>> = ({ signal }) => getMyNodes({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyNodes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyNodesQueryResult = NonNullable<Awaited<ReturnType<typeof getMyNodes>>>
+export type GetMyNodesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List Nodes connected to the signed-in participant
+ */
+
+export function useGetMyNodes<TData = Awaited<ReturnType<typeof getMyNodes>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyNodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyNodesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateMyNodeConnectionUrl = (nodeId: number,) => {
+
+
+
+
+  return `/api/me/nodes/${nodeId}`
+}
+
+/**
+ * @summary Change the signed-in participant's role at a Node
+ */
+export const updateMyNodeConnection = async (nodeId: number,
+    nodeConnectionInput: NodeConnectionInput, options?: Parameters<typeof customFetch>[1]): Promise<NodeConnection> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<NodeConnection>(getUpdateMyNodeConnectionUrl(nodeId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(nodeConnectionInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateMyNodeConnectionMutationKey = () => ['updateMyNodeConnection'] as const;
+
+export const getUpdateMyNodeConnectionMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyNodeConnection>>, TError,UpdateMyNodeConnectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMyNodeConnection>>, TError,UpdateMyNodeConnectionMutationVariables, TContext> => {
+
+const mutationKey = getUpdateMyNodeConnectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMyNodeConnection>>, UpdateMyNodeConnectionMutationVariables> = (props) => {
+          const {nodeId,data} = props ?? {};
+
+          return  updateMyNodeConnection(nodeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMyNodeConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof updateMyNodeConnection>>>
+    export type UpdateMyNodeConnectionMutationBody = BodyType<NodeConnectionInput>
+    export type UpdateMyNodeConnectionMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>
+    export type UpdateMyNodeConnectionMutationVariables = {nodeId: number;data: BodyType<NodeConnectionInput>}
+
+    /**
+ * @summary Change the signed-in participant's role at a Node
+ */
+export const useUpdateMyNodeConnection = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyNodeConnection>>, TError,UpdateMyNodeConnectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMyNodeConnection>>,
+        TError,
+        UpdateMyNodeConnectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateMyNodeConnectionMutationOptions(options));
+    }
+
+export const getSetPrimaryNodeUrl = (nodeId: number,) => {
+
+
+
+
+  return `/api/me/nodes/${nodeId}/primary`
+}
+
+/**
+ * @summary Set an active Node connection as the primary community
+ */
+export const setPrimaryNode = async (nodeId: number, options?: Parameters<typeof customFetch>[1]): Promise<SetPrimaryNode200> => {
+
+  return customFetch<SetPrimaryNode200>(getSetPrimaryNodeUrl(nodeId),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+
+export const getSetPrimaryNodeMutationKey = () => ['setPrimaryNode'] as const;
+
+export const getSetPrimaryNodeMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPrimaryNode>>, TError,SetPrimaryNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setPrimaryNode>>, TError,SetPrimaryNodeMutationVariables, TContext> => {
+
+const mutationKey = getSetPrimaryNodeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setPrimaryNode>>, SetPrimaryNodeMutationVariables> = (props) => {
+          const {nodeId} = props ?? {};
+
+          return  setPrimaryNode(nodeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetPrimaryNodeMutationResult = NonNullable<Awaited<ReturnType<typeof setPrimaryNode>>>
+
+    export type SetPrimaryNodeMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>
+    export type SetPrimaryNodeMutationVariables = {nodeId: number}
+
+    /**
+ * @summary Set an active Node connection as the primary community
+ */
+export const useSetPrimaryNode = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPrimaryNode>>, TError,SetPrimaryNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setPrimaryNode>>,
+        TError,
+        SetPrimaryNodeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetPrimaryNodeMutationOptions(options));
+    }
+
+export const getGetNodeReviewQueueUrl = () => {
+
+
+
+
+  return `/api/admin/nodes/review-queue`
+}
+
+/**
+ * @summary List Node location applications for the configured reviewer
+ */
+export const getNodeReviewQueue = async ( options?: Parameters<typeof customFetch>[1]): Promise<Node[]> => {
+
+  return customFetch<Node[]>(getGetNodeReviewQueueUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNodeReviewQueueQueryKey = () => {
+    return [
+    `/api/admin/nodes/review-queue`
+    ] as const;
+    }
+
+
+export const getGetNodeReviewQueueQueryOptions = <TData = Awaited<ReturnType<typeof getNodeReviewQueue>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNodeReviewQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNodeReviewQueueQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNodeReviewQueue>>> = ({ signal }) => getNodeReviewQueue({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNodeReviewQueue>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetNodeReviewQueueQueryResult = NonNullable<Awaited<ReturnType<typeof getNodeReviewQueue>>>
+export type GetNodeReviewQueueQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List Node location applications for the configured reviewer
+ */
+
+export function useGetNodeReviewQueue<TData = Awaited<ReturnType<typeof getNodeReviewQueue>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNodeReviewQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetNodeReviewQueueQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReviewNodeUrl = (nodeId: number,) => {
+
+
+
+
+  return `/api/admin/nodes/${nodeId}/review`
+}
+
+/**
+ * @summary Review a Node location application
+ */
+export const reviewNode = async (nodeId: number,
+    nodeReviewInput: NodeReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<ReviewNode200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReviewNode200>(getReviewNodeUrl(nodeId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(nodeReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewNodeMutationKey = () => ['reviewNode'] as const;
+
+export const getReviewNodeMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewNode>>, TError,ReviewNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewNode>>, TError,ReviewNodeMutationVariables, TContext> => {
+
+const mutationKey = getReviewNodeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewNode>>, ReviewNodeMutationVariables> = (props) => {
+          const {nodeId,data} = props ?? {};
+
+          return  reviewNode(nodeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewNodeMutationResult = NonNullable<Awaited<ReturnType<typeof reviewNode>>>
+    export type ReviewNodeMutationBody = BodyType<NodeReviewInput>
+    export type ReviewNodeMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>
+    export type ReviewNodeMutationVariables = {nodeId: number;data: BodyType<NodeReviewInput>}
+
+    /**
+ * @summary Review a Node location application
+ */
+export const useReviewNode = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewNode>>, TError,ReviewNodeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewNode>>,
+        TError,
+        ReviewNodeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewNodeMutationOptions(options));
+    }
+
 export const getGetOrganisationVerificationUrl = () => {
 
 
@@ -3730,6 +4804,561 @@ export const useSendAiAssistantMessage = <TError = ErrorType<BadRequestResponse 
         TContext
       > => {
       return useMutation(getSendAiAssistantMessageMutationOptions(options));
+    }
+
+export const getListLearningResearchUrl = () => {
+
+
+
+
+  return `/api/learning/me/research`
+}
+
+/**
+ * @summary List the participant's saved research
+ */
+export const listLearningResearch = async ( options?: Parameters<typeof customFetch>[1]): Promise<LearningResearch[]> => {
+
+  return customFetch<LearningResearch[]>(getListLearningResearchUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLearningResearchQueryKey = () => {
+    return [
+    `/api/learning/me/research`
+    ] as const;
+    }
+
+
+export const getListLearningResearchQueryOptions = <TData = Awaited<ReturnType<typeof listLearningResearch>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | Error>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLearningResearch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLearningResearchQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLearningResearch>>> = ({ signal }) => listLearningResearch({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLearningResearch>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListLearningResearchQueryResult = NonNullable<Awaited<ReturnType<typeof listLearningResearch>>>
+export type ListLearningResearchQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | Error>
+
+
+/**
+ * @summary List the participant's saved research
+ */
+
+export function useListLearningResearch<TData = Awaited<ReturnType<typeof listLearningResearch>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | Error>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLearningResearch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListLearningResearchQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateLearningResearchUrl = () => {
+
+
+
+
+  return `/api/learning/me/research`
+}
+
+/**
+ * @summary Research a topic and save the result to the participant's activity
+ */
+export const createLearningResearch = async (learningResearchInput: LearningResearchInput, options?: Parameters<typeof customFetch>[1]): Promise<LearningResearch> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<LearningResearch>(getCreateLearningResearchUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(learningResearchInput)
+  }
+);}
+
+
+
+
+
+export const getCreateLearningResearchMutationKey = () => ['createLearningResearch'] as const;
+
+export const getCreateLearningResearchMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLearningResearch>>, TError,CreateLearningResearchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createLearningResearch>>, TError,CreateLearningResearchMutationVariables, TContext> => {
+
+const mutationKey = getCreateLearningResearchMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLearningResearch>>, CreateLearningResearchMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createLearningResearch(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateLearningResearchMutationResult = NonNullable<Awaited<ReturnType<typeof createLearningResearch>>>
+    export type CreateLearningResearchMutationBody = BodyType<LearningResearchInput>
+    export type CreateLearningResearchMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | Error>
+    export type CreateLearningResearchMutationVariables = {data: BodyType<LearningResearchInput>}
+
+    /**
+ * @summary Research a topic and save the result to the participant's activity
+ */
+export const useCreateLearningResearch = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLearningResearch>>, TError,CreateLearningResearchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createLearningResearch>>,
+        TError,
+        CreateLearningResearchMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateLearningResearchMutationOptions(options));
+    }
+
+export const getDeleteLearningResearchUrl = (researchId: number,) => {
+
+
+
+
+  return `/api/learning/me/research/${researchId}`
+}
+
+/**
+ * @summary Delete one saved research item
+ */
+export const deleteLearningResearch = async (researchId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteLearningResearchUrl(researchId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteLearningResearchMutationKey = () => ['deleteLearningResearch'] as const;
+
+export const getDeleteLearningResearchMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteLearningResearch>>, TError,DeleteLearningResearchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteLearningResearch>>, TError,DeleteLearningResearchMutationVariables, TContext> => {
+
+const mutationKey = getDeleteLearningResearchMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteLearningResearch>>, DeleteLearningResearchMutationVariables> = (props) => {
+          const {researchId} = props ?? {};
+
+          return  deleteLearningResearch(researchId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteLearningResearchMutationResult = NonNullable<Awaited<ReturnType<typeof deleteLearningResearch>>>
+
+    export type DeleteLearningResearchMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>
+    export type DeleteLearningResearchMutationVariables = {researchId: number}
+
+    /**
+ * @summary Delete one saved research item
+ */
+export const useDeleteLearningResearch = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteLearningResearch>>, TError,DeleteLearningResearchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteLearningResearch>>,
+        TError,
+        DeleteLearningResearchMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteLearningResearchMutationOptions(options));
+    }
+
+export const getListLearningDecksUrl = () => {
+
+
+
+
+  return `/api/learning/me/decks`
+}
+
+/**
+ * @summary List the participant's saved flashcard decks
+ */
+export const listLearningDecks = async ( options?: Parameters<typeof customFetch>[1]): Promise<LearningFlashcardDeck[]> => {
+
+  return customFetch<LearningFlashcardDeck[]>(getListLearningDecksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLearningDecksQueryKey = () => {
+    return [
+    `/api/learning/me/decks`
+    ] as const;
+    }
+
+
+export const getListLearningDecksQueryOptions = <TData = Awaited<ReturnType<typeof listLearningDecks>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | Error>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLearningDecks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLearningDecksQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLearningDecks>>> = ({ signal }) => listLearningDecks({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLearningDecks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListLearningDecksQueryResult = NonNullable<Awaited<ReturnType<typeof listLearningDecks>>>
+export type ListLearningDecksQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | Error>
+
+
+/**
+ * @summary List the participant's saved flashcard decks
+ */
+
+export function useListLearningDecks<TData = Awaited<ReturnType<typeof listLearningDecks>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | Error>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLearningDecks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListLearningDecksQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateLearningDeckUrl = () => {
+
+
+
+
+  return `/api/learning/me/decks`
+}
+
+/**
+ * @summary Create a short flashcard deck from new or saved research
+ */
+export const createLearningDeck = async (learningDeckInput: LearningDeckInput, options?: Parameters<typeof customFetch>[1]): Promise<LearningDeckCreated> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<LearningDeckCreated>(getCreateLearningDeckUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(learningDeckInput)
+  }
+);}
+
+
+
+
+
+export const getCreateLearningDeckMutationKey = () => ['createLearningDeck'] as const;
+
+export const getCreateLearningDeckMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLearningDeck>>, TError,CreateLearningDeckMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createLearningDeck>>, TError,CreateLearningDeckMutationVariables, TContext> => {
+
+const mutationKey = getCreateLearningDeckMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLearningDeck>>, CreateLearningDeckMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createLearningDeck(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateLearningDeckMutationResult = NonNullable<Awaited<ReturnType<typeof createLearningDeck>>>
+    export type CreateLearningDeckMutationBody = BodyType<LearningDeckInput>
+    export type CreateLearningDeckMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>
+    export type CreateLearningDeckMutationVariables = {data: BodyType<LearningDeckInput>}
+
+    /**
+ * @summary Create a short flashcard deck from new or saved research
+ */
+export const useCreateLearningDeck = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLearningDeck>>, TError,CreateLearningDeckMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createLearningDeck>>,
+        TError,
+        CreateLearningDeckMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateLearningDeckMutationOptions(options));
+    }
+
+export const getGetLearningDeckUrl = (deckId: number,) => {
+
+
+
+
+  return `/api/learning/me/decks/${deckId}`
+}
+
+/**
+ * @summary Get one participant-owned flashcard deck
+ */
+export const getLearningDeck = async (deckId: number, options?: Parameters<typeof customFetch>[1]): Promise<LearningFlashcardDeck> => {
+
+  return customFetch<LearningFlashcardDeck>(getGetLearningDeckUrl(deckId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLearningDeckQueryKey = (deckId: number,) => {
+    return [
+    `/api/learning/me/decks/${deckId}`
+    ] as const;
+    }
+
+
+export const getGetLearningDeckQueryOptions = <TData = Awaited<ReturnType<typeof getLearningDeck>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>>(deckId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLearningDeck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLearningDeckQueryKey(deckId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLearningDeck>>> = ({ signal }) => getLearningDeck(deckId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: deckId !== null && deckId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLearningDeck>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLearningDeckQueryResult = NonNullable<Awaited<ReturnType<typeof getLearningDeck>>>
+export type GetLearningDeckQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>
+
+
+/**
+ * @summary Get one participant-owned flashcard deck
+ */
+
+export function useGetLearningDeck<TData = Awaited<ReturnType<typeof getLearningDeck>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>>(
+ deckId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLearningDeck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLearningDeckQueryOptions(deckId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteLearningDeckUrl = (deckId: number,) => {
+
+
+
+
+  return `/api/learning/me/decks/${deckId}`
+}
+
+/**
+ * @summary Delete one saved flashcard deck
+ */
+export const deleteLearningDeck = async (deckId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteLearningDeckUrl(deckId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteLearningDeckMutationKey = () => ['deleteLearningDeck'] as const;
+
+export const getDeleteLearningDeckMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteLearningDeck>>, TError,DeleteLearningDeckMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteLearningDeck>>, TError,DeleteLearningDeckMutationVariables, TContext> => {
+
+const mutationKey = getDeleteLearningDeckMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteLearningDeck>>, DeleteLearningDeckMutationVariables> = (props) => {
+          const {deckId} = props ?? {};
+
+          return  deleteLearningDeck(deckId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteLearningDeckMutationResult = NonNullable<Awaited<ReturnType<typeof deleteLearningDeck>>>
+
+    export type DeleteLearningDeckMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>
+    export type DeleteLearningDeckMutationVariables = {deckId: number}
+
+    /**
+ * @summary Delete one saved flashcard deck
+ */
+export const useDeleteLearningDeck = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteLearningDeck>>, TError,DeleteLearningDeckMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteLearningDeck>>,
+        TError,
+        DeleteLearningDeckMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteLearningDeckMutationOptions(options));
     }
 
 export const getHealthCheckUrl = () => {

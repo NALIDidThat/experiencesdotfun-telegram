@@ -16,6 +16,8 @@ import memoryGameRouter from "./memory-game";
 import fundsRouter from "./funds";
 import privateEvidenceRouter from "./private-evidence";
 import personalCollectionsRouter from "./personal-collections";
+import nodesRouter from "./nodes";
+import learningRouter from "./learning";
 
 const router: IRouter = Router();
 
@@ -29,10 +31,12 @@ router.use("/organisation-partnerships", organisationPartnershipsRouter);
 router.use("/direct-messages", directMessagesRouter);
 router.use("/challenges", challengesRouter);
 router.use("/ai", aiAssistantRouter);
+router.use("/learning", learningRouter);
 router.use("/memory-game", memoryGameRouter);
 router.use("/funds", fundsRouter);
 router.use(privateEvidenceRouter);
 router.use(personalCollectionsRouter);
+router.use(nodesRouter);
 // Telegram/email auth routes are public and must be checked before the
 // community router's authentication middleware.
 router.use(experiencesRouter);

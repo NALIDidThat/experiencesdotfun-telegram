@@ -24,6 +24,11 @@ export interface Experience {
   endTime: string;
   location: string;
   city: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  nodeId: number | null;
   /** Present only when an organisation contact consented to public disclosure and a reviewer verified an official public listing. Coordinates are rounded according to precision; otherwise null. */
   verifiedLocation: VerifiedExperienceLocation | null;
   capacity: number;

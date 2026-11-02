@@ -672,6 +672,534 @@ export const SearchCompaniesHouseForOrganisationVerificationResponse = zod.objec
 
 
 /**
+ * @summary Discover verified public Nodes
+ */
+export const getNodesQuerySearchMax = 100;
+
+export const getNodesQueryCityMax = 120;
+
+export const getNodesQueryLimitDefault = 60;
+export const getNodesQueryLimitMax = 100;
+
+
+
+export const GetNodesQueryParams = zod.object({
+  "search": zod.coerce.string().max(getNodesQuerySearchMax).optional(),
+  "city": zod.coerce.string().max(getNodesQueryCityMax).optional(),
+  "category": zod.enum(['environmental', 'education', 'community']).optional(),
+  "limit": zod.coerce.number().int().min(1).max(getNodesQueryLimitMax).default(getNodesQueryLimitDefault)
+})
+
+export const GetNodesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "organisationType": zod.string().nullable(),
+  "organisationVerified": zod.boolean(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "addressLine1": zod.string().nullable(),
+  "addressLine2": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "postcode": zod.string().nullable(),
+  "latitude": zod.number().nullable(),
+  "longitude": zod.number().nullable(),
+  "publicWebsite": zod.string().url().nullable(),
+  "publicContactEmail": zod.string().email().nullable(),
+  "visibility": zod.enum(['public', 'unlisted']),
+  "approvalRequired": zod.boolean(),
+  "verificationStatus": zod.enum(['draft', 'pending', 'under_review', 'needs_information', 'verified', 'rejected', 'suspended']),
+  "reviewerNotes": zod.string().nullish(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "verifiedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const GetNodesResponse = zod.array(GetNodesResponseItem)
+
+
+/**
+ * @summary View an approved Node and its public experiences
+ */
+
+
+
+export const GetNodeParams = zod.object({
+  "nodeId": zod.coerce.number().int().min(1)
+})
+
+export const GetNodeResponse = zod.object({
+  "node": zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "organisationType": zod.string().nullable(),
+  "organisationVerified": zod.boolean(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "addressLine1": zod.string().nullable(),
+  "addressLine2": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "postcode": zod.string().nullable(),
+  "latitude": zod.number().nullable(),
+  "longitude": zod.number().nullable(),
+  "publicWebsite": zod.string().url().nullable(),
+  "publicContactEmail": zod.string().email().nullable(),
+  "visibility": zod.enum(['public', 'unlisted']),
+  "approvalRequired": zod.boolean(),
+  "verificationStatus": zod.enum(['draft', 'pending', 'under_review', 'needs_information', 'verified', 'rejected', 'suspended']),
+  "reviewerNotes": zod.string().nullish(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "verifiedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "stats": zod.object({
+  "connectedParticipants": zod.number().int(),
+  "publishedExperiences": zod.number().int()
+}),
+  "experiences": zod.array(zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "category": zod.string(),
+  "date": zod.string(),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "location": zod.string(),
+  "city": zod.string(),
+  "status": zod.string()
+})),
+  "membership": zod.union([zod.null(),zod.object({
+  "participationRole": zod.enum(['participant', 'volunteer', 'learner']),
+  "status": zod.enum(['pending', 'active']),
+  "isPrimary": zod.boolean()
+})])
+})
+
+
+/**
+ * @summary Connect the signed-in participant to a verified Node without awarding XP
+ */
+
+
+
+export const ConnectToNodeParams = zod.object({
+  "nodeId": zod.coerce.number().int().min(1)
+})
+
+export const ConnectToNodeBody = zod.object({
+  "role": zod.enum(['participant', 'volunteer', 'learner'])
+})
+
+export const ConnectToNodeResponse = zod.object({
+  "nodeId": zod.number().int(),
+  "role": zod.enum(['participant', 'volunteer', 'learner']),
+  "status": zod.enum(['pending', 'active']),
+  "isPrimary": zod.boolean(),
+  "joinedAt": zod.coerce.date(),
+  "xpAwarded": zod.literal(0)
+})
+
+
+/**
+ * @summary Remove the signed-in participant's connection to a Node
+ */
+
+
+
+export const DisconnectFromNodeParams = zod.object({
+  "nodeId": zod.coerce.number().int().min(1)
+})
+
+export const DisconnectFromNodeResponse = zod.void()
+
+
+/**
+ * @summary List Nodes owned by the signed-in organisation
+ */
+export const GetOrganisationNodesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "organisationType": zod.string().nullable(),
+  "organisationVerified": zod.boolean(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "addressLine1": zod.string().nullable(),
+  "addressLine2": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "postcode": zod.string().nullable(),
+  "latitude": zod.number().nullable(),
+  "longitude": zod.number().nullable(),
+  "publicWebsite": zod.string().url().nullable(),
+  "publicContactEmail": zod.string().email().nullable(),
+  "visibility": zod.enum(['public', 'unlisted']),
+  "approvalRequired": zod.boolean(),
+  "verificationStatus": zod.enum(['draft', 'pending', 'under_review', 'needs_information', 'verified', 'rejected', 'suspended']),
+  "reviewerNotes": zod.string().nullish(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "verifiedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const GetOrganisationNodesResponse = zod.array(GetOrganisationNodesResponseItem)
+
+
+/**
+ * @summary Save a Node draft for the signed-in organisation
+ */
+export const createOrganisationNodeBodyNameMin = 2;
+export const createOrganisationNodeBodyNameMax = 100;
+
+export const createOrganisationNodeBodyDescriptionMax = 2000;
+
+export const createOrganisationNodeBodyCategoriesMax = 8;
+
+export const createOrganisationNodeBodyAddressLine1Max = 180;
+
+export const createOrganisationNodeBodyAddressLine2Max = 180;
+
+export const createOrganisationNodeBodyCityMax = 120;
+
+export const createOrganisationNodeBodyCountryMax = 120;
+
+export const createOrganisationNodeBodyPostcodeMax = 32;
+
+export const createOrganisationNodeBodyLatitudeMin = -90;
+export const createOrganisationNodeBodyLatitudeMax = 90;
+
+export const createOrganisationNodeBodyLongitudeMin = -180;
+export const createOrganisationNodeBodyLongitudeMax = 180;
+
+export const createOrganisationNodeBodyPublicWebsiteMax = 500;
+
+export const createOrganisationNodeBodyPublicContactEmailMax = 320;
+
+export const createOrganisationNodeBodyApprovalRequiredDefault = false;
+
+export const CreateOrganisationNodeBody = zod.object({
+  "name": zod.string().min(createOrganisationNodeBodyNameMin).max(createOrganisationNodeBodyNameMax),
+  "description": zod.string().max(createOrganisationNodeBodyDescriptionMax).nullish(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])).max(createOrganisationNodeBodyCategoriesMax).optional(),
+  "addressLine1": zod.string().max(createOrganisationNodeBodyAddressLine1Max).nullish(),
+  "addressLine2": zod.string().max(createOrganisationNodeBodyAddressLine2Max).nullish(),
+  "city": zod.string().max(createOrganisationNodeBodyCityMax).nullish(),
+  "country": zod.string().max(createOrganisationNodeBodyCountryMax).nullish(),
+  "postcode": zod.string().max(createOrganisationNodeBodyPostcodeMax).nullish(),
+  "latitude": zod.number().min(createOrganisationNodeBodyLatitudeMin).max(createOrganisationNodeBodyLatitudeMax).nullish(),
+  "longitude": zod.number().min(createOrganisationNodeBodyLongitudeMin).max(createOrganisationNodeBodyLongitudeMax).nullish(),
+  "publicWebsite": zod.string().url().max(createOrganisationNodeBodyPublicWebsiteMax).nullish(),
+  "publicContactEmail": zod.string().email().max(createOrganisationNodeBodyPublicContactEmailMax).nullish(),
+  "visibility": zod.enum(['public', 'unlisted']).optional(),
+  "approvalRequired": zod.boolean().default(createOrganisationNodeBodyApprovalRequiredDefault)
+})
+
+export const CreateOrganisationNodeResponse = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "organisationType": zod.string().nullable(),
+  "organisationVerified": zod.boolean(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "addressLine1": zod.string().nullable(),
+  "addressLine2": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "postcode": zod.string().nullable(),
+  "latitude": zod.number().nullable(),
+  "longitude": zod.number().nullable(),
+  "publicWebsite": zod.string().url().nullable(),
+  "publicContactEmail": zod.string().email().nullable(),
+  "visibility": zod.enum(['public', 'unlisted']),
+  "approvalRequired": zod.boolean(),
+  "verificationStatus": zod.enum(['draft', 'pending', 'under_review', 'needs_information', 'verified', 'rejected', 'suspended']),
+  "reviewerNotes": zod.string().nullish(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "verifiedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update an owned Node draft or profile
+ */
+
+
+
+export const UpdateOrganisationNodeParams = zod.object({
+  "nodeId": zod.coerce.number().int().min(1)
+})
+
+export const updateOrganisationNodeBodyNameMin = 2;
+export const updateOrganisationNodeBodyNameMax = 100;
+
+export const updateOrganisationNodeBodyDescriptionMax = 2000;
+
+export const updateOrganisationNodeBodyCategoriesMax = 8;
+
+export const updateOrganisationNodeBodyAddressLine1Max = 180;
+
+export const updateOrganisationNodeBodyAddressLine2Max = 180;
+
+export const updateOrganisationNodeBodyCityMax = 120;
+
+export const updateOrganisationNodeBodyCountryMax = 120;
+
+export const updateOrganisationNodeBodyPostcodeMax = 32;
+
+export const updateOrganisationNodeBodyLatitudeMin = -90;
+export const updateOrganisationNodeBodyLatitudeMax = 90;
+
+export const updateOrganisationNodeBodyLongitudeMin = -180;
+export const updateOrganisationNodeBodyLongitudeMax = 180;
+
+export const updateOrganisationNodeBodyPublicWebsiteMax = 500;
+
+export const updateOrganisationNodeBodyPublicContactEmailMax = 320;
+
+
+
+export const UpdateOrganisationNodeBody = zod.object({
+  "name": zod.string().min(updateOrganisationNodeBodyNameMin).max(updateOrganisationNodeBodyNameMax).optional(),
+  "description": zod.string().max(updateOrganisationNodeBodyDescriptionMax).nullish(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])).max(updateOrganisationNodeBodyCategoriesMax).optional(),
+  "addressLine1": zod.string().max(updateOrganisationNodeBodyAddressLine1Max).nullish(),
+  "addressLine2": zod.string().max(updateOrganisationNodeBodyAddressLine2Max).nullish(),
+  "city": zod.string().max(updateOrganisationNodeBodyCityMax).nullish(),
+  "country": zod.string().max(updateOrganisationNodeBodyCountryMax).nullish(),
+  "postcode": zod.string().max(updateOrganisationNodeBodyPostcodeMax).nullish(),
+  "latitude": zod.number().min(updateOrganisationNodeBodyLatitudeMin).max(updateOrganisationNodeBodyLatitudeMax).nullish(),
+  "longitude": zod.number().min(updateOrganisationNodeBodyLongitudeMin).max(updateOrganisationNodeBodyLongitudeMax).nullish(),
+  "publicWebsite": zod.string().url().max(updateOrganisationNodeBodyPublicWebsiteMax).nullish(),
+  "publicContactEmail": zod.string().email().max(updateOrganisationNodeBodyPublicContactEmailMax).nullish(),
+  "visibility": zod.enum(['public', 'unlisted']).optional(),
+  "approvalRequired": zod.boolean().optional()
+})
+
+export const UpdateOrganisationNodeResponse = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "organisationType": zod.string().nullable(),
+  "organisationVerified": zod.boolean(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "addressLine1": zod.string().nullable(),
+  "addressLine2": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "postcode": zod.string().nullable(),
+  "latitude": zod.number().nullable(),
+  "longitude": zod.number().nullable(),
+  "publicWebsite": zod.string().url().nullable(),
+  "publicContactEmail": zod.string().email().nullable(),
+  "visibility": zod.enum(['public', 'unlisted']),
+  "approvalRequired": zod.boolean(),
+  "verificationStatus": zod.enum(['draft', 'pending', 'under_review', 'needs_information', 'verified', 'rejected', 'suspended']),
+  "reviewerNotes": zod.string().nullish(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "verifiedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Submit an organisation-owned Node for location verification
+ */
+
+
+
+export const SubmitOrganisationNodeParams = zod.object({
+  "nodeId": zod.coerce.number().int().min(1)
+})
+
+export const SubmitOrganisationNodeResponse = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "organisationType": zod.string().nullable(),
+  "organisationVerified": zod.boolean(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "addressLine1": zod.string().nullable(),
+  "addressLine2": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "postcode": zod.string().nullable(),
+  "latitude": zod.number().nullable(),
+  "longitude": zod.number().nullable(),
+  "publicWebsite": zod.string().url().nullable(),
+  "publicContactEmail": zod.string().email().nullable(),
+  "visibility": zod.enum(['public', 'unlisted']),
+  "approvalRequired": zod.boolean(),
+  "verificationStatus": zod.enum(['draft', 'pending', 'under_review', 'needs_information', 'verified', 'rejected', 'suspended']),
+  "reviewerNotes": zod.string().nullish(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "verifiedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List Nodes connected to the signed-in participant
+ */
+export const GetMyNodesResponseItem = zod.object({
+  "node": zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "organisationType": zod.string().nullable(),
+  "organisationVerified": zod.boolean(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "addressLine1": zod.string().nullable(),
+  "addressLine2": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "postcode": zod.string().nullable(),
+  "latitude": zod.number().nullable(),
+  "longitude": zod.number().nullable(),
+  "publicWebsite": zod.string().url().nullable(),
+  "publicContactEmail": zod.string().email().nullable(),
+  "visibility": zod.enum(['public', 'unlisted']),
+  "approvalRequired": zod.boolean(),
+  "verificationStatus": zod.enum(['draft', 'pending', 'under_review', 'needs_information', 'verified', 'rejected', 'suspended']),
+  "reviewerNotes": zod.string().nullish(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "verifiedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "role": zod.enum(['participant', 'volunteer', 'learner']),
+  "status": zod.enum(['pending', 'active']),
+  "isPrimary": zod.boolean(),
+  "joinedAt": zod.coerce.date()
+})
+export const GetMyNodesResponse = zod.array(GetMyNodesResponseItem)
+
+
+/**
+ * @summary Change the signed-in participant's role at a Node
+ */
+
+
+
+export const UpdateMyNodeConnectionParams = zod.object({
+  "nodeId": zod.coerce.number().int().min(1)
+})
+
+export const UpdateMyNodeConnectionBody = zod.object({
+  "role": zod.enum(['participant', 'volunteer', 'learner'])
+})
+
+export const UpdateMyNodeConnectionResponse = zod.object({
+  "nodeId": zod.number().int(),
+  "role": zod.enum(['participant', 'volunteer', 'learner']),
+  "status": zod.enum(['pending', 'active']),
+  "isPrimary": zod.boolean(),
+  "joinedAt": zod.coerce.date(),
+  "xpAwarded": zod.literal(0)
+})
+
+
+/**
+ * @summary Set an active Node connection as the primary community
+ */
+
+
+
+export const SetPrimaryNodeParams = zod.object({
+  "nodeId": zod.coerce.number().int().min(1)
+})
+
+export const SetPrimaryNodeResponse = zod.object({
+  "nodeId": zod.number().int(),
+  "isPrimary": zod.boolean()
+})
+
+
+/**
+ * @summary List Node location applications for the configured reviewer
+ */
+export const GetNodeReviewQueueResponseItem = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "organisationType": zod.string().nullable(),
+  "organisationVerified": zod.boolean(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "categories": zod.array(zod.enum(['environmental', 'education', 'community'])),
+  "addressLine1": zod.string().nullable(),
+  "addressLine2": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "postcode": zod.string().nullable(),
+  "latitude": zod.number().nullable(),
+  "longitude": zod.number().nullable(),
+  "publicWebsite": zod.string().url().nullable(),
+  "publicContactEmail": zod.string().email().nullable(),
+  "visibility": zod.enum(['public', 'unlisted']),
+  "approvalRequired": zod.boolean(),
+  "verificationStatus": zod.enum(['draft', 'pending', 'under_review', 'needs_information', 'verified', 'rejected', 'suspended']),
+  "reviewerNotes": zod.string().nullish(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "verifiedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const GetNodeReviewQueueResponse = zod.array(GetNodeReviewQueueResponseItem)
+
+
+/**
+ * @summary Review a Node location application
+ */
+
+
+
+export const ReviewNodeParams = zod.object({
+  "nodeId": zod.coerce.number().int().min(1)
+})
+
+export const reviewNodeBodyNoteMax = 500;
+
+
+
+export const ReviewNodeBody = zod.object({
+  "action": zod.enum(['approve', 'reject', 'needs_information', 'suspend']),
+  "note": zod.string().max(reviewNodeBodyNoteMax).nullish()
+})
+
+export const ReviewNodeResponse = zod.object({
+  "nodeId": zod.number().int(),
+  "status": zod.enum(['verified', 'rejected', 'needs_information', 'suspended'])
+})
+
+
+/**
  * @summary Get the signed-in organisation's verification status, latest application, and history
  */
 export const GetOrganisationVerificationResponse = zod.object({
@@ -1358,6 +1886,189 @@ export const SendAiAssistantMessageBody = zod.object({
 })
 
 export const SendAiAssistantMessageResponse = zod.unknown()
+
+
+/**
+ * @summary List the participant's saved research
+ */
+export const ListLearningResearchResponseItem = zod.object({
+  "id": zod.number().int(),
+  "prompt": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "sources": zod.array(zod.object({
+  "title": zod.string(),
+  "url": zod.string().url(),
+  "publishedAt": zod.string().nullable()
+})),
+  "createdAt": zod.coerce.date()
+})
+export const ListLearningResearchResponse = zod.array(ListLearningResearchResponseItem)
+
+
+/**
+ * @summary Research a topic and save the result to the participant's activity
+ */
+export const createLearningResearchBodyPromptMin = 3;
+export const createLearningResearchBodyPromptMax = 500;
+
+
+
+export const CreateLearningResearchBody = zod.object({
+  "prompt": zod.string().min(createLearningResearchBodyPromptMin).max(createLearningResearchBodyPromptMax)
+})
+
+export const CreateLearningResearchResponse = zod.object({
+  "id": zod.number().int(),
+  "prompt": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "sources": zod.array(zod.object({
+  "title": zod.string(),
+  "url": zod.string().url(),
+  "publishedAt": zod.string().nullable()
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete one saved research item
+ */
+
+
+
+export const DeleteLearningResearchParams = zod.object({
+  "researchId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteLearningResearchResponse = zod.void()
+
+
+/**
+ * @summary List the participant's saved flashcard decks
+ */
+export const listLearningDecksResponseCardsMin = 4;
+export const listLearningDecksResponseCardsMax = 12;
+
+
+
+export const ListLearningDecksResponseItem = zod.object({
+  "id": zod.number().int(),
+  "researchId": zod.number().int().nullable(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "cards": zod.array(zod.object({
+  "question": zod.string(),
+  "answer": zod.string(),
+  "sourceUrls": zod.array(zod.string().url())
+})).min(listLearningDecksResponseCardsMin).max(listLearningDecksResponseCardsMax),
+  "createdAt": zod.coerce.date()
+})
+export const ListLearningDecksResponse = zod.array(ListLearningDecksResponseItem)
+
+
+/**
+ * @summary Create a short flashcard deck from new or saved research
+ */
+export const createLearningDeckBodyOnePromptMin = 3;
+export const createLearningDeckBodyOnePromptMax = 500;
+
+
+export const createLearningDeckBodyTwoPromptMin = 3;
+export const createLearningDeckBodyTwoPromptMax = 500;
+
+
+export const createLearningDeckBodyThreePromptMin = 3;
+export const createLearningDeckBodyThreePromptMax = 500;
+
+
+
+
+export const CreateLearningDeckBody = zod.union([zod.object({
+  "prompt": zod.string().min(createLearningDeckBodyOnePromptMin).max(createLearningDeckBodyOnePromptMax),
+  "researchId": zod.number().int().min(1).optional()
+}),zod.object({
+  "prompt": zod.string().min(createLearningDeckBodyTwoPromptMin).max(createLearningDeckBodyTwoPromptMax).optional(),
+  "researchId": zod.number().int().min(1)
+})]).and(zod.object({
+  "prompt": zod.string().min(createLearningDeckBodyThreePromptMin).max(createLearningDeckBodyThreePromptMax).optional(),
+  "researchId": zod.number().int().min(1).optional()
+}))
+
+export const createLearningDeckResponseDeckCardsMin = 4;
+export const createLearningDeckResponseDeckCardsMax = 12;
+
+
+
+export const CreateLearningDeckResponse = zod.object({
+  "research": zod.object({
+  "id": zod.number().int(),
+  "prompt": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "sources": zod.array(zod.object({
+  "title": zod.string(),
+  "url": zod.string().url(),
+  "publishedAt": zod.string().nullable()
+})),
+  "createdAt": zod.coerce.date()
+}),
+  "deck": zod.object({
+  "id": zod.number().int(),
+  "researchId": zod.number().int().nullable(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "cards": zod.array(zod.object({
+  "question": zod.string(),
+  "answer": zod.string(),
+  "sourceUrls": zod.array(zod.string().url())
+})).min(createLearningDeckResponseDeckCardsMin).max(createLearningDeckResponseDeckCardsMax),
+  "createdAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary Get one participant-owned flashcard deck
+ */
+
+
+
+export const GetLearningDeckParams = zod.object({
+  "deckId": zod.coerce.number().int().min(1)
+})
+
+export const getLearningDeckResponseCardsMin = 4;
+export const getLearningDeckResponseCardsMax = 12;
+
+
+
+export const GetLearningDeckResponse = zod.object({
+  "id": zod.number().int(),
+  "researchId": zod.number().int().nullable(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "cards": zod.array(zod.object({
+  "question": zod.string(),
+  "answer": zod.string(),
+  "sourceUrls": zod.array(zod.string().url())
+})).min(getLearningDeckResponseCardsMin).max(getLearningDeckResponseCardsMax),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete one saved flashcard deck
+ */
+
+
+
+export const DeleteLearningDeckParams = zod.object({
+  "deckId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteLearningDeckResponse = zod.void()
 
 
 /**
@@ -2834,6 +3545,7 @@ export const ListExperiencesQueryParams = zod.object({
 export const listExperiencesResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const listExperiencesResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const listExperiencesResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const listExperiencesResponseVerifiedLocationOneLatitudeMin = -90;
 export const listExperiencesResponseVerifiedLocationOneLatitudeMax = 90;
 
@@ -2862,6 +3574,7 @@ export const ListExperiencesResponseItem = zod.object({
   "endTime": zod.string().regex(listExperiencesResponseEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(listExperiencesResponseVerifiedLocationOneLatitudeMin).max(listExperiencesResponseVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(listExperiencesResponseVerifiedLocationOneLongitudeMin).max(listExperiencesResponseVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -2890,6 +3603,7 @@ export const createExperienceBodyDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-
 export const createExperienceBodyStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const createExperienceBodyEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 
+
 export const createExperienceBodyXpRewardMin = 0;
 
 export const createExperienceBodyMonetaryRewardPenceMin = 0;
@@ -2914,6 +3628,7 @@ export const CreateExperienceBody = zod.object({
   "startTime": zod.string().regex(createExperienceBodyStartTimeRegExp),
   "endTime": zod.string().regex(createExperienceBodyEndTimeRegExp),
   "location": zod.string(),
+  "nodeId": zod.number().int().min(1).nullish(),
   "city": zod.string(),
   "capacity": zod.number().int().min(1),
   "xpReward": zod.number().int().min(createExperienceBodyXpRewardMin),
@@ -2930,6 +3645,7 @@ export const CreateExperienceBody = zod.object({
 export const createExperienceResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const createExperienceResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const createExperienceResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const createExperienceResponseVerifiedLocationOneLatitudeMin = -90;
 export const createExperienceResponseVerifiedLocationOneLatitudeMax = 90;
 
@@ -2958,6 +3674,7 @@ export const CreateExperienceResponse = zod.object({
   "endTime": zod.string().regex(createExperienceResponseEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(createExperienceResponseVerifiedLocationOneLatitudeMin).max(createExperienceResponseVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(createExperienceResponseVerifiedLocationOneLongitudeMin).max(createExperienceResponseVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -2985,6 +3702,7 @@ export const GetExperienceParams = zod.object({
 export const getExperienceResponseOneDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const getExperienceResponseOneStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const getExperienceResponseOneEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const getExperienceResponseOneVerifiedLocationOneLatitudeMin = -90;
 export const getExperienceResponseOneVerifiedLocationOneLatitudeMax = 90;
 
@@ -2994,6 +3712,7 @@ export const getExperienceResponseOneVerifiedLocationOneLongitudeMax = 180;
 export const getExperienceResponseTwoParticipationOneExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const getExperienceResponseTwoParticipationOneExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const getExperienceResponseTwoParticipationOneExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLatitudeMin = -90;
 export const getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLatitudeMax = 90;
 
@@ -3022,6 +3741,7 @@ export const GetExperienceResponse = zod.object({
   "endTime": zod.string().regex(getExperienceResponseOneEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(getExperienceResponseOneVerifiedLocationOneLatitudeMin).max(getExperienceResponseOneVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(getExperienceResponseOneVerifiedLocationOneLongitudeMin).max(getExperienceResponseOneVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -3062,6 +3782,7 @@ export const GetExperienceResponse = zod.object({
   "endTime": zod.string().regex(getExperienceResponseTwoParticipationOneExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLatitudeMin).max(getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLongitudeMin).max(getExperienceResponseTwoParticipationOneExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -3135,6 +3856,7 @@ export const JoinExperienceParams = zod.object({
 export const joinExperienceResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const joinExperienceResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const joinExperienceResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const joinExperienceResponseExperienceVerifiedLocationOneLatitudeMin = -90;
 export const joinExperienceResponseExperienceVerifiedLocationOneLatitudeMax = 90;
 
@@ -3165,6 +3887,7 @@ export const JoinExperienceResponse = zod.object({
   "endTime": zod.string().regex(joinExperienceResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(joinExperienceResponseExperienceVerifiedLocationOneLatitudeMin).max(joinExperienceResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(joinExperienceResponseExperienceVerifiedLocationOneLongitudeMin).max(joinExperienceResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -3216,6 +3939,7 @@ export const ListMyParticipationsQueryParams = zod.object({
 export const listMyParticipationsResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const listMyParticipationsResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const listMyParticipationsResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const listMyParticipationsResponseExperienceVerifiedLocationOneLatitudeMin = -90;
 export const listMyParticipationsResponseExperienceVerifiedLocationOneLatitudeMax = 90;
 
@@ -3246,6 +3970,7 @@ export const ListMyParticipationsResponseItem = zod.object({
   "endTime": zod.string().regex(listMyParticipationsResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(listMyParticipationsResponseExperienceVerifiedLocationOneLatitudeMin).max(listMyParticipationsResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(listMyParticipationsResponseExperienceVerifiedLocationOneLongitudeMin).max(listMyParticipationsResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -3311,6 +4036,7 @@ export const CancelParticipationParams = zod.object({
 export const cancelParticipationResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const cancelParticipationResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const cancelParticipationResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const cancelParticipationResponseExperienceVerifiedLocationOneLatitudeMin = -90;
 export const cancelParticipationResponseExperienceVerifiedLocationOneLatitudeMax = 90;
 
@@ -3341,6 +4067,7 @@ export const CancelParticipationResponse = zod.object({
   "endTime": zod.string().regex(cancelParticipationResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(cancelParticipationResponseExperienceVerifiedLocationOneLatitudeMin).max(cancelParticipationResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(cancelParticipationResponseExperienceVerifiedLocationOneLongitudeMin).max(cancelParticipationResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -3406,6 +4133,7 @@ export const SubmitCompletionBody = zod.object({
 export const submitCompletionResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const submitCompletionResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const submitCompletionResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const submitCompletionResponseExperienceVerifiedLocationOneLatitudeMin = -90;
 export const submitCompletionResponseExperienceVerifiedLocationOneLatitudeMax = 90;
 
@@ -3436,6 +4164,7 @@ export const SubmitCompletionResponse = zod.object({
   "endTime": zod.string().regex(submitCompletionResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(submitCompletionResponseExperienceVerifiedLocationOneLatitudeMin).max(submitCompletionResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(submitCompletionResponseExperienceVerifiedLocationOneLongitudeMin).max(submitCompletionResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -3561,6 +4290,7 @@ export const GetHostOverviewResponse = zod.object({
 export const listHostExperiencesResponseOneDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const listHostExperiencesResponseOneStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const listHostExperiencesResponseOneEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const listHostExperiencesResponseOneVerifiedLocationOneLatitudeMin = -90;
 export const listHostExperiencesResponseOneVerifiedLocationOneLatitudeMax = 90;
 
@@ -3589,6 +4319,7 @@ export const ListHostExperiencesResponseItem = zod.object({
   "endTime": zod.string().regex(listHostExperiencesResponseOneEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(listHostExperiencesResponseOneVerifiedLocationOneLatitudeMin).max(listHostExperiencesResponseOneVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(listHostExperiencesResponseOneVerifiedLocationOneLongitudeMin).max(listHostExperiencesResponseOneVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -3623,6 +4354,7 @@ export const updateHostExperienceBodyDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}
 export const updateHostExperienceBodyStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const updateHostExperienceBodyEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 
+
 export const updateHostExperienceBodyXpRewardMin = 0;
 
 export const updateHostExperienceBodyMonetaryRewardPenceMin = 0;
@@ -3647,6 +4379,7 @@ export const UpdateHostExperienceBody = zod.object({
   "startTime": zod.string().regex(updateHostExperienceBodyStartTimeRegExp),
   "endTime": zod.string().regex(updateHostExperienceBodyEndTimeRegExp),
   "location": zod.string(),
+  "nodeId": zod.number().int().min(1).nullish(),
   "city": zod.string(),
   "capacity": zod.number().int().min(1),
   "xpReward": zod.number().int().min(updateHostExperienceBodyXpRewardMin),
@@ -3663,6 +4396,7 @@ export const UpdateHostExperienceBody = zod.object({
 export const updateHostExperienceResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const updateHostExperienceResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const updateHostExperienceResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const updateHostExperienceResponseVerifiedLocationOneLatitudeMin = -90;
 export const updateHostExperienceResponseVerifiedLocationOneLatitudeMax = 90;
 
@@ -3691,6 +4425,7 @@ export const UpdateHostExperienceResponse = zod.object({
   "endTime": zod.string().regex(updateHostExperienceResponseEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(updateHostExperienceResponseVerifiedLocationOneLatitudeMin).max(updateHostExperienceResponseVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(updateHostExperienceResponseVerifiedLocationOneLongitudeMin).max(updateHostExperienceResponseVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -3718,6 +4453,7 @@ export const CancelHostExperienceParams = zod.object({
 export const cancelHostExperienceResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const cancelHostExperienceResponseStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const cancelHostExperienceResponseEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const cancelHostExperienceResponseVerifiedLocationOneLatitudeMin = -90;
 export const cancelHostExperienceResponseVerifiedLocationOneLatitudeMax = 90;
 
@@ -3746,6 +4482,7 @@ export const CancelHostExperienceResponse = zod.object({
   "endTime": zod.string().regex(cancelHostExperienceResponseEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(cancelHostExperienceResponseVerifiedLocationOneLatitudeMin).max(cancelHostExperienceResponseVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(cancelHostExperienceResponseVerifiedLocationOneLongitudeMin).max(cancelHostExperienceResponseVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -3853,6 +4590,7 @@ export const ListExperienceParticipantsParams = zod.object({
 export const listExperienceParticipantsResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const listExperienceParticipantsResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const listExperienceParticipantsResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const listExperienceParticipantsResponseExperienceVerifiedLocationOneLatitudeMin = -90;
 export const listExperienceParticipantsResponseExperienceVerifiedLocationOneLatitudeMax = 90;
 
@@ -3883,6 +4621,7 @@ export const ListExperienceParticipantsResponseItem = zod.object({
   "endTime": zod.string().regex(listExperienceParticipantsResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(listExperienceParticipantsResponseExperienceVerifiedLocationOneLatitudeMin).max(listExperienceParticipantsResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(listExperienceParticipantsResponseExperienceVerifiedLocationOneLongitudeMin).max(listExperienceParticipantsResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -3935,6 +4674,7 @@ export const PromoteNextWaitlistedParticipantParams = zod.object({
 export const promoteNextWaitlistedParticipantResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const promoteNextWaitlistedParticipantResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const promoteNextWaitlistedParticipantResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLatitudeMin = -90;
 export const promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLatitudeMax = 90;
 
@@ -3965,6 +4705,7 @@ export const PromoteNextWaitlistedParticipantResponse = zod.object({
   "endTime": zod.string().regex(promoteNextWaitlistedParticipantResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLatitudeMin).max(promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLongitudeMin).max(promoteNextWaitlistedParticipantResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -4016,6 +4757,7 @@ export const MarkAttendanceParams = zod.object({
 export const markAttendanceResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const markAttendanceResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const markAttendanceResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const markAttendanceResponseExperienceVerifiedLocationOneLatitudeMin = -90;
 export const markAttendanceResponseExperienceVerifiedLocationOneLatitudeMax = 90;
 
@@ -4046,6 +4788,7 @@ export const MarkAttendanceResponse = zod.object({
   "endTime": zod.string().regex(markAttendanceResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(markAttendanceResponseExperienceVerifiedLocationOneLatitudeMin).max(markAttendanceResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(markAttendanceResponseExperienceVerifiedLocationOneLongitudeMin).max(markAttendanceResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -4097,6 +4840,7 @@ export const VerifyParticipationParams = zod.object({
 export const verifyParticipationResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const verifyParticipationResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const verifyParticipationResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const verifyParticipationResponseExperienceVerifiedLocationOneLatitudeMin = -90;
 export const verifyParticipationResponseExperienceVerifiedLocationOneLatitudeMax = 90;
 
@@ -4127,6 +4871,7 @@ export const VerifyParticipationResponse = zod.object({
   "endTime": zod.string().regex(verifyParticipationResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(verifyParticipationResponseExperienceVerifiedLocationOneLatitudeMin).max(verifyParticipationResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(verifyParticipationResponseExperienceVerifiedLocationOneLongitudeMin).max(verifyParticipationResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),
@@ -4187,6 +4932,7 @@ export const RejectParticipationBody = zod.object({
 export const rejectParticipationResponseExperienceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const rejectParticipationResponseExperienceStartTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 export const rejectParticipationResponseExperienceEndTimeRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+
 export const rejectParticipationResponseExperienceVerifiedLocationOneLatitudeMin = -90;
 export const rejectParticipationResponseExperienceVerifiedLocationOneLatitudeMax = 90;
 
@@ -4217,6 +4963,7 @@ export const RejectParticipationResponse = zod.object({
   "endTime": zod.string().regex(rejectParticipationResponseExperienceEndTimeRegExp),
   "location": zod.string(),
   "city": zod.string(),
+  "nodeId": zod.number().int().min(1).nullable(),
   "verifiedLocation": zod.union([zod.object({
   "latitude": zod.number().min(rejectParticipationResponseExperienceVerifiedLocationOneLatitudeMin).max(rejectParticipationResponseExperienceVerifiedLocationOneLatitudeMax).describe('Latitude rounded to 1 decimal for city, 2 for neighborhood, or 3 for venue area.'),
   "longitude": zod.number().min(rejectParticipationResponseExperienceVerifiedLocationOneLongitudeMin).max(rejectParticipationResponseExperienceVerifiedLocationOneLongitudeMax).describe('Longitude rounded to the disclosed precision.'),

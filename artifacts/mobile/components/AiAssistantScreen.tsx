@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -138,7 +139,7 @@ export function AiAssistantScreen({ onOpenExperience }: Props) {
     const assistantLocalId = `assistant-${Date.now()}`;
     setDraft('');
     setStreamError('');
-    setStreamStatus('Finding relevant local experiences');
+    setStreamStatus('Thinking through your question');
     setStreaming(true);
     setLocalMessages((items) => [
       ...items,
@@ -289,6 +290,7 @@ export function AiAssistantScreen({ onOpenExperience }: Props) {
 
   const renderMessage = (message: LocalMessage | AiAssistantMessage, index: number) => {
     const isUser = message.role === 'user';
+    const contentParts = message.content.split(/(https?:\/\/[^\s<>()\]]+)/g);
     return (
       <View key={'localId' in message ? message.localId : `saved-${message.id ?? index}`} style={[styles.messageRow, isUser && styles.messageRowUser]}>
         {!isUser && (
@@ -300,7 +302,24 @@ export function AiAssistantScreen({ onOpenExperience }: Props) {
           styles.messageBody,
           isUser ? [styles.userBubble, { backgroundColor: colors.primary }] : [styles.assistantBubble, { backgroundColor: colors.muted }],
         ]}>
-          {!!message.content && <Text style={[styles.messageText, { color: isUser ? colors.primaryForeground : colors.foreground }]}>{message.content}</Text>}
+          {!!message.content && (
+            <Text style={[styles.messageText, { color: isUser ? colors.primaryForeground : colors.foreground }]}>
+              {contentParts.map((part, partIndex) => /^https?:\/\//i.test(part) ? (
+                <Text
+                  key={`source-${partIndex}`}
+                  accessibilityRole="link"
+                  onPress={() => {
+                    void Linking.openURL(part).catch(() => {
+                      Alert.alert('Source unavailable', 'This link could not be opened.');
+                    });
+                  }}
+                  style={{ color: isUser ? colors.primaryForeground : colors.primary, textDecorationLine: 'underline' }}
+                >
+                  {part}
+                </Text>
+              ) : part)}
+            </Text>
+          )}
           {!isUser && message.actions?.map(renderAction)}
           {!isUser && !message.content && streaming && (
             <View style={styles.typingLine}>
@@ -321,8 +340,8 @@ export function AiAssistantScreen({ onOpenExperience }: Props) {
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={styles.headerCopy}>
-          <Text style={[styles.kicker, { color: colors.primary }]}>YOUR LOCAL GUIDE</Text>
-          <Text style={[styles.title, { color: colors.foreground }]}>Find your next way in</Text>
+          <Text style={[styles.kicker, { color: colors.primary }]}>YOUR RESEARCH & PARTICIPATION GUIDE</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>Ask, explore, learn</Text>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -392,7 +411,7 @@ export function AiAssistantScreen({ onOpenExperience }: Props) {
                 </View>
                 <Text style={[styles.stateTitle, { color: colors.foreground }]}>A good place to begin</Text>
                 <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>
-                  Start a conversation to find real local experiences and plan who you might go with.
+                  Ask a question, research a topic, or find a real local experience. You decide what to do next.
                 </Text>
                 <Pressable onPress={createNewConversation} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
                   <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Start exploring</Text>
@@ -417,9 +436,9 @@ export function AiAssistantScreen({ onOpenExperience }: Props) {
                   <Feather name="navigation" size={17} color={colors.primary} />
                 </View>
                 <View style={styles.welcomeNoteCopy}>
-                  <Text style={[styles.welcomeTitle, { color: colors.foreground }]}>Start with what matters nearby.</Text>
+                  <Text style={[styles.welcomeTitle, { color: colors.foreground }]}>Start with whatever matters to you.</Text>
                   <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>
-                    Ask about community projects, learning, or a day you would like to make useful.
+                    Have a natural conversation, ask for research, or find a way to get involved nearby.
                   </Text>
                 </View>
               </View>
@@ -439,7 +458,7 @@ export function AiAssistantScreen({ onOpenExperience }: Props) {
                 <TextInput
                   value={draft}
                   onChangeText={setDraft}
-                  placeholder="Ask about something local…"
+                  placeholder="Ask or research anything…"
                   placeholderTextColor={colors.mutedForeground}
                   multiline
                   maxLength={1200}

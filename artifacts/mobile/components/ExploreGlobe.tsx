@@ -41,6 +41,15 @@ export type GlobeExperienceLocation = {
   precision: 'city' | 'neighborhood' | 'venue_area';
 };
 
+export type GlobeNodeLocation = {
+  nodeId: number;
+  name: string;
+  organisationName: string;
+  city: string | null;
+  latitude: number;
+  longitude: number;
+};
+
 export type WelcomeGlobeActivityCity = {
   city: string;
   latitude: number;
@@ -52,6 +61,7 @@ type Props = {
   cities: GlobeCity[];
   friends?: GlobeFriend[];
   experienceLocations?: GlobeExperienceLocation[];
+  nodes?: GlobeNodeLocation[];
   mode: GlobeMode;
   selectedCity: string | null;
   selectedCityCoordinates?: { latitude: number; longitude: number };
@@ -69,6 +79,7 @@ type Props = {
   onSelectCity: (city: string) => void;
   onSelectFriend?: (friendId: number) => void;
   onSelectExperience?: (experienceId: number) => void;
+  onSelectNode?: (nodeId: number) => void;
   onExploreCity: (city: string) => void;
   onResetCity: () => void;
 };
@@ -229,6 +240,7 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
   cities,
   friends = [],
   experienceLocations = [],
+  nodes = [],
   mode,
   selectedCity,
   selectedCityCoordinates,
@@ -246,6 +258,7 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
   onSelectCity,
   onSelectFriend,
   onSelectExperience,
+  onSelectNode,
   onExploreCity,
   onResetCity,
 }: Props, ref) {
@@ -443,6 +456,15 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
       }))
       .filter(({ point }) => point.z > 0.02),
     [experienceLocations, rotation, tilt, radius],
+  );
+  const projectedNodes = useMemo(
+    () => nodes
+      .map((node) => ({
+        node,
+        point: project(node.latitude, node.longitude, rotation, tilt, radius),
+      }))
+      .filter(({ point }) => point.z > 0.02),
+    [nodes, rotation, tilt, radius],
   );
   const selectedSearchPoint = selectedCity && selectedCityCoordinates && !selected
     ? project(selectedCityCoordinates.latitude, selectedCityCoordinates.longitude, rotation, tilt, radius)
@@ -875,6 +897,28 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
               </View>
             </Pressable>
           )) : null}
+          {fullScreen && mode === 'explore' && globeScale > 0 ? projectedNodes.map(({ node, point }) => (
+            <Pressable
+              key={node.nodeId}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${node.name}, an Experiences.fun Node by ${node.organisationName}${node.city ? ` in ${node.city}` : ''}.`}
+              accessibilityHint="Opens the verified Node profile."
+              testID={`explore-node-pin-${node.nodeId}`}
+              onPress={() => onSelectNode?.(node.nodeId)}
+              style={[
+                styles.nodeLocationHitTarget,
+                {
+                  left: globeOffsetX + point.x * globeScale - 17,
+                  top: globeOffsetY + point.y * globeScale - 17,
+                },
+              ]}
+            >
+              <View style={[styles.nodeLocationMarker, { backgroundColor: colors.secondary, borderColor: space.background }]}>
+                <Feather name="map-pin" size={10} color={colors.primaryForeground} />
+              </View>
+            </Pressable>
+          )) : null}
           {fullScreen && (showFriends || mode === 'social') && globeScale > 0 ? projectedFriends.map(({ friend, point, offsetX, offsetY, zIndex }) => (
             <Pressable
               key={friend.id}
@@ -1069,6 +1113,8 @@ const styles = StyleSheet.create({
   markerHitTarget: { position: 'absolute', width: 44, height: 44, borderRadius: 22, backgroundColor: 'transparent' },
   experienceLocationHitTarget: { position: 'absolute', width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   experienceLocationMarker: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  nodeLocationHitTarget: { position: 'absolute', width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  nodeLocationMarker: { width: 23, height: 23, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   friendPin: { position: 'absolute', width: 48, height: 54, alignItems: 'center' },
   friendPinTail: { position: 'absolute', width: 14, height: 14, top: 35, transform: [{ rotate: '45deg' }] },
   friendPinHead: { width: 46, height: 46, borderRadius: 23, borderWidth: 3, padding: 2, alignItems: 'center', justifyContent: 'center' },
