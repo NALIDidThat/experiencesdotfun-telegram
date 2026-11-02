@@ -17,7 +17,7 @@ test("removes a matching Telegram username mention and keeps the question", () =
   assert.equal(
     extractBotMentionedText(
       text,
-      [{ type: "mention", offset: 0, length: 23 }],
+      [{ type: "mention", offset: 0, length: "@ExperiencesDotFun_Bot".length }],
       botUsername,
       botId,
     ),
@@ -42,7 +42,7 @@ test("does not accept a mention for a different bot", () => {
   assert.equal(
     extractBotMentionedText(
       "@experiencesdotfun_botx hello",
-      [{ type: "mention", offset: 0, length: 24 }],
+      [{ type: "mention", offset: 0, length: "@experiencesdotfun_botx".length }],
       botUsername,
       botId,
     ),

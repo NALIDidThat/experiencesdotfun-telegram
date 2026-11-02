@@ -142,6 +142,7 @@ import { MotionPressable } from '@/components/MotionPressable';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { DirectMessagesScreen } from '@/components/DirectMessagesScreen';
 import { AiAssistantScreen } from '@/components/AiAssistantScreen';
+import { LearningDashboardScreen } from '@/components/LearningDashboardScreen';
 import { ExperienceChallengesScreen } from '@/components/ExperienceChallengesScreen';
 import { MemoryGameScreen } from '@/components/MemoryGameScreen';
 import { ExploreGlobe, type GlobeCity, type GlobeExperienceLocation, type GlobeFriend, type GlobeMode, type GlobeNodeLocation, type WelcomeGlobeActivityCity } from '@/components/ExploreGlobe';
@@ -160,7 +161,7 @@ import {
 } from '@/components/TelegramCommunityManagementScreen';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'node-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-community-dashboard' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'learning' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'node-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-community-dashboard' | 'email';
 type ScreenTransitionDirection = 'forward' | 'back' | 'switch';
 type ScreenRouteParams = {
   id?: string;
@@ -185,7 +186,7 @@ type TelegramWindow = Window & {
   Telegram?: { WebApp?: { BackButton?: TelegramWebAppBackButton } };
 };
 type IconName = keyof typeof Feather.glyphMap;
-type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'assistant' | 'challenges' | 'accountability' | 'memory-game' | 'telegram-communities';
+type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'assistant' | 'learning' | 'challenges' | 'accountability' | 'memory-game' | 'telegram-communities';
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
 type HostSummaryMetric = 'live' | 'participants' | 'waitlist' | 'completion-reviews' | 'milestone-reviews';
@@ -195,7 +196,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'node-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'campaigns', 'payout-proposal', 'contributions', 'telegram-communities', 'telegram-community-dashboard', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'learning', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'node-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'campaigns', 'payout-proposal', 'contributions', 'telegram-communities', 'telegram-community-dashboard', 'email'];
 
 function routeParamString(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -205,7 +206,7 @@ function createScreenHistoryEntry(screen: Screen, params: ScreenRouteParams = {}
   const screenUsesExperienceId = screen === 'experience'
     || screen === 'host-detail'
     || (screen === 'create' && Boolean(params.id));
-  const routeId = screenUsesExperienceId || screen === 'direct-message' || screen === 'campaigns'
+  const routeId = screenUsesExperienceId || screen === 'direct-message' || screen === 'campaigns' || screen === 'learning'
     ? params.id
     : undefined;
   return {
@@ -9310,8 +9311,14 @@ function BottomNav({
           {
             id: 'assistant' as const,
             label: 'Assistant',
-            description: 'Find local experiences and plan what to do next.',
+            description: 'Ask naturally, find experiences, and get researched answers.',
             icon: 'message-square' as const,
+          },
+          {
+            id: 'learning' as const,
+            label: 'Research & flashcards',
+            description: 'Research a topic, save sources, and make short study decks.',
+            icon: 'book-open' as const,
           },
           {
             id: 'memory-game' as const,
@@ -10061,6 +10068,8 @@ export default function App() {
         ? 'host'
       : screen === 'activity'
         ? 'home'
+      : screen === 'learning'
+        ? 'home'
         : screen;
     analyticsMutationRef.current.mutate({
       data: { screen: analyticsScreen, platform },
@@ -10076,7 +10085,7 @@ export default function App() {
       || entry.screen === 'host-detail'
       || (entry.screen === 'create' && Boolean(entry.params.id));
     setExperienceId(screenUsesExperienceId ? entry.params.id : undefined);
-    const routeId = screenUsesExperienceId || entry.screen === 'direct-message' || entry.screen === 'campaigns'
+    const routeId = screenUsesExperienceId || entry.screen === 'direct-message' || entry.screen === 'campaigns' || entry.screen === 'learning'
       ? entry.params.id
       : undefined;
     router.setParams({
@@ -10187,6 +10196,10 @@ export default function App() {
     }
     if (action === 'assistant') {
       go('ai');
+      return;
+    }
+    if (action === 'learning') {
+      if (user?.userType === 'participant') go('learning');
       return;
     }
     if (action === 'memory-game') {
@@ -10584,6 +10597,17 @@ export default function App() {
           onOpenExperience={(id) => go('experience', { id: String(id) })}
           onOpenChallenges={() => go('challenges')}
           onExplore={() => go('explore')}
+          onOpenLearning={() => go('learning')}
+          onOpenLearningDeck={(deckId) => go('learning', { id: `deck-${deckId}` })}
+          onCreateCardsFromResearch={(researchId) => go('learning', { id: `research-${researchId}` })}
+        />
+      );
+    }
+    if (screen === 'learning') {
+      return (
+        <LearningDashboardScreen
+          itemId={params.id}
+          onBack={() => goBack('home')}
         />
       );
     }

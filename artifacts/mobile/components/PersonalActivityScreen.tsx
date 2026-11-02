@@ -22,6 +22,7 @@ import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { ProfilePosts } from '@/components/ProfilePosts';
 import { PersonalMemoriesPanel, SavedExperiencesPanel } from '@/components/PersonalCollections';
+import { LearningLibraryPanel } from '@/components/LearningDashboardScreen';
 
 type ActivityFilter = 'all' | 'experiences' | 'challenges' | 'xp';
 type ActivityKind = Exclude<ActivityFilter, 'all'>;
@@ -47,13 +48,17 @@ type Props = {
   onOpenExperience: (experienceId: number) => void;
   onOpenChallenges: () => void;
   onExplore: () => void;
+  onOpenLearning: () => void;
+  onOpenLearningDeck: (deckId: number) => void;
+  onCreateCardsFromResearch: (researchId: number) => void;
 };
 
-type PersonalSection = 'activity' | 'saved-experiences' | 'memories' | 'posts';
+type PersonalSection = 'activity' | 'saved-experiences' | 'learning' | 'memories' | 'posts';
 
 const personalSections: Array<{ key: PersonalSection; label: string }> = [
   { key: 'activity', label: 'Activity' },
   { key: 'saved-experiences', label: 'Saved experiences' },
+  { key: 'learning', label: 'Learning' },
   { key: 'memories', label: 'Memories' },
   { key: 'posts', label: 'Posts' },
 ];
@@ -180,7 +185,15 @@ function queryCount(isLoading: boolean, isError: boolean, count: number | undefi
   return String(count ?? 0);
 }
 
-export function PersonalActivityScreen({ profileId, onOpenExperience, onOpenChallenges, onExplore }: Props) {
+export function PersonalActivityScreen({
+  profileId,
+  onOpenExperience,
+  onOpenChallenges,
+  onExplore,
+  onOpenLearning,
+  onOpenLearningDeck,
+  onCreateCardsFromResearch,
+}: Props) {
   const colors = useColors();
   const participationsQuery = useListMyParticipations();
   const challengesQuery = useListExperienceChallenges();
@@ -542,6 +555,12 @@ export function PersonalActivityScreen({ profileId, onOpenExperience, onOpenChal
           </>
         ) : section === 'saved-experiences' ? (
           <SavedExperiencesPanel profileId={profileId} onOpenExperience={onOpenExperience} onExplore={onExplore} />
+        ) : section === 'learning' ? (
+          <LearningLibraryPanel
+            onOpenLearning={onOpenLearning}
+            onStudyDeck={onOpenLearningDeck}
+            onCreateDeckFromResearch={onCreateCardsFromResearch}
+          />
         ) : section === 'memories' ? (
           <PersonalMemoriesPanel profileId={profileId} />
         ) : (

@@ -1106,11 +1106,14 @@ async function handleRiddleCommand(
     return;
   }
 
+  const mentionInstruction = isGroupChat(chatType)
+    ? ` and mention @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")}`
+    : "";
   await revealExpiredRiddle(chatId);
   if (riddleRounds.getActive(chatId)) {
     await sendTelegramMessage(
       chatId,
-      "There’s already a riddle open. Reply to that message within 15 minutes before starting another.",
+      `There’s already a riddle open. Reply to that message${mentionInstruction} within 15 minutes before starting another.`,
     );
     return;
   }
@@ -1119,7 +1122,7 @@ async function handleRiddleCommand(
   const heading = chatType === "private" ? "Your riddle" : "Group riddle";
   const sentMessage = await sendTelegramMessage(
     chatId,
-    `🧩 <b>${heading}</b>\n\n${escapeTelegramHtml(riddle.question)}\n\nReply directly to this message with your answer. The first correct answer solves it; otherwise, the answer is revealed after 15 minutes.`,
+    `🧩 <b>${heading}</b>\n\n${escapeTelegramHtml(riddle.question)}\n\nReply directly to this message${mentionInstruction} with your answer. The first correct answer solves it; otherwise, the answer is revealed after 15 minutes.`,
   );
   if (!sentMessage || !Number.isSafeInteger(sentMessage.message_id)) {
     logger.warn({ chatId, riddleId: riddle.id }, "Group riddle message could not be posted");
@@ -1310,7 +1313,10 @@ function withinTelegramAiLimit(chatId: number, telegramUserId: number) {
 }
 
 function formatTelegramAiReply(answer: string, sources: AiResearchSource[]) {
-  const answerText = answer.trim().slice(0, sources.length ? 2800 : 3800);
+  const responseBody = sources.length
+    ? answer.split(/\n\nSources\s*\n/i, 1)[0] ?? answer
+    : answer;
+  const answerText = responseBody.trim().slice(0, sources.length ? 2800 : 3800);
   const sourceLines = sources.slice(0, 4).map((source) => {
     const title = escapeTelegramHtml(source.title.slice(0, 140));
     const url = escapeTelegramHtml(source.url.slice(0, 300));
@@ -2653,7 +2659,7 @@ async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
   }
   const addressedText = extractBotMentionedText(
     text,
-    message.entities,
+    message.entities ?? message.caption_entities,
     username,
     botTelegramId,
   );
