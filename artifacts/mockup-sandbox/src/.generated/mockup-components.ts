@@ -22,11 +22,11 @@ export const modules: ModuleMap = {
   "./components/mockups/experience-details/Reference.tsx": () => import("../components/mockups/experience-details/Reference.tsx"),
   "./components/mockups/fundraiser-card/Current.tsx": () => import("../components/mockups/fundraiser-card/Current.tsx"),
   "./components/mockups/fundraiser-card/ImpactFocused.tsx": () => import("../components/mockups/fundraiser-card/ImpactFocused.tsx"),
+  "./components/mockups/organisation-first-experience/Current.tsx": () => import("../components/mockups/organisation-first-experience/Current.tsx"),
+  "./components/mockups/organisation-first-experience/Refined.tsx": () => import("../components/mockups/organisation-first-experience/Refined.tsx"),
   "./components/mockups/profile-menu-redesign/Current.tsx": () => import("../components/mockups/profile-menu-redesign/Current.tsx"),
   "./components/mockups/profile-menu-redesign/Refresh.tsx": () => import("../components/mockups/profile-menu-redesign/Refresh.tsx"),
   "./components/mockups/welcome-globe/Clearer.tsx": () => import("../components/mockups/welcome-globe/Clearer.tsx"),
   "./components/mockups/welcome-globe/Current.tsx": () => import("../components/mockups/welcome-globe/Current.tsx"),
-  "./components/mockups/welcome-screen/Current.tsx": () => import("../components/mockups/welcome-screen/Current.tsx"),
-  "./components/mockups/organisation-first-experience/Current.tsx": () => import("../components/mockups/organisation-first-experience/Current.tsx"),
-  "./components/mockups/organisation-first-experience/Refined.tsx": () => import("../components/mockups/organisation-first-experience/Refined.tsx")
+  "./components/mockups/welcome-screen/Current.tsx": () => import("../components/mockups/welcome-screen/Current.tsx")
 };
