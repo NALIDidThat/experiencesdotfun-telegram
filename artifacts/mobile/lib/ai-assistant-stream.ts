@@ -3,6 +3,7 @@ import {
   type AiAssistantMessage,
   type AiAssistantMessageInput,
 } from "@workspace/api-client-react";
+import { fetch as expoFetch } from "expo/fetch";
 
 export type AiAssistantStreamEvent = {
   status?: string;
@@ -58,6 +59,7 @@ export async function streamAiAssistantMessage(
       body: JSON.stringify(body),
       signal: callbacks.signal,
     },
+    expoFetch,
   );
 
   let assistantMessage: AiAssistantMessage | undefined;

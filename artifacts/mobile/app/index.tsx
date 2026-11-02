@@ -467,22 +467,36 @@ function Button({
   );
 }
 
-type HeaderMenuItem = { key: string; label: string; icon: IconName; onPress: () => void; badge?: number };
+type HeaderMenuItem = {
+  key: string;
+  label: string;
+  icon: IconName;
+  onPress: () => void;
+  badge?: number;
+  section?: 'Community' | 'Account';
+  destructive?: boolean;
+};
+type HeaderMenuProfile = { name: string; subtitle: string; initials: string };
 
 function Header({
   title,
   subtitle,
   onBack,
   menuItems,
+  menuProfile,
 }: {
   title: string;
   subtitle?: string;
   onBack?: () => void;
   menuItems?: HeaderMenuItem[];
+  menuProfile?: HeaderMenuProfile;
 }) {
   const colors = useColors();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const headerTop = 16;
+  const menuWidth = Math.min(276, Math.max(240, windowWidth - 32));
+  const menuMaxHeight = Math.max(220, windowHeight - headerTop - 88);
 
   return (
     <>
@@ -505,15 +519,23 @@ function Header({
             onPress={() => { triggerHaptic(); setMenuOpen((open) => !open); }}
             style={({ pressed }) => [styles.headerMenuButton, { opacity: pressed ? 0.6 : 1 }]}
           >
-            <View accessibilityElementsHidden style={styles.headerMenuLines}>
-              <View style={[styles.headerMenuLine, { backgroundColor: colors.foreground }]} />
-              <View style={[styles.headerMenuLine, { backgroundColor: colors.foreground }]} />
-            </View>
+            <Feather
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+              name={menuOpen ? 'x' : 'more-horizontal'}
+              size={20}
+              color={colors.foreground}
+            />
           </Pressable>
         ) : null}
       </View>
       {menuItems?.length ? (
-        <Modal transparent visible={menuOpen} animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <Modal
+          transparent
+          visible={menuOpen}
+          animationType={menuOpen ? 'fade' : 'none'}
+          onRequestClose={() => setMenuOpen(false)}
+        >
           <View style={styles.headerMenuOverlay}>
             <Pressable
               accessibilityRole="button"
@@ -526,36 +548,94 @@ function Header({
                 styles.headerMenuPopover,
                 {
                   top: headerTop + 44,
+                  width: menuWidth,
+                  maxHeight: menuMaxHeight,
                   backgroundColor: colors.card,
                   borderColor: colors.border,
-                  borderRadius: colors.radius,
+                  borderRadius: colors.radius + 6,
                 },
               ]}
             >
-              {menuItems.map((item) => (
-                <Pressable
-                  key={item.key}
-                  testID={`profile-menu-${item.key}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={item.badge ? `${item.label}, ${item.badge} unread` : item.label}
-                  onPress={() => {
-                    triggerHaptic();
-                    setMenuOpen(false);
-                    item.onPress();
-                  }}
-                  style={({ pressed }) => [styles.headerMenuItem, { opacity: pressed ? 0.65 : 1 }]}
-                >
-                  <Feather name={item.icon} size={16} color={colors.primary} />
-                  <Text style={[styles.headerMenuItemText, { color: colors.foreground, flex: 1 }]}>{item.label}</Text>
-                  {item.badge ? (
-                    <View style={{ alignItems: 'center', backgroundColor: colors.primary, borderRadius: 12, minWidth: 22, paddingHorizontal: 6, paddingVertical: 3 }}>
-                      <Text style={{ color: colors.primaryForeground, fontSize: 11, fontFamily: 'Inter_700Bold' }}>
-                        {item.badge > 99 ? '99+' : item.badge}
+              {menuProfile ? (
+                <View style={[styles.headerMenuProfile, { borderBottomColor: colors.border }]}>
+                  <View style={[styles.headerMenuAvatar, { backgroundColor: colors.muted }]}>
+                    <Text
+                      accessibilityElementsHidden
+                      importantForAccessibility="no"
+                      style={[styles.headerMenuInitials, { color: colors.primary }]}
+                    >
+                      {menuProfile.initials}
+                    </Text>
+                  </View>
+                  <View style={styles.headerMenuProfileCopy}>
+                    <Text numberOfLines={1} style={[styles.headerMenuProfileName, { color: colors.foreground }]}>
+                      {menuProfile.name}
+                    </Text>
+                    <Text numberOfLines={1} style={[styles.headerMenuProfileSubtitle, { color: colors.mutedForeground }]}>
+                      {menuProfile.subtitle}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+              <ScrollView
+                style={styles.headerMenuScroll}
+                contentContainerStyle={styles.headerMenuItems}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                {menuItems.map((item) => (
+                  <React.Fragment key={item.key}>
+                    {item.section ? (
+                      <Text style={[styles.headerMenuSectionLabel, { color: colors.mutedForeground }]}>
+                        {item.section}
                       </Text>
-                    </View>
-                  ) : null}
-                </Pressable>
-              ))}
+                    ) : null}
+                    {item.destructive ? (
+                      <View style={[styles.headerMenuDivider, { backgroundColor: colors.border }]} />
+                    ) : null}
+                    <Pressable
+                      testID={`profile-menu-${item.key}`}
+                      accessibilityRole="button"
+                      accessibilityLabel={item.badge ? `${item.label}, ${item.badge} unread` : item.label}
+                      onPress={() => {
+                        triggerHaptic();
+                        setMenuOpen(false);
+                        item.onPress();
+                      }}
+                      style={({ pressed }) => [
+                        styles.headerMenuItem,
+                        pressed && { backgroundColor: colors.muted },
+                      ]}
+                    >
+                      <View style={[styles.headerMenuIconTile, { backgroundColor: colors.muted }]}>
+                        <Feather
+                          accessibilityElementsHidden
+                          importantForAccessibility="no"
+                          name={item.icon}
+                          size={16}
+                          color={item.destructive ? colors.destructive : colors.primary}
+                        />
+                      </View>
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.headerMenuItemText,
+                          { color: item.destructive ? colors.destructive : colors.foreground, flex: 1 },
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                      {item.badge ? (
+                        <View style={[styles.headerMenuBadge, { backgroundColor: colors.primary }]}>
+                          <Text style={[styles.headerMenuBadgeText, { color: colors.primaryForeground }]}>
+                            {item.badge > 99 ? '99+' : item.badge}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </Pressable>
+                  </React.Fragment>
+                ))}
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -5916,6 +5996,11 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const [profileMenuError, setProfileMenuError] = useState<string | null>(null);
   const [selectedProfileMetric, setSelectedProfileMetric] = useState<ProfileMetricKey | null>(null);
   const current = profile.data ?? user;
+  const profileMenuName = (
+    current.userType === 'organisation' ? current.organisation?.name : current.name
+  )?.trim() || 'Your profile';
+  const profileMenuInitials = profileMenuName.trim().split(/\s+/).slice(0, 2)
+    .map((part) => part[0] ?? '').join('').toUpperCase() || (current.userType === 'organisation' ? 'O' : 'P');
 
   const toggleProfileEditor = () => {
     if (!editing) {
@@ -6002,11 +6087,17 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       <Header
         title={current.userType === 'organisation' ? 'Organisation profile' : 'Passport'}
         subtitle={current.userType === 'organisation' ? (current.organisation?.name ?? 'Organisation account') : 'Participant account · Your contribution identity.'}
+        menuProfile={{
+          name: profileMenuName,
+          subtitle: current.userType === 'organisation' ? 'Organisation account' : 'Participant account',
+          initials: profileMenuInitials,
+        }}
         menuItems={[
           {
             key: 'notifications',
             label: 'Notifications',
             icon: 'bell',
+            section: 'Community',
             badge:
               (friendNotifications.data?.unreadCount ?? 0) +
               (authenticatedUser?.userType === 'participant'
@@ -6038,6 +6129,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
             key: 'accounts-center',
             label: 'Accounts Centre',
             icon: 'users',
+            section: 'Account',
             onPress: () => go('accounts'),
           },
           {
@@ -6051,6 +6143,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
                 key: 'host-tools',
                 label: 'Organisation tools',
                 icon: 'briefcase' as IconName,
+                section: 'Account' as const,
                 onPress: openHostTools,
               }]
             : []),
@@ -6058,6 +6151,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
             key: 'sign-out',
             label: 'Sign out',
             icon: 'log-out',
+            destructive: true,
             onPress: () => { void handleSignOut(); },
           },
         ]}
@@ -10752,12 +10846,44 @@ const styles = StyleSheet.create({
   backButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
   headerCopy: { flex: 1 },
   headerMenuButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: 8, marginTop: -4 },
-  headerMenuLines: { alignItems: 'center', justifyContent: 'center', gap: 6 },
-  headerMenuLine: { width: 20, height: 2, borderRadius: 1 },
   headerMenuOverlay: { flex: 1 },
-  headerMenuPopover: { position: 'absolute', right: 16, width: 224, borderWidth: 1, paddingVertical: 4, elevation: 8 },
-  headerMenuItem: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
+  headerMenuPopover: {
+    position: 'absolute',
+    right: 16,
+    width: 276,
+    borderWidth: 1,
+    overflow: 'hidden',
+    elevation: 12,
+  },
+  headerMenuProfile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    padding: 14,
+    borderBottomWidth: 1,
+  },
+  headerMenuAvatar: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  headerMenuInitials: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  headerMenuProfileCopy: { flex: 1, minWidth: 0 },
+  headerMenuProfileName: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  headerMenuProfileSubtitle: { marginTop: 2, fontSize: 12, fontFamily: 'Inter_400Regular' },
+  headerMenuScroll: { flexShrink: 1 },
+  headerMenuItems: { paddingVertical: 10 },
+  headerMenuSectionLabel: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 6,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    fontFamily: 'Inter_700Bold',
+    textTransform: 'uppercase',
+  },
+  headerMenuDivider: { height: 1, marginHorizontal: 14, marginTop: 8, marginBottom: 8 },
+  headerMenuItem: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 14 },
+  headerMenuIconTile: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   headerMenuItemText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+  headerMenuBadge: { alignItems: 'center', borderRadius: 12, minWidth: 23, paddingHorizontal: 7, paddingVertical: 4 },
+  headerMenuBadgeText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   headerTitle: { fontSize: 28, fontFamily: 'Inter_700Bold' },
   headerSubtitle: { fontSize: 15, fontFamily: 'Inter_400Regular', marginTop: 4 },
 

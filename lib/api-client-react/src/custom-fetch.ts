@@ -373,6 +373,7 @@ export async function customFetch<T = unknown>(
 export async function customFetchResponse(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},
+  fetchImplementation: typeof fetch = fetch,
 ): Promise<Response> {
   input = applyBaseUrl(input);
   const { responseType: _responseType, headers: headersInit, ...init } = options;
@@ -396,7 +397,7 @@ export async function customFetchResponse(
   }
 
   const requestInfo = { method, url: resolveUrl(input) };
-  const response = await fetch(input, { ...init, method, headers });
+  const response = await fetchImplementation(input, { ...init, method, headers });
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);
