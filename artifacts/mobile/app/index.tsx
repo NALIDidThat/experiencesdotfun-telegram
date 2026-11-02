@@ -26,6 +26,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { QuickActionIcon } from '@/components/QuickActionIcon';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -9783,7 +9784,13 @@ function BottomNav({
                   ]}
                 >
                   <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '14' }]}>
-                    <Feather name={action.icon} size={19} color={colors.primary} />
+                    <QuickActionIcon
+                      name={action.id}
+                      primary={colors.primary}
+                      secondary={colors.secondary}
+                      accent={colors.accent}
+                      highlight={colors.primaryForeground}
+                    />
                   </View>
                   <View style={styles.quickActionCopy}>
                     <Text style={[styles.quickActionLabel, { color: colors.foreground }]}>{action.label}</Text>
