@@ -277,6 +277,11 @@ async function tapTestId(client, testId) {
   return point;
 }
 
+async function enterText(client, testId, text) {
+  await tapTestId(client, testId);
+  await client.send("Input.insertText", { text });
+}
+
 async function dragGlobeWithSyntheticTouch(client, deltaX, deltaY) {
   const result = await client.evaluate(`(() => {
     const stage = document.querySelector("svg")?.parentElement;
@@ -452,6 +457,29 @@ const friends = [
   { id: 902, name: "Milo Chen", username: "milo", avatarUrl: null, city: "Toronto" },
   { id: 903, name: "Casey Reed", username: "casey", avatarUrl: null, city: "Springfield" },
 ];
+const aiConversation = {
+  id: 901,
+  title: "Community ideas nearby",
+  createdAt: "2026-11-02T12:00:00.000Z",
+  updatedAt: "2026-11-02T12:00:00.000Z",
+  messages: [{
+    id: 902,
+    role: "assistant",
+    content: "You could join a local river cleanup.",
+    actions: [{
+      id: "join-761",
+      type: "join_experience",
+      experienceId: 761,
+      experienceTitle: "London River Cleanup",
+      experienceDate: "2026-11-15",
+      experienceCity: "London",
+      label: "Join experience",
+      friendId: null,
+      friendName: null,
+    }],
+    createdAt: "2026-11-02T12:00:00.000Z",
+  }],
+};
 
 test("Participant experience details keep navigation visible and present concise event information", async (t) => {
   const appUrl = getAppPreviewUrl("The Explore map fallback test");
@@ -514,6 +542,12 @@ test("Participant experience details keep navigation visible and present concise
           } else {
             response = user;
           }
+        } else if (url.pathname === "/api/me/xp-awards" && method === "GET") {
+          response = { balanceXp: 0, pendingXp: 0, awards: [] };
+        } else if (url.pathname === "/api/ai/conversations" && method === "GET") {
+          response = [aiConversation];
+        } else if (url.pathname === "/api/ai/conversations/901" && method === "GET") {
+          response = aiConversation;
         } else if (url.pathname === "/api/me/saved-experiences" && method === "GET") {
           response = [];
         } else if (url.pathname === "/api/friends" && method === "GET") {
@@ -532,6 +566,19 @@ test("Participant experience details keep navigation visible and present concise
             participation: participantRegistration,
             milestones: [],
           };
+        } else if (url.pathname === "/api/experiences/761/join" && method === "POST") {
+          participantRegistration = makeParticipation("joined");
+          response = participantRegistration;
+        } else if (url.pathname === "/api/participations/7610/submit" && method === "POST") {
+          const input = JSON.parse(params.request.postData ?? "{}");
+          participantRegistration = {
+            ...participantRegistration,
+            status: "submitted",
+            submittedAt: "2026-11-02T12:10:00.000Z",
+            completionStatement: input.statement,
+            evidenceObjectKeys: input.evidenceObjectKeys,
+          };
+          response = participantRegistration;
         } else if (url.pathname === "/api/participations/7610/cancel" && method === "POST") {
           if (participantRegistration?.status !== "joined") {
             status = 409;
@@ -1195,6 +1242,92 @@ Object.defineProperty(navigator, 'geolocation', {
   }
   user.userType = "participant";
   user.organisation = null;
+  participantRegistration = null;
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=ai` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="ai-action-join-761"]'))`,
+    Boolean,
+    "the assistant’s experience join action",
+  );
+  await tapTestId(client, "ai-action-join-761");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('Join this experience?')`,
+    Boolean,
+    "the assistant join confirmation",
+  );
+  await tapTestId(client, "ai-action-confirm");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="experience-moment-title"]')?.textContent?.trim() ?? ''`,
+    (title) => title === "You’re in",
+    "the experience-started screen opened from the assistant",
+  );
+  assert.equal(
+    await client.evaluate(`document.body.innerText.includes('XP AFTER VERIFICATION') && !document.body.innerText.includes('+100')`),
+    true,
+    "The assistant join screen should not present XP as already earned or guess a reward amount.",
+  );
+  await tapTestId(client, "experience-moment-continue");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('You’ve joined this experience')`,
+    Boolean,
+    "the joined state on the assistant action",
+  );
+
+  participantRegistration = null;
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=experience&id=761` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="join-experience"]'))`,
+    Boolean,
+    "the participant join action",
+  );
+  await tapTestId(client, "join-experience");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="experience-moment-title"]')?.textContent?.trim() ?? ''`,
+    (title) => title === "You’re in",
+    "the experience-started screen",
+  );
+  assert.equal(
+    await client.evaluate(`document.body.innerText.includes('+100') && document.body.innerText.includes('XP AFTER VERIFICATION')`),
+    true,
+    "Joining should show the listed potential reward as unearned until host verification.",
+  );
+  await tapTestId(client, "experience-moment-continue");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="cancel-registration"]'))`,
+    Boolean,
+    "the joined experience details after dismissing the start screen",
+  );
+
+  participantRegistration = makeParticipation("attended");
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=experience&id=761` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="completion-statement"]'))`,
+    Boolean,
+    "the completion statement field",
+  );
+  await enterText(client, "completion-statement", "I helped clear the riverbank and sort collected materials.");
+  await tapTestId(client, "submit-completion");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="experience-moment-title"]')?.textContent?.trim() ?? ''`,
+    (title) => title === "Completion submitted",
+    "the completion-submitted screen",
+  );
+  assert.equal(
+    await client.evaluate(`document.body.innerText.includes('+100') && document.body.innerText.includes('XP AWAITING VERIFICATION') && document.body.innerText.includes('Your host will verify your contribution')`),
+    true,
+    "Submitting completion should show potential XP as awaiting host verification.",
+  );
+  await tapTestId(client, "experience-moment-continue");
+
   participantRegistration = makeParticipation("joined");
   await client.send("Page.navigate", { url: `${appUrl}/?screen=experience&id=761` });
   await waitForValue(

@@ -15,6 +15,7 @@ import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from '@/components/LinearGradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
+import { getGetMyXpAwardsQueryKey } from '@workspace/api-client-react';
 import {
   getGetMemoryGameLeaderboardQueryKey,
   getGetMemoryGameStatsQueryKey,
@@ -928,6 +929,9 @@ export function MemoryGameScreen({ onBack, onFindPeople }: Props) {
       setStatsOverride(submitted.stats);
       setLocalAttempt(null);
       setSelectedIndices([]);
+      if (submitted.officialXpAwarded > 0) {
+        void queryClient.invalidateQueries({ queryKey: getGetMyXpAwardsQueryKey() }).catch(() => undefined);
+      }
       void Haptics.notificationAsync(
         submitted.successful
           ? Haptics.NotificationFeedbackType.Success

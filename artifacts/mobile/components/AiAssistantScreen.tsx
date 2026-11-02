@@ -31,6 +31,7 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useColors } from '@/hooks/useColors';
+import { useExperienceMoment } from '@/components/ExperienceMomentProvider';
 import { streamAiAssistantMessage } from '@/lib/ai-assistant-stream';
 
 type Props = { onOpenExperience: (experienceId: number) => void };
@@ -47,6 +48,7 @@ const dateLabel = (value: string) =>
 export function AiAssistantScreen({ onOpenExperience }: Props) {
   const colors = useColors();
   const queryClient = useQueryClient();
+  const { present: presentExperienceMoment } = useExperienceMoment();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [draft, setDraft] = useState('');
   const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
@@ -204,6 +206,17 @@ export function AiAssistantScreen({ onOpenExperience }: Props) {
             ...current,
             [action.experienceId]: participation,
           }));
+          if (participation.status === 'joined') {
+            presentExperienceMoment({
+              kind: 'started',
+              experienceTitle: action.experienceTitle,
+            });
+          } else if (participation.status === 'waitlisted') {
+            presentExperienceMoment({
+              kind: 'waitlisted',
+              experienceTitle: action.experienceTitle,
+            });
+          }
           setActionToConfirm(null);
           joinPendingRef.current = null;
           setJoinPendingId(null);
@@ -249,6 +262,7 @@ export function AiAssistantScreen({ onOpenExperience }: Props) {
       ) : (
         <Pressable
           accessibilityRole="button"
+          testID={`ai-action-${action.id}`}
           disabled={action.type === 'join_experience' && joinPendingId !== null}
           onPress={() => {
             if (action.type === 'view_experience') {
@@ -489,6 +503,7 @@ export function AiAssistantScreen({ onOpenExperience }: Props) {
               </Pressable>
               <Pressable
                 onPress={actionToConfirm.type === 'join_experience' ? confirmJoin : confirmChallenge}
+                testID="ai-action-confirm"
                 disabled={
                   actionToConfirm.type === 'join_experience'
                     ? joinPendingId !== null || !!joinedParticipations[actionToConfirm.experienceId]

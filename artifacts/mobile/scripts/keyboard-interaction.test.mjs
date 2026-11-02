@@ -13,7 +13,7 @@ const keyboardViewportHeight = 430;
 const chromiumPath = process.env.CHROMIUM_PATH
   ?? (existsSync("/repl/tools/bin/chromium") ? "/repl/tools/bin/chromium" : "chromium");
 
-async function installProfileApiMock(client, { meDelayMs = 0 } = {}) {
+async function installProfileApiMock(client, { meDelayMs = 0, xpAwardAfterFirstRead = false } = {}) {
   const profileUser = {
     id: 880,
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -43,6 +43,7 @@ async function installProfileApiMock(client, { meDelayMs = 0 } = {}) {
     const user = ${JSON.stringify(profileUser)};
     localStorage.setItem("@experiences/auth-token", "email_keyboard-profile-test");
     window.__keyboardTestUnexpectedApi = [];
+    let xpAwardsReadCount = 0;
     const originalFetch = window.fetch.bind(window);
     window.fetch = async (input, init = {}) => {
       const rawUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
@@ -55,6 +56,23 @@ async function installProfileApiMock(client, { meDelayMs = 0 } = {}) {
       if (url.pathname === "/api/me" && method === "GET") {
         if (${meDelayMs} > 0) await new Promise((resolve) => setTimeout(resolve, ${meDelayMs}));
         data = user;
+      } else if (url.pathname === "/api/me/xp-awards" && method === "GET") {
+        xpAwardsReadCount += 1;
+        data = ${xpAwardAfterFirstRead} && xpAwardsReadCount > 1
+          ? {
+              balanceXp: 0,
+              pendingXp: 130,
+              awards: [{
+                id: "award:keyboard-xp-test",
+                sourceType: "experience",
+                sourceId: "761",
+                title: "Community Garden Morning",
+                amount: 130,
+                status: "pending",
+                awardedAt: "2026-11-02T12:00:00.000Z",
+              }],
+            }
+          : { balanceXp: 0, pendingXp: 0, awards: [] };
       } else if (url.pathname === "/api/friends/notifications" && method === "GET") {
         data = { notifications: [], unreadCount: 0 };
       } else if (url.pathname === "/api/friends" && method === "GET") {
@@ -829,6 +847,49 @@ test("session restoration shows the branded loading screen while authentication 
     `!document.querySelector('[data-testid="auth-loading-screen"]') && Boolean(document.querySelector('[data-testid="bottom-nav-tab-home"]'))`,
     Boolean,
     "the home screen immediately after authentication finishes",
+  );
+});
+
+test("new server XP awards show the exact amount once", async (t) => {
+  const appUrl = getAppPreviewUrl("The mobile preview interaction test");
+  const client = await launchBrowser(t);
+  await setViewport(client, initialViewport.height);
+  await installProfileApiMock(client, { xpAwardAfterFirstRead: true });
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=home` });
+
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="experience-moment-screen"]'))`,
+    Boolean,
+    "the celebration screen for a newly verified XP award",
+    25_000,
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="experience-moment-title"]')?.textContent?.trim() ?? ''`),
+    "You earned XP",
+  );
+  assert.equal(
+    await client.evaluate(`document.body.innerText.includes('+130') && document.body.innerText.includes('Community Garden Morning')`),
+    true,
+    "The celebration should show the exact server award and its reason.",
+  );
+  assert.equal(
+    await client.evaluate(`document.body.innerText.includes('Redeem this reward from your profile')`),
+    true,
+    "Pending XP should not be described as already added to the profile balance.",
+  );
+
+  if (process.env.XP_REWARD_SCREENSHOT_PATH) {
+    const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(process.env.XP_REWARD_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
+  }
+
+  await tapTestId(client, "experience-moment-continue");
+  await waitForValue(
+    client,
+    `!document.querySelector('[data-testid="experience-moment-screen"]')`,
+    Boolean,
+    "the celebration screen to dismiss",
   );
 });
 

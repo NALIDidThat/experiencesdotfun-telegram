@@ -359,6 +359,8 @@ async function runConnectionsScenario(t, userType) {
           } else {
             response = user;
           }
+        } else if (url.pathname === "/api/me/xp-awards" && method === "GET") {
+          response = { balanceXp: 0, pendingXp: 0, awards: [] };
         } else if (url.pathname === "/api/friends" && method === "GET") {
           response = friends;
         } else if (url.pathname === "/api/friends/top" && method === "GET") {

@@ -112,6 +112,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useMotionPreferences } from '@/context/MotionContext';
 import { useColors } from '@/hooks/useColors';
+import { useExperienceMoment } from '@/components/ExperienceMomentProvider';
 import { OrganisationOnboardingWalkthrough } from '@/components/onboarding/OrganisationOnboardingWalkthrough';
 import { AccountabilityPartnerScreen } from '@/components/AccountabilitySection';
 import { OrganisationPartnershipsSection } from '@/components/OrganisationPartnershipsSection';
@@ -3146,6 +3147,7 @@ function Detail({
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { present: presentExperienceMoment } = useExperienceMoment();
   const [expandedSections, setExpandedSections] = useState({
     timeline: false,
     activity: false,
@@ -3180,7 +3182,21 @@ function Detail({
   const joinExperience = async () => {
     setActionError(null);
     try {
-      await join.mutateAsync({ experienceId: id });
+      const participation = await join.mutateAsync({ experienceId: id });
+      if (participation.status === 'joined') {
+        presentExperienceMoment({
+          kind: 'started',
+          experienceTitle: item?.title ?? 'Your experience',
+          xpReward: item?.xpReward,
+          hasMilestones: Boolean(item?.milestones?.length),
+          artworkCategory: item?.category,
+        });
+      } else if (participation.status === 'waitlisted') {
+        presentExperienceMoment({
+          kind: 'waitlisted',
+          experienceTitle: item?.title ?? 'Your experience',
+        });
+      }
     } catch (error) {
       setActionError(requestErrorMessage(error, 'We couldn’t join this experience. Please try again.'));
     }
@@ -3213,6 +3229,12 @@ function Detail({
       await submit.mutateAsync({ participationId, data: { statement: completionStatement.trim(), evidenceObjectKeys: completionEvidenceKeys } });
       setCompletionStatement('');
       setCompletionEvidenceKeys([]);
+      presentExperienceMoment({
+        kind: 'completion-submitted',
+        experienceTitle: item?.title ?? 'Your experience',
+        xpReward: item?.xpReward ?? 0,
+        artworkCategory: item?.category,
+      });
     } catch (error) {
       setActionError(requestErrorMessage(error, 'Your completion wasn’t submitted. Please try again.'));
     }
@@ -3222,6 +3244,14 @@ function Detail({
     try {
       await submitMilestone.mutateAsync({ participationId, milestoneId, data: { evidenceObjectKeys: milestoneEvidenceKeys[milestoneId] ?? [] } });
       setMilestoneEvidenceKeys((previous) => ({ ...previous, [milestoneId]: [] }));
+      const milestone = item?.milestones?.find((entry) => entry.id === milestoneId);
+      presentExperienceMoment({
+        kind: 'completion-submitted',
+        experienceTitle: item?.title ?? 'Your experience',
+        milestoneTitle: milestone?.title,
+        xpReward: milestone?.xpReward ?? 0,
+        artworkCategory: item?.category,
+      });
     } catch (error) {
       setActionError(requestErrorMessage(error, 'This milestone wasn’t submitted. Please try again.'));
     }
@@ -3872,6 +3902,7 @@ function Detail({
                     maxLength={1500}
                     multiline
                     accessibilityLabel="Completion statement"
+                    testID="completion-statement"
                     style={{ minHeight: 84, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius, padding: 12, color: colors.foreground, backgroundColor: colors.card, marginBottom: 10, textAlignVertical: 'top' }}
                   />
                 {completionEvidenceKeys.map((key, index) => (
@@ -3893,6 +3924,7 @@ function Detail({
                   if (participation.status === 'attended' || participation.status === 'rejected') void submitCompletion(participation.id);
                   else void query.refetch();
                 }}
+                testID="submit-completion"
               />
               {canCancelConfirmedPlace ? (
                 confirmRegistrationCancel ? (
@@ -3946,6 +3978,7 @@ function Detail({
                     : 'Join experience'}
               disabled={join.isPending || !acceptsParticipants}
               onPress={() => void joinExperience()}
+              testID="join-experience"
               style={styles.detailActionButton}
             />
           </View>
