@@ -35,7 +35,11 @@ import { useColors } from '@/hooks/useColors';
 import { useExperienceMoment } from '@/components/ExperienceMomentProvider';
 import { streamAiAssistantMessage } from '@/lib/ai-assistant-stream';
 
-type Props = { onOpenExperience: (experienceId: number) => void };
+type Props = {
+  onOpenExperience: (experienceId: number) => void;
+  canCreateExperience?: boolean;
+  onCreateExperienceDraft?: (draft: NonNullable<AiAssistantAction['draft']>) => void;
+};
 type LocalMessage = Partial<AiAssistantMessage> & {
   localId: string;
   role: 'user' | 'assistant';
@@ -46,7 +50,11 @@ type LocalMessage = Partial<AiAssistantMessage> & {
 const dateLabel = (value: string) =>
   new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
-export function AiAssistantScreen({ onOpenExperience }: Props) {
+export function AiAssistantScreen({
+  onOpenExperience,
+  canCreateExperience = false,
+  onCreateExperienceDraft,
+}: Props) {
   const colors = useColors();
   const queryClient = useQueryClient();
   const { present: presentExperienceMoment } = useExperienceMoment();
@@ -236,7 +244,35 @@ export function AiAssistantScreen({ onOpenExperience }: Props) {
     );
   };
 
-  const renderAction = (action: AiAssistantAction) => (
+  const renderAction = (action: AiAssistantAction) => {
+    if (action.type === 'draft_experience') {
+      if (!action.draft) return null;
+      const experienceDraft = action.draft;
+      return (
+        <View key={action.id} style={[styles.actionCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <View style={styles.actionTop}>
+            <Feather name="calendar" size={15} color={colors.primary} />
+            <Text style={[styles.actionEyebrow, { color: colors.mutedForeground }]}>EXPERIENCE DRAFT · NOT PUBLISHED</Text>
+          </View>
+          <Text style={[styles.actionTitle, { color: colors.foreground }]}>{experienceDraft.title}</Text>
+          <Text style={[styles.actionMeta, { color: colors.mutedForeground }]}>
+            {dateLabel(experienceDraft.date)} · {experienceDraft.city} · {experienceDraft.location}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Review experience draft in the creation flow"
+            testID={`ai-action-${action.id}`}
+            disabled={!onCreateExperienceDraft || !canCreateExperience}
+            onPress={() => onCreateExperienceDraft?.(experienceDraft)}
+            style={[styles.actionButton, { borderColor: colors.border }]}
+          >
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>Review details and confirm the location</Text>
+            <Feather name="arrow-up-right" size={15} color={colors.primary} />
+          </Pressable>
+        </View>
+      );
+    }
+    return (
     <View key={action.id} style={[styles.actionCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
       <View style={styles.actionTop}>
         <Feather
@@ -287,6 +323,7 @@ export function AiAssistantScreen({ onOpenExperience }: Props) {
       )}
     </View>
   );
+  };
 
   const renderMessage = (message: LocalMessage | AiAssistantMessage, index: number) => {
     const isUser = message.role === 'user';
@@ -440,6 +477,32 @@ export function AiAssistantScreen({ onOpenExperience }: Props) {
                   <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>
                     Have a natural conversation, ask for research, or find a way to get involved nearby.
                   </Text>
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
+                  {[
+                    'Find experiences near me',
+                    ...(canCreateExperience ? ['What have we hosted so far?'] : ['What have I done so far?']),
+                    ...(canCreateExperience ? ['Help me create an experience'] : []),
+                  ].map((prompt) => (
+                    <Pressable
+                      key={prompt}
+                      accessibilityRole="button"
+      testID={`ai-suggestion-${prompt.toLowerCase().replace(/\s+/g, '-')}`}
+                      onPress={() => setDraft(prompt)}
+                      style={({ pressed }) => ({
+                        borderColor: colors.border,
+                        borderRadius: 18,
+                        borderWidth: 1,
+                        opacity: pressed ? 0.7 : 1,
+                        paddingHorizontal: 11,
+                        paddingVertical: 8,
+                      })}
+                    >
+                      <Text style={{ color: colors.primary, fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>
+                        {prompt}
+                      </Text>
+                    </Pressable>
+                  ))}
                 </View>
               </View>
             ) : (

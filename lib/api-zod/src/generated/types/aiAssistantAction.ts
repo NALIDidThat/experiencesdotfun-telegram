@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AiAssistantActionType } from './aiAssistantActionType';
+import type { AiExperienceDraft } from './aiExperienceDraft';
 
 export interface AiAssistantAction {
   id: string;
@@ -19,4 +20,5 @@ export interface AiAssistantAction {
   friendId: number | null;
   /** @nullable */
   friendName: string | null;
+  draft?: AiExperienceDraft | null;
 }

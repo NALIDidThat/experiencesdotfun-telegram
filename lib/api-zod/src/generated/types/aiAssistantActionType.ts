@@ -13,4 +13,5 @@ export const AiAssistantActionType = {
   view_experience: 'view_experience',
   join_experience: 'join_experience',
   challenge_friend: 'challenge_friend',
+  draft_experience: 'draft_experience',
 } as const;

@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { z } from "zod/v4";
 import { db } from "@workspace/db";
@@ -7,10 +7,13 @@ import {
   experienceChallengesTable,
   experiencesTable,
   friendshipsTable,
+  organisationsTable,
   participationsTable,
+  xpAwardsTable,
   usersTable,
   type AiResearchSource,
   type AiAssistantAction,
+  type AiExperienceDraft,
   type User,
 } from "@workspace/db/schema";
 import { experienceResponse } from "./data";
@@ -24,7 +27,7 @@ export const aiAssistantTools = [
     type: "function",
     function: {
       name: "search_experiences",
-      description: "Find published volunteering experiences that match the user's request.",
+      description: "Find published real-world experiences in Experiences.fun that match the user's request.",
       strict: true,
       parameters: {
         type: "object",
@@ -91,6 +94,106 @@ export const aiAssistantTools = [
   },
 ] satisfies ChatCompletionTool[];
 
+const journeyTool: ChatCompletionTool = {
+  type: "function",
+  function: {
+    name: "get_my_journey",
+    description:
+      "Summarise the signed-in participant's own experience participation history and XP awards. Use this for questions about what they have done, joined, completed, or earned.",
+    strict: true,
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+  },
+};
+
+const hostedExperiencesTool: ChatCompletionTool = {
+  type: "function",
+  function: {
+    name: "get_my_hosted_experiences",
+    description:
+      "List experiences created by the signed-in organisation, including their dates and status.",
+    strict: true,
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+  },
+};
+
+const createDraftTool: ChatCompletionTool = {
+  type: "function",
+  function: {
+    name: "prepare_experience_draft",
+    description:
+      "Prepare a reviewable experience draft for an organisation. Never publish it. Ask for missing title, description, category, date, start/end time, city, or meeting point before calling. Capacity and XP may use the suggested defaults of 12 and 150 when the user has no preference.",
+    strict: true,
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        description: { type: "string" },
+        category: {
+          type: "string",
+          enum: ["environmental", "education", "community"],
+        },
+        date: { type: "string", description: "YYYY-MM-DD" },
+        startTime: { type: "string", description: "24-hour HH:MM" },
+        endTime: { type: "string", description: "24-hour HH:MM" },
+        city: { type: "string" },
+        location: { type: "string", description: "Venue or meeting point" },
+        capacity: { type: "integer" },
+        xpReward: { type: "integer" },
+        whatYouWillDo: { type: "string" },
+        whatToBring: { type: "string" },
+      },
+      required: [
+        "title",
+        "description",
+        "category",
+        "date",
+        "startTime",
+        "endTime",
+        "city",
+        "location",
+        "capacity",
+        "xpReward",
+        "whatYouWillDo",
+        "whatToBring",
+      ],
+      additionalProperties: false,
+    },
+  },
+};
+
+export function getAiAssistantTools(user: User | null): ChatCompletionTool[] {
+  const publicToolNames = new Set(["search_web", "search_experiences"]);
+  const participantToolNames = new Set([
+    ...publicToolNames,
+    "list_friends",
+    "propose_join_experience",
+    "propose_challenge_friend",
+  ]);
+  const allowedToolNames = user?.userType === "participant"
+    ? participantToolNames
+    : publicToolNames;
+  const tools: ChatCompletionTool[] = aiAssistantTools.filter((tool) =>
+    tool.type === "function" && allowedToolNames.has(tool.function.name),
+  );
+  if (user?.userType === "participant") {
+    tools.push(journeyTool);
+  }
+  if (user?.userType === "organisation") {
+    tools.push(hostedExperiencesTool, createDraftTool);
+  }
+  return tools;
+}
+
 const searchInput = z.object({
   query: z.string().max(120),
   city: z.string().max(80),
@@ -102,6 +205,21 @@ const experienceInput = z.object({ experienceId: z.number().int().positive() });
 const challengeInput = z.object({
   experienceId: z.number().int().positive(),
   friendId: z.number().int().positive(),
+});
+const noArgumentsInput = z.object({}).strict();
+const experienceDraftInput = z.object({
+  title: z.string().trim().min(3).max(100),
+  description: z.string().trim().min(10).max(500),
+  category: z.enum(["environmental", "education", "community"]),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  startTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+  endTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+  city: z.string().trim().min(2).max(80),
+  location: z.string().trim().min(2).max(140),
+  capacity: z.number().int().min(1).max(500),
+  xpReward: z.number().int().min(0).max(1000),
+  whatYouWillDo: z.string().max(300),
+  whatToBring: z.string().max(200),
 });
 
 type ToolCall = { name: string; arguments: string };
@@ -132,6 +250,178 @@ function parseArguments(raw: string): unknown {
   } catch {
     return null;
   }
+}
+
+async function getMyJourney(user: User, args: unknown) {
+  if (!noArgumentsInput.safeParse(args).success) {
+    return { error: "The journey request was invalid." };
+  }
+  const [
+    participations,
+    awards,
+    [experienceCount],
+    [joinedExperienceCount],
+    [verifiedCompletions],
+    [xpAwardCount],
+  ] = await Promise.all([
+    db
+      .select({
+        title: experiencesTable.title,
+        date: experiencesTable.date,
+        city: experiencesTable.city,
+        status: participationsTable.status,
+        joinedAt: participationsTable.joinedAt,
+        completionStatement: participationsTable.completionStatement,
+        verifiedAt: participationsTable.verifiedAt,
+      })
+      .from(participationsTable)
+      .innerJoin(
+        experiencesTable,
+        eq(experiencesTable.id, participationsTable.experienceId),
+      )
+      .where(eq(participationsTable.userId, user.id))
+      .orderBy(desc(participationsTable.joinedAt))
+      .limit(20),
+    db
+      .select({
+        title: xpAwardsTable.sourceTitle,
+        amount: xpAwardsTable.amount,
+        status: xpAwardsTable.status,
+        awardedAt: xpAwardsTable.awardedAt,
+      })
+      .from(xpAwardsTable)
+      .where(eq(xpAwardsTable.userId, user.id))
+      .orderBy(desc(xpAwardsTable.awardedAt))
+      .limit(15),
+    db
+      .select({ count: count() })
+      .from(participationsTable)
+      .where(eq(participationsTable.userId, user.id)),
+    db
+      .select({ count: count() })
+      .from(participationsTable)
+      .where(and(
+        eq(participationsTable.userId, user.id),
+        inArray(participationsTable.status, ["joined", "attended", "submitted", "verified", "rejected"]),
+      )),
+    db
+      .select({ count: count() })
+      .from(participationsTable)
+      .where(and(
+        eq(participationsTable.userId, user.id),
+        eq(participationsTable.status, "verified"),
+      )),
+    db
+      .select({ count: count() })
+      .from(xpAwardsTable)
+      .where(eq(xpAwardsTable.userId, user.id)),
+  ]);
+  return {
+    currentXp: user.xp,
+    participationRecordCount: experienceCount?.count ?? 0,
+    joinedExperienceCount: joinedExperienceCount?.count ?? 0,
+    verifiedCompletions: verifiedCompletions?.count ?? 0,
+    returnedExperienceCount: participations.length,
+    experienceHistoryTruncated: (experienceCount?.count ?? 0) > participations.length,
+    xpAwardCount: xpAwardCount?.count ?? 0,
+    xpHistoryTruncated: (xpAwardCount?.count ?? 0) > awards.length,
+    experiences: participations.map((item) => ({
+      title: item.title,
+      date: item.date,
+      city: item.city,
+      status: item.status,
+      joinedAt: item.joinedAt.toISOString(),
+      completionStatement: item.completionStatement,
+      verifiedAt: item.verifiedAt?.toISOString() ?? null,
+    })),
+    recentXpAwards: awards.map((item) => ({
+      title: item.title,
+      amount: item.amount,
+      status: item.status,
+      awardedAt: item.awardedAt.toISOString(),
+    })),
+  };
+}
+
+async function getMyHostedExperiences(user: User, args: unknown) {
+  if (!noArgumentsInput.safeParse(args).success) {
+    return { error: "The hosted experience request was invalid." };
+  }
+  const [rows, [totalCount]] = await Promise.all([
+    db
+      .select({
+        title: experiencesTable.title,
+        date: experiencesTable.date,
+        city: experiencesTable.city,
+        status: experiencesTable.status,
+        capacity: experiencesTable.capacity,
+      })
+      .from(experiencesTable)
+      .innerJoin(
+        organisationsTable,
+        eq(organisationsTable.id, experiencesTable.organisationId),
+      )
+      .where(eq(organisationsTable.ownerUserId, user.id))
+      .orderBy(desc(experiencesTable.date))
+      .limit(20),
+    db
+      .select({ count: count() })
+      .from(experiencesTable)
+      .innerJoin(
+        organisationsTable,
+        eq(organisationsTable.id, experiencesTable.organisationId),
+      )
+      .where(eq(organisationsTable.ownerUserId, user.id)),
+  ]);
+  return {
+    experienceRecordCount: totalCount?.count ?? 0,
+    returnedExperienceCount: rows.length,
+    historyTruncated: (totalCount?.count ?? 0) > rows.length,
+    experiences: rows,
+  };
+}
+
+function prepareExperienceDraft(user: User, args: unknown) {
+  if (user.userType !== "organisation") {
+    return { error: "An organisation profile is required to prepare an experience draft." };
+  }
+  const parsed = experienceDraftInput.safeParse(args);
+  if (!parsed.success) {
+    return {
+      error:
+        "Check the required experience details. Dates must use YYYY-MM-DD and times must use 24-hour HH:MM.",
+    };
+  }
+  const draft = parsed.data;
+  const day = new Date(`${draft.date}T00:00:00.000Z`);
+  if (
+    Number.isNaN(day.getTime()) ||
+    day.toISOString().slice(0, 10) !== draft.date ||
+    draft.endTime <= draft.startTime
+  ) {
+    return { error: "The date or experience schedule is not valid." };
+  }
+  const action: AiAssistantAction = {
+    id: randomUUID(),
+    type: "draft_experience",
+    experienceId: 0,
+    experienceTitle: draft.title,
+    experienceDate: draft.date,
+    experienceCity: draft.city,
+    label: "Review experience draft",
+    friendId: null,
+    friendName: null,
+    draft: {
+      ...draft,
+      whatYouWillDo: draft.whatYouWillDo.trim() || null,
+      whatToBring: draft.whatToBring.trim() || null,
+    } satisfies AiExperienceDraft,
+  };
+  return {
+    action,
+    message:
+      "A draft is ready for review. Nothing is saved or published yet; the organisation must review the details and publish from the existing creation flow.",
+  };
 }
 
 async function searchExperiences(args: unknown) {
@@ -335,7 +625,7 @@ async function proposeChallenge(user: User, args: unknown) {
 }
 
 export async function executeAiAssistantTool(
-  user: User,
+  user: User | null,
   toolCall: ToolCall,
 ): Promise<{
   result: unknown;
@@ -344,6 +634,7 @@ export async function executeAiAssistantTool(
 }> {
   const args = parseArguments(toolCall.arguments);
   let result: unknown;
+  const actions: AiAssistantAction[] = [];
   let sources: AiResearchSource[] = [];
   switch (toolCall.name) {
     case "search_web": {
@@ -352,17 +643,45 @@ export async function executeAiAssistantTool(
       sources = search.sources;
       break;
     }
-    case "search_experiences":
-      result = await searchExperiences(args);
+    case "search_experiences": {
+      const searchResult = await searchExperiences(args);
+      result = searchResult;
+      if ("experiences" in searchResult && Array.isArray(searchResult.experiences)) {
+        for (const experience of searchResult.experiences) {
+          actions.push(actionForExperience(experience));
+        }
+      }
+      break;
+    }
+    case "get_my_journey":
+      result = user?.userType === "participant"
+        ? await getMyJourney(user, args)
+        : { error: "A signed-in Participant profile is required for personal journey details." };
+      break;
+    case "get_my_hosted_experiences":
+      result = user?.userType === "organisation"
+        ? await getMyHostedExperiences(user, args)
+        : { error: "A signed-in Organisation profile is required." };
+      break;
+    case "prepare_experience_draft":
+      result = user
+        ? prepareExperienceDraft(user, args)
+        : { error: "An organisation profile is required to prepare an experience draft." };
       break;
     case "list_friends":
-      result = await listFriends(user.id, args);
+      result = user?.userType === "participant"
+        ? await listFriends(user.id, args)
+        : { error: "A signed-in Participant profile is required." };
       break;
     case "propose_join_experience":
-      result = await proposeJoin(user, args);
+      result = user?.userType === "participant"
+        ? await proposeJoin(user, args)
+        : { error: "A signed-in Participant profile is required." };
       break;
     case "propose_challenge_friend":
-      result = await proposeChallenge(user, args);
+      result = user?.userType === "participant"
+        ? await proposeChallenge(user, args)
+        : { error: "A signed-in Participant profile is required." };
       break;
     default:
       result = { error: "That assistant action is not available." };
@@ -376,7 +695,10 @@ export async function executeAiAssistantTool(
     result.action !== null
       ? (result.action as AiAssistantAction)
       : null;
-  return { result, actions: action ? [action] : [], sources };
+  if (action && !actions.some((existing) => existing.id === action.id)) {
+    actions.push(action);
+  }
+  return { result, actions, sources };
 }
 
 export async function saveAssistantMessage(

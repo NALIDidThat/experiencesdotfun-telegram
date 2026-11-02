@@ -174,6 +174,7 @@ type ScreenRouteParams = {
   participantId?: string;
   experienceId?: string;
   experienceTitle?: string;
+  draft?: string;
 };
 type ScreenHistoryEntry = { screen: Screen; params: ScreenRouteParams };
 type TelegramWebAppBackButton = {
@@ -222,6 +223,7 @@ function createScreenHistoryEntry(screen: Screen, params: ScreenRouteParams = {}
       participantId: screen === 'host-detail' ? params.participantId : undefined,
       experienceId: screen === 'funds' ? params.experienceId : undefined,
       experienceTitle: screen === 'funds' ? params.experienceTitle : undefined,
+      draft: screen === 'create' ? params.draft : undefined,
     },
   };
 }
@@ -8382,16 +8384,55 @@ const createExperienceReviewSections: Array<{ title: string; keys: Array<keyof E
   { title: 'What to expect', keys: ['whatYouWillDo', 'whatToBring'] },
 ];
 
+function parseExperienceDraft(value: string | string[] | undefined): Partial<ExperienceCreateInput> | undefined {
+  const raw = routeParamString(value);
+  if (!raw) return undefined;
+  try {
+    const candidate = JSON.parse(raw) as Record<string, unknown>;
+    const draft: Partial<ExperienceCreateInput> = {};
+    const stringFields = [
+      'title',
+      'description',
+      'date',
+      'startTime',
+      'endTime',
+      'city',
+      'location',
+      'whatYouWillDo',
+      'whatToBring',
+    ] as const;
+    for (const key of stringFields) {
+      if (typeof candidate[key] === 'string') {
+        draft[key] = candidate[key] as never;
+      }
+    }
+    if (['environmental', 'education', 'community'].includes(String(candidate.category))) {
+      draft.category = candidate.category as ExperienceCreateInput['category'];
+    }
+    if (typeof candidate.capacity === 'number' && Number.isInteger(candidate.capacity)) {
+      draft.capacity = candidate.capacity;
+    }
+    if (typeof candidate.xpReward === 'number' && Number.isInteger(candidate.xpReward)) {
+      draft.xpReward = candidate.xpReward;
+    }
+    return draft;
+  } catch {
+    return undefined;
+  }
+}
+
 function Create({
   go,
   onBack = () => go('host'),
   initialStep = 1,
   editExperienceId,
+  initialDraft,
 }: {
   go: (screen: Screen, params?: Record<string, string>) => void;
   onBack?: () => void;
   initialStep?: number;
   editExperienceId?: number;
+  initialDraft?: Partial<ExperienceCreateInput>;
 }) {
   const colors = useColors();
   const { user } = useAuth();
@@ -8411,7 +8452,7 @@ function Create({
   });
 
   if (!validEditId) {
-    return <CreateExperienceForm go={go} initialStep={initialStep} />;
+    return <CreateExperienceForm go={go} initialStep={initialStep} initialDraft={initialDraft} />;
   }
   if (experience.isLoading || milestones.isLoading) {
     return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title="Edit experience" onBack={onBack} /><LoadingState /></View>;
@@ -8458,6 +8499,7 @@ function Create({
 function CreateExperienceForm({
   go,
   initialStep = 1,
+  initialDraft,
   editingExperienceId,
   initialExperience,
   initialMilestones = [],
@@ -8465,6 +8507,7 @@ function CreateExperienceForm({
 }: {
   go: (screen: Screen, params?: Record<string, string>) => void;
   initialStep?: number;
+  initialDraft?: Partial<ExperienceCreateInput>;
   editingExperienceId?: number;
   initialExperience?: ExperienceDetail;
   initialMilestones?: Array<{ title: string; description: string | null; xpReward: number }>;
@@ -8503,6 +8546,7 @@ function CreateExperienceForm({
     monetaryRewardPence: initialExperience?.monetaryRewardPence ?? null,
     whatToBring: initialExperience?.whatToBring ?? null,
     whatYouWillDo: initialExperience?.whatYouWillDo ?? null,
+    ...(initialDraft ?? {}),
   });
   const [resolvedExperienceLocation, setResolvedExperienceLocation] = useState<ResolvedLocation | null>(null);
   const [milestoneDrafts, setMilestoneDrafts] = useState<MilestoneDraft[]>(() => initialMilestones.length
@@ -9400,14 +9444,14 @@ function BottomNav({
     description: string;
     icon: IconName;
   }> = [
+    {
+      id: 'assistant',
+      label: 'AI assistant',
+      description: 'Ask about your journey, discover experiences, or prepare a host draft.',
+      icon: 'message-square',
+    },
     ...(userType === 'participant'
       ? [
-          {
-            id: 'assistant' as const,
-            label: 'Assistant',
-            description: 'Ask naturally, find experiences, and get researched answers.',
-            icon: 'message-square' as const,
-          },
           {
             id: 'learning' as const,
             label: 'Research & flashcards',
@@ -10057,7 +10101,7 @@ function BottomNavInteractionHarness({ userType = 'participant' }: { userType?: 
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; nodeId?: string; chatId?: string; category?: string; step?: string; focus?: string; participantId?: string; experienceId?: string; experienceTitle?: string; keyboardTest?: string; navTest?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; nodeId?: string; chatId?: string; category?: string; step?: string; focus?: string; participantId?: string; experienceId?: string; experienceTitle?: string; draft?: string; keyboardTest?: string; navTest?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -10086,6 +10130,7 @@ export default function App() {
     participantId: routeParamString(params.participantId),
     experienceId: routeParamString(params.experienceId),
     experienceTitle: routeParamString(params.experienceTitle),
+    draft: routeParamString(params.draft),
   });
   const screenHistoryRef = useRef<ScreenHistoryEntry[]>([]);
   const currentRouteRef = useRef<ScreenHistoryEntry>(initialRouteEntry);
@@ -10121,6 +10166,7 @@ export default function App() {
       participantId: routeParamString(params.participantId),
       experienceId: routeParamString(params.experienceId),
       experienceTitle: routeParamString(params.experienceTitle),
+      draft: routeParamString(params.draft),
     });
     if (screenHistoryKey(routeEntry) !== screenHistoryKey(currentRouteRef.current)) {
       screenHistoryRef.current = [];
@@ -10145,6 +10191,7 @@ export default function App() {
     params.participantId,
     params.experienceId,
     params.experienceTitle,
+    params.draft,
   ]);
 
   useEffect(() => {
@@ -10194,6 +10241,7 @@ export default function App() {
       experienceId: entry.params.experienceId,
       experienceTitle: entry.params.experienceTitle,
       chatId: entry.params.chatId,
+      draft: entry.params.draft,
     });
   };
   const go = (next: Screen, nextParams?: Record<string, string>) => {
@@ -10566,9 +10614,11 @@ export default function App() {
       <AppShell>
         <EmptyState
           title="Organisation account required"
-          body="Participant accounts can explore and join. Only Organisation accounts can create and manage experiences."
-          actionLabel="Go home"
-          onAction={() => go('home')}
+          body={screen === 'create' && params.draft
+            ? 'Switch to your Organisation profile, then return to this Telegram message and open the draft again. Nothing has been published.'
+            : 'Participant accounts can explore and join. Only Organisation accounts can create and manage experiences.'}
+          actionLabel={screen === 'create' && params.draft ? 'Open profile accounts' : 'Go home'}
+          onAction={() => go(screen === 'create' && params.draft ? 'accounts' : 'home')}
         />
       </AppShell>
     );
@@ -10709,6 +10759,8 @@ export default function App() {
       return (
         <AiAssistantScreen
           onOpenExperience={(id) => go('experience', { id: String(id) })}
+          canCreateExperience={user.userType === 'organisation'}
+          onCreateExperienceDraft={(draft) => go('create', { draft: JSON.stringify(draft) })}
         />
       );
     }
@@ -10758,7 +10810,7 @@ export default function App() {
         );
     }
     if (screen === 'host') return <Host go={go} />;
-    if (screen === 'create') return <Create go={go} onBack={() => goBack(experienceId ? 'host-detail' : 'host', experienceId ? { id: String(experienceId) } : undefined)} initialStep={Number(params.step) || 1} editExperienceId={experienceId ? Number(experienceId) : undefined} />;
+    if (screen === 'create') return <Create go={go} onBack={() => goBack(experienceId ? 'host-detail' : 'host', experienceId ? { id: String(experienceId) } : undefined)} initialStep={Number(params.step) || 1} editExperienceId={experienceId ? Number(experienceId) : undefined} initialDraft={parseExperienceDraft(params.draft)} />;
     if (screen === 'funds') return user.userType === 'organisation' && user.organisation?.type === 'charity'
       ? <OrganisationFundsScreen
           organisationUserId={user.id}

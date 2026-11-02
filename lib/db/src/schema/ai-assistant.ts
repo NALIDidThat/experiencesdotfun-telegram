@@ -12,6 +12,21 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { usersTable } from "./experiences";
 
+export type AiExperienceDraft = {
+  title: string;
+  description: string;
+  category: "environmental" | "education" | "community";
+  date: string;
+  startTime: string;
+  endTime: string;
+  city: string;
+  location: string;
+  capacity: number;
+  xpReward: number;
+  whatYouWillDo: string | null;
+  whatToBring: string | null;
+};
+
 export type AiAssistantAction =
   | {
       id: string;
@@ -45,6 +60,18 @@ export type AiAssistantAction =
       label: string;
       friendId: number;
       friendName: string;
+    }
+  | {
+      id: string;
+      type: "draft_experience";
+      experienceId: 0;
+      experienceTitle: string;
+      experienceDate: string;
+      experienceCity: string;
+      label: string;
+      friendId: null;
+      friendName: null;
+      draft: AiExperienceDraft;
     };
 
 export const aiConversationsTable = pgTable(

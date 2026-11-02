@@ -6022,6 +6022,36 @@ components:
           type: string
           format: date-time
       required: [id, title, createdAt, updatedAt]
+    AiExperienceDraft:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        category:
+          type: string
+          enum: [environmental, education, community]
+        date: { type: string }
+        startTime: { type: string }
+        endTime: { type: string }
+        city: { type: string }
+        location: { type: string }
+        capacity: { type: integer }
+        xpReward: { type: integer }
+        whatYouWillDo: { type: [string, "null"] }
+        whatToBring: { type: [string, "null"] }
+      required:
+        - title
+        - description
+        - category
+        - date
+        - startTime
+        - endTime
+        - city
+        - location
+        - capacity
+        - xpReward
+        - whatYouWillDo
+        - whatToBring
     AiAssistantAction:
       type: object
       properties:
@@ -6029,7 +6059,7 @@ components:
           type: string
         type:
           type: string
-          enum: [view_experience, join_experience, challenge_friend]
+          enum: [view_experience, join_experience, challenge_friend, draft_experience]
         experienceId:
           type: integer
         experienceTitle:
@@ -6044,6 +6074,10 @@ components:
           type: [integer, "null"]
         friendName:
           type: [string, "null"]
+        draft:
+          allOf:
+            - $ref: "#/components/schemas/AiExperienceDraft"
+          nullable: true
       required:
         - id
         - type

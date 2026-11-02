@@ -1840,14 +1840,28 @@ export const GetAiAssistantConversationResponse = zod.object({
   "content": zod.string(),
   "actions": zod.array(zod.object({
   "id": zod.string(),
-  "type": zod.enum(['view_experience', 'join_experience', 'challenge_friend']),
+  "type": zod.enum(['view_experience', 'join_experience', 'challenge_friend', 'draft_experience']),
   "experienceId": zod.number().int(),
   "experienceTitle": zod.string(),
   "experienceDate": zod.string(),
   "experienceCity": zod.string(),
   "label": zod.string(),
   "friendId": zod.number().int().nullable(),
-  "friendName": zod.string().nullable()
+  "friendName": zod.string().nullable(),
+  "draft": zod.object({
+  "title": zod.string(),
+  "description": zod.string(),
+  "category": zod.enum(['environmental', 'education', 'community']),
+  "date": zod.string(),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "city": zod.string(),
+  "location": zod.string(),
+  "capacity": zod.number().int(),
+  "xpReward": zod.number().int(),
+  "whatYouWillDo": zod.string().nullable(),
+  "whatToBring": zod.string().nullable()
+}).nullish()
 })),
   "createdAt": zod.coerce.date()
 }))

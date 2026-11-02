@@ -43,3 +43,4 @@
 - [Organisation operating milestones](organisation-operating-milestones.md) — use four real-world milestones; keep verification separate and avoid XP ranks or public badges.
 - [React Native mockup rendering](react-native-mockup-rendering.md) — normalize numeric line heights and horizontal spacing before rendering native screen styles as HTML.
 - [OpenAPI UUID parameters](openapi-uuid-parameters.md) — use an anchored UUID pattern for query/path inputs so Orval avoids unsupported Zod coercion chains.
+- [AI assistant product actions](ai-assistant-product-actions.md) — share product tools across app and Telegram while keeping personal history profile-scoped and host drafts review-only.

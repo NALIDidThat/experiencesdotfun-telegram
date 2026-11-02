@@ -2390,6 +2390,32 @@ export interface AiAssistantConversationSummary {
   updatedAt: string;
 }
 
+export type AiExperienceDraftCategory = typeof AiExperienceDraftCategory[keyof typeof AiExperienceDraftCategory];
+
+
+export const AiExperienceDraftCategory = {
+  environmental: 'environmental',
+  education: 'education',
+  community: 'community',
+} as const;
+
+export interface AiExperienceDraft {
+  title: string;
+  description: string;
+  category: AiExperienceDraftCategory;
+  date: string;
+  startTime: string;
+  endTime: string;
+  city: string;
+  location: string;
+  capacity: number;
+  xpReward: number;
+  /** @nullable */
+  whatYouWillDo: string | null;
+  /** @nullable */
+  whatToBring: string | null;
+}
+
 export type AiAssistantActionType = typeof AiAssistantActionType[keyof typeof AiAssistantActionType];
 
 
@@ -2397,6 +2423,7 @@ export const AiAssistantActionType = {
   view_experience: 'view_experience',
   join_experience: 'join_experience',
   challenge_friend: 'challenge_friend',
+  draft_experience: 'draft_experience',
 } as const;
 
 export interface AiAssistantAction {
@@ -2411,6 +2438,7 @@ export interface AiAssistantAction {
   friendId: number | null;
   /** @nullable */
   friendName: string | null;
+  draft?: AiExperienceDraft | null;
 }
 
 export type AiAssistantMessageRole = typeof AiAssistantMessageRole[keyof typeof AiAssistantMessageRole];

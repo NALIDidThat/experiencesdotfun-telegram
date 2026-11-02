@@ -41,6 +41,8 @@ export * from './aiAssistantConversationSummary';
 export * from './aiAssistantMessage';
 export * from './aiAssistantMessageInput';
 export * from './aiAssistantMessageRole';
+export * from './aiExperienceDraft';
+export * from './aiExperienceDraftCategory';
 export * from './aiFlashcard';
 export * from './aiResearchSource';
 export * from './analyticsEventAccepted';
