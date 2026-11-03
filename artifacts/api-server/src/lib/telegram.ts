@@ -1465,7 +1465,7 @@ async function handleTelegramAssistantQuestion(
     for (let round = 0; round < 3; round += 1) {
       const response = await openai.chat.completions.create({
         model: "gpt-5.6-terra",
-        max_completion_tokens: 1800,
+        max_completion_tokens: 8192,
         messages: finalMessages,
         tools,
         tool_choice: round < 2 ? "auto" : "none",
