@@ -7,6 +7,8 @@ Treat the user's attached Telegram community roadmap as ongoing product directio
 
 Keep community interaction useful and connected to real-world participation. Message-derived XP and reputation are engagement signals, not proof of real-world contribution; preserve the product's separate verification and contribution records. Apply authorization on the server and retain the existing per-profile and per-community boundaries.
 
+Community updates requested for this product should reach the mobile app and Telegram. Telegram group broadcasts must be composed or explicitly selected by community admins; never automatically broadcast every feed update.
+
 **Why:** The user said to use the attached text as a guide for the rest of the product features.
 
-**How to apply:** When future community requests are ambiguous, use the roadmap to shape options and implementation choices, but deliver only the currently agreed scope.
+**How to apply:** When future community requests are ambiguous, use the roadmap to shape options and implementation choices, but deliver only the currently agreed scope. Keep group broadcasts admin-curated and member-visible feeds separate.

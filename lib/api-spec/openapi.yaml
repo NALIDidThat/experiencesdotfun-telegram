@@ -1658,6 +1658,45 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /feed/notifications:
+    get:
+      operationId: listFeedNotifications
+      tags: [socialFeed]
+      summary: List community update notifications for the current profile
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Community feed notifications and unread count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedNotificationsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Community notifications are not available until the database migration is applied
+  /feed/notifications/{notificationId}/read:
+    patch:
+      operationId: markFeedNotificationRead
+      tags: [socialFeed]
+      summary: Mark a community update notification as read
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Notification marked as read
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: Community notifications are not available until the database migration is applied
   /feed/preferences:
     get:
       operationId: getFeedPreferences
@@ -1713,11 +1752,40 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/FeedItem"
+                $ref: "#/components/schemas/FeedPostCreateResult"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Community update storage is not available until the database migration is applied
+  /posts/{postId}/report:
+    post:
+      operationId: reportFeedPost
+      tags: [socialFeed]
+      summary: Report a visible update for review
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/FeedItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportFeedPostInput"
+      responses:
+        "204":
+          description: Report recorded for review
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: This update has already been reported by the current profile
+        "503":
+          description: Update reporting is not available until the database migration is applied
   /profiles/{profileId}/posts:
     get:
       operationId: getProfilePosts
@@ -1759,6 +1827,20 @@ paths:
                 $ref: "#/components/schemas/FeedItem"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteFeedPost
+      tags: [socialFeed]
+      summary: Delete the current profile's update
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/FeedItemId"
+      responses:
+        "204":
+          description: Update deleted
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -2324,6 +2406,34 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /community/{chatId}/feed:
+    get:
+      operationId: getCommunityFeed
+      tags: [community]
+      summary: Get updates shared with a Telegram community the current profile has joined
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      responses:
+        "200":
+          description: Community feed items visible to a verified member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityFeedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          description: Community feed storage migration is not yet applied
   /explore/activity:
     get:
       operationId: listExploreActivity
@@ -6893,6 +7003,8 @@ components:
           format: date-time
         visibility:
           $ref: "#/components/schemas/FeedVisibility"
+        communityChatId:
+          type: [string, "null"]
         experience:
           anyOf:
             - $ref: "#/components/schemas/FeedExperience"
@@ -6911,7 +7023,7 @@ components:
           $ref: "#/components/schemas/FeedReactionState"
         commentCount:
           type: integer
-      required: [id, type, actor, createdAt, visibility, experience, post, xpAmount, sourceTitle, summary, reaction, commentCount]
+      required: [id, type, actor, createdAt, visibility, communityChatId, experience, post, xpAmount, sourceTitle, summary, reaction, commentCount]
     FeedResponse:
       type: object
       properties:
@@ -6945,7 +7057,75 @@ components:
           maxLength: 500
         visibility:
           $ref: "#/components/schemas/FeedVisibility"
+        communityChatId:
+          type: string
+          pattern: "^-?[0-9]{1,20}$"
+        broadcastToTelegram:
+          type: boolean
+          default: false
       required: [kind, body]
+      additionalProperties: false
+    FeedPostCreateResult:
+      type: object
+      properties:
+        item:
+          $ref: "#/components/schemas/FeedItem"
+        telegramBroadcastStatus:
+          type: string
+          enum: [not_requested, sent, failed]
+      required: [item, telegramBroadcastStatus]
+    ReportFeedPostInput:
+      type: object
+      properties:
+        reason:
+          type: string
+          enum: [spam, harassment, misinformation, unsafe, other]
+        details:
+          type: string
+          maxLength: 500
+      required: [reason]
+      additionalProperties: false
+    FeedNotification:
+      type: object
+      properties:
+        id: { type: integer }
+        activityId: { type: integer }
+        communityChatId: { type: string }
+        communityTitle: { type: string }
+        title: { type: string }
+        message: { type: string }
+        actor:
+          $ref: "#/components/schemas/FeedActor"
+        isUnread: { type: boolean }
+        createdAt: { type: string, format: date-time }
+      required: [id, activityId, communityChatId, communityTitle, title, message, actor, isUnread, createdAt]
+    FeedNotificationsResponse:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedNotification"
+        unreadCount: { type: integer }
+      required: [notifications, unreadCount]
+    CommunityFeedResponse:
+      type: object
+      properties:
+        community:
+          type: object
+          properties:
+            chatId: { type: string }
+            title: { type: string }
+          required: [chatId, title]
+        canBroadcastToTelegram:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedItem"
+        nextCursor:
+          type: [string, "null"]
+      required: [community, canBroadcastToTelegram, items, nextCursor]
     FeedReactionInput:
       type: object
       properties:

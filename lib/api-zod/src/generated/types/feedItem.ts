@@ -18,6 +18,8 @@ export interface FeedItem {
   actor: FeedActor;
   createdAt: Date;
   visibility: FeedVisibility;
+  /** @nullable */
+  communityChatId: string | null;
   experience: FeedExperience | null;
   post: FeedPostContent | null;
   /** @nullable */

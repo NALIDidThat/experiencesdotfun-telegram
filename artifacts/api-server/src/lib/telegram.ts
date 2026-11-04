@@ -353,6 +353,31 @@ export async function sendTelegramMessage(
   });
 }
 
+export async function sendTelegramCommunityUpdate({
+  chatId,
+  communityTitle,
+  authorName,
+  body,
+}: {
+  chatId: string;
+  communityTitle: string;
+  authorName: string;
+  body: string;
+}) {
+  const escapeHtml = (value: string) =>
+    value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  try {
+    const message = await sendTelegramMessage(
+      chatId,
+      `<b>${escapeHtml(communityTitle)}</b>\n\n<b>${escapeHtml(authorName)}</b> shared an update:\n${escapeHtml(body)}`,
+      [[openButton("Open community feed", "/?screen=home")]],
+    );
+    return Boolean(message);
+  } catch {
+    return false;
+  }
+}
+
 export async function sendExperienceJoinedNotification(
   recipientTelegramId: number | string,
   experience: TelegramExperienceNotice,
@@ -2000,6 +2025,7 @@ async function showPrivateCommunityControls(
     `<b>${escapeTelegramHtml(context.chatTitle)}</b>\n${escapeTelegramHtml(context.organisationName)}\nPhrase protection: <b>${context.spamProtectionEnabled ? "ON" : "OFF"}</b>\nScheduled riddles: <b>${context.riddlesEnabled ? `ON · every ${formatCommunityRiddleInterval(context.riddleIntervalMinutes)}` : "OFF"}</b>\n\nManage these settings privately. You must remain a Telegram group admin and the linked organisation owner.`,
     [
       ...communityRiddleSettingsKeyboard(context, groupChatId, true),
+      [openButton("Write a community update", `/?screen=telegram-community-dashboard&chatId=${groupChatId}`)],
       [callbackButton(protectionLabel, `community:private:toggle:${groupChatId}:${protectionAction}`)],
       [
         callbackButton("Add phrase filter", `community:private:add:${groupChatId}`),

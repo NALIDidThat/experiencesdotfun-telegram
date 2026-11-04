@@ -2410,6 +2410,7 @@ export const GetFeedResponse = zod.object({
 }),
   "createdAt": zod.coerce.date(),
   "visibility": zod.enum(['public', 'friends', 'community', 'private']),
+  "communityChatId": zod.string().nullable(),
   "experience": zod.union([zod.object({
   "id": zod.number().int(),
   "title": zod.string(),
@@ -2444,6 +2445,46 @@ export const GetFeedResponse = zod.object({
 
 
 /**
+ * @summary List community update notifications for the current profile
+ */
+export const ListFeedNotificationsResponse = zod.object({
+  "notifications": zod.array(zod.object({
+  "id": zod.number().int(),
+  "activityId": zod.number().int(),
+  "communityChatId": zod.string(),
+  "communityTitle": zod.string(),
+  "title": zod.string(),
+  "message": zod.string(),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "userType": zod.string().nullable(),
+  "isFriend": zod.boolean()
+}),
+  "isUnread": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})),
+  "unreadCount": zod.number().int()
+})
+
+
+/**
+ * @summary Mark a community update notification as read
+ */
+
+
+
+export const MarkFeedNotificationReadParams = zod.object({
+  "notificationId": zod.coerce.number().int().min(1)
+})
+
+export const MarkFeedNotificationReadResponse = zod.void()
+
+
+/**
  * @summary Get the current profile's activity-sharing preference
  */
 export const GetFeedPreferencesResponse = zod.object({
@@ -2468,15 +2509,19 @@ export const UpdateFeedPreferencesResponse = zod.object({
  */
 export const createFeedPostBodyBodyMax = 500;
 
-
+export const createFeedPostBodyCommunityChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+export const createFeedPostBodyBroadcastToTelegramDefault = false;
 
 export const CreateFeedPostBody = zod.object({
   "kind": zod.enum(['goal', 'doing', 'thought']),
   "body": zod.string().min(1).max(createFeedPostBodyBodyMax),
-  "visibility": zod.enum(['public', 'friends', 'community', 'private']).optional()
+  "visibility": zod.enum(['public', 'friends', 'community', 'private']).optional(),
+  "communityChatId": zod.string().regex(createFeedPostBodyCommunityChatIdRegExp).optional(),
+  "broadcastToTelegram": zod.boolean().default(createFeedPostBodyBroadcastToTelegramDefault)
 })
 
 export const CreateFeedPostResponse = zod.object({
+  "item": zod.object({
   "id": zod.number().int(),
   "type": zod.enum(['experience_published', 'experience_joined', 'experience_verified', 'xp_earned', 'achievement_unlocked', 'accountability_checkin', 'accountability_goal_completed', 'status_posted']),
   "actor": zod.object({
@@ -2490,6 +2535,7 @@ export const CreateFeedPostResponse = zod.object({
 }),
   "createdAt": zod.coerce.date(),
   "visibility": zod.enum(['public', 'friends', 'community', 'private']),
+  "communityChatId": zod.string().nullable(),
   "experience": zod.union([zod.object({
   "id": zod.number().int(),
   "title": zod.string(),
@@ -2516,7 +2562,31 @@ export const CreateFeedPostResponse = zod.object({
   "reactionType": zod.string().nullable()
 }),
   "commentCount": zod.number().int()
+}),
+  "telegramBroadcastStatus": zod.enum(['not_requested', 'sent', 'failed'])
 })
+
+
+/**
+ * @summary Report a visible update for review
+ */
+
+
+
+export const ReportFeedPostParams = zod.object({
+  "postId": zod.coerce.number().int().min(1)
+})
+
+export const reportFeedPostBodyDetailsMax = 500;
+
+
+
+export const ReportFeedPostBody = zod.object({
+  "reason": zod.enum(['spam', 'harassment', 'misinformation', 'unsafe', 'other']),
+  "details": zod.string().max(reportFeedPostBodyDetailsMax).optional()
+})
+
+export const ReportFeedPostResponse = zod.void()
 
 
 /**
@@ -2544,6 +2614,7 @@ export const GetProfilePostsResponse = zod.object({
 }),
   "createdAt": zod.coerce.date(),
   "visibility": zod.enum(['public', 'friends', 'community', 'private']),
+  "communityChatId": zod.string().nullable(),
   "experience": zod.union([zod.object({
   "id": zod.number().int(),
   "title": zod.string(),
@@ -2598,6 +2669,7 @@ export const GetFeedItemResponse = zod.object({
 }),
   "createdAt": zod.coerce.date(),
   "visibility": zod.enum(['public', 'friends', 'community', 'private']),
+  "communityChatId": zod.string().nullable(),
   "experience": zod.union([zod.object({
   "id": zod.number().int(),
   "title": zod.string(),
@@ -2625,6 +2697,19 @@ export const GetFeedItemResponse = zod.object({
 }),
   "commentCount": zod.number().int()
 })
+
+
+/**
+ * @summary Delete the current profile's update
+ */
+
+
+
+export const DeleteFeedPostParams = zod.object({
+  "postId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteFeedPostResponse = zod.void()
 
 
 /**
@@ -3529,6 +3614,68 @@ export const GetCommunityDetailsResponse = zod.object({
   "xpAwarded": zod.number().int(),
   "createdAt": zod.coerce.date()
 }))
+})
+
+
+/**
+ * @summary Get updates shared with a Telegram community the current profile has joined
+ */
+export const getCommunityFeedPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const GetCommunityFeedParams = zod.object({
+  "chatId": zod.coerce.string().regex(getCommunityFeedPathChatIdRegExp)
+})
+
+export const GetCommunityFeedResponse = zod.object({
+  "community": zod.object({
+  "chatId": zod.string(),
+  "title": zod.string()
+}),
+  "canBroadcastToTelegram": zod.boolean(),
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['experience_published', 'experience_joined', 'experience_verified', 'xp_earned', 'achievement_unlocked', 'accountability_checkin', 'accountability_goal_completed', 'status_posted']),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "userType": zod.string().nullable(),
+  "isFriend": zod.boolean()
+}),
+  "createdAt": zod.coerce.date(),
+  "visibility": zod.enum(['public', 'friends', 'community', 'private']),
+  "communityChatId": zod.string().nullable(),
+  "experience": zod.union([zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "date": zod.string(),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "city": zod.string(),
+  "location": zod.string(),
+  "xpReward": zod.number().int(),
+  "organisationName": zod.string()
+}),zod.null()]),
+  "post": zod.union([zod.object({
+  "id": zod.number().int(),
+  "kind": zod.enum(['goal', 'doing', 'thought']),
+  "body": zod.string()
+}),zod.null()]),
+  "xpAmount": zod.number().int().nullable(),
+  "sourceTitle": zod.string().nullable(),
+  "summary": zod.string(),
+  "reaction": zod.object({
+  "count": zod.number().int(),
+  "reacted": zod.boolean(),
+  "reactionType": zod.string().nullable()
+}),
+  "commentCount": zod.number().int()
+})),
+  "nextCursor": zod.string().nullable()
 })
 
 

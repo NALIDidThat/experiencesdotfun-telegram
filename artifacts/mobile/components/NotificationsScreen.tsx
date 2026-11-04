@@ -10,11 +10,14 @@ import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetAccountabilityDashboardQueryKey,
+  getListFeedNotificationsQueryKey,
   getListFriendNotificationsQueryKey,
   useConfirmAccountabilityCheckIn,
   useGetAccountabilityDashboard,
   useListFriendNotifications,
+  useListFeedNotifications,
   useMarkAccountabilityNotificationRead,
+  useMarkFeedNotificationRead,
   useMarkFriendNotificationRead,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
@@ -24,6 +27,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 type Props = {
   onBack: () => void;
   onOpenFriends: () => void;
+  onOpenCommunityFeed: () => void;
 };
 
 function timeLabel(value: string) {
@@ -45,7 +49,7 @@ function errorMessage(error: unknown) {
   return "That update could not be completed. Please try again.";
 }
 
-export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
+export function NotificationsScreen({ onBack, onOpenFriends, onOpenCommunityFeed }: Props) {
   const colors = useColors();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -64,6 +68,13 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
       refetchInterval: 30_000,
     },
   });
+  const feedNotificationsQuery = useListFeedNotifications({
+    query: {
+      queryKey: [...getListFeedNotificationsQueryKey(), user?.id],
+      enabled: Boolean(user),
+      refetchInterval: 30_000,
+    },
+  });
   const refreshNotifications = () => {
     void queryClient.invalidateQueries({
       queryKey: getGetAccountabilityDashboardQueryKey(),
@@ -71,10 +82,14 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
     void queryClient.invalidateQueries({
       queryKey: getListFriendNotificationsQueryKey(),
     });
+    void queryClient.invalidateQueries({
+      queryKey: getListFeedNotificationsQueryKey(),
+    });
   };
   const mutationOptions = { onSuccess: refreshNotifications };
   const markRead = useMarkAccountabilityNotificationRead({ mutation: mutationOptions });
   const markFriendRead = useMarkFriendNotificationRead({ mutation: mutationOptions });
+  const markFeedRead = useMarkFeedNotificationRead({ mutation: mutationOptions });
   const confirmCheckIn = useConfirmAccountabilityCheckIn({ mutation: mutationOptions });
 
   const cardStyle = {
@@ -101,15 +116,19 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
   const isParticipant = user?.userType === "participant";
   const friendNotifications = friendNotificationsQuery.data?.notifications ?? [];
   const accountabilityNotifications = isParticipant ? dashboard.data?.notifications ?? [] : [];
+  const feedNotifications = feedNotificationsQuery.data?.notifications ?? [];
   const notifications = [
     ...friendNotifications.map((notification) => ({ ...notification, source: "friend" as const })),
     ...accountabilityNotifications.map((notification) => ({ ...notification, source: "accountability" as const })),
+    ...feedNotifications.map((notification) => ({ ...notification, source: "community" as const })),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const unreadCount =
     (friendNotificationsQuery.data?.unreadCount ?? 0) +
-    (isParticipant ? dashboard.data?.unreadCount ?? 0 : 0);
+    (isParticipant ? dashboard.data?.unreadCount ?? 0 : 0) +
+    (feedNotificationsQuery.data?.unreadCount ?? 0);
   const isLoading =
     friendNotificationsQuery.isLoading ||
+    feedNotificationsQuery.isLoading ||
     (isParticipant && dashboard.isLoading);
   const hasError =
     friendNotificationsQuery.isError ||
@@ -137,7 +156,9 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
             Notifications
           </Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 18, marginTop: 3 }}>
-            Friend activity, partner invitations, and check-ins.
+            {feedNotificationsQuery.isError
+              ? "Friend activity and check-ins are available. Community notifications could not load."
+              : "Friend activity, community updates, partner invitations, and check-ins."}
           </Text>
         </View>
         {unreadCount > 0 ? (
@@ -160,6 +181,7 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
           accessibilityLabel="Retry loading notifications"
           onPress={() => {
             void friendNotificationsQuery.refetch();
+            void feedNotificationsQuery.refetch();
             if (isParticipant) void dashboard.refetch();
           }}
           style={[cardStyle, { alignItems: "center", flexDirection: "row", gap: 10, padding: 16 }]}
@@ -178,7 +200,7 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
             You’re all caught up
           </Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19, textAlign: "center" }}>
-            Friend requests, accepted connections, partner invitations, and check-ins will appear here.
+            Friend requests, community updates, partner invitations, and check-ins will appear here.
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -295,6 +317,29 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
                     </Text>
                   </Pressable>
                 ) : null}
+                {notification.source === "community" ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${notification.communityTitle} community updates`}
+                    onPress={() => {
+                      if (notification.isUnread) {
+                        void markFeedRead
+                          .mutateAsync({ notificationId: notification.id })
+                          .catch((error) => setFeedback(errorMessage(error)));
+                      }
+                      onOpenCommunityFeed();
+                    }}
+                    style={({ pressed }) => [
+                      primaryButton,
+                      { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 6, opacity: pressed ? 0.8 : 1, paddingHorizontal: 10, paddingVertical: 8 },
+                    ]}
+                  >
+                    <Feather name="message-square" size={13} color={colors.primaryForeground} />
+                    <Text style={{ color: colors.primaryForeground, fontSize: 12, fontWeight: "700" }}>
+                      Open community feed
+                    </Text>
+                  </Pressable>
+                ) : null}
                 {canConfirmCheckIn ? (
                   <Pressable
                     accessibilityRole="button"
@@ -323,19 +368,21 @@ export function NotificationsScreen({ onBack, onOpenFriends }: Props) {
                     testID={`notification-mark-read-${notification.id}`}
                     accessibilityRole="button"
                     accessibilityLabel={`Mark ${notification.title} as read`}
-                    disabled={markRead.isPending || markFriendRead.isPending}
+                    disabled={markRead.isPending || markFriendRead.isPending || markFeedRead.isPending}
                     onPress={() => {
                       void runAction(
                         () =>
                           notification.source === "friend"
                             ? markFriendRead.mutateAsync({ notificationId: notification.id })
-                            : markRead.mutateAsync({ notificationId: notification.id }),
+                            : notification.source === "community"
+                              ? markFeedRead.mutateAsync({ notificationId: notification.id })
+                              : markRead.mutateAsync({ notificationId: notification.id }),
                         "Notification marked as read.",
                       );
                     }}
                     style={{ alignSelf: "flex-start", paddingVertical: 3 }}
                   >
-                    {markRead.isPending || markFriendRead.isPending ? (
+                    {markRead.isPending || markFriendRead.isPending || markFeedRead.isPending ? (
                       <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
                       <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700" }}>

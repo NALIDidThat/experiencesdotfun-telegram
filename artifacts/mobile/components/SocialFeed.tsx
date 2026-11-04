@@ -23,10 +23,12 @@ import {
   useCreateFeedComment,
   useCreateFeedPost,
   useDeleteFeedComment,
+  useDeleteFeedPost,
   useGetFeed,
   useGetFeedPreferences,
   useListFeedComments,
   useRemoveFeedReaction,
+  useReportFeedPost,
   useSetFeedReaction,
   useUpdateFeedPreferences,
   type FeedComment,
@@ -39,6 +41,7 @@ import { useColors } from "@/hooks/useColors";
 type FeedMode = "for-you" | "following" | "local";
 type PostKind = "goal" | "doing" | "thought";
 type PostVisibility = "friends" | "public" | "private";
+type FeedReportReason = "spam" | "harassment" | "misinformation" | "unsafe" | "other";
 
 type SocialFeedProps = {
   currentUserId: number;
@@ -123,6 +126,10 @@ export function SocialFeed({
   const [postBody, setPostBody] = useState("");
   const [composerError, setComposerError] = useState("");
   const [selectedItem, setSelectedItem] = useState<FeedItem | null>(null);
+  const [reportingItem, setReportingItem] = useState<FeedItem | null>(null);
+  const [reportReason, setReportReason] = useState<FeedReportReason>("other");
+  const [deletingItem, setDeletingItem] = useState<FeedItem | null>(null);
+  const [moderationFeedback, setModerationFeedback] = useState("");
   const [commentBody, setCommentBody] = useState("");
   const [commentError, setCommentError] = useState("");
   const [extraPages, setExtraPages] = useState<FeedResponse[]>([]);
@@ -204,6 +211,8 @@ export function SocialFeed({
   const deleteCommentMutation = useDeleteFeedComment();
   const addReactionMutation = useSetFeedReaction();
   const removeReactionMutation = useRemoveFeedReaction();
+  const deletePostMutation = useDeleteFeedPost();
+  const reportPostMutation = useReportFeedPost();
 
   const changeMode = (nextMode: FeedMode) => {
     resetPagination();
@@ -289,6 +298,31 @@ export function SocialFeed({
         onError: () => setCommentError("Your comment couldn’t be sent. Try again."),
       },
     );
+  };
+
+  const confirmDeletePost = async () => {
+    if (!deletingItem) return;
+    try {
+      await deletePostMutation.mutateAsync({ postId: deletingItem.id });
+      setDeletingItem(null);
+      await invalidateFeed();
+    } catch {
+      setModerationFeedback("The update could not be deleted. Try again.");
+    }
+  };
+
+  const submitReport = async () => {
+    if (!reportingItem) return;
+    try {
+      await reportPostMutation.mutateAsync({
+        postId: reportingItem.id,
+        data: { reason: reportReason },
+      });
+      setReportingItem(null);
+      setModerationFeedback("Report sent for review.");
+    } catch {
+      setModerationFeedback("This update could not be reported. You may have already reported it.");
+    }
   };
 
   const emptyMessage = () => {
@@ -494,6 +528,11 @@ export function SocialFeed({
         </View>
       ) : (
         <View style={styles.items}>
+          {moderationFeedback ? (
+            <Text accessibilityRole="alert" style={[styles.inlineError, { color: colors.mutedForeground }]}>
+              {moderationFeedback}
+            </Text>
+          ) : null}
           {feedItems.map((item) => (
             <FeedCard
               currentUserId={currentUserId}
@@ -504,6 +543,11 @@ export function SocialFeed({
               onOpenFriend={onOpenFriend}
               onOpenSelf={onOpenSelf}
               onReact={(reacted) => updateReaction(item.id, reacted)}
+              onDelete={() => setDeletingItem(item)}
+              onReport={() => {
+                setReportingItem(item);
+                setReportReason("other");
+              }}
             />
           ))}
           {Boolean(extraPages.at(-1)?.nextCursor ?? feedQuery.data?.nextCursor) ? (
@@ -870,6 +914,92 @@ export function SocialFeed({
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      <Modal
+        visible={reportingItem !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReportingItem(null)}
+      >
+        <View style={[styles.modalScrim, { backgroundColor: colors.foreground + "80" }]}>
+          <View style={[styles.composerSheet, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 8, paddingBottom: 22 }]}>
+            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Report update</Text>
+            <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground, marginTop: 4 }]}>
+              Tell us what is wrong. This report will be recorded with the update for follow-up.
+            </Text>
+            <View style={[styles.choiceRow, { marginTop: 14 }]}>
+              {(["spam", "harassment", "misinformation", "unsafe", "other"] as FeedReportReason[]).map((reason) => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: reportReason === reason }}
+                  key={reason}
+                  onPress={() => setReportReason(reason)}
+                  style={[
+                    styles.choiceChip,
+                    {
+                      backgroundColor: reportReason === reason ? colors.primary + "14" : colors.muted,
+                      borderColor: reportReason === reason ? colors.primary : colors.border,
+                      borderWidth: 1,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.choiceText, { color: reportReason === reason ? colors.primary : colors.mutedForeground }]}>
+                    {reason.charAt(0).toUpperCase() + reason.slice(1)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <View style={{ flexDirection: "row", gap: 9, marginTop: 16 }}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setReportingItem(null)}
+                style={[styles.stateAction, { backgroundColor: colors.muted, flex: 1 }]}
+              >
+                <Text style={[styles.stateActionText, { color: colors.foreground }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                disabled={reportPostMutation.isPending}
+                onPress={() => void submitReport()}
+                style={[styles.stateAction, { backgroundColor: colors.primary, flex: 1, opacity: reportPostMutation.isPending ? 0.6 : 1 }]}
+              >
+                {reportPostMutation.isPending ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.stateActionText, { color: colors.primaryForeground }]}>Send report</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={deletingItem !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeletingItem(null)}
+      >
+        <View style={[styles.modalScrim, { backgroundColor: colors.foreground + "80" }]}>
+          <View style={[styles.composerSheet, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius + 8, paddingBottom: 22 }]}>
+            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Delete this update?</Text>
+            <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground, marginTop: 5 }]}>
+              It will be removed from feeds and notifications.
+            </Text>
+            <View style={{ flexDirection: "row", gap: 9, marginTop: 16 }}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setDeletingItem(null)}
+                style={[styles.stateAction, { backgroundColor: colors.muted, flex: 1 }]}
+              >
+                <Text style={[styles.stateActionText, { color: colors.foreground }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                disabled={deletePostMutation.isPending}
+                onPress={() => void confirmDeletePost()}
+                style={[styles.stateAction, { backgroundColor: colors.destructive, flex: 1, opacity: deletePostMutation.isPending ? 0.6 : 1 }]}
+              >
+                {deletePostMutation.isPending ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.stateActionText, { color: colors.primaryForeground }]}>Delete update</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -882,6 +1012,8 @@ function FeedCard({
   onOpenExperience,
   onOpenFriend,
   onOpenSelf,
+  onDelete,
+  onReport,
 }: {
   item: FeedItem;
   currentUserId: number;
@@ -890,6 +1022,8 @@ function FeedCard({
   onOpenExperience: (experienceId: number) => void;
   onOpenFriend: (friendId: number) => void;
   onOpenSelf: () => void;
+  onDelete: () => void;
+  onReport: () => void;
 }) {
   const colors = useColors();
   const openActor = () => {
@@ -1048,6 +1182,18 @@ function FeedCard({
           ) : null}
         </Pressable>
       </View>
+      {item.post ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={item.actor.id === currentUserId ? "Delete your update" : "Report this update"}
+          onPress={item.actor.id === currentUserId ? onDelete : onReport}
+          style={{ alignSelf: "flex-start", marginTop: 9, paddingVertical: 4, paddingHorizontal: 4 }}
+        >
+          <Text style={{ color: item.actor.id === currentUserId ? colors.destructive : colors.mutedForeground, fontSize: 11, fontWeight: "600" }}>
+            {item.actor.id === currentUserId ? "Delete update" : "Report update"}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

@@ -44,6 +44,7 @@ import type {
   CharityContributionLedger,
   CharityLedgerSyncInput,
   CommunityDetails,
+  CommunityFeedResponse,
   CommunitySummary,
   CompaniesHouseSearchInput,
   CompaniesHouseSearchResult,
@@ -75,6 +76,8 @@ import type {
   FeedCommentsResponse,
   FeedDeleteResponse,
   FeedItem,
+  FeedNotificationsResponse,
+  FeedPostCreateResult,
   FeedPreferences,
   FeedReactionInput,
   FeedReactionState,
@@ -159,6 +162,7 @@ import type {
   ProfilePostsResponse,
   ProfileUpdateInput,
   RedeemXpAwardsResponse,
+  ReportFeedPostInput,
   ReviewNode200,
   SavedExperience,
   SavedExperienceInput,
@@ -5952,6 +5956,157 @@ export function useGetFeed<TData = Awaited<ReturnType<typeof getFeed>>, TError =
 
 
 
+export const getListFeedNotificationsUrl = () => {
+
+
+
+
+  return `/api/feed/notifications`
+}
+
+/**
+ * @summary List community update notifications for the current profile
+ */
+export const listFeedNotifications = async ( options?: Parameters<typeof customFetch>[1]): Promise<FeedNotificationsResponse> => {
+
+  return customFetch<FeedNotificationsResponse>(getListFeedNotificationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFeedNotificationsQueryKey = () => {
+    return [
+    `/api/feed/notifications`
+    ] as const;
+    }
+
+
+export const getListFeedNotificationsQueryOptions = <TData = Awaited<ReturnType<typeof listFeedNotifications>>, TError = ErrorType<UnauthorizedResponse | void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFeedNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFeedNotificationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFeedNotifications>>> = ({ signal }) => listFeedNotifications({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFeedNotifications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFeedNotificationsQueryResult = NonNullable<Awaited<ReturnType<typeof listFeedNotifications>>>
+export type ListFeedNotificationsQueryError = ErrorType<UnauthorizedResponse | void>
+
+
+/**
+ * @summary List community update notifications for the current profile
+ */
+
+export function useListFeedNotifications<TData = Awaited<ReturnType<typeof listFeedNotifications>>, TError = ErrorType<UnauthorizedResponse | void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFeedNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFeedNotificationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMarkFeedNotificationReadUrl = (notificationId: number,) => {
+
+
+
+
+  return `/api/feed/notifications/${notificationId}/read`
+}
+
+/**
+ * @summary Mark a community update notification as read
+ */
+export const markFeedNotificationRead = async (notificationId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getMarkFeedNotificationReadUrl(notificationId),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkFeedNotificationReadMutationKey = () => ['markFeedNotificationRead'] as const;
+
+export const getMarkFeedNotificationReadMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markFeedNotificationRead>>, TError,MarkFeedNotificationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markFeedNotificationRead>>, TError,MarkFeedNotificationReadMutationVariables, TContext> => {
+
+const mutationKey = getMarkFeedNotificationReadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markFeedNotificationRead>>, MarkFeedNotificationReadMutationVariables> = (props) => {
+          const {notificationId} = props ?? {};
+
+          return  markFeedNotificationRead(notificationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkFeedNotificationReadMutationResult = NonNullable<Awaited<ReturnType<typeof markFeedNotificationRead>>>
+
+    export type MarkFeedNotificationReadMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | void>
+    export type MarkFeedNotificationReadMutationVariables = {notificationId: number}
+
+    /**
+ * @summary Mark a community update notification as read
+ */
+export const useMarkFeedNotificationRead = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markFeedNotificationRead>>, TError,MarkFeedNotificationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markFeedNotificationRead>>,
+        TError,
+        MarkFeedNotificationReadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkFeedNotificationReadMutationOptions(options));
+    }
+
 export const getGetFeedPreferencesUrl = () => {
 
 
@@ -6128,7 +6283,7 @@ export const getCreateFeedPostUrl = () => {
 /**
  * @summary Share a structured goal, doing, or thought update
  */
-export const createFeedPost = async (createFeedPostInput: CreateFeedPostInput, options?: Parameters<typeof customFetch>[1]): Promise<FeedItem> => {
+export const createFeedPost = async (createFeedPostInput: CreateFeedPostInput, options?: Parameters<typeof customFetch>[1]): Promise<FeedPostCreateResult> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -6144,7 +6299,7 @@ export const createFeedPost = async (createFeedPostInput: CreateFeedPostInput, o
     }
     return headers;
   };
-return customFetch<FeedItem>(getCreateFeedPostUrl(),
+return customFetch<FeedPostCreateResult>(getCreateFeedPostUrl(),
   {
     ...options,
     method: 'POST',
@@ -6159,7 +6314,7 @@ return customFetch<FeedItem>(getCreateFeedPostUrl(),
 
 export const getCreateFeedPostMutationKey = () => ['createFeedPost'] as const;
 
-export const getCreateFeedPostMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+export const getCreateFeedPostMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFeedPost>>, TError,CreateFeedPostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createFeedPost>>, TError,CreateFeedPostMutationVariables, TContext> => {
 
@@ -6188,13 +6343,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateFeedPostMutationResult = NonNullable<Awaited<ReturnType<typeof createFeedPost>>>
     export type CreateFeedPostMutationBody = BodyType<CreateFeedPostInput>
-    export type CreateFeedPostMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse>
+    export type CreateFeedPostMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | void>
     export type CreateFeedPostMutationVariables = {data: BodyType<CreateFeedPostInput>}
 
     /**
  * @summary Share a structured goal, doing, or thought update
  */
-export const useCreateFeedPost = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+export const useCreateFeedPost = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFeedPost>>, TError,CreateFeedPostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createFeedPost>>,
@@ -6203,6 +6358,95 @@ export const useCreateFeedPost = <TError = ErrorType<BadRequestResponse | Unauth
         TContext
       > => {
       return useMutation(getCreateFeedPostMutationOptions(options));
+    }
+
+export const getReportFeedPostUrl = (postId: number,) => {
+
+
+
+
+  return `/api/posts/${postId}/report`
+}
+
+/**
+ * @summary Report a visible update for review
+ */
+export const reportFeedPost = async (postId: number,
+    reportFeedPostInput: ReportFeedPostInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getReportFeedPostUrl(postId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reportFeedPostInput)
+  }
+);}
+
+
+
+
+
+export const getReportFeedPostMutationKey = () => ['reportFeedPost'] as const;
+
+export const getReportFeedPostMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportFeedPost>>, TError,ReportFeedPostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportFeedPost>>, TError,ReportFeedPostMutationVariables, TContext> => {
+
+const mutationKey = getReportFeedPostMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportFeedPost>>, ReportFeedPostMutationVariables> = (props) => {
+          const {postId,data} = props ?? {};
+
+          return  reportFeedPost(postId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportFeedPostMutationResult = NonNullable<Awaited<ReturnType<typeof reportFeedPost>>>
+    export type ReportFeedPostMutationBody = BodyType<ReportFeedPostInput>
+    export type ReportFeedPostMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | void>
+    export type ReportFeedPostMutationVariables = {postId: number;data: BodyType<ReportFeedPostInput>}
+
+    /**
+ * @summary Report a visible update for review
+ */
+export const useReportFeedPost = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportFeedPost>>, TError,ReportFeedPostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reportFeedPost>>,
+        TError,
+        ReportFeedPostMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReportFeedPostMutationOptions(options));
     }
 
 export const getGetProfilePostsUrl = (profileId: number,) => {
@@ -6358,6 +6602,80 @@ export function useGetFeedItem<TData = Awaited<ReturnType<typeof getFeedItem>>, 
 
 
 
+
+export const getDeleteFeedPostUrl = (postId: number,) => {
+
+
+
+
+  return `/api/posts/${postId}`
+}
+
+/**
+ * @summary Delete the current profile's update
+ */
+export const deleteFeedPost = async (postId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteFeedPostUrl(postId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteFeedPostMutationKey = () => ['deleteFeedPost'] as const;
+
+export const getDeleteFeedPostMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFeedPost>>, TError,DeleteFeedPostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteFeedPost>>, TError,DeleteFeedPostMutationVariables, TContext> => {
+
+const mutationKey = getDeleteFeedPostMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFeedPost>>, DeleteFeedPostMutationVariables> = (props) => {
+          const {postId} = props ?? {};
+
+          return  deleteFeedPost(postId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteFeedPostMutationResult = NonNullable<Awaited<ReturnType<typeof deleteFeedPost>>>
+
+    export type DeleteFeedPostMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+    export type DeleteFeedPostMutationVariables = {postId: number}
+
+    /**
+ * @summary Delete the current profile's update
+ */
+export const useDeleteFeedPost = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFeedPost>>, TError,DeleteFeedPostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteFeedPost>>,
+        TError,
+        DeleteFeedPostMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteFeedPostMutationOptions(options));
+    }
 
 export const getSetFeedReactionUrl = (postId: number,) => {
 
@@ -8197,6 +8515,83 @@ export function useGetCommunityDetails<TData = Awaited<ReturnType<typeof getComm
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetCommunityDetailsQueryOptions(chatId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCommunityFeedUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/${chatId}/feed`
+}
+
+/**
+ * @summary Get updates shared with a Telegram community the current profile has joined
+ */
+export const getCommunityFeed = async (chatId: string, options?: Parameters<typeof customFetch>[1]): Promise<CommunityFeedResponse> => {
+
+  return customFetch<CommunityFeedResponse>(getGetCommunityFeedUrl(chatId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCommunityFeedQueryKey = (chatId: string,) => {
+    return [
+    `/api/community/${chatId}/feed`
+    ] as const;
+    }
+
+
+export const getGetCommunityFeedQueryOptions = <TData = Awaited<ReturnType<typeof getCommunityFeed>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | void>>(chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommunityFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCommunityFeedQueryKey(chatId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCommunityFeed>>> = ({ signal }) => getCommunityFeed(chatId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: chatId !== null && chatId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCommunityFeed>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCommunityFeedQueryResult = NonNullable<Awaited<ReturnType<typeof getCommunityFeed>>>
+export type GetCommunityFeedQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | void>
+
+
+/**
+ * @summary Get updates shared with a Telegram community the current profile has joined
+ */
+
+export function useGetCommunityFeed<TData = Awaited<ReturnType<typeof getCommunityFeed>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | void>>(
+ chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommunityFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCommunityFeedQueryOptions(chatId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

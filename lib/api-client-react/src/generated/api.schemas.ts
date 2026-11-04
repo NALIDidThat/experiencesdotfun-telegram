@@ -3097,6 +3097,8 @@ export interface FeedItem {
   actor: FeedActor;
   createdAt: string;
   visibility: FeedVisibility;
+  /** @nullable */
+  communityChatId: string | null;
   experience: FeedExperience | null;
   post: FeedPostContent | null;
   /** @nullable */
@@ -3129,6 +3131,70 @@ export interface CreateFeedPostInput {
      */
   body: string;
   visibility?: FeedVisibility;
+  /** @pattern ^-?[0-9]{1,20}$ */
+  communityChatId?: string;
+  broadcastToTelegram?: boolean;
+}
+
+export type FeedPostCreateResultTelegramBroadcastStatus = typeof FeedPostCreateResultTelegramBroadcastStatus[keyof typeof FeedPostCreateResultTelegramBroadcastStatus];
+
+
+export const FeedPostCreateResultTelegramBroadcastStatus = {
+  not_requested: 'not_requested',
+  sent: 'sent',
+  failed: 'failed',
+} as const;
+
+export interface FeedPostCreateResult {
+  item: FeedItem;
+  telegramBroadcastStatus: FeedPostCreateResultTelegramBroadcastStatus;
+}
+
+export type ReportFeedPostInputReason = typeof ReportFeedPostInputReason[keyof typeof ReportFeedPostInputReason];
+
+
+export const ReportFeedPostInputReason = {
+  spam: 'spam',
+  harassment: 'harassment',
+  misinformation: 'misinformation',
+  unsafe: 'unsafe',
+  other: 'other',
+} as const;
+
+export interface ReportFeedPostInput {
+  reason: ReportFeedPostInputReason;
+  /** @maxLength 500 */
+  details?: string;
+}
+
+export interface FeedNotification {
+  id: number;
+  activityId: number;
+  communityChatId: string;
+  communityTitle: string;
+  title: string;
+  message: string;
+  actor: FeedActor;
+  isUnread: boolean;
+  createdAt: string;
+}
+
+export interface FeedNotificationsResponse {
+  notifications: FeedNotification[];
+  unreadCount: number;
+}
+
+export type CommunityFeedResponseCommunity = {
+  chatId: string;
+  title: string;
+};
+
+export interface CommunityFeedResponse {
+  community: CommunityFeedResponseCommunity;
+  canBroadcastToTelegram: boolean;
+  items: FeedItem[];
+  /** @nullable */
+  nextCursor: string | null;
 }
 
 export type FeedReactionInputReactionType = typeof FeedReactionInputReactionType[keyof typeof FeedReactionInputReactionType];

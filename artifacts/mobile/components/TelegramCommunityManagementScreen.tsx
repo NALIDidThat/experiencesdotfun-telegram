@@ -25,6 +25,7 @@ import {
 } from '@workspace/api-client-react';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
+import { CommunityFeedSection } from '@/components/CommunityFeedSection';
 
 type RuleFeedback = { message: string; tone: 'success' | 'error' };
 
@@ -673,6 +674,7 @@ export function TelegramCommunityDashboardScreen({
         </View>
       ) : (
         <View style={styles.dashboardSections}>
+          {chatId ? <CommunityFeedSection chatId={chatId} /> : null}
           {liveInfo.data?.description ? (
             <Text style={[styles.communityDescription, { color: colors.mutedForeground }]}>
               {liveInfo.data.description}

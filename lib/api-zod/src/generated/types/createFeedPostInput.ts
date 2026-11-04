@@ -16,4 +16,7 @@ export interface CreateFeedPostInput {
      */
   body: string;
   visibility?: FeedVisibility;
+  /** @pattern ^-?[0-9]{1,20}$ */
+  communityChatId?: string;
+  broadcastToTelegram?: boolean;
 }

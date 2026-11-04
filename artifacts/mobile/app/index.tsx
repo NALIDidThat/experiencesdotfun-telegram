@@ -10737,6 +10737,7 @@ export default function App() {
         <NotificationsScreen
           onBack={() => goBack('profile')}
           onOpenFriends={() => go('friends')}
+          onOpenCommunityFeed={() => go('home')}
         />
       );
     }

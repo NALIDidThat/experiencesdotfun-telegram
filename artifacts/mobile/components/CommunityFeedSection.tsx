@@ -1,0 +1,244 @@
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  getGetCommunityFeedQueryKey,
+  getGetFeedQueryKey,
+  useCreateFeedPost,
+  useGetCommunityFeed,
+} from "@workspace/api-client-react";
+import { useColors } from "@/hooks/useColors";
+
+export function CommunityFeedSection({ chatId }: { chatId: string }) {
+  const colors = useColors();
+  const queryClient = useQueryClient();
+  const [body, setBody] = useState("");
+  const [broadcastToTelegram, setBroadcastToTelegram] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [feedbackIsError, setFeedbackIsError] = useState(false);
+  const feedQuery = useGetCommunityFeed(chatId, {
+    query: {
+      queryKey: getGetCommunityFeedQueryKey(chatId),
+      refetchInterval: 30_000,
+      retry: 1,
+    },
+  });
+  const createPost = useCreateFeedPost();
+  const updates = feedQuery.data?.items ?? [];
+
+  const submit = async () => {
+    const message = body.trim();
+    if (!message) {
+      setFeedback("Write an update before sharing.");
+      setFeedbackIsError(true);
+      return;
+    }
+    setFeedback("");
+    setFeedbackIsError(false);
+    try {
+      const result = await createPost.mutateAsync({
+        data: {
+          kind: "thought",
+          body: message,
+          visibility: "community",
+          communityChatId: chatId,
+          broadcastToTelegram:
+            broadcastToTelegram && feedQuery.data?.canBroadcastToTelegram === true,
+        },
+      });
+      setBody("");
+      setBroadcastToTelegram(false);
+      setFeedback(
+        result.telegramBroadcastStatus === "sent"
+          ? "Update shared with the community and posted in Telegram."
+          : result.telegramBroadcastStatus === "failed"
+            ? "Update shared with members, but Telegram could not deliver it."
+            : "Update shared with community members.",
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetCommunityFeedQueryKey(chatId) }),
+        queryClient.invalidateQueries({ queryKey: getGetFeedQueryKey() }),
+      ]);
+    } catch (error) {
+      const message =
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof error.data === "object" &&
+        error.data !== null &&
+        "message" in error.data &&
+        typeof error.data.message === "string"
+          ? error.data.message
+          : "The update could not be shared. Try again.";
+      setFeedback(message);
+      setFeedbackIsError(true);
+    }
+  };
+
+  return (
+    <View
+      style={{
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+        borderRadius: colors.radius,
+        borderWidth: 1,
+        gap: 12,
+        padding: 14,
+      }}
+    >
+      <View style={{ alignItems: "center", flexDirection: "row", gap: 9 }}>
+        <View
+          style={{
+            alignItems: "center",
+            backgroundColor: colors.primary + "14",
+            borderRadius: 11,
+            height: 32,
+            justifyContent: "center",
+            width: 32,
+          }}
+        >
+          <Feather name="message-square" size={16} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "700" }}>
+            Community updates
+          </Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 2 }}>
+            Shared only with verified members of this group.
+          </Text>
+        </View>
+      </View>
+
+      <TextInput
+        accessibilityLabel="Write a community update"
+        value={body}
+        onChangeText={(value) => {
+          setBody(value.slice(0, 500));
+          if (feedbackIsError) setFeedback("");
+        }}
+        maxLength={500}
+        multiline
+        placeholder="Share a community update…"
+        placeholderTextColor={colors.mutedForeground}
+        textAlignVertical="top"
+        style={{
+          backgroundColor: colors.background,
+          borderColor: colors.border,
+          borderRadius: colors.radius - 4,
+          borderWidth: 1,
+          color: colors.foreground,
+          minHeight: 82,
+          paddingHorizontal: 12,
+          paddingVertical: 10,
+        }}
+      />
+      <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
+        <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>{body.length}/500</Text>
+        {feedQuery.data?.canBroadcastToTelegram ? (
+          <View style={{ alignItems: "center", flexDirection: "row", gap: 7 }}>
+            <Text style={{ color: colors.foreground, fontSize: 11 }}>Post in Telegram too</Text>
+            <Switch
+              accessibilityLabel="Also send this update to the Telegram group"
+              value={broadcastToTelegram}
+              onValueChange={setBroadcastToTelegram}
+              trackColor={{ false: colors.border, true: colors.primary + "88" }}
+              thumbColor={broadcastToTelegram ? colors.primary : colors.card}
+            />
+          </View>
+        ) : null}
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Share community update"
+        disabled={createPost.isPending || !body.trim()}
+        onPress={() => void submit()}
+        style={({ pressed }) => ({
+          alignItems: "center",
+          backgroundColor: colors.primary,
+          borderRadius: colors.radius - 5,
+          flexDirection: "row",
+          gap: 7,
+          justifyContent: "center",
+          minHeight: 42,
+          opacity: createPost.isPending || !body.trim() ? 0.6 : pressed ? 0.8 : 1,
+        })}
+      >
+        {createPost.isPending ? (
+          <ActivityIndicator size="small" color={colors.primaryForeground} />
+        ) : (
+          <Feather name="send" size={14} color={colors.primaryForeground} />
+        )}
+        <Text style={{ color: colors.primaryForeground, fontSize: 13, fontWeight: "700" }}>
+          Share update
+        </Text>
+      </Pressable>
+      {feedback ? (
+        <Text
+          accessibilityRole={feedbackIsError ? "alert" : undefined}
+          style={{
+            color: feedbackIsError ? colors.destructive : colors.success,
+            fontSize: 12,
+            lineHeight: 17,
+          }}
+        >
+          {feedback}
+        </Text>
+      ) : null}
+
+      {feedQuery.isLoading ? (
+        <View style={{ alignItems: "center", paddingVertical: 16 }}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : feedQuery.isError ? (
+        <Pressable onPress={() => void feedQuery.refetch()}>
+          <Text style={{ color: colors.destructive, fontSize: 12 }}>
+            Updates could not load. Tap to retry.
+          </Text>
+        </Pressable>
+      ) : updates.length === 0 ? (
+        <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
+          No updates yet. Be the first to share one.
+        </Text>
+      ) : (
+        <View style={{ gap: 10 }}>
+          {updates.map((item) => (
+            <View
+              key={item.id}
+              style={{
+                backgroundColor: colors.muted,
+                borderRadius: colors.radius - 5,
+                gap: 5,
+                padding: 11,
+              }}
+            >
+              <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "700" }}>
+                {item.actor.name} · {item.summary}
+              </Text>
+              {item.post ? (
+                <Text style={{ color: colors.foreground, fontSize: 13, lineHeight: 19 }}>
+                  {item.post.body}
+                </Text>
+              ) : null}
+              <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>
+                {new Date(item.createdAt).toLocaleString(undefined, {
+                  day: "numeric",
+                  month: "short",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}

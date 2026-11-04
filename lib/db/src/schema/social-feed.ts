@@ -18,6 +18,13 @@ import { usersTable } from "./experiences";
 export const feedVisibilityValues = ["public", "friends", "community", "private"] as const;
 export const feedPostKinds = ["goal", "doing", "thought"] as const;
 export const feedReactionTypes = ["support", "celebrate", "insightful"] as const;
+export const feedPostReportReasons = [
+  "spam",
+  "harassment",
+  "misinformation",
+  "unsafe",
+  "other",
+] as const;
 
 export const feedActivityEventsTable = pgTable(
   "activity_events",
@@ -145,6 +152,80 @@ export const commentsTable = pgTable(
   }),
 );
 
+export const feedPostReportsTable = pgTable(
+  "feed_post_reports",
+  {
+    id: serial("id").primaryKey(),
+    activityId: integer("activity_id").references(
+      () => feedActivityEventsTable.id,
+      { onDelete: "set null" },
+    ),
+    reportedActivityId: integer("reported_activity_id").notNull(),
+    reportedAuthorId: integer("reported_author_id").notNull(),
+    reporterUserId: integer("reporter_user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    reason: text("reason", { enum: feedPostReportReasons }).notNull(),
+    details: text("details"),
+    status: text("status", { enum: ["pending", "reviewed", "dismissed"] })
+      .notNull()
+      .default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    reporterActivityUnique: uniqueIndex("feed_post_reports_reporter_activity_idx").on(
+      table.reporterUserId,
+      table.reportedActivityId,
+    ),
+    reviewIndex: index("feed_post_reports_review_idx").on(table.status, table.createdAt),
+    reasonCheck: check(
+      "feed_post_reports_reason_check",
+      sql`${table.reason} IN ('spam', 'harassment', 'misinformation', 'unsafe', 'other')`,
+    ),
+    statusCheck: check(
+      "feed_post_reports_status_check",
+      sql`${table.status} IN ('pending', 'reviewed', 'dismissed')`,
+    ),
+    detailsLengthCheck: check(
+      "feed_post_reports_details_length_check",
+      sql`${table.details} IS NULL OR char_length(${table.details}) <= 500`,
+    ),
+  }),
+);
+
+export const feedNotificationsTable = pgTable(
+  "feed_notifications",
+  {
+    id: serial("id").primaryKey(),
+    recipientUserId: integer("recipient_user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    actorUserId: integer("actor_user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    activityId: integer("activity_id")
+      .notNull()
+      .references(() => feedActivityEventsTable.id, { onDelete: "cascade" }),
+    communityChatId: text("community_chat_id").notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    recipientActivityUnique: uniqueIndex("feed_notifications_recipient_activity_idx").on(
+      table.recipientUserId,
+      table.activityId,
+    ),
+    recipientCreatedIndex: index("feed_notifications_recipient_created_idx").on(
+      table.recipientUserId,
+      table.createdAt,
+    ),
+    recipientReadIndex: index("feed_notifications_recipient_read_idx").on(
+      table.recipientUserId,
+      table.readAt,
+    ),
+  }),
+);
+
 export const insertPostSchema = createInsertSchema(postsTable).omit({
   id: true,
   createdAt: true,
@@ -154,3 +235,5 @@ export type FeedActivityEvent = typeof feedActivityEventsTable.$inferSelect;
 export type FeedPost = typeof postsTable.$inferSelect;
 export type FeedPostReaction = typeof postReactionsTable.$inferSelect;
 export type FeedComment = typeof commentsTable.$inferSelect;
+export type FeedPostReport = typeof feedPostReportsTable.$inferSelect;
+export type FeedNotification = typeof feedNotificationsTable.$inferSelect;

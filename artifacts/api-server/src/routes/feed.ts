@@ -18,6 +18,7 @@ import {
   DeleteFeedCommentParams,
   GetFeedItemParams,
   GetFeedQueryParams,
+  ReportFeedPostBody,
   ListFeedCommentsParams,
   RemoveFeedReactionParams,
   SetFeedReactionBody,
@@ -28,18 +29,25 @@ import { db } from "@workspace/db";
 import {
   commentsTable,
   feedActivityEventsTable,
+  feedNotificationsTable,
   feedPreferencesTable,
+  feedPostReportsTable,
   friendshipsTable,
   experiencesTable,
   organisationsTable,
   postReactionsTable,
   postsTable,
+  communityMembersTable,
+  telegramCommunitiesTable,
   usersTable,
 } from "@workspace/db/schema";
 import { currentUser, requireTelegramUser } from "../lib/auth";
+import { canCreateFeedComment, canCreateFeedPost, isSelfReportedAccountabilityEvent } from "../lib/feed-policy";
+import { sendTelegramCommunityUpdate } from "../lib/telegram";
 
 const router: IRouter = Router();
 const PAGE_LIMIT_DEFAULT = 20;
+let communityFeedSchemaPromise: Promise<boolean> | undefined;
 const automaticActivityTypes = [
   "experience_joined",
   "experience_verified",
@@ -54,6 +62,30 @@ type Cursor = { rank: number; createdAt: string; id: number };
 
 function error(res: Response, status: number, message: string) {
   res.status(status).json({ message });
+}
+
+async function ensureCommunityFeedSchema(res: Response): Promise<boolean> {
+  try {
+    communityFeedSchemaPromise ??= db
+      .execute(sql`
+        SELECT
+          to_regclass('public.feed_notifications') IS NOT NULL AS notifications_table,
+          to_regclass('public.feed_post_reports') IS NOT NULL AS reports_table
+      `)
+      .then((result) => {
+        const row = result.rows[0] as {
+          notifications_table?: boolean;
+          reports_table?: boolean;
+        } | undefined;
+        return Boolean(row?.notifications_table && row?.reports_table);
+      });
+    if (await communityFeedSchemaPromise) return true;
+    communityFeedSchemaPromise = undefined;
+  } catch {
+    communityFeedSchemaPromise = undefined;
+  }
+  error(res, 503, "Community feed notifications and reporting are unavailable until the database migration is applied.");
+  return false;
 }
 
 function parsePositiveId(value: unknown): number | undefined {
@@ -114,17 +146,59 @@ async function getAcceptedFriendIds(userId: number): Promise<number[]> {
   );
 }
 
-function visibleToViewer(viewerId: number, friendIds: number[]): SQL {
-  return or(
+async function getCommunityChatIds(userId: number): Promise<string[]> {
+  const [memberships, profile] = await Promise.all([
+    db
+      .select({ chatId: communityMembersTable.chatId })
+      .from(communityMembersTable)
+      .where(eq(communityMembersTable.userId, userId)),
+    db
+      .select({ userType: usersTable.userType })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1),
+  ]);
+  const managedCommunities = profile[0]?.userType === "organisation"
+    ? await db
+        .select({ chatId: telegramCommunitiesTable.chatId })
+        .from(telegramCommunitiesTable)
+        .where(eq(telegramCommunitiesTable.connectedByUserId, userId))
+    : [];
+  return [...new Set([
+    ...memberships.map((row) => row.chatId),
+    ...managedCommunities.map((row) => row.chatId),
+  ])];
+}
+
+function visibleToViewer(
+  viewerId: number,
+  friendIds: number[],
+  communityChatIds: string[] = [],
+): SQL {
+  const predicates: SQL[] = [
     eq(feedActivityEventsTable.visibility, "public"),
     and(
       eq(feedActivityEventsTable.visibility, "friends"),
       inArray(feedActivityEventsTable.actorId, friendIds),
-    ),
+    )!,
     and(
       eq(feedActivityEventsTable.visibility, "private"),
       eq(feedActivityEventsTable.actorId, viewerId),
-    ),
+    )!,
+  ];
+  if (communityChatIds.length > 0) {
+    predicates.push(
+      and(
+        eq(feedActivityEventsTable.visibility, "community"),
+        inArray(
+          sql<string>`${feedActivityEventsTable.metadata}->>'communityChatId'`,
+          communityChatIds,
+        ),
+      )!,
+    );
+  }
+  return or(
+    ...predicates,
   )!;
 }
 
@@ -146,6 +220,11 @@ function summaryForEvent(
   experienceTitle: string | null,
   metadata: Record<string, unknown>,
 ): string {
+  if (isSelfReportedAccountabilityEvent(type)) {
+    return type === "accountability_checkin"
+      ? "reported checking in on a goal"
+      : "reported completing a personal goal";
+  }
   switch (type) {
     case "experience_published":
       return "published a new experience";
@@ -161,10 +240,6 @@ function summaryForEvent(
     }
     case "achievement_unlocked":
       return `unlocked ${typeof metadata.title === "string" ? metadata.title : "a milestone"}`;
-    case "accountability_checkin":
-      return "checked in on a goal";
-    case "accountability_goal_completed":
-      return "completed a personal goal";
     default:
       return experienceTitle ? `shared ${experienceTitle}` : "shared an update";
   }
@@ -245,6 +320,8 @@ function itemFromRow(
     },
     createdAt: row.event.createdAt,
     visibility: row.event.visibility,
+    communityChatId:
+      typeof metadata.communityChatId === "string" ? metadata.communityChatId : null,
     experience,
     post,
     xpAmount,
@@ -263,8 +340,43 @@ function itemFromRow(
 function itemQuery(
   viewerId: number,
   friendIds: number[],
-  activityId: number,
+  communityChatIds: string[],
+  activityId?: number,
+  communityChatId?: string,
+  cursor?: Cursor,
 ) {
+  const filters: SQL[] = [
+    visibleToViewer(
+      viewerId,
+      [...new Set([viewerId, ...friendIds])],
+      communityChatIds,
+    ),
+  ];
+  if (activityId !== undefined) {
+    filters.push(eq(feedActivityEventsTable.id, activityId));
+  }
+  if (communityChatId !== undefined) {
+    filters.push(
+      and(
+        eq(feedActivityEventsTable.visibility, "community"),
+        eq(feedActivityEventsTable.type, "status_posted"),
+        eq(feedActivityEventsTable.targetType, "post"),
+        sql`${feedActivityEventsTable.metadata}->>'communityChatId' = ${communityChatId}`,
+      )!,
+    );
+  }
+  if (cursor) {
+    const cursorDate = new Date(cursor.createdAt);
+    filters.push(
+      or(
+        lt(feedActivityEventsTable.createdAt, cursorDate),
+        and(
+          eq(feedActivityEventsTable.createdAt, cursorDate),
+          lt(feedActivityEventsTable.id, cursor.id),
+        ),
+      )!,
+    );
+  }
   return db
     .select({
       event: feedActivityEventsTable,
@@ -301,18 +413,16 @@ function itemQuery(
       organisationsTable,
       eq(organisationsTable.id, experiencesTable.organisationId),
     )
-    .where(
-      and(
-        eq(feedActivityEventsTable.id, activityId),
-        visibleToViewer(viewerId, [...new Set([viewerId, ...friendIds])]),
-      ),
-    );
+    .where(and(...filters));
 }
 
 async function getFeedItemRow(activityId: number, viewerId: number) {
-  const friendIds = await getAcceptedFriendIds(viewerId);
-  const [row] = await itemQuery(viewerId, friendIds, activityId).limit(1);
-  return { row, friendIds };
+  const [friendIds, communityChatIds] = await Promise.all([
+    getAcceptedFriendIds(viewerId),
+    getCommunityChatIds(viewerId),
+  ]);
+  const [row] = await itemQuery(viewerId, friendIds, communityChatIds, activityId).limit(1);
+  return { row, friendIds, communityChatIds };
 }
 
 async function reactionState(activityId: number, viewerId: number) {
@@ -359,7 +469,10 @@ router.get("/feed", requireTelegramUser, async (req, res) => {
   const user = currentUser(req);
   const mode = parsed.data.mode as FeedMode;
   const limit = parsed.data.limit ?? PAGE_LIMIT_DEFAULT;
-  const friendIds = await getAcceptedFriendIds(user.id);
+  const [friendIds, communityChatIds] = await Promise.all([
+    getAcceptedFriendIds(user.id),
+    getCommunityChatIds(user.id),
+  ]);
   const visibleActorIds = [...new Set([user.id, ...friendIds])];
   const localPredicate = localToCity(user.city);
   const friendRankPredicate = inArray(feedActivityEventsTable.actorId, visibleActorIds);
@@ -368,7 +481,7 @@ router.get("/feed", requireTelegramUser, async (req, res) => {
     WHEN ${localPredicate} THEN 2
     ELSE 1
   END`;
-  const filters = [visibleToViewer(user.id, visibleActorIds)];
+  const filters = [visibleToViewer(user.id, visibleActorIds, communityChatIds)];
 
   if (mode === "following") {
     filters.push(inArray(feedActivityEventsTable.actorId, visibleActorIds));
@@ -502,6 +615,218 @@ router.get("/feed", requireTelegramUser, async (req, res) => {
   });
 });
 
+router.get("/feed/notifications", requireTelegramUser, async (req, res) => {
+  if (!(await ensureCommunityFeedSchema(res))) return;
+  const user = currentUser(req);
+  const rows = await db
+    .select({
+      notification: feedNotificationsTable,
+      actor: usersTable,
+      communityTitle: communityMembersTable.chatTitle,
+      post: postsTable,
+    })
+    .from(feedNotificationsTable)
+    .innerJoin(usersTable, eq(usersTable.id, feedNotificationsTable.actorUserId))
+    .innerJoin(
+      communityMembersTable,
+      and(
+        eq(communityMembersTable.chatId, feedNotificationsTable.communityChatId),
+        eq(communityMembersTable.userId, feedNotificationsTable.recipientUserId),
+      ),
+    )
+    .innerJoin(
+      feedActivityEventsTable,
+      eq(feedActivityEventsTable.id, feedNotificationsTable.activityId),
+    )
+    .innerJoin(
+      postsTable,
+      and(
+        eq(postsTable.id, feedActivityEventsTable.targetId),
+        eq(feedActivityEventsTable.targetType, "post"),
+      ),
+    )
+    .where(eq(feedNotificationsTable.recipientUserId, user.id))
+    .orderBy(desc(feedNotificationsTable.createdAt), desc(feedNotificationsTable.id))
+    .limit(50);
+
+  const notifications = rows.map(({ notification, actor, communityTitle, post }) => ({
+    id: notification.id,
+    activityId: notification.activityId,
+    communityChatId: notification.communityChatId,
+    communityTitle,
+    title: "New community update",
+    message: post.body,
+    actor: {
+      id: actor.id,
+      name: actor.name,
+      username: actor.username,
+      avatarUrl: actor.avatarUrl,
+      city: null,
+      userType: actor.userType,
+      isFriend: false,
+    },
+    isUnread: notification.readAt === null,
+    createdAt: notification.createdAt,
+  }));
+  res.json({
+    notifications,
+    unreadCount: notifications.filter((notification) => notification.isUnread).length,
+  });
+});
+
+router.patch("/feed/notifications/:notificationId/read", requireTelegramUser, async (req, res) => {
+  if (!(await ensureCommunityFeedSchema(res))) return;
+  const notificationId = parsePositiveId(req.params.notificationId);
+  if (!notificationId) {
+    error(res, 400, "Invalid notification.");
+    return;
+  }
+  const user = currentUser(req);
+  const [updated] = await db
+    .update(feedNotificationsTable)
+    .set({ readAt: new Date() })
+    .where(
+      and(
+        eq(feedNotificationsTable.id, notificationId),
+        eq(feedNotificationsTable.recipientUserId, user.id),
+      ),
+    )
+    .returning({ id: feedNotificationsTable.id });
+  if (!updated) {
+    error(res, 404, "Notification not found.");
+    return;
+  }
+  res.status(204).send();
+});
+
+router.get("/community/:chatId/feed", requireTelegramUser, async (req, res) => {
+  const chatId = String(req.params.chatId);
+  if (!/^-?\d{1,20}$/.test(chatId)) {
+    error(res, 400, "That community identifier is invalid.");
+    return;
+  }
+  const rawLimit = typeof req.query.limit === "string"
+    ? Number(req.query.limit)
+    : PAGE_LIMIT_DEFAULT;
+  if (!Number.isSafeInteger(rawLimit) || rawLimit < 1 || rawLimit > 50) {
+    error(res, 400, "Choose a community feed page size between 1 and 50.");
+    return;
+  }
+  const cursorValue = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
+  const cursor = decodeCursor(cursorValue);
+  if (cursorValue && !cursor) {
+    error(res, 400, "This community feed cursor is invalid. Refresh to continue.");
+    return;
+  }
+
+  const user = currentUser(req);
+  const [friendIds, memberChatIds, membershipRows, linkedGroup] = await Promise.all([
+    getAcceptedFriendIds(user.id),
+    getCommunityChatIds(user.id),
+    db
+      .select({ chatTitle: communityMembersTable.chatTitle })
+      .from(communityMembersTable)
+      .where(
+        and(
+          eq(communityMembersTable.chatId, chatId),
+          eq(communityMembersTable.userId, user.id),
+        ),
+      )
+      .limit(1),
+    user.userType === "organisation"
+      ? db
+          .select({
+            chatId: telegramCommunitiesTable.chatId,
+            chatTitle: telegramCommunitiesTable.chatTitle,
+          })
+          .from(telegramCommunitiesTable)
+          .where(
+            and(
+              eq(telegramCommunitiesTable.chatId, chatId),
+              eq(telegramCommunitiesTable.connectedByUserId, user.id),
+            ),
+          )
+          .limit(1)
+      : Promise.resolve([]),
+  ]);
+  if (!membershipRows.length && !linkedGroup.length) {
+    error(res, 403, "Join and verify this Telegram community to see its updates.");
+    return;
+  }
+  const community = {
+    chatId,
+    title: membershipRows[0]?.chatTitle ?? linkedGroup[0]?.chatTitle ?? "Community",
+  };
+  const communityChatIds = [...new Set([...memberChatIds, chatId])];
+  const rows = await itemQuery(
+    user.id,
+    friendIds,
+    communityChatIds,
+    undefined,
+    chatId,
+    cursor,
+  )
+    .orderBy(desc(feedActivityEventsTable.createdAt), desc(feedActivityEventsTable.id))
+    .limit(rawLimit + 1);
+  const pageRows = rows.slice(0, rawLimit);
+  const activityIds = pageRows.map((row) => row.event.id);
+  const [reactions, comments, viewerReactions] = activityIds.length
+    ? await Promise.all([
+        db
+          .select({ activityId: postReactionsTable.activityId, value: count() })
+          .from(postReactionsTable)
+          .where(inArray(postReactionsTable.activityId, activityIds))
+          .groupBy(postReactionsTable.activityId),
+        db
+          .select({ activityId: commentsTable.activityId, value: count() })
+          .from(commentsTable)
+          .where(inArray(commentsTable.activityId, activityIds))
+          .groupBy(commentsTable.activityId),
+        db
+          .select({
+            activityId: postReactionsTable.activityId,
+            reactionType: postReactionsTable.reactionType,
+          })
+          .from(postReactionsTable)
+          .where(
+            and(
+              inArray(postReactionsTable.activityId, activityIds),
+              eq(postReactionsTable.userId, user.id),
+            ),
+          ),
+      ])
+    : [[], [], []];
+  const reactionCountById = new Map(reactions.map((row) => [row.activityId, Number(row.value)]));
+  const commentCountById = new Map(comments.map((row) => [row.activityId, Number(row.value)]));
+  const ownReactionById = new Map(viewerReactions.map((row) => [row.activityId, row.reactionType]));
+  const friendIdSet = new Set(friendIds);
+  const last = pageRows.at(-1);
+  res.json({
+    community,
+    canBroadcastToTelegram: linkedGroup.length > 0,
+    items: pageRows
+      .filter((row) => row.post !== null)
+      .map((row) =>
+        itemFromRow(
+          row,
+          user.id,
+          friendIdSet,
+          reactionCountById.get(row.event.id) ?? 0,
+          commentCountById.get(row.event.id) ?? 0,
+          ownReactionById.get(row.event.id) ?? null,
+        ),
+      ),
+    nextCursor:
+      rows.length > rawLimit && last
+        ? encodeCursor({
+            rank: 1,
+            createdAt: last.event.createdAt.toISOString(),
+            id: last.event.id,
+          })
+        : null,
+  });
+});
+
 router.get("/profiles/:profileId/posts", requireTelegramUser, async (req, res) => {
   const profileId = parsePositiveId(req.params.profileId);
   if (!profileId) {
@@ -510,7 +835,10 @@ router.get("/profiles/:profileId/posts", requireTelegramUser, async (req, res) =
   }
 
   const user = currentUser(req);
-  const friendIds = await getAcceptedFriendIds(user.id);
+  const [friendIds, communityChatIds] = await Promise.all([
+    getAcceptedFriendIds(user.id),
+    getCommunityChatIds(user.id),
+  ]);
   const rows = await db
     .select({
       event: feedActivityEventsTable,
@@ -552,7 +880,11 @@ router.get("/profiles/:profileId/posts", requireTelegramUser, async (req, res) =
         eq(feedActivityEventsTable.actorId, profileId),
         eq(feedActivityEventsTable.type, "status_posted"),
         eq(feedActivityEventsTable.targetType, "post"),
-        visibleToViewer(user.id, [...new Set([user.id, ...friendIds])]),
+        visibleToViewer(
+          user.id,
+          [...new Set([user.id, ...friendIds])],
+          communityChatIds,
+        ),
       ),
     )
     .orderBy(desc(feedActivityEventsTable.createdAt), desc(feedActivityEventsTable.id))
@@ -663,13 +995,74 @@ router.post("/posts", requireTelegramUser, async (req, res) => {
     error(res, 400, "Write an update of up to 500 characters.");
     return;
   }
-  if (parsed.data.visibility === "community") {
-    error(res, 400, "Community sharing is not available yet. Choose friends or public.");
-    return;
-  }
   const user = currentUser(req);
   const visibility = parsed.data.visibility ?? "friends";
+  const communityChatId = parsed.data.communityChatId ?? null;
+  const broadcastToTelegram = parsed.data.broadcastToTelegram ?? false;
+  if (visibility === "community" && !communityChatId) {
+    error(res, 400, "Choose a community for this update.");
+    return;
+  }
+  if (visibility !== "community" && (communityChatId || broadcastToTelegram)) {
+    error(res, 400, "Community updates must be shared only with the selected community.");
+    return;
+  }
+  if (communityChatId && !(await ensureCommunityFeedSchema(res))) return;
+  let linkedTelegramCommunity: { chatId: string; chatTitle: string } | null = null;
+  if (communityChatId) {
+    const [membership] = await db
+      .select({ chatId: communityMembersTable.chatId })
+      .from(communityMembersTable)
+      .where(
+        and(
+          eq(communityMembersTable.chatId, communityChatId),
+          eq(communityMembersTable.userId, user.id),
+        ),
+      )
+      .limit(1);
+    if (user.userType === "organisation") {
+      const [linked] = await db
+        .select({
+          chatId: telegramCommunitiesTable.chatId,
+          chatTitle: telegramCommunitiesTable.chatTitle,
+        })
+        .from(telegramCommunitiesTable)
+        .where(
+          and(
+            eq(telegramCommunitiesTable.chatId, communityChatId),
+            eq(telegramCommunitiesTable.connectedByUserId, user.id),
+          ),
+        )
+        .limit(1);
+      if (linked) linkedTelegramCommunity = linked;
+    }
+    if (!membership && !linkedTelegramCommunity) {
+      error(res, 403, "Join and verify this Telegram community before posting there.");
+      return;
+    }
+  }
+  if (broadcastToTelegram) {
+    if (!linkedTelegramCommunity) {
+      error(res, 403, "This organisation does not manage the selected Telegram community.");
+      return;
+    }
+  }
+  let rateLimited = false;
   const event = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${user.id}, 7341)`);
+    const [recentPosts] = await tx
+      .select({ value: count() })
+      .from(postsTable)
+      .where(
+        and(
+          eq(postsTable.authorId, user.id),
+          sql`${postsTable.createdAt} >= now() - interval '24 hours'`,
+        ),
+      );
+    if (!canCreateFeedPost(Number(recentPosts?.value ?? 0))) {
+      rateLimited = true;
+      return null;
+    }
     const [post] = await tx
       .insert(postsTable)
       .values({ authorId: user.id, kind: parsed.data.kind, body, visibility })
@@ -683,17 +1076,57 @@ router.post("/posts", requireTelegramUser, async (req, res) => {
         targetType: "post",
         targetId: post.id,
         visibility,
+        metadata: communityChatId ? { communityChatId } : {},
       })
       .returning();
     if (!createdEvent) throw new Error("The update could not be added to the feed.");
+    if (communityChatId) {
+      const members = await tx
+        .select({ userId: communityMembersTable.userId })
+        .from(communityMembersTable)
+        .where(eq(communityMembersTable.chatId, communityChatId));
+      if (members.length) {
+        await tx
+          .insert(feedNotificationsTable)
+          .values(
+            members
+              .filter((member) => member.userId !== user.id)
+              .map((member) => ({
+                recipientUserId: member.userId,
+                actorUserId: user.id,
+                activityId: createdEvent.id,
+                communityChatId,
+              })),
+          )
+          .onConflictDoNothing();
+      }
+    }
     return createdEvent;
   });
+  if (rateLimited || !event) {
+    error(res, 429, "You have reached the limit of 10 updates in 24 hours.");
+    return;
+  }
   const { row, friendIds } = await getFeedItemRow(event.id, user.id);
   if (!row) {
     error(res, 500, "The update was created but could not be loaded.");
     return;
   }
-  res.status(201).json(itemFromRow(row, user.id, new Set(friendIds), 0, 0, null));
+  let telegramBroadcastStatus: "not_requested" | "sent" | "failed" =
+    broadcastToTelegram ? "failed" : "not_requested";
+  if (broadcastToTelegram && linkedTelegramCommunity) {
+    const delivered = await sendTelegramCommunityUpdate({
+      chatId: linkedTelegramCommunity.chatId,
+      communityTitle: linkedTelegramCommunity.chatTitle,
+      authorName: user.name,
+      body,
+    });
+    telegramBroadcastStatus = delivered ? "sent" : "failed";
+  }
+  res.status(201).json({
+    item: itemFromRow(row, user.id, new Set(friendIds), 0, 0, null),
+    telegramBroadcastStatus,
+  });
 });
 
 router.get("/posts/:postId", requireTelegramUser, async (req, res) => {
@@ -725,6 +1158,85 @@ router.get("/posts/:postId", requireTelegramUser, async (req, res) => {
       reactions.reactionType,
     ),
   );
+});
+
+router.delete("/posts/:postId", requireTelegramUser, async (req, res) => {
+  const activityId = parsePositiveId(req.params.postId);
+  if (!activityId) {
+    error(res, 400, "Invalid feed update.");
+    return;
+  }
+  const user = currentUser(req);
+  const deleted = await db.transaction(async (tx) => {
+    const [event] = await tx
+      .select({
+        id: feedActivityEventsTable.id,
+        targetId: feedActivityEventsTable.targetId,
+      })
+      .from(feedActivityEventsTable)
+      .where(
+        and(
+          eq(feedActivityEventsTable.id, activityId),
+          eq(feedActivityEventsTable.actorId, user.id),
+          eq(feedActivityEventsTable.type, "status_posted"),
+          eq(feedActivityEventsTable.targetType, "post"),
+        ),
+      )
+      .limit(1);
+    if (!event) return false;
+    await tx
+      .delete(postsTable)
+      .where(and(eq(postsTable.id, event.targetId), eq(postsTable.authorId, user.id)));
+    await tx.delete(feedActivityEventsTable).where(eq(feedActivityEventsTable.id, event.id));
+    return true;
+  });
+  if (!deleted) {
+    error(res, 404, "Update not found.");
+    return;
+  }
+  res.status(204).send();
+});
+
+router.post("/posts/:postId/report", requireTelegramUser, async (req, res) => {
+  if (!(await ensureCommunityFeedSchema(res))) return;
+  const activityId = parsePositiveId(req.params.postId);
+  const body = ReportFeedPostBody.safeParse(req.body);
+  if (!activityId || !body.success) {
+    error(res, 400, "Choose a valid reason for reporting this update.");
+    return;
+  }
+  const user = currentUser(req);
+  const { row } = await getFeedItemRow(activityId, user.id);
+  if (!row || row.event.type !== "status_posted" || !row.post) {
+    error(res, 404, "Update not found.");
+    return;
+  }
+  if (row.event.actorId === user.id) {
+    error(res, 400, "You cannot report your own update.");
+    return;
+  }
+  const [report] = await db
+    .insert(feedPostReportsTable)
+    .values({
+      activityId,
+      reportedActivityId: activityId,
+      reportedAuthorId: row.event.actorId,
+      reporterUserId: user.id,
+      reason: body.data.reason,
+      details: body.data.details?.trim() || null,
+    })
+    .onConflictDoNothing({
+      target: [
+        feedPostReportsTable.reporterUserId,
+        feedPostReportsTable.reportedActivityId,
+      ],
+    })
+    .returning({ id: feedPostReportsTable.id });
+  if (!report) {
+    error(res, 409, "You have already reported this update.");
+    return;
+  }
+  res.status(204).send();
 });
 
 router.put("/posts/:postId/reaction", requireTelegramUser, async (req, res) => {
@@ -831,12 +1343,30 @@ router.post("/posts/:postId/comments", requireTelegramUser, async (req, res) => 
     error(res, 404, "Feed item not found.");
     return;
   }
-  const [comment] = await db
-    .insert(commentsTable)
-    .values({ activityId: parsed.data.postId, userId: user.id, body })
-    .returning();
-  if (!comment) {
-    error(res, 500, "Your comment could not be saved.");
+  let rateLimited = false;
+  const comment = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${user.id}, 7342)`);
+    const [recentComments] = await tx
+      .select({ value: count() })
+      .from(commentsTable)
+      .where(
+        and(
+          eq(commentsTable.userId, user.id),
+          sql`${commentsTable.createdAt} >= now() - interval '1 minute'`,
+        ),
+      );
+    if (!canCreateFeedComment(Number(recentComments?.value ?? 0))) {
+      rateLimited = true;
+      return null;
+    }
+    const [created] = await tx
+      .insert(commentsTable)
+      .values({ activityId: parsed.data.postId, userId: user.id, body })
+      .returning();
+    return created ?? null;
+  });
+  if (rateLimited || !comment) {
+    error(res, 429, "You have reached the limit of 10 comments per minute.");
     return;
   }
   const friendIds = await getAcceptedFriendIds(user.id);

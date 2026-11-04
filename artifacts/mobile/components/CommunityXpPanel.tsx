@@ -14,6 +14,7 @@ import {
 } from '@workspace/api-client-react';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
+import { CommunityFeedSection } from '@/components/CommunityFeedSection';
 
 type IconName = keyof typeof Feather.glyphMap;
 
@@ -552,6 +553,7 @@ export function CommunityXpPanel() {
         <View style={styles.detailStack}>
           <CommunityHero community={details.community} />
           <CommunityStats community={details.community} />
+          <CommunityFeedSection chatId={activeChatId!} />
           <Leaderboard members={details.leaderboard} />
           <ContributionHistory contributions={details.recentContributions} />
         </View>
