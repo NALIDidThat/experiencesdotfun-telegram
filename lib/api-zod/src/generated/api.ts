@@ -2472,6 +2472,36 @@ export const ListFeedNotificationsResponse = zod.object({
 
 
 /**
+ * @summary Get operating-system push notification settings for the current profile
+ */
+export const GetFeedPushSettingsResponse = zod.object({
+  "enabled": zod.boolean()
+})
+
+
+/**
+ * @summary Register an opted-in mobile device for operating-system notifications
+ */
+export const registerFeedPushTokenBodyTokenMin = 20;
+export const registerFeedPushTokenBodyTokenMax = 255;
+
+
+
+export const RegisterFeedPushTokenBody = zod.object({
+  "token": zod.string().min(registerFeedPushTokenBodyTokenMin).max(registerFeedPushTokenBodyTokenMax),
+  "platform": zod.enum(['ios', 'android'])
+})
+
+export const RegisterFeedPushTokenResponse = zod.void()
+
+
+/**
+ * @summary Disable operating-system notifications for all devices on the current profile
+ */
+export const DisableFeedPushNotificationsResponse = zod.void()
+
+
+/**
  * @summary Mark a community update notification as read
  */
 

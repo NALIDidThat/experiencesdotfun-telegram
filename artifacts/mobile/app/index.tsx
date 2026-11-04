@@ -25,6 +25,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { Feather } from '@expo/vector-icons';
 import { QuickActionIcon } from '@/components/QuickActionIcon';
 import { BlurView } from 'expo-blur';
@@ -10147,6 +10148,21 @@ export default function App() {
   const [experienceId, setExperienceId] = useState(params.id);
   const [feedComposerRequest, setFeedComposerRequest] = useState<number | null>(null);
   const feedComposerRequestSequence = useRef(0);
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const openNotificationsFromPush = (response: Notifications.NotificationResponse) => {
+      const notificationData = response.notification.request.content.data;
+      if (notificationData?.screen !== "notifications") return;
+      router.setParams({ screen: "notifications" });
+      void Notifications.clearLastNotificationResponseAsync().catch(() => {});
+    };
+    const lastResponse = Notifications.getLastNotificationResponse();
+    if (lastResponse) openNotificationsFromPush(lastResponse);
+    const subscription =
+      Notifications.addNotificationResponseReceivedListener(openNotificationsFromPush);
+    return () => subscription.remove();
+  }, [router]);
 
   useEffect(() => {
     if (!user) {

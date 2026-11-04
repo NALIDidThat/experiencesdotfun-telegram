@@ -18,6 +18,7 @@ import {
   DeleteFeedCommentParams,
   GetFeedItemParams,
   GetFeedQueryParams,
+  RegisterFeedPushTokenBody,
   ReportFeedPostBody,
   ListFeedCommentsParams,
   RemoveFeedReactionParams,
@@ -31,6 +32,7 @@ import {
   feedActivityEventsTable,
   feedNotificationsTable,
   feedPreferencesTable,
+  feedPushTokensTable,
   feedPostReportsTable,
   friendshipsTable,
   experiencesTable,
@@ -44,6 +46,7 @@ import {
 import { currentUser, requireTelegramUser } from "../lib/auth";
 import { canCreateFeedComment, canCreateFeedPost, isSelfReportedAccountabilityEvent } from "../lib/feed-policy";
 import { sendTelegramCommunityUpdate } from "../lib/telegram";
+import { sendCommunityUpdatePushes } from "../lib/expo-push";
 
 const router: IRouter = Router();
 const PAGE_LIMIT_DEFAULT = 20;
@@ -70,21 +73,27 @@ async function ensureCommunityFeedSchema(res: Response): Promise<boolean> {
       .execute(sql`
         SELECT
           to_regclass('public.feed_notifications') IS NOT NULL AS notifications_table,
-          to_regclass('public.feed_post_reports') IS NOT NULL AS reports_table
+          to_regclass('public.feed_post_reports') IS NOT NULL AS reports_table,
+          to_regclass('public.feed_push_tokens') IS NOT NULL AS push_tokens_table
       `)
       .then((result) => {
         const row = result.rows[0] as {
           notifications_table?: boolean;
           reports_table?: boolean;
+          push_tokens_table?: boolean;
         } | undefined;
-        return Boolean(row?.notifications_table && row?.reports_table);
+        return Boolean(
+          row?.notifications_table &&
+          row?.reports_table &&
+          row?.push_tokens_table,
+        );
       });
     if (await communityFeedSchemaPromise) return true;
     communityFeedSchemaPromise = undefined;
   } catch {
     communityFeedSchemaPromise = undefined;
   }
-  error(res, 503, "Community feed notifications and reporting are unavailable until the database migration is applied.");
+  error(res, 503, "Community feed notifications, reporting, and push settings are unavailable until the database migration is applied.");
   return false;
 }
 
@@ -699,6 +708,64 @@ router.patch("/feed/notifications/:notificationId/read", requireTelegramUser, as
   res.status(204).send();
 });
 
+router.get("/feed/push-settings", requireTelegramUser, async (req, res) => {
+  if (!(await ensureCommunityFeedSchema(res))) return;
+  const user = currentUser(req);
+  const [enabledToken] = await db
+    .select({ id: feedPushTokensTable.id })
+    .from(feedPushTokensTable)
+    .where(
+      and(
+        eq(feedPushTokensTable.userId, user.id),
+        eq(feedPushTokensTable.enabled, true),
+      ),
+    )
+    .limit(1);
+  res.json({ enabled: Boolean(enabledToken) });
+});
+
+router.post("/feed/push-tokens", requireTelegramUser, async (req, res) => {
+  if (!(await ensureCommunityFeedSchema(res))) return;
+  const parsed = RegisterFeedPushTokenBody.safeParse(req.body);
+  if (
+    !parsed.success ||
+    !/^(Expo|Exponent)PushToken\[[A-Za-z0-9_-]+\]$/.test(parsed.data.token)
+  ) {
+    error(res, 400, "Register a valid Expo push token for an iOS or Android device.");
+    return;
+  }
+  const user = currentUser(req);
+  const now = new Date();
+  await db
+    .insert(feedPushTokensTable)
+    .values({
+      userId: user.id,
+      expoPushToken: parsed.data.token,
+      platform: parsed.data.platform,
+      enabled: true,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: feedPushTokensTable.expoPushToken,
+      set: {
+        userId: user.id,
+        platform: parsed.data.platform,
+        enabled: true,
+        updatedAt: now,
+      },
+    });
+  res.status(204).send();
+});
+
+router.delete("/feed/push-tokens", requireTelegramUser, async (req, res) => {
+  if (!(await ensureCommunityFeedSchema(res))) return;
+  const user = currentUser(req);
+  await db
+    .delete(feedPushTokensTable)
+    .where(eq(feedPushTokensTable.userId, user.id));
+  res.status(204).send();
+});
+
 router.get("/community/:chatId/feed", requireTelegramUser, async (req, res) => {
   const chatId = String(req.params.chatId);
   if (!/^-?\d{1,20}$/.test(chatId)) {
@@ -1048,6 +1115,7 @@ router.post("/posts", requireTelegramUser, async (req, res) => {
     }
   }
   let rateLimited = false;
+  let pushTokens: string[] = [];
   const event = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(${user.id}, 7341)`);
     const [recentPosts] = await tx
@@ -1085,20 +1153,33 @@ router.post("/posts", requireTelegramUser, async (req, res) => {
         .select({ userId: communityMembersTable.userId })
         .from(communityMembersTable)
         .where(eq(communityMembersTable.chatId, communityChatId));
-      if (members.length) {
+      const recipientIds = [...new Set(
+        members
+          .filter((member) => member.userId !== user.id)
+          .map((member) => member.userId),
+      )];
+      if (recipientIds.length) {
         await tx
           .insert(feedNotificationsTable)
           .values(
-            members
-              .filter((member) => member.userId !== user.id)
-              .map((member) => ({
-                recipientUserId: member.userId,
+            recipientIds.map((recipientUserId) => ({
+                recipientUserId,
                 actorUserId: user.id,
                 activityId: createdEvent.id,
                 communityChatId,
               })),
           )
           .onConflictDoNothing();
+        const optedInDevices = await tx
+          .select({ token: feedPushTokensTable.expoPushToken })
+          .from(feedPushTokensTable)
+          .where(
+            and(
+              inArray(feedPushTokensTable.userId, recipientIds),
+              eq(feedPushTokensTable.enabled, true),
+            ),
+          );
+        pushTokens = optedInDevices.map((device) => device.token);
       }
     }
     return createdEvent;
@@ -1111,6 +1192,18 @@ router.post("/posts", requireTelegramUser, async (req, res) => {
   if (!row) {
     error(res, 500, "The update was created but could not be loaded.");
     return;
+  }
+  if (communityChatId && pushTokens.length) {
+    const invalidTokens = await sendCommunityUpdatePushes(
+      pushTokens,
+      communityChatId,
+      event.id,
+    );
+    if (invalidTokens.length) {
+      await db
+        .delete(feedPushTokensTable)
+        .where(inArray(feedPushTokensTable.expoPushToken, invalidTokens));
+    }
   }
   let telegramBroadcastStatus: "not_requested" | "sent" | "failed" =
     broadcastToTelegram ? "failed" : "not_requested";

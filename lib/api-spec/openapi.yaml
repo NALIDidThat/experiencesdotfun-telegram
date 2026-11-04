@@ -1675,6 +1675,56 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "503":
           description: Community notifications are not available until the database migration is applied
+  /feed/push-settings:
+    get:
+      operationId: getFeedPushSettings
+      tags: [socialFeed]
+      summary: Get operating-system push notification settings for the current profile
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Whether this profile has any enabled mobile devices
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedPushSettingsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Push notification storage is not available until the database migration is applied
+  /feed/push-tokens:
+    post:
+      operationId: registerFeedPushToken
+      tags: [socialFeed]
+      summary: Register an opted-in mobile device for operating-system notifications
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterFeedPushTokenInput"
+      responses:
+        "204":
+          description: Mobile device registered
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Push notification storage is not available until the database migration is applied
+    delete:
+      operationId: disableFeedPushNotifications
+      tags: [socialFeed]
+      summary: Disable operating-system notifications for all devices on the current profile
+      security: [{ telegramInitData: [] }]
+      responses:
+        "204":
+          description: Push tokens removed for the current profile
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Push notification storage is not available until the database migration is applied
   /feed/notifications/{notificationId}/read:
     patch:
       operationId: markFeedNotificationRead
@@ -7108,6 +7158,24 @@ components:
             $ref: "#/components/schemas/FeedNotification"
         unreadCount: { type: integer }
       required: [notifications, unreadCount]
+    FeedPushSettingsResponse:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+      required: [enabled]
+    RegisterFeedPushTokenInput:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 20
+          maxLength: 255
+        platform:
+          type: string
+          enum: [ios, android]
+      required: [token, platform]
+      additionalProperties: false
     CommunityFeedResponse:
       type: object
       properties:

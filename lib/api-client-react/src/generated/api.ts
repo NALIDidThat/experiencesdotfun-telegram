@@ -79,6 +79,7 @@ import type {
   FeedNotificationsResponse,
   FeedPostCreateResult,
   FeedPreferences,
+  FeedPushSettingsResponse,
   FeedReactionInput,
   FeedReactionState,
   FeedResponse,
@@ -162,6 +163,7 @@ import type {
   ProfilePostsResponse,
   ProfileUpdateInput,
   RedeemXpAwardsResponse,
+  RegisterFeedPushTokenInput,
   ReportFeedPostInput,
   ReviewNode200,
   SavedExperience,
@@ -6032,6 +6034,245 @@ export function useListFeedNotifications<TData = Awaited<ReturnType<typeof listF
 
 
 
+
+export const getGetFeedPushSettingsUrl = () => {
+
+
+
+
+  return `/api/feed/push-settings`
+}
+
+/**
+ * @summary Get operating-system push notification settings for the current profile
+ */
+export const getFeedPushSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<FeedPushSettingsResponse> => {
+
+  return customFetch<FeedPushSettingsResponse>(getGetFeedPushSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFeedPushSettingsQueryKey = () => {
+    return [
+    `/api/feed/push-settings`
+    ] as const;
+    }
+
+
+export const getGetFeedPushSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getFeedPushSettings>>, TError = ErrorType<UnauthorizedResponse | void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeedPushSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFeedPushSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFeedPushSettings>>> = ({ signal }) => getFeedPushSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFeedPushSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFeedPushSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getFeedPushSettings>>>
+export type GetFeedPushSettingsQueryError = ErrorType<UnauthorizedResponse | void>
+
+
+/**
+ * @summary Get operating-system push notification settings for the current profile
+ */
+
+export function useGetFeedPushSettings<TData = Awaited<ReturnType<typeof getFeedPushSettings>>, TError = ErrorType<UnauthorizedResponse | void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeedPushSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFeedPushSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRegisterFeedPushTokenUrl = () => {
+
+
+
+
+  return `/api/feed/push-tokens`
+}
+
+/**
+ * @summary Register an opted-in mobile device for operating-system notifications
+ */
+export const registerFeedPushToken = async (registerFeedPushTokenInput: RegisterFeedPushTokenInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getRegisterFeedPushTokenUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(registerFeedPushTokenInput)
+  }
+);}
+
+
+
+
+
+export const getRegisterFeedPushTokenMutationKey = () => ['registerFeedPushToken'] as const;
+
+export const getRegisterFeedPushTokenMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerFeedPushToken>>, TError,RegisterFeedPushTokenMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof registerFeedPushToken>>, TError,RegisterFeedPushTokenMutationVariables, TContext> => {
+
+const mutationKey = getRegisterFeedPushTokenMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerFeedPushToken>>, RegisterFeedPushTokenMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  registerFeedPushToken(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterFeedPushTokenMutationResult = NonNullable<Awaited<ReturnType<typeof registerFeedPushToken>>>
+    export type RegisterFeedPushTokenMutationBody = BodyType<RegisterFeedPushTokenInput>
+    export type RegisterFeedPushTokenMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | void>
+    export type RegisterFeedPushTokenMutationVariables = {data: BodyType<RegisterFeedPushTokenInput>}
+
+    /**
+ * @summary Register an opted-in mobile device for operating-system notifications
+ */
+export const useRegisterFeedPushToken = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerFeedPushToken>>, TError,RegisterFeedPushTokenMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof registerFeedPushToken>>,
+        TError,
+        RegisterFeedPushTokenMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRegisterFeedPushTokenMutationOptions(options));
+    }
+
+export const getDisableFeedPushNotificationsUrl = () => {
+
+
+
+
+  return `/api/feed/push-tokens`
+}
+
+/**
+ * @summary Disable operating-system notifications for all devices on the current profile
+ */
+export const disableFeedPushNotifications = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDisableFeedPushNotificationsUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisableFeedPushNotificationsMutationKey = () => ['disableFeedPushNotifications'] as const;
+
+export const getDisableFeedPushNotificationsMutationOptions = <TError = ErrorType<UnauthorizedResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disableFeedPushNotifications>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disableFeedPushNotifications>>, TError,void, TContext> => {
+
+const mutationKey = getDisableFeedPushNotificationsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disableFeedPushNotifications>>, void> = () => {
+
+
+          return  disableFeedPushNotifications(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisableFeedPushNotificationsMutationResult = NonNullable<Awaited<ReturnType<typeof disableFeedPushNotifications>>>
+
+    export type DisableFeedPushNotificationsMutationError = ErrorType<UnauthorizedResponse | void>
+
+
+    /**
+ * @summary Disable operating-system notifications for all devices on the current profile
+ */
+export const useDisableFeedPushNotifications = <TError = ErrorType<UnauthorizedResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disableFeedPushNotifications>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disableFeedPushNotifications>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDisableFeedPushNotificationsMutationOptions(options));
+    }
 
 export const getMarkFeedNotificationReadUrl = (notificationId: number,) => {
 

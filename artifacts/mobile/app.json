@@ -18,7 +18,13 @@
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "community"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

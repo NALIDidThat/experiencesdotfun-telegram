@@ -74,6 +74,7 @@
     "@types/google.maps": "^3.66.5",
     "@vis.gl/react-google-maps": "^1.10.1",
     "expo-clipboard": "~57.0.2",
+    "expo-notifications": "~57.0.24",
     "react-native-webview": "13.16.1"
   }
 }

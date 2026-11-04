@@ -3184,6 +3184,27 @@ export interface FeedNotificationsResponse {
   unreadCount: number;
 }
 
+export interface FeedPushSettingsResponse {
+  enabled: boolean;
+}
+
+export type RegisterFeedPushTokenInputPlatform = typeof RegisterFeedPushTokenInputPlatform[keyof typeof RegisterFeedPushTokenInputPlatform];
+
+
+export const RegisterFeedPushTokenInputPlatform = {
+  ios: 'ios',
+  android: 'android',
+} as const;
+
+export interface RegisterFeedPushTokenInput {
+  /**
+     * @minLength 20
+     * @maxLength 255
+     */
+  token: string;
+  platform: RegisterFeedPushTokenInputPlatform;
+}
+
 export type CommunityFeedResponseCommunity = {
   chatId: string;
   title: string;

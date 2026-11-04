@@ -226,6 +226,36 @@ export const feedNotificationsTable = pgTable(
   }),
 );
 
+export const feedPushTokensTable = pgTable(
+  "feed_push_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    expoPushToken: text("expo_push_token").notNull(),
+    platform: text("platform", { enum: ["ios", "android"] }).notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    tokenUnique: uniqueIndex("feed_push_tokens_token_idx").on(table.expoPushToken),
+    userEnabledIndex: index("feed_push_tokens_user_enabled_idx").on(
+      table.userId,
+      table.enabled,
+    ),
+    platformCheck: check(
+      "feed_push_tokens_platform_check",
+      sql`${table.platform} IN ('ios', 'android')`,
+    ),
+    tokenLengthCheck: check(
+      "feed_push_tokens_token_length_check",
+      sql`char_length(${table.expoPushToken}) BETWEEN 20 AND 255`,
+    ),
+  }),
+);
+
 export const insertPostSchema = createInsertSchema(postsTable).omit({
   id: true,
   createdAt: true,
@@ -237,3 +267,4 @@ export type FeedPostReaction = typeof postReactionsTable.$inferSelect;
 export type FeedComment = typeof commentsTable.$inferSelect;
 export type FeedPostReport = typeof feedPostReportsTable.$inferSelect;
 export type FeedNotification = typeof feedNotificationsTable.$inferSelect;
+export type FeedPushToken = typeof feedPushTokensTable.$inferSelect;

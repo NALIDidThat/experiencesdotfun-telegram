@@ -1,24 +1,33 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
+  Linking,
   Pressable,
+  Platform,
   ScrollView,
   Text,
   View,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import Constants from "expo-constants";
+import * as Notifications from "expo-notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetAccountabilityDashboardQueryKey,
+  getGetFeedPushSettingsQueryKey,
   getListFeedNotificationsQueryKey,
   getListFriendNotificationsQueryKey,
   useConfirmAccountabilityCheckIn,
   useGetAccountabilityDashboard,
+  useGetFeedPushSettings,
   useListFriendNotifications,
   useListFeedNotifications,
   useMarkAccountabilityNotificationRead,
   useMarkFeedNotificationRead,
   useMarkFriendNotificationRead,
+  useRegisterFeedPushToken,
+  useDisableFeedPushNotifications,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -54,6 +63,11 @@ export function NotificationsScreen({ onBack, onOpenFriends, onOpenCommunityFeed
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [pushFeedback, setPushFeedback] = useState<string | null>(null);
+  const [pushPermission, setPushPermission] = useState<"checking" | "granted" | "denied" | "unsupported" | "unknown">(
+    Platform.OS === "web" ? "unsupported" : "checking",
+  );
+  const [pushCanAskAgain, setPushCanAskAgain] = useState(true);
   const dashboard = useGetAccountabilityDashboard({
     query: {
       queryKey: [...getGetAccountabilityDashboardQueryKey(), user?.id],
@@ -75,6 +89,41 @@ export function NotificationsScreen({ onBack, onOpenFriends, onOpenCommunityFeed
       refetchInterval: 30_000,
     },
   });
+  const pushSettingsQuery = useGetFeedPushSettings({
+    query: {
+      queryKey: [...getGetFeedPushSettingsQueryKey(), user?.id],
+      enabled: Boolean(user),
+      retry: 1,
+    },
+  });
+  const refreshPushSettings = () => {
+    void queryClient.invalidateQueries({
+      queryKey: getGetFeedPushSettingsQueryKey(),
+    });
+  };
+  const registerPushToken = useRegisterFeedPushToken({
+    mutation: { onSuccess: refreshPushSettings },
+  });
+  const disablePushNotifications = useDisableFeedPushNotifications({
+    mutation: { onSuccess: refreshPushSettings },
+  });
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const refreshPermission = () => {
+      void Notifications.getPermissionsAsync()
+        .then((result) => {
+          setPushPermission(result.granted ? "granted" : "denied");
+          setPushCanAskAgain(result.canAskAgain);
+        })
+        .catch(() => setPushPermission("unknown"));
+    };
+    refreshPermission();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshPermission();
+    });
+    return () => subscription.remove();
+  }, []);
   const refreshNotifications = () => {
     void queryClient.invalidateQueries({
       queryKey: getGetAccountabilityDashboardQueryKey(),
@@ -112,6 +161,82 @@ export function NotificationsScreen({ onBack, onOpenFriends, onOpenCommunityFeed
       setFeedback(errorMessage(error));
     }
   };
+
+  const enablePushNotifications = async () => {
+    setPushFeedback(null);
+    if (Platform.OS !== "ios" && Platform.OS !== "android") {
+      setPushFeedback("Operating-system notifications are available in the installed iOS or Android app, not in a browser or Telegram Mini App.");
+      return;
+    }
+    try {
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("community", {
+          name: "Community updates",
+          importance: Notifications.AndroidImportance.DEFAULT,
+          vibrationPattern: [0, 200, 150, 200],
+        });
+      }
+      let permission = await Notifications.getPermissionsAsync();
+      if (!permission.granted) {
+        permission = await Notifications.requestPermissionsAsync();
+      }
+      setPushPermission(permission.granted ? "granted" : "denied");
+      setPushCanAskAgain(permission.canAskAgain);
+      if (!permission.granted) {
+        setPushFeedback(
+          permission.canAskAgain
+            ? "Notifications are still off. Allow them in the system prompt to continue."
+            : "Notifications are blocked for this app. Open phone settings to allow them.",
+        );
+        return;
+      }
+
+      const projectId =
+        Constants.expoConfig?.extra?.eas?.projectId ??
+        Constants.easConfig?.projectId;
+      if (!projectId) {
+        setPushFeedback("System permission is on, but push delivery needs this app linked to an Expo project with iOS and Android push credentials.");
+        return;
+      }
+      const token = await Notifications.getExpoPushTokenAsync({ projectId });
+      await registerPushToken.mutateAsync({
+        data: {
+          token: token.data,
+          platform: Platform.OS,
+        },
+      });
+      setPushFeedback("Operating-system notifications are enabled for this profile.");
+    } catch (error) {
+      setPushFeedback(errorMessage(error));
+    }
+  };
+
+  const turnOffPushNotifications = async () => {
+    setPushFeedback(null);
+    try {
+      await disablePushNotifications.mutateAsync();
+      setPushFeedback("Operating-system notifications are off for this profile. Phone permission settings were not changed.");
+    } catch (error) {
+      setPushFeedback(errorMessage(error));
+    }
+  };
+
+  const pushActionPending =
+    registerPushToken.isPending || disablePushNotifications.isPending;
+  const pushEnabled = pushSettingsQuery.data?.enabled ?? false;
+  const pushStatus = Platform.OS === "web"
+    ? "Native push is not available in the browser or Telegram Mini App."
+    : pushSettingsQuery.isError
+      ? "Push settings could not load. Try again."
+      : pushSettingsQuery.isLoading
+        ? "Checking notification settings…"
+        : pushPermission === "denied"
+          ? "Notifications are blocked by this device."
+          : pushEnabled
+            ? "Enabled for this profile."
+            : pushPermission === "granted"
+              ? "Phone permission is allowed; push is not enabled for this profile."
+              : "Off until you choose to enable it.";
 
   const isParticipant = user?.userType === "participant";
   const friendNotifications = friendNotificationsQuery.data?.notifications ?? [];
@@ -167,6 +292,72 @@ export function NotificationsScreen({ onBack, onOpenFriends, onOpenCommunityFeed
               {unreadCount}
             </Text>
           </View>
+        ) : null}
+      </View>
+
+      <View style={[cardStyle, { gap: 10, padding: 14 }]}>
+        <View style={{ alignItems: "center", flexDirection: "row", gap: 9 }}>
+          <View style={{ alignItems: "center", backgroundColor: colors.primary + "14", borderRadius: 10, height: 34, justifyContent: "center", width: 34 }}>
+            <Feather name="bell" size={16} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700" }}>
+              Phone notifications
+            </Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 17, marginTop: 2 }}>
+              You choose whether this app can send community update alerts.
+            </Text>
+          </View>
+        </View>
+        <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 17 }}>
+          {pushStatus}
+        </Text>
+        {Platform.OS === "web" ? null : pushPermission === "denied" && !pushCanAskAgain ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open phone notification settings"
+            onPress={() => void Linking.openSettings()}
+            style={({ pressed }) => [
+              primaryButton,
+              { alignItems: "center", justifyContent: "center", minHeight: 42, opacity: pressed ? 0.82 : 1 },
+            ]}
+          >
+            <Text style={{ color: colors.primaryForeground, fontSize: 13, fontWeight: "700" }}>
+              Open phone settings
+            </Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={pushEnabled ? "Turn off operating-system notifications" : "Enable operating-system notifications"}
+            disabled={pushActionPending || pushSettingsQuery.isLoading}
+            onPress={() => void (pushEnabled ? turnOffPushNotifications() : enablePushNotifications())}
+            style={({ pressed }) => [
+              primaryButton,
+              {
+                alignItems: "center",
+                flexDirection: "row",
+                gap: 8,
+                justifyContent: "center",
+                minHeight: 42,
+                opacity: pushActionPending || pushSettingsQuery.isLoading ? 0.55 : pressed ? 0.82 : 1,
+              },
+            ]}
+          >
+            {pushActionPending ? (
+              <ActivityIndicator size="small" color={colors.primaryForeground} />
+            ) : (
+              <Feather name={pushEnabled ? "bell-off" : "bell"} size={14} color={colors.primaryForeground} />
+            )}
+            <Text style={{ color: colors.primaryForeground, fontSize: 13, fontWeight: "700" }}>
+              {pushEnabled ? "Turn off push notifications" : "Enable push notifications"}
+            </Text>
+          </Pressable>
+        )}
+        {pushFeedback ? (
+          <Text accessibilityRole="alert" style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 17 }}>
+            {pushFeedback}
+          </Text>
         ) : null}
       </View>
 
