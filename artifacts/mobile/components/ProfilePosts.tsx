@@ -6,11 +6,10 @@ import {
   listProfilePosts,
   useListProfilePosts,
   type FeedPostCategory,
-  type FeedPostTopic,
   type ProfilePostsResponse,
 } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
-import { FeedCategoryFilters, feedCategoryLabels, feedTopicLabels } from "@/components/FeedCategoryFilters";
+import { FeedCategoryFilters, feedCategoryLabels } from "@/components/FeedCategoryFilters";
 
 const postKindLabels: Record<string, string> = {
   goal: "Goal",
@@ -43,12 +42,11 @@ function postDateLabel(value: string) {
 export function ProfilePosts({ profileId }: { profileId: number }) {
   const colors = useColors();
   const [category, setCategory] = useState<FeedPostCategory>("personal");
-  const [topic, setTopic] = useState<FeedPostTopic | null>(null);
   const [extraPages, setExtraPages] = useState<ProfilePostsResponse[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
   const requestGeneration = useRef(0);
-  const params = { profileId, category, topic: topic ?? undefined, limit: 20 };
+  const params = { profileId, category, limit: 20 };
   const posts = useListProfilePosts(params, {
     query: {
       queryKey: getListProfilePostsQueryKey(params),
@@ -72,11 +70,6 @@ export function ProfilePosts({ profileId }: { profileId: number }) {
   const changeCategory = (nextCategory: FeedPostCategory) => {
     resetPagination();
     setCategory(nextCategory);
-    setTopic(null);
-  };
-  const changeTopic = (nextTopic: FeedPostTopic | null) => {
-    resetPagination();
-    setTopic(nextTopic);
   };
   const loadMore = async () => {
     const lastPage = extraPages.at(-1) ?? posts.data;
@@ -98,6 +91,12 @@ export function ProfilePosts({ profileId }: { profileId: number }) {
 
   return (
     <View testID="profile-posts" style={styles.section}>
+      <FeedCategoryFilters
+        category={category}
+        onCategoryChange={changeCategory}
+        testIDPrefix="profile-posts"
+      />
+
       <View style={styles.heading}>
         <View style={styles.headingCopy}>
           <Text style={[styles.title, { color: colors.foreground }]}>Posts</Text>
@@ -107,14 +106,6 @@ export function ProfilePosts({ profileId }: { profileId: number }) {
         </View>
         <Feather name="message-circle" size={19} color={colors.primary} />
       </View>
-
-      <FeedCategoryFilters
-        category={category}
-        topic={topic}
-        onCategoryChange={changeCategory}
-        onTopicChange={changeTopic}
-        testIDPrefix="profile-posts"
-      />
 
       {posts.isLoading ? (
         <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
@@ -160,7 +151,7 @@ export function ProfilePosts({ profileId }: { profileId: number }) {
                   <View style={[styles.kindBadge, { backgroundColor: colors.primary + "12" }]}>
                     <Feather name="edit-3" size={13} color={colors.primary} />
                     <Text style={[styles.kindText, { color: colors.primary }]}>
-                      {feedCategoryLabels[item.post.category]} · {feedTopicLabels[item.post.topic]} · {kind}
+                      {feedCategoryLabels[item.post.category]} · {kind}
                     </Text>
                   </View>
                   <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
@@ -204,7 +195,7 @@ export function ProfilePosts({ profileId }: { profileId: number }) {
         <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <Feather name="edit-3" size={19} color={colors.mutedForeground} />
           <Text style={[styles.stateText, { color: colors.mutedForeground }]}>
-            No {topic ? feedTopicLabels[topic].toLowerCase() : feedCategoryLabels[category].toLowerCase()} posts to show yet.
+            No {feedCategoryLabels[category].toLowerCase()} posts to show yet.
           </Text>
         </View>
       )}

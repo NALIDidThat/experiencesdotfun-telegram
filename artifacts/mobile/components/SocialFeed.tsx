@@ -39,7 +39,7 @@ import {
   type FeedItem,
   type FeedResponse,
 } from "@workspace/api-client-react";
-import { FeedCategoryFilters, feedCategoryLabels, feedTopicLabels } from "@/components/FeedCategoryFilters";
+import { FeedCategoryFilters, feedCategoryLabels } from "@/components/FeedCategoryFilters";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useColors } from "@/hooks/useColors";
 
@@ -131,7 +131,6 @@ export function SocialFeed({
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<FeedMode>("for-you");
   const [category, setCategory] = useState<FeedPostCategory>("personal");
-  const [topic, setTopic] = useState<FeedPostTopic | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FeedItem | null>(null);
   const [postKind, setPostKind] = useState<PostKind>("thought");
@@ -153,7 +152,7 @@ export function SocialFeed({
   const pageRequestGeneration = useRef(0);
   const handledComposerSignal = useRef<number | null>(null);
 
-  const feedParams = { mode, category, topic: topic ?? undefined, limit: pageSize };
+  const feedParams = { mode, category, limit: pageSize };
   const feedQuery = useGetFeed(feedParams, {
     query: {
       queryKey: getGetFeedQueryKey(feedParams),
@@ -245,11 +244,6 @@ export function SocialFeed({
   const changeCategory = (nextCategory: FeedPostCategory) => {
     resetPagination();
     setCategory(nextCategory);
-    setTopic(null);
-  };
-  const changeTopic = (nextTopic: FeedPostTopic | null) => {
-    resetPagination();
-    setTopic(nextTopic);
   };
 
   const loadMore = async () => {
@@ -258,14 +252,12 @@ export function SocialFeed({
     const generation = pageRequestGeneration.current;
     const requestedMode = mode;
     const requestedCategory = category;
-    const requestedTopic = topic;
     setLoadingMore(true);
     setLoadMoreError(false);
     try {
       const page = await getFeed({
         mode: requestedMode,
         category: requestedCategory,
-        topic: requestedTopic ?? undefined,
         limit: pageSize,
         cursor: lastPage.nextCursor,
       });
@@ -330,7 +322,6 @@ export function SocialFeed({
       setPostBody("");
       setComposerError("");
       setCategory(postCategory);
-      setTopic(null);
       changeMode("for-you");
     } catch (error) {
       setComposerError(requestErrorMessage(
@@ -439,7 +430,7 @@ export function SocialFeed({
       };
     }
     return {
-      title: `No ${topic ? feedTopicLabels[topic].toLowerCase() : feedCategoryLabels[category].toLowerCase()} activity yet`,
+      title: `No ${feedCategoryLabels[category].toLowerCase()} activity yet`,
       body: "Share an update or take part in an experience to get this feed started.",
       action: "Share an update",
       onPress: openComposer,
@@ -450,6 +441,12 @@ export function SocialFeed({
 
   return (
     <View style={styles.container}>
+      <FeedCategoryFilters
+        category={category}
+        onCategoryChange={changeCategory}
+        testIDPrefix="feed-home"
+      />
+
       <View style={styles.headingRow}>
         <View style={styles.headingCopy}>
           <Text style={[styles.eyebrow, { color: colors.primary }]}>YOUR COMMUNITY</Text>
@@ -473,14 +470,6 @@ export function SocialFeed({
           </Text>
         </Pressable>
       </View>
-
-      <FeedCategoryFilters
-        category={category}
-        topic={topic}
-        onCategoryChange={changeCategory}
-        onTopicChange={changeTopic}
-        testIDPrefix="feed-home"
-      />
 
       <View
         style={[
@@ -727,16 +716,11 @@ export function SocialFeed({
             <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Feed</Text>
             <FeedCategoryFilters
               category={postCategory}
-              topic={postTopic}
               onCategoryChange={(nextCategory) => {
                 setPostCategory(nextCategory);
                 setPostTopic("general");
               }}
-              onTopicChange={(nextTopic) => {
-                if (nextTopic) setPostTopic(nextTopic);
-              }}
               testIDPrefix="feed-composer"
-              showAllTopics={false}
             />
             <View style={styles.choiceRow}>
               {(Object.keys(kindLabels) as PostKind[]).map((kind) => {
@@ -1195,7 +1179,7 @@ function FeedCard({
           ]}
         >
           <Text style={[styles.postKind, { color: colors.primary }]}>
-            {feedCategoryLabels[item.post.category]} · {feedTopicLabels[item.post.topic]}
+            {feedCategoryLabels[item.post.category]}
           </Text>
           <Text style={[styles.postKind, { color: colors.primary }]}>
             {kindLabels[item.post.kind as PostKind] ?? "Update"}
