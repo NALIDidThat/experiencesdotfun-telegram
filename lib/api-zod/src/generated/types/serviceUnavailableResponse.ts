@@ -8,6 +8,6 @@
 import type { Error } from './error';
 
 /**
- * Fundraising storage or Solana is temporarily unavailable
+ * A required external service or data store is temporarily unavailable
  */
 export type ServiceUnavailableResponse = Error;

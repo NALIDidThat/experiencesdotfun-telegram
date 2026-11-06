@@ -8,6 +8,7 @@ export type ExploreMapProps = {
   friends?: GlobeFriend[];
   experienceLocations?: GlobeExperienceLocation[];
   nodes?: GlobeNodeLocation[];
+  routePoints?: Array<{ latitude: number; longitude: number }>;
   mode: GlobeMode;
   selectedCity: string | null;
   selectedCityCoordinates?: { latitude: number; longitude: number };

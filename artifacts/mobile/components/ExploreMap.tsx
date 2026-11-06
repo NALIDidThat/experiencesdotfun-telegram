@@ -20,6 +20,7 @@ const ExploreMap = React.forwardRef<ExploreMapHandle, ExploreMapProps>(function 
     friends: props.friends,
     experienceLocations: props.experienceLocations,
     nodes: props.nodes,
+    routePoints: props.routePoints,
     mode: props.mode,
     selectedCity: props.selectedCity,
     selectedCityCoordinates: props.selectedCityCoordinates,

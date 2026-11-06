@@ -45,3 +45,4 @@
 - [OpenAPI UUID parameters](openapi-uuid-parameters.md) — use an anchored UUID pattern for query/path inputs so Orval avoids unsupported Zod coercion chains.
 - [AI assistant product actions](ai-assistant-product-actions.md) — share product tools across app and Telegram while keeping personal history profile-scoped and host drafts review-only.
 - [Feed category boundaries](feed-categories.md) — keep personal/professional classification separate from post kind and visibility, with topics filtering posts only.
+- [Personal route records](personal-route-records.md) — keep participant GPS activities private and separate from hosted Experiences; do not award XP or invent elevation.

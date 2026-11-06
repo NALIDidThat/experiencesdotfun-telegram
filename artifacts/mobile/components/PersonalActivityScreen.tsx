@@ -23,6 +23,7 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { ProfilePosts } from '@/components/ProfilePosts';
 import { PersonalMemoriesPanel, SavedExperiencesPanel } from '@/components/PersonalCollections';
 import { LearningLibraryPanel } from '@/components/LearningDashboardScreen';
+import { PersonalRouteActivityPanel } from '@/components/PersonalRouteActivityPanel';
 
 type ActivityFilter = 'all' | 'experiences' | 'challenges' | 'xp';
 type ActivityKind = Exclude<ActivityFilter, 'all'>;
@@ -53,10 +54,11 @@ type Props = {
   onCreateCardsFromResearch: (researchId: number) => void;
 };
 
-type PersonalSection = 'activity' | 'saved-experiences' | 'learning' | 'memories' | 'posts';
+type PersonalSection = 'activity' | 'route-activities' | 'saved-experiences' | 'learning' | 'memories' | 'posts';
 
 const personalSections: Array<{ key: PersonalSection; label: string }> = [
   { key: 'activity', label: 'Activity' },
+  { key: 'route-activities', label: 'Routes' },
   { key: 'saved-experiences', label: 'Saved experiences' },
   { key: 'learning', label: 'Learning' },
   { key: 'memories', label: 'Memories' },
@@ -563,6 +565,8 @@ export function PersonalActivityScreen({
           />
         ) : section === 'memories' ? (
           <PersonalMemoriesPanel profileId={profileId} />
+        ) : section === 'route-activities' ? (
+          <PersonalRouteActivityPanel />
         ) : (
           <ProfilePosts profileId={profileId} />
         )}

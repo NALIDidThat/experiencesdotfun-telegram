@@ -438,6 +438,482 @@ export const UpdateOrganisationFundResponse = zod.object({
 
 
 /**
+ * @summary Generate and save a participant's route plan from their goal and location
+ */
+export const planMyPersonalActivityBodyGoalMin = 5;
+export const planMyPersonalActivityBodyGoalMax = 500;
+
+export const planMyPersonalActivityBodyDestinationMin = 2;
+export const planMyPersonalActivityBodyDestinationMax = 180;
+
+export const planMyPersonalActivityBodyOriginLatitudeMin = -90;
+export const planMyPersonalActivityBodyOriginLatitudeMax = 90;
+
+export const planMyPersonalActivityBodyOriginLongitudeMin = -180;
+export const planMyPersonalActivityBodyOriginLongitudeMax = 180;
+
+
+
+export const PlanMyPersonalActivityBody = zod.object({
+  "goal": zod.string().min(planMyPersonalActivityBodyGoalMin).max(planMyPersonalActivityBodyGoalMax),
+  "activityType": zod.enum(['walk', 'run', 'cycle']),
+  "destination": zod.string().min(planMyPersonalActivityBodyDestinationMin).max(planMyPersonalActivityBodyDestinationMax),
+  "originLatitude": zod.number().min(planMyPersonalActivityBodyOriginLatitudeMin).max(planMyPersonalActivityBodyOriginLatitudeMax),
+  "originLongitude": zod.number().min(planMyPersonalActivityBodyOriginLongitudeMin).max(planMyPersonalActivityBodyOriginLongitudeMax)
+})
+
+export const planMyPersonalActivityResponsePlanTipsMax = 8;
+
+export const planMyPersonalActivityResponseElevationProfileItemDistanceMetersMin = 0;
+
+export const planMyPersonalActivityResponseElevationProfileItemResolutionMetersMin = 0;
+
+export const planMyPersonalActivityResponseElevationProfileMax = 512;
+
+export const planMyPersonalActivityResponseAverageSpeedMetersPerSecondMin = 0;
+
+
+
+export const PlanMyPersonalActivityResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "goal": zod.string(),
+  "activityType": zod.enum(['walk', 'run', 'cycle']),
+  "destination": zod.string(),
+  "planSummary": zod.string(),
+  "planTips": zod.array(zod.string()).max(planMyPersonalActivityResponsePlanTipsMax),
+  "routePolyline": zod.string(),
+  "plannedDistanceMeters": zod.number().int(),
+  "plannedDurationSeconds": zod.number().int().nullable(),
+  "plannedAscentMeters": zod.number().int().nullable(),
+  "elevationProfile": zod.array(zod.object({
+  "distanceMeters": zod.number().min(planMyPersonalActivityResponseElevationProfileItemDistanceMetersMin),
+  "elevationMeters": zod.number(),
+  "resolutionMeters": zod.number().min(planMyPersonalActivityResponseElevationProfileItemResolutionMetersMin).nullable()
+})).max(planMyPersonalActivityResponseElevationProfileMax),
+  "status": zod.enum(['planned', 'recording', 'paused', 'completed', 'discarded']),
+  "startedAt": zod.coerce.date().nullable(),
+  "pausedAt": zod.coerce.date().nullable(),
+  "pausedSeconds": zod.number().int(),
+  "endedAt": zod.coerce.date().nullable(),
+  "elapsedSeconds": zod.number().int().nullable(),
+  "distanceMeters": zod.number().int().nullable(),
+  "averagePaceSecondsPerKm": zod.number().int().nullable(),
+  "averageSpeedMetersPerSecond": zod.number().min(planMyPersonalActivityResponseAverageSpeedMetersPerSecondMin).nullable(),
+  "totalAscentMeters": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List private activities owned by the signed-in participant
+ */
+export const listMyPersonalActivitiesResponsePlanTipsMax = 8;
+
+export const listMyPersonalActivitiesResponseElevationProfileItemDistanceMetersMin = 0;
+
+export const listMyPersonalActivitiesResponseElevationProfileItemResolutionMetersMin = 0;
+
+export const listMyPersonalActivitiesResponseElevationProfileMax = 512;
+
+export const listMyPersonalActivitiesResponseAverageSpeedMetersPerSecondMin = 0;
+
+
+
+export const ListMyPersonalActivitiesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "goal": zod.string(),
+  "activityType": zod.enum(['walk', 'run', 'cycle']),
+  "destination": zod.string(),
+  "planSummary": zod.string(),
+  "planTips": zod.array(zod.string()).max(listMyPersonalActivitiesResponsePlanTipsMax),
+  "routePolyline": zod.string(),
+  "plannedDistanceMeters": zod.number().int(),
+  "plannedDurationSeconds": zod.number().int().nullable(),
+  "plannedAscentMeters": zod.number().int().nullable(),
+  "elevationProfile": zod.array(zod.object({
+  "distanceMeters": zod.number().min(listMyPersonalActivitiesResponseElevationProfileItemDistanceMetersMin),
+  "elevationMeters": zod.number(),
+  "resolutionMeters": zod.number().min(listMyPersonalActivitiesResponseElevationProfileItemResolutionMetersMin).nullable()
+})).max(listMyPersonalActivitiesResponseElevationProfileMax),
+  "status": zod.enum(['planned', 'recording', 'paused', 'completed', 'discarded']),
+  "startedAt": zod.coerce.date().nullable(),
+  "pausedAt": zod.coerce.date().nullable(),
+  "pausedSeconds": zod.number().int(),
+  "endedAt": zod.coerce.date().nullable(),
+  "elapsedSeconds": zod.number().int().nullable(),
+  "distanceMeters": zod.number().int().nullable(),
+  "averagePaceSecondsPerKm": zod.number().int().nullable(),
+  "averageSpeedMetersPerSecond": zod.number().min(listMyPersonalActivitiesResponseAverageSpeedMetersPerSecondMin).nullable(),
+  "totalAscentMeters": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListMyPersonalActivitiesResponse = zod.array(ListMyPersonalActivitiesResponseItem)
+
+
+/**
+ * @summary Get a private personal activity and its route points
+ */
+
+
+
+export const GetMyPersonalActivityParams = zod.object({
+  "activityId": zod.coerce.number().int().min(1)
+})
+
+export const getMyPersonalActivityResponseOnePlanTipsMax = 8;
+
+export const getMyPersonalActivityResponseOneElevationProfileItemDistanceMetersMin = 0;
+
+export const getMyPersonalActivityResponseOneElevationProfileItemResolutionMetersMin = 0;
+
+export const getMyPersonalActivityResponseOneElevationProfileMax = 512;
+
+export const getMyPersonalActivityResponseOneAverageSpeedMetersPerSecondMin = 0;
+
+export const getMyPersonalActivityResponseTwoRoutePointsItemSequenceMin = 0;
+
+export const getMyPersonalActivityResponseTwoRoutePointsItemLatitudeMin = -90;
+export const getMyPersonalActivityResponseTwoRoutePointsItemLatitudeMax = 90;
+
+export const getMyPersonalActivityResponseTwoRoutePointsItemLongitudeMin = -180;
+export const getMyPersonalActivityResponseTwoRoutePointsItemLongitudeMax = 180;
+
+export const getMyPersonalActivityResponseTwoRoutePointsItemAccuracyMetersMin = 0;
+
+
+
+export const GetMyPersonalActivityResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "goal": zod.string(),
+  "activityType": zod.enum(['walk', 'run', 'cycle']),
+  "destination": zod.string(),
+  "planSummary": zod.string(),
+  "planTips": zod.array(zod.string()).max(getMyPersonalActivityResponseOnePlanTipsMax),
+  "routePolyline": zod.string(),
+  "plannedDistanceMeters": zod.number().int(),
+  "plannedDurationSeconds": zod.number().int().nullable(),
+  "plannedAscentMeters": zod.number().int().nullable(),
+  "elevationProfile": zod.array(zod.object({
+  "distanceMeters": zod.number().min(getMyPersonalActivityResponseOneElevationProfileItemDistanceMetersMin),
+  "elevationMeters": zod.number(),
+  "resolutionMeters": zod.number().min(getMyPersonalActivityResponseOneElevationProfileItemResolutionMetersMin).nullable()
+})).max(getMyPersonalActivityResponseOneElevationProfileMax),
+  "status": zod.enum(['planned', 'recording', 'paused', 'completed', 'discarded']),
+  "startedAt": zod.coerce.date().nullable(),
+  "pausedAt": zod.coerce.date().nullable(),
+  "pausedSeconds": zod.number().int(),
+  "endedAt": zod.coerce.date().nullable(),
+  "elapsedSeconds": zod.number().int().nullable(),
+  "distanceMeters": zod.number().int().nullable(),
+  "averagePaceSecondsPerKm": zod.number().int().nullable(),
+  "averageSpeedMetersPerSecond": zod.number().min(getMyPersonalActivityResponseOneAverageSpeedMetersPerSecondMin).nullable(),
+  "totalAscentMeters": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "routePoints": zod.array(zod.object({
+  "sequence": zod.number().int().min(getMyPersonalActivityResponseTwoRoutePointsItemSequenceMin),
+  "latitude": zod.number().min(getMyPersonalActivityResponseTwoRoutePointsItemLatitudeMin).max(getMyPersonalActivityResponseTwoRoutePointsItemLatitudeMax),
+  "longitude": zod.number().min(getMyPersonalActivityResponseTwoRoutePointsItemLongitudeMin).max(getMyPersonalActivityResponseTwoRoutePointsItemLongitudeMax),
+  "accuracyMeters": zod.number().min(getMyPersonalActivityResponseTwoRoutePointsItemAccuracyMetersMin).nullable(),
+  "recordedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Delete a private personal activity and its route points
+ */
+
+
+
+export const DeleteMyPersonalActivityParams = zod.object({
+  "activityId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteMyPersonalActivityResponse = zod.void()
+
+
+/**
+ * @summary Start recording a saved personal activity plan
+ */
+
+
+
+export const StartMyPersonalActivityParams = zod.object({
+  "activityId": zod.coerce.number().int().min(1)
+})
+
+export const startMyPersonalActivityResponsePlanTipsMax = 8;
+
+export const startMyPersonalActivityResponseElevationProfileItemDistanceMetersMin = 0;
+
+export const startMyPersonalActivityResponseElevationProfileItemResolutionMetersMin = 0;
+
+export const startMyPersonalActivityResponseElevationProfileMax = 512;
+
+export const startMyPersonalActivityResponseAverageSpeedMetersPerSecondMin = 0;
+
+
+
+export const StartMyPersonalActivityResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "goal": zod.string(),
+  "activityType": zod.enum(['walk', 'run', 'cycle']),
+  "destination": zod.string(),
+  "planSummary": zod.string(),
+  "planTips": zod.array(zod.string()).max(startMyPersonalActivityResponsePlanTipsMax),
+  "routePolyline": zod.string(),
+  "plannedDistanceMeters": zod.number().int(),
+  "plannedDurationSeconds": zod.number().int().nullable(),
+  "plannedAscentMeters": zod.number().int().nullable(),
+  "elevationProfile": zod.array(zod.object({
+  "distanceMeters": zod.number().min(startMyPersonalActivityResponseElevationProfileItemDistanceMetersMin),
+  "elevationMeters": zod.number(),
+  "resolutionMeters": zod.number().min(startMyPersonalActivityResponseElevationProfileItemResolutionMetersMin).nullable()
+})).max(startMyPersonalActivityResponseElevationProfileMax),
+  "status": zod.enum(['planned', 'recording', 'paused', 'completed', 'discarded']),
+  "startedAt": zod.coerce.date().nullable(),
+  "pausedAt": zod.coerce.date().nullable(),
+  "pausedSeconds": zod.number().int(),
+  "endedAt": zod.coerce.date().nullable(),
+  "elapsedSeconds": zod.number().int().nullable(),
+  "distanceMeters": zod.number().int().nullable(),
+  "averagePaceSecondsPerKm": zod.number().int().nullable(),
+  "averageSpeedMetersPerSecond": zod.number().min(startMyPersonalActivityResponseAverageSpeedMetersPerSecondMin).nullable(),
+  "totalAscentMeters": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Pause an active personal route recording
+ */
+
+
+
+export const PauseMyPersonalActivityParams = zod.object({
+  "activityId": zod.coerce.number().int().min(1)
+})
+
+export const pauseMyPersonalActivityResponsePlanTipsMax = 8;
+
+export const pauseMyPersonalActivityResponseElevationProfileItemDistanceMetersMin = 0;
+
+export const pauseMyPersonalActivityResponseElevationProfileItemResolutionMetersMin = 0;
+
+export const pauseMyPersonalActivityResponseElevationProfileMax = 512;
+
+export const pauseMyPersonalActivityResponseAverageSpeedMetersPerSecondMin = 0;
+
+
+
+export const PauseMyPersonalActivityResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "goal": zod.string(),
+  "activityType": zod.enum(['walk', 'run', 'cycle']),
+  "destination": zod.string(),
+  "planSummary": zod.string(),
+  "planTips": zod.array(zod.string()).max(pauseMyPersonalActivityResponsePlanTipsMax),
+  "routePolyline": zod.string(),
+  "plannedDistanceMeters": zod.number().int(),
+  "plannedDurationSeconds": zod.number().int().nullable(),
+  "plannedAscentMeters": zod.number().int().nullable(),
+  "elevationProfile": zod.array(zod.object({
+  "distanceMeters": zod.number().min(pauseMyPersonalActivityResponseElevationProfileItemDistanceMetersMin),
+  "elevationMeters": zod.number(),
+  "resolutionMeters": zod.number().min(pauseMyPersonalActivityResponseElevationProfileItemResolutionMetersMin).nullable()
+})).max(pauseMyPersonalActivityResponseElevationProfileMax),
+  "status": zod.enum(['planned', 'recording', 'paused', 'completed', 'discarded']),
+  "startedAt": zod.coerce.date().nullable(),
+  "pausedAt": zod.coerce.date().nullable(),
+  "pausedSeconds": zod.number().int(),
+  "endedAt": zod.coerce.date().nullable(),
+  "elapsedSeconds": zod.number().int().nullable(),
+  "distanceMeters": zod.number().int().nullable(),
+  "averagePaceSecondsPerKm": zod.number().int().nullable(),
+  "averageSpeedMetersPerSecond": zod.number().min(pauseMyPersonalActivityResponseAverageSpeedMetersPerSecondMin).nullable(),
+  "totalAscentMeters": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Resume a paused personal route recording
+ */
+
+
+
+export const ResumeMyPersonalActivityParams = zod.object({
+  "activityId": zod.coerce.number().int().min(1)
+})
+
+export const resumeMyPersonalActivityResponsePlanTipsMax = 8;
+
+export const resumeMyPersonalActivityResponseElevationProfileItemDistanceMetersMin = 0;
+
+export const resumeMyPersonalActivityResponseElevationProfileItemResolutionMetersMin = 0;
+
+export const resumeMyPersonalActivityResponseElevationProfileMax = 512;
+
+export const resumeMyPersonalActivityResponseAverageSpeedMetersPerSecondMin = 0;
+
+
+
+export const ResumeMyPersonalActivityResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "goal": zod.string(),
+  "activityType": zod.enum(['walk', 'run', 'cycle']),
+  "destination": zod.string(),
+  "planSummary": zod.string(),
+  "planTips": zod.array(zod.string()).max(resumeMyPersonalActivityResponsePlanTipsMax),
+  "routePolyline": zod.string(),
+  "plannedDistanceMeters": zod.number().int(),
+  "plannedDurationSeconds": zod.number().int().nullable(),
+  "plannedAscentMeters": zod.number().int().nullable(),
+  "elevationProfile": zod.array(zod.object({
+  "distanceMeters": zod.number().min(resumeMyPersonalActivityResponseElevationProfileItemDistanceMetersMin),
+  "elevationMeters": zod.number(),
+  "resolutionMeters": zod.number().min(resumeMyPersonalActivityResponseElevationProfileItemResolutionMetersMin).nullable()
+})).max(resumeMyPersonalActivityResponseElevationProfileMax),
+  "status": zod.enum(['planned', 'recording', 'paused', 'completed', 'discarded']),
+  "startedAt": zod.coerce.date().nullable(),
+  "pausedAt": zod.coerce.date().nullable(),
+  "pausedSeconds": zod.number().int(),
+  "endedAt": zod.coerce.date().nullable(),
+  "elapsedSeconds": zod.number().int().nullable(),
+  "distanceMeters": zod.number().int().nullable(),
+  "averagePaceSecondsPerKm": zod.number().int().nullable(),
+  "averageSpeedMetersPerSecond": zod.number().min(resumeMyPersonalActivityResponseAverageSpeedMetersPerSecondMin).nullable(),
+  "totalAscentMeters": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Save a batch of private GPS route points for an active activity
+ */
+
+
+
+export const AppendMyPersonalActivityPointsParams = zod.object({
+  "activityId": zod.coerce.number().int().min(1)
+})
+
+export const appendMyPersonalActivityPointsBodyPointsItemSequenceMin = 0;
+
+export const appendMyPersonalActivityPointsBodyPointsItemLatitudeMin = -90;
+export const appendMyPersonalActivityPointsBodyPointsItemLatitudeMax = 90;
+
+export const appendMyPersonalActivityPointsBodyPointsItemLongitudeMin = -180;
+export const appendMyPersonalActivityPointsBodyPointsItemLongitudeMax = 180;
+
+export const appendMyPersonalActivityPointsBodyPointsItemAccuracyMetersMin = 0;
+
+export const appendMyPersonalActivityPointsBodyPointsMax = 100;
+
+
+
+export const AppendMyPersonalActivityPointsBody = zod.object({
+  "points": zod.array(zod.object({
+  "sequence": zod.number().int().min(appendMyPersonalActivityPointsBodyPointsItemSequenceMin),
+  "latitude": zod.number().min(appendMyPersonalActivityPointsBodyPointsItemLatitudeMin).max(appendMyPersonalActivityPointsBodyPointsItemLatitudeMax),
+  "longitude": zod.number().min(appendMyPersonalActivityPointsBodyPointsItemLongitudeMin).max(appendMyPersonalActivityPointsBodyPointsItemLongitudeMax),
+  "accuracyMeters": zod.number().min(appendMyPersonalActivityPointsBodyPointsItemAccuracyMetersMin).nullable(),
+  "recordedAt": zod.coerce.date()
+})).min(1).max(appendMyPersonalActivityPointsBodyPointsMax)
+})
+
+export const AppendMyPersonalActivityPointsResponse = zod.object({
+  "savedCount": zod.number().int(),
+  "lastSequence": zod.number().int()
+})
+
+
+/**
+ * @summary Finish a personal route recording and calculate its metrics
+ */
+
+
+
+export const FinishMyPersonalActivityParams = zod.object({
+  "activityId": zod.coerce.number().int().min(1)
+})
+
+export const finishMyPersonalActivityResponseOnePlanTipsMax = 8;
+
+export const finishMyPersonalActivityResponseOneElevationProfileItemDistanceMetersMin = 0;
+
+export const finishMyPersonalActivityResponseOneElevationProfileItemResolutionMetersMin = 0;
+
+export const finishMyPersonalActivityResponseOneElevationProfileMax = 512;
+
+export const finishMyPersonalActivityResponseOneAverageSpeedMetersPerSecondMin = 0;
+
+export const finishMyPersonalActivityResponseTwoRoutePointsItemSequenceMin = 0;
+
+export const finishMyPersonalActivityResponseTwoRoutePointsItemLatitudeMin = -90;
+export const finishMyPersonalActivityResponseTwoRoutePointsItemLatitudeMax = 90;
+
+export const finishMyPersonalActivityResponseTwoRoutePointsItemLongitudeMin = -180;
+export const finishMyPersonalActivityResponseTwoRoutePointsItemLongitudeMax = 180;
+
+export const finishMyPersonalActivityResponseTwoRoutePointsItemAccuracyMetersMin = 0;
+
+
+
+export const FinishMyPersonalActivityResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "goal": zod.string(),
+  "activityType": zod.enum(['walk', 'run', 'cycle']),
+  "destination": zod.string(),
+  "planSummary": zod.string(),
+  "planTips": zod.array(zod.string()).max(finishMyPersonalActivityResponseOnePlanTipsMax),
+  "routePolyline": zod.string(),
+  "plannedDistanceMeters": zod.number().int(),
+  "plannedDurationSeconds": zod.number().int().nullable(),
+  "plannedAscentMeters": zod.number().int().nullable(),
+  "elevationProfile": zod.array(zod.object({
+  "distanceMeters": zod.number().min(finishMyPersonalActivityResponseOneElevationProfileItemDistanceMetersMin),
+  "elevationMeters": zod.number(),
+  "resolutionMeters": zod.number().min(finishMyPersonalActivityResponseOneElevationProfileItemResolutionMetersMin).nullable()
+})).max(finishMyPersonalActivityResponseOneElevationProfileMax),
+  "status": zod.enum(['planned', 'recording', 'paused', 'completed', 'discarded']),
+  "startedAt": zod.coerce.date().nullable(),
+  "pausedAt": zod.coerce.date().nullable(),
+  "pausedSeconds": zod.number().int(),
+  "endedAt": zod.coerce.date().nullable(),
+  "elapsedSeconds": zod.number().int().nullable(),
+  "distanceMeters": zod.number().int().nullable(),
+  "averagePaceSecondsPerKm": zod.number().int().nullable(),
+  "averageSpeedMetersPerSecond": zod.number().min(finishMyPersonalActivityResponseOneAverageSpeedMetersPerSecondMin).nullable(),
+  "totalAscentMeters": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "routePoints": zod.array(zod.object({
+  "sequence": zod.number().int().min(finishMyPersonalActivityResponseTwoRoutePointsItemSequenceMin),
+  "latitude": zod.number().min(finishMyPersonalActivityResponseTwoRoutePointsItemLatitudeMin).max(finishMyPersonalActivityResponseTwoRoutePointsItemLatitudeMax),
+  "longitude": zod.number().min(finishMyPersonalActivityResponseTwoRoutePointsItemLongitudeMin).max(finishMyPersonalActivityResponseTwoRoutePointsItemLongitudeMax),
+  "accuracyMeters": zod.number().min(finishMyPersonalActivityResponseTwoRoutePointsItemAccuracyMetersMin).nullable(),
+  "recordedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
  * @summary List experiences saved by the signed-in participant
  */
 export const ListMySavedExperiencesResponseItem = zod.object({

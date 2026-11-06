@@ -29,6 +29,10 @@ type SearchPlace = {
   formattedAddress?: string | null;
   location?: { lat: () => number; lng: () => number } | null;
 };
+type RoutePolyline = {
+  setMap: (map: GoogleMapInstance | null) => void;
+  setPath: (path: Point[]) => void;
+};
 const CATEGORIES: Array<{ id: ExploreMapCategory; label: string; types?: string[] }> = [
   { id: 'all', label: 'All' },
   { id: 'food', label: 'Food', types: ['restaurant', 'cafe'] },
@@ -117,6 +121,9 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
   const [locationMessage, setLocationMessage] = useState('');
   const [mapToolsOpen, setMapToolsOpen] = useState(false);
   const [placesLibrary, setPlacesLibrary] = useState<PlacesLibrary | null>(null);
+  const mapsLibrary = useMapsLibrary('maps');
+  const routeLineRef = useRef<RoutePolyline | null>(null);
+  const routeViewportInitialized = useRef(false);
   const resetCenter = point(props.profileCityCenter) ?? { lat: 20, lng: 0 };
   const initialCenter = point(props.profileCityCenter) ?? point(props.selectedCityCoordinates) ?? resetCenter;
   const initialSearchCenter = point(props.profileCityCenter);
@@ -125,6 +132,47 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
   const initialSearchStarted = useRef(false);
   const placeDetailsRequestId = useRef<string | null>(null);
   const initialZoom = props.profileCityCenter || props.selectedCityCoordinates ? 12 : 2;
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const routePoints = props.routePoints ?? [];
+    if (!routePoints.length) {
+      routeLineRef.current?.setMap(null);
+      routeViewportInitialized.current = false;
+      return;
+    }
+    if (!mapReady || !map || !mapsLibrary) return;
+
+    const path = routePoints.map(({ latitude, longitude }) => ({
+      lat: latitude,
+      lng: longitude,
+    }));
+    if (!routeLineRef.current) {
+      routeLineRef.current = new mapsLibrary.Polyline({
+        map,
+        path,
+        geodesic: true,
+        strokeColor: colors.primary,
+        strokeOpacity: 0.95,
+        strokeWeight: 5,
+        zIndex: 20,
+      }) as RoutePolyline;
+    } else {
+      routeLineRef.current.setMap(map);
+      routeLineRef.current.setPath(path);
+    }
+    if (!routeViewportInitialized.current && path.length > 1) {
+      const bounds = new mapsLibrary.LatLngBounds();
+      path.forEach((item) => bounds.extend(item));
+      map.fitBounds(bounds, 40);
+      routeViewportInitialized.current = true;
+    }
+  }, [colors.primary, mapReady, mapsLibrary, props.routePoints]);
+
+  useEffect(() => () => {
+    routeLineRef.current?.setMap(null);
+    routeLineRef.current = null;
+  }, []);
 
   useEffect(() => {
     if (props.sheetExpanded) setMapToolsOpen(false);

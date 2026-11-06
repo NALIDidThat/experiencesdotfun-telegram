@@ -657,6 +657,145 @@ export interface OrganisationVerificationApplicationInput {
   evidenceObjectKeys?: string[];
 }
 
+export type PersonalActivityPlanInputActivityType = typeof PersonalActivityPlanInputActivityType[keyof typeof PersonalActivityPlanInputActivityType];
+
+
+export const PersonalActivityPlanInputActivityType = {
+  walk: 'walk',
+  run: 'run',
+  cycle: 'cycle',
+} as const;
+
+export interface PersonalActivityPlanInput {
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  goal: string;
+  activityType: PersonalActivityPlanInputActivityType;
+  /**
+     * @minLength 2
+     * @maxLength 180
+     */
+  destination: string;
+  /**
+     * @minimum -90
+     * @maximum 90
+     */
+  originLatitude: number;
+  /**
+     * @minimum -180
+     * @maximum 180
+     */
+  originLongitude: number;
+}
+
+export interface PersonalActivityElevationPoint {
+  /** @minimum 0 */
+  distanceMeters: number;
+  elevationMeters: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  resolutionMeters: number | null;
+}
+
+export interface PersonalActivityRoutePoint {
+  /** @minimum 0 */
+  sequence: number;
+  /**
+     * @minimum -90
+     * @maximum 90
+     */
+  latitude: number;
+  /**
+     * @minimum -180
+     * @maximum 180
+     */
+  longitude: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  accuracyMeters: number | null;
+  recordedAt: string;
+}
+
+export interface PersonalActivityPointsInput {
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  points: PersonalActivityRoutePoint[];
+}
+
+export type PersonalActivityActivityType = typeof PersonalActivityActivityType[keyof typeof PersonalActivityActivityType];
+
+
+export const PersonalActivityActivityType = {
+  walk: 'walk',
+  run: 'run',
+  cycle: 'cycle',
+} as const;
+
+export type PersonalActivityStatus = typeof PersonalActivityStatus[keyof typeof PersonalActivityStatus];
+
+
+export const PersonalActivityStatus = {
+  planned: 'planned',
+  recording: 'recording',
+  paused: 'paused',
+  completed: 'completed',
+  discarded: 'discarded',
+} as const;
+
+export interface PersonalActivity {
+  id: number;
+  title: string;
+  goal: string;
+  activityType: PersonalActivityActivityType;
+  destination: string;
+  planSummary: string;
+  /** @maxItems 8 */
+  planTips: string[];
+  routePolyline: string;
+  plannedDistanceMeters: number;
+  /** @nullable */
+  plannedDurationSeconds: number | null;
+  /** @nullable */
+  plannedAscentMeters: number | null;
+  /** @maxItems 512 */
+  elevationProfile: PersonalActivityElevationPoint[];
+  status: PersonalActivityStatus;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  pausedAt: string | null;
+  pausedSeconds: number;
+  /** @nullable */
+  endedAt: string | null;
+  /** @nullable */
+  elapsedSeconds: number | null;
+  /** @nullable */
+  distanceMeters: number | null;
+  /** @nullable */
+  averagePaceSecondsPerKm: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  averageSpeedMetersPerSecond: number | null;
+  /** @nullable */
+  totalAscentMeters: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PersonalActivityDetail = PersonalActivity & {
+  routePoints: PersonalActivityRoutePoint[];
+};
+
 export type SavedExperienceInputCategory = typeof SavedExperienceInputCategory[keyof typeof SavedExperienceInputCategory];
 
 
@@ -3319,9 +3458,14 @@ export interface FeedDeleteResponse {
 export type ForbiddenResponse = Error;
 
 /**
- * Fundraising storage or Solana is temporarily unavailable
+ * A required external service or data store is temporarily unavailable
  */
 export type ServiceUnavailableResponse = Error;
+
+/**
+ * The user has exceeded the allowed request rate
+ */
+export type TooManyRequestsResponse = Error;
 
 /**
  * Request validation failed
@@ -3383,6 +3527,11 @@ export type SyncCharityContributionLedger200 = {
   nextCursor: string | null;
   hasMore: boolean;
   checkedAt: string;
+};
+
+export type AppendMyPersonalActivityPoints200 = {
+  savedCount: number;
+  lastSequence: number;
 };
 
 export type GetPrivateEvidenceAccess200 = {

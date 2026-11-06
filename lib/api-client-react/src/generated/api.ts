@@ -38,6 +38,7 @@ import type {
   AiAssistantMessageInput,
   AnalyticsEventAccepted,
   AnalyticsEventInput,
+  AppendMyPersonalActivityPoints200,
   AuthResponse,
   BadRequestResponse,
   BotInfo,
@@ -157,6 +158,10 @@ import type {
   OrganisationVerificationSubmission,
   Participation,
   ParticipationReviewReasonInput,
+  PersonalActivity,
+  PersonalActivityDetail,
+  PersonalActivityPlanInput,
+  PersonalActivityPointsInput,
   PersonalMemory,
   PersonalMemoryInput,
   PrivateEvidenceAccessInput,
@@ -187,6 +192,7 @@ import type {
   TelegramCommunityRiddleSettings,
   TelegramCommunityRiddleSettingsInput,
   TelegramCommunityRulesResponse,
+  TooManyRequestsResponse,
   TopFriendsInput,
   UnauthorizedResponse,
   UpdateFeedPreferencesInput,
@@ -1295,6 +1301,707 @@ export const useUpdateOrganisationFund = <TError = ErrorType<BadRequestResponse 
         TContext
       > => {
       return useMutation(getUpdateOrganisationFundMutationOptions(options));
+    }
+
+export const getPlanMyPersonalActivityUrl = () => {
+
+
+
+
+  return `/api/me/personal-activities/plan`
+}
+
+/**
+ * @summary Generate and save a participant's route plan from their goal and location
+ */
+export const planMyPersonalActivity = async (personalActivityPlanInput: PersonalActivityPlanInput, options?: Parameters<typeof customFetch>[1]): Promise<PersonalActivity> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PersonalActivity>(getPlanMyPersonalActivityUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(personalActivityPlanInput)
+  }
+);}
+
+
+
+
+
+export const getPlanMyPersonalActivityMutationKey = () => ['planMyPersonalActivity'] as const;
+
+export const getPlanMyPersonalActivityMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | TooManyRequestsResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof planMyPersonalActivity>>, TError,PlanMyPersonalActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof planMyPersonalActivity>>, TError,PlanMyPersonalActivityMutationVariables, TContext> => {
+
+const mutationKey = getPlanMyPersonalActivityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof planMyPersonalActivity>>, PlanMyPersonalActivityMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  planMyPersonalActivity(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PlanMyPersonalActivityMutationResult = NonNullable<Awaited<ReturnType<typeof planMyPersonalActivity>>>
+    export type PlanMyPersonalActivityMutationBody = BodyType<PersonalActivityPlanInput>
+    export type PlanMyPersonalActivityMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | TooManyRequestsResponse | ServiceUnavailableResponse>
+    export type PlanMyPersonalActivityMutationVariables = {data: BodyType<PersonalActivityPlanInput>}
+
+    /**
+ * @summary Generate and save a participant's route plan from their goal and location
+ */
+export const usePlanMyPersonalActivity = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | TooManyRequestsResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof planMyPersonalActivity>>, TError,PlanMyPersonalActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof planMyPersonalActivity>>,
+        TError,
+        PlanMyPersonalActivityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPlanMyPersonalActivityMutationOptions(options));
+    }
+
+export const getListMyPersonalActivitiesUrl = () => {
+
+
+
+
+  return `/api/me/personal-activities`
+}
+
+/**
+ * @summary List private activities owned by the signed-in participant
+ */
+export const listMyPersonalActivities = async ( options?: Parameters<typeof customFetch>[1]): Promise<PersonalActivity[]> => {
+
+  return customFetch<PersonalActivity[]>(getListMyPersonalActivitiesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyPersonalActivitiesQueryKey = () => {
+    return [
+    `/api/me/personal-activities`
+    ] as const;
+    }
+
+
+export const getListMyPersonalActivitiesQueryOptions = <TData = Awaited<ReturnType<typeof listMyPersonalActivities>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyPersonalActivities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyPersonalActivitiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyPersonalActivities>>> = ({ signal }) => listMyPersonalActivities({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyPersonalActivities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyPersonalActivitiesQueryResult = NonNullable<Awaited<ReturnType<typeof listMyPersonalActivities>>>
+export type ListMyPersonalActivitiesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List private activities owned by the signed-in participant
+ */
+
+export function useListMyPersonalActivities<TData = Awaited<ReturnType<typeof listMyPersonalActivities>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyPersonalActivities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyPersonalActivitiesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyPersonalActivityUrl = (activityId: number,) => {
+
+
+
+
+  return `/api/me/personal-activities/${activityId}`
+}
+
+/**
+ * @summary Get a private personal activity and its route points
+ */
+export const getMyPersonalActivity = async (activityId: number, options?: Parameters<typeof customFetch>[1]): Promise<PersonalActivityDetail> => {
+
+  return customFetch<PersonalActivityDetail>(getGetMyPersonalActivityUrl(activityId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyPersonalActivityQueryKey = (activityId: number,) => {
+    return [
+    `/api/me/personal-activities/${activityId}`
+    ] as const;
+    }
+
+
+export const getGetMyPersonalActivityQueryOptions = <TData = Awaited<ReturnType<typeof getMyPersonalActivity>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(activityId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyPersonalActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyPersonalActivityQueryKey(activityId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyPersonalActivity>>> = ({ signal }) => getMyPersonalActivity(activityId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: activityId !== null && activityId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyPersonalActivity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyPersonalActivityQueryResult = NonNullable<Awaited<ReturnType<typeof getMyPersonalActivity>>>
+export type GetMyPersonalActivityQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Get a private personal activity and its route points
+ */
+
+export function useGetMyPersonalActivity<TData = Awaited<ReturnType<typeof getMyPersonalActivity>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+ activityId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyPersonalActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyPersonalActivityQueryOptions(activityId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteMyPersonalActivityUrl = (activityId: number,) => {
+
+
+
+
+  return `/api/me/personal-activities/${activityId}`
+}
+
+/**
+ * @summary Delete a private personal activity and its route points
+ */
+export const deleteMyPersonalActivity = async (activityId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteMyPersonalActivityUrl(activityId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteMyPersonalActivityMutationKey = () => ['deleteMyPersonalActivity'] as const;
+
+export const getDeleteMyPersonalActivityMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMyPersonalActivity>>, TError,DeleteMyPersonalActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMyPersonalActivity>>, TError,DeleteMyPersonalActivityMutationVariables, TContext> => {
+
+const mutationKey = getDeleteMyPersonalActivityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMyPersonalActivity>>, DeleteMyPersonalActivityMutationVariables> = (props) => {
+          const {activityId} = props ?? {};
+
+          return  deleteMyPersonalActivity(activityId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMyPersonalActivityMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMyPersonalActivity>>>
+
+    export type DeleteMyPersonalActivityMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type DeleteMyPersonalActivityMutationVariables = {activityId: number}
+
+    /**
+ * @summary Delete a private personal activity and its route points
+ */
+export const useDeleteMyPersonalActivity = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMyPersonalActivity>>, TError,DeleteMyPersonalActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMyPersonalActivity>>,
+        TError,
+        DeleteMyPersonalActivityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteMyPersonalActivityMutationOptions(options));
+    }
+
+export const getStartMyPersonalActivityUrl = (activityId: number,) => {
+
+
+
+
+  return `/api/me/personal-activities/${activityId}/start`
+}
+
+/**
+ * @summary Start recording a saved personal activity plan
+ */
+export const startMyPersonalActivity = async (activityId: number, options?: Parameters<typeof customFetch>[1]): Promise<PersonalActivity> => {
+
+  return customFetch<PersonalActivity>(getStartMyPersonalActivityUrl(activityId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getStartMyPersonalActivityMutationKey = () => ['startMyPersonalActivity'] as const;
+
+export const getStartMyPersonalActivityMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startMyPersonalActivity>>, TError,StartMyPersonalActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startMyPersonalActivity>>, TError,StartMyPersonalActivityMutationVariables, TContext> => {
+
+const mutationKey = getStartMyPersonalActivityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startMyPersonalActivity>>, StartMyPersonalActivityMutationVariables> = (props) => {
+          const {activityId} = props ?? {};
+
+          return  startMyPersonalActivity(activityId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartMyPersonalActivityMutationResult = NonNullable<Awaited<ReturnType<typeof startMyPersonalActivity>>>
+
+    export type StartMyPersonalActivityMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type StartMyPersonalActivityMutationVariables = {activityId: number}
+
+    /**
+ * @summary Start recording a saved personal activity plan
+ */
+export const useStartMyPersonalActivity = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startMyPersonalActivity>>, TError,StartMyPersonalActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startMyPersonalActivity>>,
+        TError,
+        StartMyPersonalActivityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartMyPersonalActivityMutationOptions(options));
+    }
+
+export const getPauseMyPersonalActivityUrl = (activityId: number,) => {
+
+
+
+
+  return `/api/me/personal-activities/${activityId}/pause`
+}
+
+/**
+ * @summary Pause an active personal route recording
+ */
+export const pauseMyPersonalActivity = async (activityId: number, options?: Parameters<typeof customFetch>[1]): Promise<PersonalActivity> => {
+
+  return customFetch<PersonalActivity>(getPauseMyPersonalActivityUrl(activityId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPauseMyPersonalActivityMutationKey = () => ['pauseMyPersonalActivity'] as const;
+
+export const getPauseMyPersonalActivityMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pauseMyPersonalActivity>>, TError,PauseMyPersonalActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof pauseMyPersonalActivity>>, TError,PauseMyPersonalActivityMutationVariables, TContext> => {
+
+const mutationKey = getPauseMyPersonalActivityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pauseMyPersonalActivity>>, PauseMyPersonalActivityMutationVariables> = (props) => {
+          const {activityId} = props ?? {};
+
+          return  pauseMyPersonalActivity(activityId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PauseMyPersonalActivityMutationResult = NonNullable<Awaited<ReturnType<typeof pauseMyPersonalActivity>>>
+
+    export type PauseMyPersonalActivityMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type PauseMyPersonalActivityMutationVariables = {activityId: number}
+
+    /**
+ * @summary Pause an active personal route recording
+ */
+export const usePauseMyPersonalActivity = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pauseMyPersonalActivity>>, TError,PauseMyPersonalActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof pauseMyPersonalActivity>>,
+        TError,
+        PauseMyPersonalActivityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPauseMyPersonalActivityMutationOptions(options));
+    }
+
+export const getResumeMyPersonalActivityUrl = (activityId: number,) => {
+
+
+
+
+  return `/api/me/personal-activities/${activityId}/resume`
+}
+
+/**
+ * @summary Resume a paused personal route recording
+ */
+export const resumeMyPersonalActivity = async (activityId: number, options?: Parameters<typeof customFetch>[1]): Promise<PersonalActivity> => {
+
+  return customFetch<PersonalActivity>(getResumeMyPersonalActivityUrl(activityId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResumeMyPersonalActivityMutationKey = () => ['resumeMyPersonalActivity'] as const;
+
+export const getResumeMyPersonalActivityMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeMyPersonalActivity>>, TError,ResumeMyPersonalActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resumeMyPersonalActivity>>, TError,ResumeMyPersonalActivityMutationVariables, TContext> => {
+
+const mutationKey = getResumeMyPersonalActivityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resumeMyPersonalActivity>>, ResumeMyPersonalActivityMutationVariables> = (props) => {
+          const {activityId} = props ?? {};
+
+          return  resumeMyPersonalActivity(activityId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResumeMyPersonalActivityMutationResult = NonNullable<Awaited<ReturnType<typeof resumeMyPersonalActivity>>>
+
+    export type ResumeMyPersonalActivityMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type ResumeMyPersonalActivityMutationVariables = {activityId: number}
+
+    /**
+ * @summary Resume a paused personal route recording
+ */
+export const useResumeMyPersonalActivity = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeMyPersonalActivity>>, TError,ResumeMyPersonalActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resumeMyPersonalActivity>>,
+        TError,
+        ResumeMyPersonalActivityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResumeMyPersonalActivityMutationOptions(options));
+    }
+
+export const getAppendMyPersonalActivityPointsUrl = (activityId: number,) => {
+
+
+
+
+  return `/api/me/personal-activities/${activityId}/points`
+}
+
+/**
+ * @summary Save a batch of private GPS route points for an active activity
+ */
+export const appendMyPersonalActivityPoints = async (activityId: number,
+    personalActivityPointsInput: PersonalActivityPointsInput, options?: Parameters<typeof customFetch>[1]): Promise<AppendMyPersonalActivityPoints200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AppendMyPersonalActivityPoints200>(getAppendMyPersonalActivityPointsUrl(activityId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(personalActivityPointsInput)
+  }
+);}
+
+
+
+
+
+export const getAppendMyPersonalActivityPointsMutationKey = () => ['appendMyPersonalActivityPoints'] as const;
+
+export const getAppendMyPersonalActivityPointsMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof appendMyPersonalActivityPoints>>, TError,AppendMyPersonalActivityPointsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof appendMyPersonalActivityPoints>>, TError,AppendMyPersonalActivityPointsMutationVariables, TContext> => {
+
+const mutationKey = getAppendMyPersonalActivityPointsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof appendMyPersonalActivityPoints>>, AppendMyPersonalActivityPointsMutationVariables> = (props) => {
+          const {activityId,data} = props ?? {};
+
+          return  appendMyPersonalActivityPoints(activityId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AppendMyPersonalActivityPointsMutationResult = NonNullable<Awaited<ReturnType<typeof appendMyPersonalActivityPoints>>>
+    export type AppendMyPersonalActivityPointsMutationBody = BodyType<PersonalActivityPointsInput>
+    export type AppendMyPersonalActivityPointsMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type AppendMyPersonalActivityPointsMutationVariables = {activityId: number;data: BodyType<PersonalActivityPointsInput>}
+
+    /**
+ * @summary Save a batch of private GPS route points for an active activity
+ */
+export const useAppendMyPersonalActivityPoints = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof appendMyPersonalActivityPoints>>, TError,AppendMyPersonalActivityPointsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof appendMyPersonalActivityPoints>>,
+        TError,
+        AppendMyPersonalActivityPointsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAppendMyPersonalActivityPointsMutationOptions(options));
+    }
+
+export const getFinishMyPersonalActivityUrl = (activityId: number,) => {
+
+
+
+
+  return `/api/me/personal-activities/${activityId}/finish`
+}
+
+/**
+ * @summary Finish a personal route recording and calculate its metrics
+ */
+export const finishMyPersonalActivity = async (activityId: number, options?: Parameters<typeof customFetch>[1]): Promise<PersonalActivityDetail> => {
+
+  return customFetch<PersonalActivityDetail>(getFinishMyPersonalActivityUrl(activityId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getFinishMyPersonalActivityMutationKey = () => ['finishMyPersonalActivity'] as const;
+
+export const getFinishMyPersonalActivityMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof finishMyPersonalActivity>>, TError,FinishMyPersonalActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof finishMyPersonalActivity>>, TError,FinishMyPersonalActivityMutationVariables, TContext> => {
+
+const mutationKey = getFinishMyPersonalActivityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof finishMyPersonalActivity>>, FinishMyPersonalActivityMutationVariables> = (props) => {
+          const {activityId} = props ?? {};
+
+          return  finishMyPersonalActivity(activityId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FinishMyPersonalActivityMutationResult = NonNullable<Awaited<ReturnType<typeof finishMyPersonalActivity>>>
+
+    export type FinishMyPersonalActivityMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>
+    export type FinishMyPersonalActivityMutationVariables = {activityId: number}
+
+    /**
+ * @summary Finish a personal route recording and calculate its metrics
+ */
+export const useFinishMyPersonalActivity = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof finishMyPersonalActivity>>, TError,FinishMyPersonalActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof finishMyPersonalActivity>>,
+        TError,
+        FinishMyPersonalActivityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getFinishMyPersonalActivityMutationOptions(options));
     }
 
 export const getListMySavedExperiencesUrl = () => {

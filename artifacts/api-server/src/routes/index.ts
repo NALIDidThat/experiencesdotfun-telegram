@@ -16,6 +16,7 @@ import memoryGameRouter from "./memory-game";
 import fundsRouter from "./funds";
 import privateEvidenceRouter from "./private-evidence";
 import personalCollectionsRouter from "./personal-collections";
+import personalActivitiesRouter from "./personal-activities";
 import nodesRouter from "./nodes";
 import learningRouter from "./learning";
 
@@ -35,6 +36,7 @@ router.use("/learning", learningRouter);
 router.use("/memory-game", memoryGameRouter);
 router.use("/funds", fundsRouter);
 router.use(privateEvidenceRouter);
+router.use(personalActivitiesRouter);
 router.use(personalCollectionsRouter);
 router.use(nodesRouter);
 // Telegram/email auth routes are public and must be checked before the
