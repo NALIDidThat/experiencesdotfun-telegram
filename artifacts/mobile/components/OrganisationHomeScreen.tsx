@@ -18,10 +18,11 @@ import { useColors } from '@/hooks/useColors';
 import { NodeDashboardCard } from '@/components/NodeManagementPanel';
 import { UserAvatar } from '@/components/UserAvatar';
 import { selectOrganisationHomePriority } from '@/lib/home-priority';
+import { SocialFeed } from '@/components/SocialFeed';
 
 type Props = {
   user: User;
-  go: (screen: 'profile' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'notifications', params?: Record<string, string>) => void;
+  go: (screen: 'profile' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'notifications' | 'experience' | 'friend-profile' | 'friends' | 'explore', params?: Record<string, string>) => void;
 };
 
 const organisationMilestones: Record<OrganisationProgressMilestoneId, string> = {
@@ -65,6 +66,8 @@ export function OrganisationHomeScreen({ user, go }: Props) {
   const createPromptDismissalKey = `organisation-home:create-prompt-dismissed:${user.id}`;
   const [createPromptDismissed, setCreatePromptDismissed] = useState(false);
   const [loadedDismissalKey, setLoadedDismissalKey] = useState<string | null>(null);
+  const [feedRefreshSignal, setFeedRefreshSignal] = useState(0);
+  const [feedRefreshing, setFeedRefreshing] = useState(false);
   const isCharity = user.organisation?.type === 'charity';
   const overview = useGetHostOverview();
   const experiences = useListHostExperiences();
@@ -141,6 +144,7 @@ export function OrganisationHomeScreen({ user, go }: Props) {
       : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   };
   const refresh = () => {
+    setFeedRefreshSignal((current) => current + 1);
     void Promise.all([
       overview.refetch(),
       experiences.refetch(),
@@ -204,7 +208,7 @@ export function OrganisationHomeScreen({ user, go }: Props) {
         paddingTop: Platform.OS === 'web' ? Math.max(insets.top, 67) : insets.top + 8,
         paddingBottom: Platform.OS === 'web' ? 34 : Math.max(insets.bottom, 24),
       }]}
-      refreshControl={<RefreshControl refreshing={overview.isRefetching || experiences.isRefetching || funds.isRefetching} onRefresh={refresh} tintColor={colors.primary} />}
+      refreshControl={<RefreshControl refreshing={overview.isRefetching || experiences.isRefetching || funds.isRefetching || feedRefreshing} onRefresh={refresh} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.brandRow}>
@@ -238,6 +242,18 @@ export function OrganisationHomeScreen({ user, go }: Props) {
       </View>
 
       <NodeDashboardCard onManage={() => go('profile')} />
+
+      <SocialFeed
+        currentUserId={user.id}
+        refreshSignal={feedRefreshSignal}
+        onRefreshingChange={setFeedRefreshing}
+        onOpenExperience={(id) => go('experience', { id: String(id) })}
+        onOpenFriend={(friendId) => go('friend-profile', { friendId: String(friendId) })}
+        onOpenSelf={() => go('profile')}
+        onOpenFriends={() => go('friends')}
+        onOpenProfile={() => go('profile')}
+        onOpenExplore={() => go('explore')}
+      />
 
       {canShowPriority ? (
         <>

@@ -6,6 +6,7 @@ import {
   eq,
   inArray,
   lt,
+  ne,
   or,
   sql,
   type SQL,
@@ -18,12 +19,14 @@ import {
   DeleteFeedCommentParams,
   GetFeedItemParams,
   GetFeedQueryParams,
+  ListProfilePostsQueryParams,
   RegisterFeedPushTokenBody,
   ReportFeedPostBody,
   ListFeedCommentsParams,
   RemoveFeedReactionParams,
   SetFeedReactionBody,
   SetFeedReactionParams,
+  UpdateFeedPostBody,
   UpdateFeedPreferencesBody,
 } from "@workspace/api-zod";
 import { db } from "@workspace/db";
@@ -42,6 +45,7 @@ import {
   communityMembersTable,
   telegramCommunitiesTable,
   usersTable,
+  type FeedPost,
 } from "@workspace/db/schema";
 import { currentUser, requireTelegramUser } from "../lib/auth";
 import { canCreateFeedComment, canCreateFeedPost, isSelfReportedAccountabilityEvent } from "../lib/feed-policy";
@@ -62,6 +66,53 @@ const automaticActivityTypes = [
 
 type FeedMode = "for-you" | "following" | "local";
 type Cursor = { rank: number; createdAt: string; id: number };
+type FeedPostCategory = FeedPost["category"];
+type FeedPostTopic = FeedPost["topic"];
+
+const allowedTopicsByCategory: Record<FeedPostCategory, readonly FeedPostTopic[]> = {
+  personal: ["general", "goals", "reflections", "experiences", "community"],
+  professional: ["general", "career", "skills", "learning", "networking", "projects"],
+};
+
+let postCategorySchemaPromise: Promise<boolean> | undefined;
+
+async function hasPostCategorySchema(): Promise<boolean> {
+  postCategorySchemaPromise ??= db
+    .execute(sql`
+      SELECT COUNT(*) = 2 AS available
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'posts'
+        AND column_name IN ('category', 'topic')
+    `)
+    .then((result) => Boolean((result.rows[0] as { available?: boolean } | undefined)?.available))
+    .catch(() => false);
+  const available = await postCategorySchemaPromise;
+  if (!available) postCategorySchemaPromise = undefined;
+  return available;
+}
+
+function topicBelongsToCategory(category: FeedPostCategory, topic: FeedPostTopic): boolean {
+  return allowedTopicsByCategory[category].includes(topic);
+}
+
+function postProjection(categorySchemaAvailable: boolean) {
+  return {
+    id: postsTable.id,
+    kind: postsTable.kind,
+    body: postsTable.body,
+    category: categorySchemaAvailable
+      ? postsTable.category
+      : sql<FeedPostCategory>`'personal'`,
+    topic: categorySchemaAvailable
+      ? postsTable.topic
+      : sql<FeedPostTopic>`'general'`,
+  };
+}
+
+function unavailablePostCategories(res: Response): void {
+  error(res, 503, "Personal and professional post categories are unavailable until the database migration is applied.");
+}
 
 function error(res: Response, status: number, message: string) {
   res.status(status).json({ message });
@@ -258,7 +309,7 @@ function itemFromRow(
   row: {
     event: typeof feedActivityEventsTable.$inferSelect;
     actor: typeof usersTable.$inferSelect;
-    post: typeof postsTable.$inferSelect | null;
+    post: Pick<FeedPost, "id" | "kind" | "body" | "category" | "topic"> | null;
     experienceId: number | null;
     experienceTitle: string | null;
     experienceCategory: string | null;
@@ -306,7 +357,13 @@ function itemFromRow(
   const post =
     row.post === null
       ? null
-      : { id: row.post.id, kind: row.post.kind, body: row.post.body };
+      : {
+          id: row.post.id,
+          kind: row.post.kind,
+          category: row.post.category,
+          topic: row.post.topic,
+          body: row.post.body,
+        };
   const xpAmount =
     typeof metadata.amount === "number" && metadata.amount > 0
       ? metadata.amount
@@ -350,6 +407,7 @@ function itemQuery(
   viewerId: number,
   friendIds: number[],
   communityChatIds: string[],
+  postCategorySchemaAvailable: boolean,
   activityId?: number,
   communityChatId?: string,
   cursor?: Cursor,
@@ -390,7 +448,7 @@ function itemQuery(
     .select({
       event: feedActivityEventsTable,
       actor: usersTable,
-      post: postsTable,
+      post: postProjection(postCategorySchemaAvailable),
       experienceId: experiencesTable.id,
       experienceTitle: experiencesTable.title,
       experienceCategory: experiencesTable.category,
@@ -426,11 +484,18 @@ function itemQuery(
 }
 
 async function getFeedItemRow(activityId: number, viewerId: number) {
-  const [friendIds, communityChatIds] = await Promise.all([
+  const [friendIds, communityChatIds, postCategorySchemaAvailable] = await Promise.all([
     getAcceptedFriendIds(viewerId),
     getCommunityChatIds(viewerId),
+    hasPostCategorySchema(),
   ]);
-  const [row] = await itemQuery(viewerId, friendIds, communityChatIds, activityId).limit(1);
+  const [row] = await itemQuery(
+    viewerId,
+    friendIds,
+    communityChatIds,
+    postCategorySchemaAvailable,
+    activityId,
+  ).limit(1);
   return { row, friendIds, communityChatIds };
 }
 
@@ -463,6 +528,8 @@ router.get("/feed", requireTelegramUser, async (req, res) => {
     mode: typeof req.query.mode === "string" ? req.query.mode : undefined,
     cursor: typeof req.query.cursor === "string" ? req.query.cursor : undefined,
     limit: typeof req.query.limit === "string" ? Number(req.query.limit) : undefined,
+    category: typeof req.query.category === "string" ? req.query.category : undefined,
+    topic: typeof req.query.topic === "string" ? req.query.topic : undefined,
   });
   if (!parsed.success) {
     error(res, 400, "Choose a valid feed mode and page size.");
@@ -478,6 +545,21 @@ router.get("/feed", requireTelegramUser, async (req, res) => {
   const user = currentUser(req);
   const mode = parsed.data.mode as FeedMode;
   const limit = parsed.data.limit ?? PAGE_LIMIT_DEFAULT;
+  const category = parsed.data.category as FeedPostCategory | undefined;
+  const topic = parsed.data.topic as FeedPostTopic | undefined;
+  if (topic && (!category || !topicBelongsToCategory(category, topic))) {
+    error(res, 400, "Choose a topic available in the selected feed.");
+    return;
+  }
+  const postCategorySchemaAvailable = await hasPostCategorySchema();
+  if (
+    category &&
+    !postCategorySchemaAvailable &&
+    (category !== "personal" || (topic !== undefined && topic !== "general"))
+  ) {
+    unavailablePostCategories(res);
+    return;
+  }
   const [friendIds, communityChatIds] = await Promise.all([
     getAcceptedFriendIds(user.id),
     getCommunityChatIds(user.id),
@@ -496,6 +578,34 @@ router.get("/feed", requireTelegramUser, async (req, res) => {
     filters.push(inArray(feedActivityEventsTable.actorId, visibleActorIds));
   } else if (mode === "local") {
     filters.push(localPredicate);
+  }
+  if (category && topic) {
+    filters.push(postCategorySchemaAvailable
+      ? and(
+          eq(feedActivityEventsTable.type, "status_posted"),
+          eq(postsTable.category, category),
+          eq(postsTable.topic, topic),
+        )!
+      : eq(feedActivityEventsTable.type, "status_posted"));
+  } else if (category) {
+    const matchingAutomaticEvents = category === "professional"
+      ? eq(feedActivityEventsTable.type, "experience_published")
+      : and(
+          ne(feedActivityEventsTable.type, "status_posted"),
+          ne(feedActivityEventsTable.type, "experience_published"),
+        );
+    const matchingPosts = postCategorySchemaAvailable
+      ? and(
+          eq(feedActivityEventsTable.type, "status_posted"),
+          eq(postsTable.category, category),
+        )!
+      : eq(feedActivityEventsTable.type, "status_posted");
+    filters.push(
+      or(
+        matchingPosts,
+        matchingAutomaticEvents,
+      )!,
+    );
   }
 
   if (cursor) {
@@ -520,7 +630,7 @@ router.get("/feed", requireTelegramUser, async (req, res) => {
     .select({
       event: feedActivityEventsTable,
       actor: usersTable,
-      post: postsTable,
+      post: postProjection(postCategorySchemaAvailable),
       experienceId: experiencesTable.id,
       experienceTitle: experiencesTable.title,
       experienceCategory: experiencesTable.category,
@@ -626,13 +736,14 @@ router.get("/feed", requireTelegramUser, async (req, res) => {
 
 router.get("/feed/notifications", requireTelegramUser, async (req, res) => {
   if (!(await ensureCommunityFeedSchema(res))) return;
+  const postCategorySchemaAvailable = await hasPostCategorySchema();
   const user = currentUser(req);
   const rows = await db
     .select({
       notification: feedNotificationsTable,
       actor: usersTable,
       communityTitle: communityMembersTable.chatTitle,
-      post: postsTable,
+      post: postProjection(postCategorySchemaAvailable),
     })
     .from(feedNotificationsTable)
     .innerJoin(usersTable, eq(usersTable.id, feedNotificationsTable.actorUserId))
@@ -825,10 +936,12 @@ router.get("/community/:chatId/feed", requireTelegramUser, async (req, res) => {
     title: membershipRows[0]?.chatTitle ?? linkedGroup[0]?.chatTitle ?? "Community",
   };
   const communityChatIds = [...new Set([...memberChatIds, chatId])];
+  const postCategorySchemaAvailable = await hasPostCategorySchema();
   const rows = await itemQuery(
     user.id,
     friendIds,
     communityChatIds,
+    postCategorySchemaAvailable,
     undefined,
     chatId,
     cursor,
@@ -894,23 +1007,61 @@ router.get("/community/:chatId/feed", requireTelegramUser, async (req, res) => {
   });
 });
 
-router.get("/profiles/:profileId/posts", requireTelegramUser, async (req, res) => {
-  const profileId = parsePositiveId(req.params.profileId);
-  if (!profileId) {
-    error(res, 400, "This profile identifier is invalid.");
-    return;
+async function profilePostPage({
+  profileId,
+  viewerId,
+  category,
+  topic,
+  cursor,
+  limit,
+  postCategorySchemaAvailable,
+}: {
+  profileId: number;
+  viewerId: number;
+  category?: FeedPostCategory;
+  topic?: FeedPostTopic;
+  cursor?: Cursor;
+  limit: number;
+  postCategorySchemaAvailable: boolean;
+}) {
+  const [friendIds, communityChatIds] = await Promise.all([
+    getAcceptedFriendIds(viewerId),
+    getCommunityChatIds(viewerId),
+  ]);
+  const filters: SQL[] = [
+    eq(feedActivityEventsTable.actorId, profileId),
+    eq(feedActivityEventsTable.type, "status_posted"),
+    eq(feedActivityEventsTable.targetType, "post"),
+    visibleToViewer(
+      viewerId,
+      [...new Set([viewerId, ...friendIds])],
+      communityChatIds,
+    ),
+  ];
+  if (category && postCategorySchemaAvailable) {
+    filters.push(eq(postsTable.category, category));
+  }
+  if (topic && postCategorySchemaAvailable) {
+    filters.push(eq(postsTable.topic, topic));
+  }
+  if (cursor) {
+    const cursorDate = new Date(cursor.createdAt);
+    filters.push(
+      or(
+        lt(feedActivityEventsTable.createdAt, cursorDate),
+        and(
+          eq(feedActivityEventsTable.createdAt, cursorDate),
+          lt(feedActivityEventsTable.id, cursor.id),
+        ),
+      )!,
+    );
   }
 
-  const user = currentUser(req);
-  const [friendIds, communityChatIds] = await Promise.all([
-    getAcceptedFriendIds(user.id),
-    getCommunityChatIds(user.id),
-  ]);
   const rows = await db
     .select({
       event: feedActivityEventsTable,
       actor: usersTable,
-      post: postsTable,
+      post: postProjection(postCategorySchemaAvailable),
       experienceId: experiencesTable.id,
       experienceTitle: experiencesTable.title,
       experienceCategory: experiencesTable.category,
@@ -938,26 +1089,12 @@ router.get("/profiles/:profileId/posts", requireTelegramUser, async (req, res) =
         eq(feedActivityEventsTable.targetType, "experience"),
       ),
     )
-    .leftJoin(
-      organisationsTable,
-      eq(organisationsTable.id, experiencesTable.organisationId),
-    )
-    .where(
-      and(
-        eq(feedActivityEventsTable.actorId, profileId),
-        eq(feedActivityEventsTable.type, "status_posted"),
-        eq(feedActivityEventsTable.targetType, "post"),
-        visibleToViewer(
-          user.id,
-          [...new Set([user.id, ...friendIds])],
-          communityChatIds,
-        ),
-      ),
-    )
+    .leftJoin(organisationsTable, eq(organisationsTable.id, experiencesTable.organisationId))
+    .where(and(...filters))
     .orderBy(desc(feedActivityEventsTable.createdAt), desc(feedActivityEventsTable.id))
-    .limit(20);
+    .limit(limit + 1);
 
-  const pageRows = rows.filter((row) => row.post !== null);
+  const pageRows = rows.slice(0, limit).filter((row) => row.post !== null);
   const activityIds = pageRows.map((row) => row.event.id);
   const [reactionCounts, commentCounts, viewerReactions] = activityIds.length
     ? await Promise.all([
@@ -980,12 +1117,11 @@ router.get("/profiles/:profileId/posts", requireTelegramUser, async (req, res) =
           .where(
             and(
               inArray(postReactionsTable.activityId, activityIds),
-              eq(postReactionsTable.userId, user.id),
+              eq(postReactionsTable.userId, viewerId),
             ),
           ),
       ])
     : [[], [], []];
-
   const reactionCountsById = new Map(
     reactionCounts.map((row) => [row.activityId, Number(row.value)]),
   );
@@ -996,19 +1132,86 @@ router.get("/profiles/:profileId/posts", requireTelegramUser, async (req, res) =
     viewerReactions.map((row) => [row.activityId, row.reactionType]),
   );
   const friendIdSet = new Set(friendIds);
-
-  res.json({
+  const lastRow = pageRows.at(-1);
+  return {
     items: pageRows.map((row) =>
       itemFromRow(
         row,
-        user.id,
+        viewerId,
         friendIdSet,
         reactionCountsById.get(row.event.id) ?? 0,
         commentCountsById.get(row.event.id) ?? 0,
         viewerReactionsById.get(row.event.id) ?? null,
       ),
     ),
+    nextCursor:
+      rows.length > limit && lastRow
+        ? encodeCursor({
+            rank: 1,
+            createdAt: lastRow.event.createdAt.toISOString(),
+            id: lastRow.event.id,
+          })
+        : null,
+  };
+}
+
+router.get("/profiles/:profileId/posts", requireTelegramUser, async (req, res) => {
+  const profileId = parsePositiveId(req.params.profileId);
+  if (!profileId) {
+    error(res, 400, "This profile identifier is invalid.");
+    return;
+  }
+  const user = currentUser(req);
+  res.json(await profilePostPage({
+    profileId,
+    viewerId: user.id,
+    limit: 20,
+    postCategorySchemaAvailable: await hasPostCategorySchema(),
+  }));
+});
+
+router.get("/profile-posts", requireTelegramUser, async (req, res) => {
+  const parsed = ListProfilePostsQueryParams.safeParse({
+    profileId: req.query.profileId,
+    category: req.query.category,
+    topic: req.query.topic,
+    cursor: req.query.cursor,
+    limit: req.query.limit,
   });
+  if (!parsed.success) {
+    error(res, 400, "Choose a valid profile, category, topic, and page size.");
+    return;
+  }
+  const category = parsed.data.category as FeedPostCategory | undefined;
+  const topic = parsed.data.topic as FeedPostTopic | undefined;
+  if (topic && (!category || !topicBelongsToCategory(category, topic))) {
+    error(res, 400, "Choose a topic available in the selected feed.");
+    return;
+  }
+  const cursor = decodeCursor(parsed.data.cursor);
+  if (parsed.data.cursor && (!cursor || cursor.rank !== 1)) {
+    error(res, 400, "This profile post cursor is invalid. Refresh the profile to continue.");
+    return;
+  }
+  const postCategorySchemaAvailable = await hasPostCategorySchema();
+  if (
+    category &&
+    !postCategorySchemaAvailable &&
+    (category !== "personal" || (topic !== undefined && topic !== "general"))
+  ) {
+    unavailablePostCategories(res);
+    return;
+  }
+  const user = currentUser(req);
+  res.json(await profilePostPage({
+    profileId: parsed.data.profileId,
+    viewerId: user.id,
+    category,
+    topic,
+    cursor,
+    limit: parsed.data.limit,
+    postCategorySchemaAvailable,
+  }));
 });
 
 router.get("/feed/preferences", requireTelegramUser, async (req, res) => {
@@ -1060,6 +1263,20 @@ router.post("/posts", requireTelegramUser, async (req, res) => {
   const body = typeof req.body?.body === "string" ? req.body.body.trim() : "";
   if (!parsed.success || !body) {
     error(res, 400, "Write an update of up to 500 characters.");
+    return;
+  }
+  const category = (parsed.data.category ?? "personal") as FeedPostCategory;
+  const topic = (parsed.data.topic ?? "general") as FeedPostTopic;
+  if (!topicBelongsToCategory(category, topic)) {
+    error(res, 400, "Choose a topic available in the selected feed.");
+    return;
+  }
+  const postCategorySchemaAvailable = await hasPostCategorySchema();
+  if (
+    !postCategorySchemaAvailable &&
+    (category !== "personal" || topic !== "general")
+  ) {
+    unavailablePostCategories(res);
     return;
   }
   const user = currentUser(req);
@@ -1131,10 +1348,21 @@ router.post("/posts", requireTelegramUser, async (req, res) => {
       rateLimited = true;
       return null;
     }
-    const [post] = await tx
-      .insert(postsTable)
-      .values({ authorId: user.id, kind: parsed.data.kind, body, visibility })
-      .returning();
+    const postValues = {
+      authorId: user.id,
+      kind: parsed.data.kind,
+      body,
+      visibility,
+    };
+    const [post] = postCategorySchemaAvailable
+      ? await tx
+          .insert(postsTable)
+          .values({ ...postValues, category, topic })
+          .returning({ id: postsTable.id })
+      : await tx
+          .insert(postsTable)
+          .values(postValues)
+          .returning({ id: postsTable.id });
     if (!post) throw new Error("The update could not be created.");
     const [createdEvent] = await tx
       .insert(feedActivityEventsTable)
@@ -1220,6 +1448,112 @@ router.post("/posts", requireTelegramUser, async (req, res) => {
     item: itemFromRow(row, user.id, new Set(friendIds), 0, 0, null),
     telegramBroadcastStatus,
   });
+});
+
+router.patch("/posts/:postId", requireTelegramUser, async (req, res) => {
+  const activityId = parsePositiveId(req.params.postId);
+  const parsed = UpdateFeedPostBody.safeParse(req.body);
+  if (!activityId || !parsed.success) {
+    error(res, 400, "Choose valid update details.");
+    return;
+  }
+  const input = parsed.data;
+  if (!Object.keys(input).length || (input.body !== undefined && !input.body.trim())) {
+    error(res, 400, "Add update text or choose a category, topic, or kind to change.");
+    return;
+  }
+  const categorySchemaAvailable = await hasPostCategorySchema();
+  if (
+    !categorySchemaAvailable &&
+    ((input.category !== undefined && input.category !== "personal") ||
+      (input.topic !== undefined && input.topic !== "general"))
+  ) {
+    unavailablePostCategories(res);
+    return;
+  }
+  const user = currentUser(req);
+  const updatedEvent = await db.transaction(async (tx) => {
+    const [event] = await tx
+      .select({
+        id: feedActivityEventsTable.id,
+        targetId: feedActivityEventsTable.targetId,
+      })
+      .from(feedActivityEventsTable)
+      .where(
+        and(
+          eq(feedActivityEventsTable.id, activityId),
+          eq(feedActivityEventsTable.actorId, user.id),
+          eq(feedActivityEventsTable.type, "status_posted"),
+          eq(feedActivityEventsTable.targetType, "post"),
+        ),
+      )
+      .limit(1);
+    if (!event) return null;
+
+    const [post] = await tx
+      .select({
+        id: postsTable.id,
+        authorId: postsTable.authorId,
+        category: categorySchemaAvailable
+          ? postsTable.category
+          : sql<FeedPostCategory>`'personal'`,
+        topic: categorySchemaAvailable
+          ? postsTable.topic
+          : sql<FeedPostTopic>`'general'`,
+      })
+      .from(postsTable)
+      .where(and(eq(postsTable.id, event.targetId), eq(postsTable.authorId, user.id)))
+      .limit(1);
+    if (!post) return null;
+
+    const category = (input.category ?? post.category) as FeedPostCategory;
+    const topic = (input.topic ?? post.topic) as FeedPostTopic;
+    if (!topicBelongsToCategory(category, topic)) {
+      return { invalidTopic: true as const };
+    }
+
+    const changes: Partial<Pick<FeedPost, "kind" | "body" | "category" | "topic">> = {};
+    if (input.kind !== undefined) changes.kind = input.kind;
+    if (input.body !== undefined) changes.body = input.body.trim();
+    if (categorySchemaAvailable) {
+      if (input.category !== undefined) changes.category = category;
+      if (input.topic !== undefined || input.category !== undefined) changes.topic = topic;
+    }
+    if (Object.keys(changes).length > 0) {
+      await tx.update(postsTable).set(changes).where(eq(postsTable.id, post.id));
+    }
+    return { eventId: event.id, invalidTopic: false as const };
+  });
+  if (!updatedEvent) {
+    error(res, 404, "Update not found.");
+    return;
+  }
+  if ("invalidTopic" in updatedEvent && updatedEvent.invalidTopic) {
+    error(res, 400, "Choose a topic available in the selected feed.");
+    return;
+  }
+  const { row, friendIds } = await getFeedItemRow(updatedEvent.eventId, user.id);
+  if (!row) {
+    error(res, 404, "Update not found.");
+    return;
+  }
+  const [reactions, comments] = await Promise.all([
+    reactionState(row.event.id, user.id),
+    db
+      .select({ value: count() })
+      .from(commentsTable)
+      .where(eq(commentsTable.activityId, row.event.id)),
+  ]);
+  res.json(
+    itemFromRow(
+      row,
+      user.id,
+      new Set(friendIds),
+      reactions.count,
+      Number(comments[0]?.value ?? 0),
+      reactions.reactionType,
+    ),
+  );
 });
 
 router.get("/posts/:postId", requireTelegramUser, async (req, res) => {

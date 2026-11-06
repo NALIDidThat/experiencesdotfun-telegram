@@ -9,4 +9,6 @@ import type { FeedItem } from './feedItem';
 
 export interface ProfilePostsResponse {
   items: FeedItem[];
+  /** @nullable */
+  nextCursor: string | null;
 }

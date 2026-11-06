@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { FeedMode } from './feedMode';
+import type { FeedPostCategory } from './feedPostCategory';
+import type { FeedPostTopic } from './feedPostTopic';
 
 export type GetFeedParams = {
 mode?: FeedMode;
@@ -18,4 +20,6 @@ cursor?: string;
  * @maximum 50
  */
 limit?: number;
+category?: FeedPostCategory;
+topic?: FeedPostTopic;
 };

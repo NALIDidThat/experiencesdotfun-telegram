@@ -1,16 +1,16 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import {
-  getGetProfilePostsQueryKey,
-  useGetProfilePosts,
+  getListProfilePostsQueryKey,
+  listProfilePosts,
+  useListProfilePosts,
+  type FeedPostCategory,
+  type FeedPostTopic,
+  type ProfilePostsResponse,
 } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { FeedCategoryFilters, feedCategoryLabels, feedTopicLabels } from "@/components/FeedCategoryFilters";
 
 const postKindLabels: Record<string, string> = {
   goal: "Goal",
@@ -23,6 +23,11 @@ const visibilityLabels: Record<string, string> = {
   friends: "Friends",
   private: "Only me",
 };
+
+function requestErrorMessage(error: unknown): string {
+  const message = (error as { data?: { message?: unknown } } | null)?.data?.message;
+  return typeof message === "string" ? message : "Posts couldn’t be loaded.";
+}
 
 function postDateLabel(value: string) {
   const date = new Date(value);
@@ -37,13 +42,59 @@ function postDateLabel(value: string) {
 
 export function ProfilePosts({ profileId }: { profileId: number }) {
   const colors = useColors();
-  const posts = useGetProfilePosts(profileId, {
+  const [category, setCategory] = useState<FeedPostCategory>("personal");
+  const [topic, setTopic] = useState<FeedPostTopic | null>(null);
+  const [extraPages, setExtraPages] = useState<ProfilePostsResponse[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
+  const requestGeneration = useRef(0);
+  const params = { profileId, category, topic: topic ?? undefined, limit: 20 };
+  const posts = useListProfilePosts(params, {
     query: {
-      queryKey: getGetProfilePostsQueryKey(profileId),
+      queryKey: getListProfilePostsQueryKey(params),
       enabled: Number.isSafeInteger(profileId) && profileId > 0,
       staleTime: 30_000,
     },
   });
+  useEffect(() => {
+    requestGeneration.current += 1;
+    setExtraPages([]);
+    setLoadingMore(false);
+    setLoadMoreError(false);
+  }, [posts.dataUpdatedAt]);
+  const items = [...(posts.data?.items ?? []), ...extraPages.flatMap((page) => page.items)];
+  const resetPagination = () => {
+    requestGeneration.current += 1;
+    setExtraPages([]);
+    setLoadingMore(false);
+    setLoadMoreError(false);
+  };
+  const changeCategory = (nextCategory: FeedPostCategory) => {
+    resetPagination();
+    setCategory(nextCategory);
+    setTopic(null);
+  };
+  const changeTopic = (nextTopic: FeedPostTopic | null) => {
+    resetPagination();
+    setTopic(nextTopic);
+  };
+  const loadMore = async () => {
+    const lastPage = extraPages.at(-1) ?? posts.data;
+    if (!lastPage?.nextCursor || loadingMore) return;
+    const generation = requestGeneration.current;
+    setLoadingMore(true);
+    setLoadMoreError(false);
+    try {
+      const page = await listProfilePosts({ ...params, cursor: lastPage.nextCursor });
+      if (generation === requestGeneration.current) {
+        setExtraPages((current) => [...current, page]);
+      }
+    } catch {
+      if (generation === requestGeneration.current) setLoadMoreError(true);
+    } finally {
+      if (generation === requestGeneration.current) setLoadingMore(false);
+    }
+  };
 
   return (
     <View testID="profile-posts" style={styles.section}>
@@ -57,6 +108,14 @@ export function ProfilePosts({ profileId }: { profileId: number }) {
         <Feather name="message-circle" size={19} color={colors.primary} />
       </View>
 
+      <FeedCategoryFilters
+        category={category}
+        topic={topic}
+        onCategoryChange={changeCategory}
+        onTopicChange={changeTopic}
+        testIDPrefix="profile-posts"
+      />
+
       {posts.isLoading ? (
         <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <ActivityIndicator color={colors.primary} />
@@ -67,7 +126,7 @@ export function ProfilePosts({ profileId }: { profileId: number }) {
       ) : posts.isError ? (
         <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <Text style={[styles.stateText, { color: colors.destructive }]}>
-            Posts couldn’t be loaded.
+            {requestErrorMessage(posts.error)}
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -79,9 +138,9 @@ export function ProfilePosts({ profileId }: { profileId: number }) {
             <Text style={[styles.retryText, { color: colors.primary }]}>Try again</Text>
           </Pressable>
         </View>
-      ) : posts.data?.items.length ? (
+      ) : items.length ? (
         <View style={styles.postList}>
-          {posts.data.items.map((item) => {
+          {items.map((item) => {
             if (!item.post) return null;
             const kind = postKindLabels[item.post.kind] ?? "Update";
             const visibility = visibilityLabels[item.visibility] ?? "Shared";
@@ -100,7 +159,9 @@ export function ProfilePosts({ profileId }: { profileId: number }) {
                 <View style={styles.postMetaRow}>
                   <View style={[styles.kindBadge, { backgroundColor: colors.primary + "12" }]}>
                     <Feather name="edit-3" size={13} color={colors.primary} />
-                    <Text style={[styles.kindText, { color: colors.primary }]}>{kind}</Text>
+                    <Text style={[styles.kindText, { color: colors.primary }]}>
+                      {feedCategoryLabels[item.post.category]} · {feedTopicLabels[item.post.topic]} · {kind}
+                    </Text>
                   </View>
                   <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
                     {visibility} · {postDateLabel(item.createdAt)}
@@ -112,12 +173,38 @@ export function ProfilePosts({ profileId }: { profileId: number }) {
               </View>
             );
           })}
+          {loadMoreError ? (
+            <Text style={[styles.stateText, { color: colors.destructive }]}>
+              More posts couldn’t be loaded. Try again.
+            </Text>
+          ) : null}
+          {Boolean(extraPages.at(-1)?.nextCursor ?? posts.data?.nextCursor) ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={loadMoreError ? "Retry loading more posts" : "Load more posts"}
+              testID="profile-posts-load-more"
+              disabled={loadingMore}
+              onPress={() => void loadMore()}
+              style={({ pressed }) => [
+                styles.retryButton,
+                { opacity: pressed || loadingMore ? 0.65 : 1 },
+              ]}
+            >
+              {loadingMore ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Text style={[styles.retryText, { color: colors.primary }]}>
+                  {loadMoreError ? "Try again" : "Load more"}
+                </Text>
+              )}
+            </Pressable>
+          ) : null}
         </View>
       ) : (
         <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
           <Feather name="edit-3" size={19} color={colors.mutedForeground} />
           <Text style={[styles.stateText, { color: colors.mutedForeground }]}>
-            No posts to show yet.
+            No {topic ? feedTopicLabels[topic].toLowerCase() : feedCategoryLabels[category].toLowerCase()} posts to show yet.
           </Text>
         </View>
       )}

@@ -3037,6 +3037,30 @@ export const FeedPostKind = {
   thought: 'thought',
 } as const;
 
+export type FeedPostCategory = typeof FeedPostCategory[keyof typeof FeedPostCategory];
+
+
+export const FeedPostCategory = {
+  personal: 'personal',
+  professional: 'professional',
+} as const;
+
+export type FeedPostTopic = typeof FeedPostTopic[keyof typeof FeedPostTopic];
+
+
+export const FeedPostTopic = {
+  general: 'general',
+  goals: 'goals',
+  reflections: 'reflections',
+  experiences: 'experiences',
+  community: 'community',
+  career: 'career',
+  skills: 'skills',
+  learning: 'learning',
+  networking: 'networking',
+  projects: 'projects',
+} as const;
+
 export type FeedActivityType = typeof FeedActivityType[keyof typeof FeedActivityType];
 
 
@@ -3081,6 +3105,8 @@ export interface FeedExperience {
 export interface FeedPostContent {
   id: number;
   kind: FeedPostKind;
+  category: FeedPostCategory;
+  topic: FeedPostTopic;
   body: string;
 }
 
@@ -3121,6 +3147,8 @@ export interface FeedResponse {
 
 export interface ProfilePostsResponse {
   items: FeedItem[];
+  /** @nullable */
+  nextCursor: string | null;
 }
 
 export interface CreateFeedPostInput {
@@ -3131,9 +3159,22 @@ export interface CreateFeedPostInput {
      */
   body: string;
   visibility?: FeedVisibility;
+  category?: FeedPostCategory;
+  topic?: FeedPostTopic;
   /** @pattern ^-?[0-9]{1,20}$ */
   communityChatId?: string;
   broadcastToTelegram?: boolean;
+}
+
+export interface FeedPostUpdateInput {
+  kind?: FeedPostKind;
+  category?: FeedPostCategory;
+  topic?: FeedPostTopic;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  body?: string;
 }
 
 export type FeedPostCreateResultTelegramBroadcastStatus = typeof FeedPostCreateResultTelegramBroadcastStatus[keyof typeof FeedPostCreateResultTelegramBroadcastStatus];
@@ -3390,6 +3431,26 @@ before?: string;
 
 export type GetFeedParams = {
 mode?: FeedMode;
+/**
+ * @maxLength 256
+ */
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+category?: FeedPostCategory;
+topic?: FeedPostTopic;
+};
+
+export type ListProfilePostsParams = {
+/**
+ * @minimum 1
+ */
+profileId: number;
+category?: FeedPostCategory;
+topic?: FeedPostTopic;
 /**
  * @maxLength 256
  */

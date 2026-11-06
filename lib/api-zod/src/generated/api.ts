@@ -2390,7 +2390,9 @@ export const getFeedQueryLimitMax = 50;
 export const GetFeedQueryParams = zod.object({
   "mode": zod.enum(['for-you', 'following', 'local']).default(getFeedQueryModeDefault),
   "cursor": zod.coerce.string().max(getFeedQueryCursorMax).optional(),
-  "limit": zod.coerce.number().int().min(1).max(getFeedQueryLimitMax).default(getFeedQueryLimitDefault)
+  "limit": zod.coerce.number().int().min(1).max(getFeedQueryLimitMax).default(getFeedQueryLimitDefault),
+  "category": zod.enum(['personal', 'professional']).optional(),
+  "topic": zod.enum(['general', 'goals', 'reflections', 'experiences', 'community', 'career', 'skills', 'learning', 'networking', 'projects']).optional()
 })
 
 export const getFeedResponseModeDefault = `for-you`;
@@ -2426,6 +2428,8 @@ export const GetFeedResponse = zod.object({
   "post": zod.union([zod.object({
   "id": zod.number().int(),
   "kind": zod.enum(['goal', 'doing', 'thought']),
+  "category": zod.enum(['personal', 'professional']),
+  "topic": zod.enum(['general', 'goals', 'reflections', 'experiences', 'community', 'career', 'skills', 'learning', 'networking', 'projects']),
   "body": zod.string()
 }),zod.null()]),
   "xpAmount": zod.number().int().nullable(),
@@ -2546,6 +2550,8 @@ export const CreateFeedPostBody = zod.object({
   "kind": zod.enum(['goal', 'doing', 'thought']),
   "body": zod.string().min(1).max(createFeedPostBodyBodyMax),
   "visibility": zod.enum(['public', 'friends', 'community', 'private']).optional(),
+  "category": zod.enum(['personal', 'professional']).optional(),
+  "topic": zod.enum(['general', 'goals', 'reflections', 'experiences', 'community', 'career', 'skills', 'learning', 'networking', 'projects']).optional(),
   "communityChatId": zod.string().regex(createFeedPostBodyCommunityChatIdRegExp).optional(),
   "broadcastToTelegram": zod.boolean().default(createFeedPostBodyBroadcastToTelegramDefault)
 })
@@ -2581,6 +2587,8 @@ export const CreateFeedPostResponse = zod.object({
   "post": zod.union([zod.object({
   "id": zod.number().int(),
   "kind": zod.enum(['goal', 'doing', 'thought']),
+  "category": zod.enum(['personal', 'professional']),
+  "topic": zod.enum(['general', 'goals', 'reflections', 'experiences', 'community', 'career', 'skills', 'learning', 'networking', 'projects']),
   "body": zod.string()
 }),zod.null()]),
   "xpAmount": zod.number().int().nullable(),
@@ -2660,6 +2668,8 @@ export const GetProfilePostsResponse = zod.object({
   "post": zod.union([zod.object({
   "id": zod.number().int(),
   "kind": zod.enum(['goal', 'doing', 'thought']),
+  "category": zod.enum(['personal', 'professional']),
+  "topic": zod.enum(['general', 'goals', 'reflections', 'experiences', 'community', 'career', 'skills', 'learning', 'networking', 'projects']),
   "body": zod.string()
 }),zod.null()]),
   "xpAmount": zod.number().int().nullable(),
@@ -2671,7 +2681,143 @@ export const GetProfilePostsResponse = zod.object({
   "reactionType": zod.string().nullable()
 }),
   "commentCount": zod.number().int()
-}))
+})),
+  "nextCursor": zod.string().nullable()
+})
+
+
+/**
+ * @summary List category-filtered posts visible to the current viewer on a profile
+ */
+
+export const listProfilePostsQueryCursorMax = 256;
+
+export const listProfilePostsQueryLimitDefault = 20;
+export const listProfilePostsQueryLimitMax = 50;
+
+
+
+export const ListProfilePostsQueryParams = zod.object({
+  "profileId": zod.coerce.number().int().min(1),
+  "category": zod.enum(['personal', 'professional']).optional(),
+  "topic": zod.enum(['general', 'goals', 'reflections', 'experiences', 'community', 'career', 'skills', 'learning', 'networking', 'projects']).optional(),
+  "cursor": zod.coerce.string().max(listProfilePostsQueryCursorMax).optional(),
+  "limit": zod.coerce.number().int().min(1).max(listProfilePostsQueryLimitMax).default(listProfilePostsQueryLimitDefault)
+})
+
+export const ListProfilePostsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['experience_published', 'experience_joined', 'experience_verified', 'xp_earned', 'achievement_unlocked', 'accountability_checkin', 'accountability_goal_completed', 'status_posted']),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "userType": zod.string().nullable(),
+  "isFriend": zod.boolean()
+}),
+  "createdAt": zod.coerce.date(),
+  "visibility": zod.enum(['public', 'friends', 'community', 'private']),
+  "communityChatId": zod.string().nullable(),
+  "experience": zod.union([zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "date": zod.string(),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "city": zod.string(),
+  "location": zod.string(),
+  "xpReward": zod.number().int(),
+  "organisationName": zod.string()
+}),zod.null()]),
+  "post": zod.union([zod.object({
+  "id": zod.number().int(),
+  "kind": zod.enum(['goal', 'doing', 'thought']),
+  "category": zod.enum(['personal', 'professional']),
+  "topic": zod.enum(['general', 'goals', 'reflections', 'experiences', 'community', 'career', 'skills', 'learning', 'networking', 'projects']),
+  "body": zod.string()
+}),zod.null()]),
+  "xpAmount": zod.number().int().nullable(),
+  "sourceTitle": zod.string().nullable(),
+  "summary": zod.string(),
+  "reaction": zod.object({
+  "count": zod.number().int(),
+  "reacted": zod.boolean(),
+  "reactionType": zod.string().nullable()
+}),
+  "commentCount": zod.number().int()
+})),
+  "nextCursor": zod.string().nullable()
+})
+
+
+/**
+ * @summary Edit an update owned by the current profile
+ */
+
+
+
+export const UpdateFeedPostParams = zod.object({
+  "postId": zod.coerce.number().int().min(1)
+})
+
+export const updateFeedPostBodyBodyMax = 500;
+
+
+
+export const UpdateFeedPostBody = zod.object({
+  "kind": zod.enum(['goal', 'doing', 'thought']).optional(),
+  "category": zod.enum(['personal', 'professional']).optional(),
+  "topic": zod.enum(['general', 'goals', 'reflections', 'experiences', 'community', 'career', 'skills', 'learning', 'networking', 'projects']).optional(),
+  "body": zod.string().min(1).max(updateFeedPostBodyBodyMax).optional()
+})
+
+export const UpdateFeedPostResponse = zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['experience_published', 'experience_joined', 'experience_verified', 'xp_earned', 'achievement_unlocked', 'accountability_checkin', 'accountability_goal_completed', 'status_posted']),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "userType": zod.string().nullable(),
+  "isFriend": zod.boolean()
+}),
+  "createdAt": zod.coerce.date(),
+  "visibility": zod.enum(['public', 'friends', 'community', 'private']),
+  "communityChatId": zod.string().nullable(),
+  "experience": zod.union([zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "date": zod.string(),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "city": zod.string(),
+  "location": zod.string(),
+  "xpReward": zod.number().int(),
+  "organisationName": zod.string()
+}),zod.null()]),
+  "post": zod.union([zod.object({
+  "id": zod.number().int(),
+  "kind": zod.enum(['goal', 'doing', 'thought']),
+  "category": zod.enum(['personal', 'professional']),
+  "topic": zod.enum(['general', 'goals', 'reflections', 'experiences', 'community', 'career', 'skills', 'learning', 'networking', 'projects']),
+  "body": zod.string()
+}),zod.null()]),
+  "xpAmount": zod.number().int().nullable(),
+  "sourceTitle": zod.string().nullable(),
+  "summary": zod.string(),
+  "reaction": zod.object({
+  "count": zod.number().int(),
+  "reacted": zod.boolean(),
+  "reactionType": zod.string().nullable()
+}),
+  "commentCount": zod.number().int()
 })
 
 
@@ -2715,6 +2861,8 @@ export const GetFeedItemResponse = zod.object({
   "post": zod.union([zod.object({
   "id": zod.number().int(),
   "kind": zod.enum(['goal', 'doing', 'thought']),
+  "category": zod.enum(['personal', 'professional']),
+  "topic": zod.enum(['general', 'goals', 'reflections', 'experiences', 'community', 'career', 'skills', 'learning', 'networking', 'projects']),
   "body": zod.string()
 }),zod.null()]),
   "xpAmount": zod.number().int().nullable(),
@@ -3693,6 +3841,8 @@ export const GetCommunityFeedResponse = zod.object({
   "post": zod.union([zod.object({
   "id": zod.number().int(),
   "kind": zod.enum(['goal', 'doing', 'thought']),
+  "category": zod.enum(['personal', 'professional']),
+  "topic": zod.enum(['general', 'goals', 'reflections', 'experiences', 'community', 'career', 'skills', 'learning', 'networking', 'projects']),
   "body": zod.string()
 }),zod.null()]),
   "xpAmount": zod.number().int().nullable(),

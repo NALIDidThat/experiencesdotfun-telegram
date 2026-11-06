@@ -1647,6 +1647,14 @@ paths:
             minimum: 1
             maximum: 50
             default: 20
+        - name: category
+          in: query
+          schema:
+            $ref: "#/components/schemas/FeedPostCategory"
+        - name: topic
+          in: query
+          schema:
+            $ref: "#/components/schemas/FeedPostTopic"
       responses:
         "200":
           description: Feed items visible to the current profile
@@ -1860,7 +1868,79 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /profile-posts:
+    get:
+      operationId: listProfilePosts
+      tags: [profile]
+      summary: List category-filtered posts visible to the current viewer on a profile
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: profileId
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: category
+          in: query
+          schema:
+            $ref: "#/components/schemas/FeedPostCategory"
+        - name: topic
+          in: query
+          schema:
+            $ref: "#/components/schemas/FeedPostTopic"
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 256
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Cursor-paginated visible posts for the profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfilePostsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /posts/{postId}:
+    patch:
+      operationId: updateFeedPost
+      tags: [socialFeed]
+      summary: Edit an update owned by the current profile
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - $ref: "#/components/parameters/FeedItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedPostUpdateInput"
+      responses:
+        "200":
+          description: Updated feed item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: Post categories are not available until the database migration is applied
     get:
       operationId: getFeedItem
       tags: [socialFeed]
@@ -6966,6 +7046,12 @@ components:
     FeedPostKind:
       type: string
       enum: [goal, doing, thought]
+    FeedPostCategory:
+      type: string
+      enum: [personal, professional]
+    FeedPostTopic:
+      type: string
+      enum: [general, goals, reflections, experiences, community, career, skills, learning, networking, projects]
     FeedActivityType:
       type: string
       enum:
@@ -7026,9 +7112,13 @@ components:
           type: integer
         kind:
           $ref: "#/components/schemas/FeedPostKind"
+        category:
+          $ref: "#/components/schemas/FeedPostCategory"
+        topic:
+          $ref: "#/components/schemas/FeedPostTopic"
         body:
           type: string
-      required: [id, kind, body]
+      required: [id, kind, category, topic, body]
     FeedReactionState:
       type: object
       properties:
@@ -7095,7 +7185,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FeedItem"
-      required: [items]
+        nextCursor:
+          type: [string, "null"]
+      required: [items, nextCursor]
     CreateFeedPostInput:
       type: object
       properties:
@@ -7107,6 +7199,10 @@ components:
           maxLength: 500
         visibility:
           $ref: "#/components/schemas/FeedVisibility"
+        category:
+          $ref: "#/components/schemas/FeedPostCategory"
+        topic:
+          $ref: "#/components/schemas/FeedPostTopic"
         communityChatId:
           type: string
           pattern: "^-?[0-9]{1,20}$"
@@ -7114,6 +7210,20 @@ components:
           type: boolean
           default: false
       required: [kind, body]
+      additionalProperties: false
+    FeedPostUpdateInput:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/FeedPostKind"
+        category:
+          $ref: "#/components/schemas/FeedPostCategory"
+        topic:
+          $ref: "#/components/schemas/FeedPostTopic"
+        body:
+          type: string
+          minLength: 1
+          maxLength: 500
       additionalProperties: false
     FeedPostCreateResult:
       type: object

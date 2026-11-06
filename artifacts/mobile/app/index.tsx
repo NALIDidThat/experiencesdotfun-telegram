@@ -126,6 +126,7 @@ import { ContributionHistoryScreen } from '@/components/fundraising/Contribution
 import { PayoutProposalScreen } from '@/components/fundraising/Payouts';
 import { OrganisationFundsScreen, OrganisationFundraiserSection } from '@/components/OrganisationFundsScreen';
 import { SocialFeed } from '@/components/SocialFeed';
+import { ProfilePosts } from '@/components/ProfilePosts';
 import {
   getParticipantHomeCommitments,
   selectParticipantHomePriority,
@@ -5119,6 +5120,7 @@ function FriendProfileScreen({
             }}
             friendsCount={friend.friendsCount}
           />
+          <ProfilePosts profileId={friend.id} />
           {friend.userType === 'organisation' ? <OrganisationFundraiserSection organisationUserId={friend.id} /> : null}
         </>
       ) : null}
@@ -6291,6 +6293,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           setSelectedProfileMetric(metric);
         }}
       />
+      {current.userType === 'organisation' ? <ProfilePosts profileId={current.id} /> : null}
       {current.userType !== 'participant' ? (
         <OrganisationActivityDashboard
           overview={hostOverview.data}

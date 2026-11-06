@@ -5,7 +5,9 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { FeedPostCategory } from './feedPostCategory';
 import type { FeedPostKind } from './feedPostKind';
+import type { FeedPostTopic } from './feedPostTopic';
 import type { FeedVisibility } from './feedVisibility';
 
 export interface CreateFeedPostInput {
@@ -16,6 +18,8 @@ export interface CreateFeedPostInput {
      */
   body: string;
   visibility?: FeedVisibility;
+  category?: FeedPostCategory;
+  topic?: FeedPostTopic;
   /** @pattern ^-?[0-9]{1,20}$ */
   communityChatId?: string;
   broadcastToTelegram?: boolean;

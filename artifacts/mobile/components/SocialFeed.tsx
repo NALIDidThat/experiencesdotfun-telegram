@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   getGetFeedPreferencesQueryKey,
   getGetFeedQueryKey,
+  getListProfilePostsQueryKey,
   getListFeedCommentsQueryKey,
   getFeed,
   useCreateFeedComment,
@@ -31,10 +32,14 @@ import {
   useReportFeedPost,
   useSetFeedReaction,
   useUpdateFeedPreferences,
+  useUpdateFeedPost,
   type FeedComment,
+  type FeedPostCategory,
+  type FeedPostTopic,
   type FeedItem,
   type FeedResponse,
 } from "@workspace/api-client-react";
+import { FeedCategoryFilters, feedCategoryLabels, feedTopicLabels } from "@/components/FeedCategoryFilters";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useColors } from "@/hooks/useColors";
 
@@ -80,6 +85,11 @@ function dateValue(value: string | Date): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
+function requestErrorMessage(error: unknown, fallback: string): string {
+  const message = (error as { data?: { message?: unknown } } | null)?.data?.message;
+  return typeof message === "string" ? message : fallback;
+}
+
 function relativeTime(value: string | Date): string {
   const elapsed = Math.max(0, Date.now() - dateValue(value).getTime());
   const minutes = Math.floor(elapsed / 60_000);
@@ -120,8 +130,13 @@ export function SocialFeed({
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<FeedMode>("for-you");
+  const [category, setCategory] = useState<FeedPostCategory>("personal");
+  const [topic, setTopic] = useState<FeedPostTopic | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<FeedItem | null>(null);
   const [postKind, setPostKind] = useState<PostKind>("thought");
+  const [postCategory, setPostCategory] = useState<FeedPostCategory>("personal");
+  const [postTopic, setPostTopic] = useState<FeedPostTopic>("general");
   const [visibility, setVisibility] = useState<PostVisibility>("friends");
   const [postBody, setPostBody] = useState("");
   const [composerError, setComposerError] = useState("");
@@ -138,7 +153,7 @@ export function SocialFeed({
   const pageRequestGeneration = useRef(0);
   const handledComposerSignal = useRef<number | null>(null);
 
-  const feedParams = { mode, limit: pageSize };
+  const feedParams = { mode, category, topic: topic ?? undefined, limit: pageSize };
   const feedQuery = useGetFeed(feedParams, {
     query: {
       queryKey: getGetFeedQueryKey(feedParams),
@@ -167,7 +182,10 @@ export function SocialFeed({
 
   const invalidateFeed = useCallback(() => {
     resetPagination();
-    return queryClient.invalidateQueries({ queryKey: getGetFeedQueryKey() });
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: getGetFeedQueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getListProfilePostsQueryKey() }),
+    ]);
   }, [queryClient, resetPagination]);
 
   useEffect(() => {
@@ -184,6 +202,11 @@ export function SocialFeed({
       || handledComposerSignal.current === openComposerSignal
     ) return;
     handledComposerSignal.current = openComposerSignal;
+    setEditingItem(null);
+    setPostBody("");
+    setPostCategory("personal");
+    setPostTopic("general");
+    setComposerError("");
     setComposerOpen(true);
     onComposerRequestHandled?.(openComposerSignal);
   }, [openComposerSignal, onComposerRequestHandled]);
@@ -206,6 +229,7 @@ export function SocialFeed({
   const preferences = preferencesQuery.data;
 
   const createPostMutation = useCreateFeedPost();
+  const updatePostMutation = useUpdateFeedPost();
   const preferenceMutation = useUpdateFeedPreferences();
   const createCommentMutation = useCreateFeedComment();
   const deleteCommentMutation = useDeleteFeedComment();
@@ -218,17 +242,30 @@ export function SocialFeed({
     resetPagination();
     setMode(nextMode);
   };
+  const changeCategory = (nextCategory: FeedPostCategory) => {
+    resetPagination();
+    setCategory(nextCategory);
+    setTopic(null);
+  };
+  const changeTopic = (nextTopic: FeedPostTopic | null) => {
+    resetPagination();
+    setTopic(nextTopic);
+  };
 
   const loadMore = async () => {
     const lastPage = extraPages.at(-1) ?? feedQuery.data;
     if (!lastPage?.nextCursor || loadingMore) return;
     const generation = pageRequestGeneration.current;
     const requestedMode = mode;
+    const requestedCategory = category;
+    const requestedTopic = topic;
     setLoadingMore(true);
     setLoadMoreError(false);
     try {
       const page = await getFeed({
         mode: requestedMode,
+        category: requestedCategory,
+        topic: requestedTopic ?? undefined,
         limit: pageSize,
         cursor: lastPage.nextCursor,
       });
@@ -262,21 +299,72 @@ export function SocialFeed({
   const submitPost = async () => {
     const body = postBody.trim();
     if (!body) {
-      setComposerError("Write something before sharing.");
+      setComposerError("Write something before saving.");
       return;
     }
     try {
-      await createPostMutation.mutateAsync({
-        data: { kind: postKind, body, visibility },
-      });
+      if (editingItem) {
+        await updatePostMutation.mutateAsync({
+          postId: editingItem.id,
+          data: {
+            kind: postKind,
+            body,
+            category: postCategory,
+            topic: postTopic,
+          },
+        });
+      } else {
+        await createPostMutation.mutateAsync({
+          data: {
+            kind: postKind,
+            body,
+            visibility,
+            category: postCategory,
+            topic: postTopic,
+          },
+        });
+      }
       await invalidateFeed();
       setComposerOpen(false);
+      setEditingItem(null);
       setPostBody("");
       setComposerError("");
+      setCategory(postCategory);
+      setTopic(null);
       changeMode("for-you");
-    } catch {
-      setComposerError("Your update couldn’t be shared. Try again.");
+    } catch (error) {
+      setComposerError(requestErrorMessage(
+        error,
+        editingItem ? "Your update couldn’t be saved. Try again." : "Your update couldn’t be shared. Try again.",
+      ));
     }
+  };
+
+  const openComposer = () => {
+    setEditingItem(null);
+    setPostKind("thought");
+    setPostCategory("personal");
+    setPostTopic("general");
+    setPostBody("");
+    setComposerError("");
+    setComposerOpen(true);
+  };
+
+  const editPost = (item: FeedItem) => {
+    if (!item.post) return;
+    setEditingItem(item);
+    setPostKind(item.post.kind as PostKind);
+    setPostCategory(item.post.category);
+    setPostTopic(item.post.topic);
+    setPostBody(item.post.body);
+    setComposerError("");
+    setComposerOpen(true);
+  };
+
+  const closeComposer = () => {
+    setComposerOpen(false);
+    setEditingItem(null);
+    setComposerError("");
   };
 
   const submitComment = async () => {
@@ -351,10 +439,10 @@ export function SocialFeed({
       };
     }
     return {
-      title: "Start your community feed",
-      body: "Share a goal or update, or join an experience to get started.",
+      title: `No ${topic ? feedTopicLabels[topic].toLowerCase() : feedCategoryLabels[category].toLowerCase()} activity yet`,
+      body: "Share an update or take part in an experience to get this feed started.",
       action: "Share an update",
-      onPress: () => setComposerOpen(true),
+      onPress: openComposer,
     };
   };
 
@@ -373,10 +461,7 @@ export function SocialFeed({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Share an update"
-          onPress={() => {
-            setComposerError("");
-            setComposerOpen(true);
-          }}
+          onPress={openComposer}
           style={({ pressed }) => [
             styles.composeButton,
             { backgroundColor: colors.primary, opacity: pressed ? 0.82 : 1 },
@@ -388,6 +473,14 @@ export function SocialFeed({
           </Text>
         </Pressable>
       </View>
+
+      <FeedCategoryFilters
+        category={category}
+        topic={topic}
+        onCategoryChange={changeCategory}
+        onTopicChange={changeTopic}
+        testIDPrefix="feed-home"
+      />
 
       <View
         style={[
@@ -493,7 +586,7 @@ export function SocialFeed({
             Activity didn’t load
           </Text>
           <Text style={[styles.stateText, { color: colors.mutedForeground }]}>
-            Your feed is still here. Try again in a moment.
+            {requestErrorMessage(feedQuery.error, "Your feed is still here. Try again in a moment.")}
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -544,6 +637,7 @@ export function SocialFeed({
               onOpenSelf={onOpenSelf}
               onReact={(reacted) => updateReaction(item.id, reacted)}
               onDelete={() => setDeletingItem(item)}
+              onEdit={() => editPost(item)}
               onReport={() => {
                 setReportingItem(item);
                 setReportReason("other");
@@ -586,7 +680,7 @@ export function SocialFeed({
         testID="feed-composer-modal"
         transparent
         animationType="slide"
-        onRequestClose={() => setComposerOpen(false)}
+        onRequestClose={closeComposer}
       >
         <KeyboardAvoidingView
           behavior="padding"
@@ -614,7 +708,7 @@ export function SocialFeed({
             <View style={styles.sheetHeader}>
               <View>
                 <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
-                  Share an update
+                  {editingItem ? "Edit update" : "Share an update"}
                 </Text>
                 <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>
                   Keep it focused on your experience.
@@ -624,12 +718,26 @@ export function SocialFeed({
                 accessibilityRole="button"
                 accessibilityLabel="Close update form"
                 testID="feed-composer-close-button"
-                onPress={() => setComposerOpen(false)}
+                onPress={closeComposer}
                 hitSlop={8}
               >
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </Pressable>
             </View>
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Feed</Text>
+            <FeedCategoryFilters
+              category={postCategory}
+              topic={postTopic}
+              onCategoryChange={(nextCategory) => {
+                setPostCategory(nextCategory);
+                setPostTopic("general");
+              }}
+              onTopicChange={(nextTopic) => {
+                if (nextTopic) setPostTopic(nextTopic);
+              }}
+              testIDPrefix="feed-composer"
+              showAllTopics={false}
+            />
             <View style={styles.choiceRow}>
               {(Object.keys(kindLabels) as PostKind[]).map((kind) => {
                 const selected = postKind === kind;
@@ -693,41 +801,43 @@ export function SocialFeed({
             />
             <View style={styles.visibilityHeader}>
               <Text style={[styles.fieldLabel, { color: colors.foreground }]}>
-                Who can see this?
+                {editingItem ? "Visibility stays the same" : "Who can see this?"}
               </Text>
               <Text style={[styles.characterCount, { color: colors.mutedForeground }]}>
                 {postBody.length}/500
               </Text>
             </View>
-            <View style={styles.choiceRow}>
-              {(Object.keys(visibilityLabels) as PostVisibility[]).map((item) => {
-                const selected = visibility === item;
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    key={item}
-                    onPress={() => setVisibility(item)}
-                    style={[
-                      styles.choiceChip,
-                      {
-                        backgroundColor: selected ? colors.primary + "14" : colors.muted,
-                        borderColor: selected ? colors.primary : colors.border,
-                      },
-                    ]}
-                  >
-                    <Text
+            {!editingItem ? (
+              <View style={styles.choiceRow}>
+                {(Object.keys(visibilityLabels) as PostVisibility[]).map((item) => {
+                  const selected = visibility === item;
+                  return (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      key={item}
+                      onPress={() => setVisibility(item)}
                       style={[
-                        styles.choiceText,
-                        { color: selected ? colors.primary : colors.mutedForeground },
+                        styles.choiceChip,
+                        {
+                          backgroundColor: selected ? colors.primary + "14" : colors.muted,
+                          borderColor: selected ? colors.primary : colors.border,
+                        },
                       ]}
                     >
-                      {visibilityLabels[item]}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+                      <Text
+                        style={[
+                          styles.choiceText,
+                          { color: selected ? colors.primary : colors.mutedForeground },
+                        ]}
+                      >
+                        {visibilityLabels[item]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
             {composerError ? (
               <Text style={[styles.inlineError, { color: colors.destructive }]}>
                 {composerError}
@@ -735,22 +845,22 @@ export function SocialFeed({
             ) : null}
             <Pressable
               accessibilityRole="button"
-              disabled={createPostMutation.isPending}
+              disabled={createPostMutation.isPending || updatePostMutation.isPending}
               onPress={() => void submitPost()}
               style={[
                 styles.submitButton,
                 {
                   backgroundColor: colors.primary,
                   borderRadius: colors.radius,
-                  opacity: createPostMutation.isPending ? 0.65 : 1,
+                  opacity: createPostMutation.isPending || updatePostMutation.isPending ? 0.65 : 1,
                 },
               ]}
             >
-              {createPostMutation.isPending ? (
+              {createPostMutation.isPending || updatePostMutation.isPending ? (
                 <ActivityIndicator color={colors.primaryForeground} />
               ) : (
                 <Text style={[styles.submitButtonText, { color: colors.primaryForeground }]}>
-                  Share update
+                  {editingItem ? "Save changes" : "Share update"}
                 </Text>
               )}
             </Pressable>
@@ -1013,6 +1123,7 @@ function FeedCard({
   onOpenFriend,
   onOpenSelf,
   onDelete,
+  onEdit,
   onReport,
 }: {
   item: FeedItem;
@@ -1023,6 +1134,7 @@ function FeedCard({
   onOpenFriend: (friendId: number) => void;
   onOpenSelf: () => void;
   onDelete: () => void;
+  onEdit: () => void;
   onReport: () => void;
 }) {
   const colors = useColors();
@@ -1082,6 +1194,9 @@ function FeedCard({
             { backgroundColor: colors.muted, borderColor: colors.border },
           ]}
         >
+          <Text style={[styles.postKind, { color: colors.primary }]}>
+            {feedCategoryLabels[item.post.category]} · {feedTopicLabels[item.post.topic]}
+          </Text>
           <Text style={[styles.postKind, { color: colors.primary }]}>
             {kindLabels[item.post.kind as PostKind] ?? "Update"}
           </Text>
@@ -1185,13 +1300,23 @@ function FeedCard({
       {item.post ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={item.actor.id === currentUserId ? "Delete your update" : "Report this update"}
-          onPress={item.actor.id === currentUserId ? onDelete : onReport}
+          accessibilityLabel={item.actor.id === currentUserId ? "Edit your update" : "Report this update"}
+          onPress={item.actor.id === currentUserId ? onEdit : onReport}
           style={{ alignSelf: "flex-start", marginTop: 9, paddingVertical: 4, paddingHorizontal: 4 }}
         >
-          <Text style={{ color: item.actor.id === currentUserId ? colors.destructive : colors.mutedForeground, fontSize: 11, fontWeight: "600" }}>
-            {item.actor.id === currentUserId ? "Delete update" : "Report update"}
+          <Text style={{ color: item.actor.id === currentUserId ? colors.primary : colors.mutedForeground, fontSize: 11, fontWeight: "600" }}>
+            {item.actor.id === currentUserId ? "Edit update" : "Report update"}
           </Text>
+        </Pressable>
+      ) : null}
+      {item.post && item.actor.id === currentUserId ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Delete your update"
+          onPress={onDelete}
+          style={{ alignSelf: "flex-start", marginTop: 1, paddingVertical: 4, paddingHorizontal: 4 }}
+        >
+          <Text style={{ color: colors.destructive, fontSize: 11, fontWeight: "600" }}>Delete update</Text>
         </Pressable>
       ) : null}
     </View>

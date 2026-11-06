@@ -17,6 +17,19 @@ import { usersTable } from "./experiences";
 
 export const feedVisibilityValues = ["public", "friends", "community", "private"] as const;
 export const feedPostKinds = ["goal", "doing", "thought"] as const;
+export const feedPostCategories = ["personal", "professional"] as const;
+export const feedPostTopics = [
+  "general",
+  "goals",
+  "reflections",
+  "experiences",
+  "community",
+  "career",
+  "skills",
+  "learning",
+  "networking",
+  "projects",
+] as const;
 export const feedReactionTypes = ["support", "celebrate", "insightful"] as const;
 export const feedPostReportReasons = [
   "spam",
@@ -77,6 +90,8 @@ export const postsTable = pgTable(
       .references(() => usersTable.id, { onDelete: "cascade" }),
     kind: text("kind", { enum: feedPostKinds }).notNull(),
     body: text("body").notNull(),
+    category: text("category", { enum: feedPostCategories }).notNull().default("personal"),
+    topic: text("topic", { enum: feedPostTopics }).notNull().default("general"),
     visibility: text("visibility", { enum: feedVisibilityValues }).notNull().default("friends"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -86,7 +101,22 @@ export const postsTable = pgTable(
       table.visibility,
       table.createdAt,
     ),
+    categoryTopicCreatedIndex: index("posts_category_topic_created_idx").on(
+      table.category,
+      table.topic,
+      table.createdAt,
+      table.id,
+    ),
     bodyLengthCheck: check("posts_body_length_check", sql`char_length(${table.body}) BETWEEN 1 AND 500`),
+    categoryCheck: check(
+      "posts_category_check",
+      sql`${table.category} IN ('personal', 'professional')`,
+    ),
+    topicCategoryCheck: check(
+      "posts_topic_category_check",
+      sql`(${table.category} = 'personal' AND ${table.topic} IN ('general', 'goals', 'reflections', 'experiences', 'community'))
+        OR (${table.category} = 'professional' AND ${table.topic} IN ('general', 'career', 'skills', 'learning', 'networking', 'projects'))`,
+    ),
   }),
 );
 

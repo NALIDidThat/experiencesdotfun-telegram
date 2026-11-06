@@ -5,10 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { FeedPostCategory } from './feedPostCategory';
 import type { FeedPostKind } from './feedPostKind';
+import type { FeedPostTopic } from './feedPostTopic';
 
 export interface FeedPostContent {
   id: number;
   kind: FeedPostKind;
+  category: FeedPostCategory;
+  topic: FeedPostTopic;
   body: string;
 }

@@ -78,6 +78,7 @@ import type {
   FeedItem,
   FeedNotificationsResponse,
   FeedPostCreateResult,
+  FeedPostUpdateInput,
   FeedPreferences,
   FeedPushSettingsResponse,
   FeedReactionInput,
@@ -119,6 +120,7 @@ import type {
   ListFundPayoutsParams,
   ListMyContributionsParams,
   ListMyParticipationsParams,
+  ListProfilePostsParams,
   MemoryGameAttempt,
   MemoryGameAttemptResult,
   MemoryGameLeaderboardResponse,
@@ -6766,6 +6768,179 @@ export function useGetProfilePosts<TData = Awaited<ReturnType<typeof getProfileP
 
 
 
+
+export const getListProfilePostsUrl = (params: ListProfilePostsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/profile-posts?${stringifiedParams}` : `/api/profile-posts`
+}
+
+/**
+ * @summary List category-filtered posts visible to the current viewer on a profile
+ */
+export const listProfilePosts = async (params: ListProfilePostsParams, options?: Parameters<typeof customFetch>[1]): Promise<ProfilePostsResponse> => {
+
+  return customFetch<ProfilePostsResponse>(getListProfilePostsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProfilePostsQueryKey = (params?: ListProfilePostsParams,) => {
+    return [
+    `/api/profile-posts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListProfilePostsQueryOptions = <TData = Awaited<ReturnType<typeof listProfilePosts>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse>>(params: ListProfilePostsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProfilePosts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProfilePostsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProfilePosts>>> = ({ signal }) => listProfilePosts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProfilePosts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProfilePostsQueryResult = NonNullable<Awaited<ReturnType<typeof listProfilePosts>>>
+export type ListProfilePostsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse>
+
+
+/**
+ * @summary List category-filtered posts visible to the current viewer on a profile
+ */
+
+export function useListProfilePosts<TData = Awaited<ReturnType<typeof listProfilePosts>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse>>(
+ params: ListProfilePostsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProfilePosts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProfilePostsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateFeedPostUrl = (postId: number,) => {
+
+
+
+
+  return `/api/posts/${postId}`
+}
+
+/**
+ * @summary Edit an update owned by the current profile
+ */
+export const updateFeedPost = async (postId: number,
+    feedPostUpdateInput: FeedPostUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<FeedItem> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FeedItem>(getUpdateFeedPostUrl(postId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(feedPostUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateFeedPostMutationKey = () => ['updateFeedPost'] as const;
+
+export const getUpdateFeedPostMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFeedPost>>, TError,UpdateFeedPostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFeedPost>>, TError,UpdateFeedPostMutationVariables, TContext> => {
+
+const mutationKey = getUpdateFeedPostMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFeedPost>>, UpdateFeedPostMutationVariables> = (props) => {
+          const {postId,data} = props ?? {};
+
+          return  updateFeedPost(postId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFeedPostMutationResult = NonNullable<Awaited<ReturnType<typeof updateFeedPost>>>
+    export type UpdateFeedPostMutationBody = BodyType<FeedPostUpdateInput>
+    export type UpdateFeedPostMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | void>
+    export type UpdateFeedPostMutationVariables = {postId: number;data: BodyType<FeedPostUpdateInput>}
+
+    /**
+ * @summary Edit an update owned by the current profile
+ */
+export const useUpdateFeedPost = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFeedPost>>, TError,UpdateFeedPostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateFeedPost>>,
+        TError,
+        UpdateFeedPostMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateFeedPostMutationOptions(options));
+    }
 
 export const getGetFeedItemUrl = (postId: number,) => {
 
