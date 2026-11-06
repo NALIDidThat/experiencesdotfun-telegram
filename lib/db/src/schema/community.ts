@@ -1,4 +1,5 @@
 import {
+  check,
   index,
   integer,
   pgTable,
@@ -7,7 +8,9 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { usersTable } from "./experiences";
+import { telegramCommunitiesTable } from "./community-moderation";
 
 export const communityContributionsTable = pgTable(
   "community_contributions",
@@ -99,5 +102,42 @@ export const communityMembersTable = pgTable(
   }),
 );
 
+export const telegramCommunityMemberStatsTable = pgTable(
+  "telegram_community_member_stats",
+  {
+    id: serial("id").primaryKey(),
+    chatId: text("chat_id")
+      .notNull()
+      .references(() => telegramCommunitiesTable.chatId, { onDelete: "cascade" }),
+    telegramUserId: text("telegram_user_id").notNull(),
+    name: text("name").notNull(),
+    username: text("username"),
+    messageCount: integer("message_count").notNull().default(0),
+    telegramJoinedAt: timestamp("telegram_joined_at", { withTimezone: true }),
+    telegramLeftAt: timestamp("telegram_left_at", { withTimezone: true }),
+    lastMessageId: integer("last_message_id"),
+    firstObservedAt: timestamp("first_observed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    communityUserUnique: uniqueIndex("telegram_community_member_stats_chat_user_idx").on(
+      table.chatId,
+      table.telegramUserId,
+    ),
+    messageCountCheck: check(
+      "telegram_community_member_stats_message_count_check",
+      sql`${table.messageCount} >= 0`,
+    ),
+    leaderboardIndex: index("telegram_community_member_stats_leaderboard_idx").on(
+      table.chatId,
+      table.messageCount,
+      table.id,
+    ),
+  }),
+);
+
 export type CommunityContribution = typeof communityContributionsTable.$inferSelect;
 export type CommunityMember = typeof communityMembersTable.$inferSelect;
+export type TelegramCommunityMemberStats = typeof telegramCommunityMemberStatsTable.$inferSelect;

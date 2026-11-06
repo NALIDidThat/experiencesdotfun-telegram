@@ -33,6 +33,13 @@ import {
   processCommunityMessage,
 } from "./contribution";
 import {
+  CommunityMemberStatsMigrationRequiredError,
+  recordTelegramCommunityMemberJoin,
+  recordTelegramCommunityMemberLeave,
+  recordTelegramCommunityMemberMessage,
+} from "./community-member-stats";
+import { isCountableTelegramCommunityMessage } from "./telegram-community-message-policy";
+import {
   addTelegramCommunityKeywordRule,
   connectTelegramCommunity,
   disconnectTelegramCommunity,
@@ -110,12 +117,35 @@ type TelegramUpdate = {
   update_id: number;
   message?: {
     message_id: number;
+    date: number;
     chat: { id: number; type?: string; title?: string };
     text?: string;
     caption?: string;
     entities?: Array<TelegramMentionEntity & { url?: string }>;
     caption_entities?: Array<TelegramMentionEntity & { url?: string }>;
     from?: TelegramIdentity;
+    new_chat_members?: TelegramIdentity[];
+    left_chat_member?: TelegramIdentity;
+    new_chat_title?: string;
+    new_chat_photo?: unknown[];
+    delete_chat_photo?: boolean;
+    group_chat_created?: boolean;
+    supergroup_chat_created?: boolean;
+    channel_chat_created?: boolean;
+    migrate_to_chat_id?: number;
+    migrate_from_chat_id?: number;
+    pinned_message?: unknown;
+    video_chat_scheduled?: unknown;
+    video_chat_started?: unknown;
+    video_chat_ended?: unknown;
+    video_chat_participants_invited?: unknown;
+    forum_topic_created?: unknown;
+    forum_topic_edited?: unknown;
+    forum_topic_closed?: unknown;
+    forum_topic_reopened?: unknown;
+    general_forum_topic_hidden?: unknown;
+    general_forum_topic_unhidden?: unknown;
+    [field: string]: unknown;
     reply_to_message?: {
       message_id: number;
       from?: TelegramIdentity;
@@ -2682,9 +2712,95 @@ async function moderateCommunityMessage(
   }
 }
 
+async function trackLinkedGroupMemberActivity(
+  message: NonNullable<TelegramUpdate["message"]>,
+): Promise<void> {
+  const chatId = String(message.chat.id);
+  let linkedCommunity: Awaited<ReturnType<typeof getTelegramCommunity>>;
+  try {
+    linkedCommunity = await getTelegramCommunity(chatId);
+  } catch (error) {
+    logger.error({ err: error, chatId }, "Linked Telegram group activity could not be checked");
+    return;
+  }
+  if (!linkedCommunity) return;
+
+  const toMemberName = (identity: TelegramIdentity) => {
+    const fullName = [identity.first_name, identity.last_name]
+      .map((part) => part?.trim())
+      .filter((part): part is string => Boolean(part))
+      .join(" ");
+    return fullName || identity.username?.trim() || "Telegram member";
+  };
+  const joinedAt = new Date(message.date * 1_000);
+  if (Number.isFinite(joinedAt.getTime())) {
+    for (const joinedMember of message.new_chat_members ?? []) {
+      if (joinedMember.is_bot) continue;
+      try {
+        await recordTelegramCommunityMemberJoin({
+          chatId,
+          telegramUserId: String(joinedMember.id),
+          name: toMemberName(joinedMember),
+          username: joinedMember.username ?? null,
+          joinedAt,
+        });
+      } catch (error) {
+        if (!(error instanceof CommunityMemberStatsMigrationRequiredError)) {
+          logger.error(
+            { err: error, chatId, telegramUserId: joinedMember.id },
+            "Telegram community join event could not be recorded",
+          );
+        }
+      }
+    }
+
+    const departedMember = message.left_chat_member;
+    if (departedMember && !departedMember.is_bot) {
+      try {
+        await recordTelegramCommunityMemberLeave({
+          chatId,
+          telegramUserId: String(departedMember.id),
+          leftAt: joinedAt,
+        });
+      } catch (error) {
+        if (!(error instanceof CommunityMemberStatsMigrationRequiredError)) {
+          logger.error(
+            { err: error, chatId, telegramUserId: departedMember.id },
+            "Telegram community leave event could not be recorded",
+          );
+        }
+      }
+    }
+  }
+
+  const identity = message.from;
+  if (!isCountableTelegramCommunityMessage(message)) return;
+  if (!identity || identity.is_bot) return;
+
+  try {
+    await recordTelegramCommunityMemberMessage({
+      chatId,
+      telegramUserId: String(identity.id),
+      name: toMemberName(identity),
+      username: identity.username ?? null,
+      telegramMessageId: message.message_id,
+    });
+  } catch (error) {
+    if (!(error instanceof CommunityMemberStatsMigrationRequiredError)) {
+      logger.error(
+        { err: error, chatId, telegramUserId: identity.id },
+        "Telegram community message count could not be recorded",
+      );
+    }
+  }
+}
+
 async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
   const text = message.text;
   const identity = message.from;
+  if (isGroupChat(message.chat.type)) {
+    await trackLinkedGroupMemberActivity(message);
+  }
   if (!identity || identity.is_bot || (!text && !message.caption)) return;
 
   if (message.chat.type === "private" && message.chat.id === identity.id) {
@@ -3035,9 +3151,9 @@ async function poll(offset: number): Promise<void> {
     for (const update of updates ?? []) {
       nextOffset = Math.max(nextOffset, update.update_id + 1);
       try {
-        if (update.message?.text) {
+        if (update.message) {
           await handleMessage(update.message);
-          if (update.message.text.trim().startsWith("/")) {
+          if (update.message.text?.trim().startsWith("/")) {
             void recordAnalyticsEvent({
               source: "bot",
               eventName: "bot_command",

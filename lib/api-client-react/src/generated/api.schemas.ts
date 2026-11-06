@@ -1916,6 +1916,22 @@ export interface TelegramCommunityLiveInfo {
   botCanDeleteMessages: boolean | null;
 }
 
+export interface TelegramCommunityMember {
+  id: number;
+  name: string;
+  /** @nullable */
+  username: string | null;
+  /** @minimum 0 */
+  messageCount: number;
+  /** @nullable */
+  joinedAt: string | null;
+}
+
+export interface TelegramCommunityMembersResponse {
+  /** @maxItems 20 */
+  members: TelegramCommunityMember[];
+}
+
 export interface AddCommunityInput {
   /**
      * Public Telegram group username or t.me link

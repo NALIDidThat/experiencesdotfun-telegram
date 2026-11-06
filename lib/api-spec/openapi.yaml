@@ -2512,6 +2512,38 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /community/manage/{chatId}/members:
+    get:
+      operationId: getTelegramCommunityMembers
+      tags: [community]
+      summary: Get the linked group’s top members by messages tracked by the bot
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      responses:
+        "200":
+          description: Top members with tracked messages and observed join dates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityMembersResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: Member tracking is awaiting its database migration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /community/{chatId}:
     get:
       operationId: getCommunityDetails
@@ -5578,6 +5610,24 @@ components:
         - connectionMessage
         - memberCount
         - botCanDeleteMessages
+    TelegramCommunityMembersResponse:
+      type: object
+      properties:
+        members:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/TelegramCommunityMember"
+      required: [members]
+    TelegramCommunityMember:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        username: { type: [string, "null"] }
+        messageCount: { type: integer, minimum: 0 }
+        joinedAt: { type: [string, "null"], format: date-time }
+      required: [id, name, username, messageCount, joinedAt]
     AddCommunityInput:
       type: object
       properties:

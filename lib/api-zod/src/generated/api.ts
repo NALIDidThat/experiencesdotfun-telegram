@@ -3756,6 +3756,33 @@ export const GetTelegramCommunityLiveInfoResponse = zod.object({
 
 
 /**
+ * @summary Get the linked group’s top members by messages tracked by the bot
+ */
+export const getTelegramCommunityMembersPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const GetTelegramCommunityMembersParams = zod.object({
+  "chatId": zod.coerce.string().regex(getTelegramCommunityMembersPathChatIdRegExp)
+})
+
+export const getTelegramCommunityMembersResponseMembersItemMessageCountMin = 0;
+
+export const getTelegramCommunityMembersResponseMembersMax = 20;
+
+
+
+export const GetTelegramCommunityMembersResponse = zod.object({
+  "members": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "messageCount": zod.number().int().min(getTelegramCommunityMembersResponseMembersItemMessageCountMin),
+  "joinedAt": zod.coerce.date().nullable()
+})).max(getTelegramCommunityMembersResponseMembersMax)
+})
+
+
+/**
  * @summary Get the current user's group reputation, leaderboard, and history
  */
 export const getCommunityDetailsPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');

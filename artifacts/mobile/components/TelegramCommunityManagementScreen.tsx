@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  getGetTelegramCommunityMembersQueryKey,
   getGetTelegramCommunityManagementQueryKey,
   getGetTelegramCommunityRulesQueryKey,
   useAddTelegramCommunityLink,
@@ -18,6 +19,7 @@ import {
   useDeleteTelegramCommunityLink,
   useDeleteTelegramCommunityPhrase,
   useGetTelegramCommunityLiveInfo,
+  useGetTelegramCommunityMembers,
   useGetTelegramCommunityManagement,
   useGetTelegramCommunityRules,
   useUpdateTelegramCommunityRiddleSettings,
@@ -44,6 +46,17 @@ function errorMessage(error: unknown, fallback: string) {
     if (typeof message === 'string' && message.trim()) return message;
   }
   return fallback;
+}
+
+function formatMemberJoinDate(joinedAt: string | null) {
+  if (!joinedAt) return 'Not recorded';
+  const date = new Date(joinedAt);
+  if (!Number.isFinite(date.getTime())) return 'Not recorded';
+  return new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
 }
 
 type Props = {
@@ -407,6 +420,12 @@ export function TelegramCommunityDashboardScreen({
   const liveInfo = useGetTelegramCommunityLiveInfo(chatId ?? '', {
     query: {
       queryKey: ['/api/community/manage', chatId, 'live-info'],
+      enabled: Boolean(chatId),
+    },
+  });
+  const members = useGetTelegramCommunityMembers(chatId ?? '', {
+    query: {
+      queryKey: getGetTelegramCommunityMembersQueryKey(chatId ?? ''),
       enabled: Boolean(chatId),
     },
   });
@@ -904,6 +923,103 @@ export function TelegramCommunityDashboardScreen({
           </View>
 
           <View
+            testID="telegram-community-top-members"
+            style={[
+              styles.dashboardCard,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+            ]}
+          >
+            <View style={styles.dashboardSectionHeader}>
+              <View style={[styles.setupIcon, { backgroundColor: colors.primary + '14' }]}>
+                <Feather name="users" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Top 20 members</Text>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  Ranked by messages tracked by the bot
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.sectionDescription, { color: colors.mutedForeground, marginBottom: 10 }]}>
+              Only current members observed by the bot appear here. Counts start when tracking is enabled; older messages are unavailable. Join dates appear only when the bot observes a join event.
+            </Text>
+            {members.isLoading ? (
+              <View style={styles.rulesLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  Loading member activity…
+                </Text>
+              </View>
+            ) : members.isError ? (
+              <View style={styles.rulesError}>
+                <Text style={[styles.sectionDescription, { color: colors.destructive }]}>
+                  {errorMessage(members.error, 'Member activity could not be loaded.')}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry loading top members"
+                  testID="telegram-community-members-retry"
+                  onPress={() => { void members.refetch(); }}
+                  style={[
+                    styles.ruleRetryButton,
+                    { borderColor: colors.border, borderRadius: colors.radius - 5 },
+                  ]}
+                >
+                  <Feather name="refresh-cw" size={14} color={colors.primary} />
+                  <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Try again</Text>
+                </Pressable>
+              </View>
+            ) : members.data?.members.length ? (
+              <View style={styles.memberList}>
+                {members.data.members.map((member, index) => (
+                  <View
+                    key={member.id}
+                    testID={`telegram-community-member-${member.id}`}
+                    style={[
+                      styles.memberRow,
+                      { borderBottomColor: colors.border },
+                    ]}
+                  >
+                    <View style={styles.memberMainRow}>
+                      <Text style={[styles.memberRank, { color: colors.mutedForeground }]}>
+                        {index + 1}
+                      </Text>
+                      <View style={styles.memberIdentity}>
+                        <Text numberOfLines={1} style={[styles.memberName, { color: colors.foreground }]}>
+                          {member.name}
+                        </Text>
+                        {member.username ? (
+                          <Text numberOfLines={1} style={[styles.memberUsername, { color: colors.mutedForeground }]}>
+                            @{member.username}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <View style={styles.memberMessageCount}>
+                        <Text style={[styles.memberMessageValue, { color: colors.foreground }]}>
+                          {member.messageCount.toLocaleString()}
+                        </Text>
+                        <Text style={[styles.memberUsername, { color: colors.mutedForeground }]}>
+                          messages
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.memberJoinedRow}>
+                      <Feather name="calendar" size={12} color={colors.mutedForeground} />
+                      <Text style={[styles.memberJoinedText, { color: colors.mutedForeground }]}>
+                        Joined · {formatMemberJoinDate(member.joinedAt)}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={[styles.rulesEmpty, { color: colors.mutedForeground }]}>
+                No member activity has been tracked yet. The list will fill as members send messages or join.
+              </Text>
+            )}
+          </View>
+
+          <View
             style={[
               styles.dashboardCard,
               { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
@@ -1299,6 +1415,17 @@ const styles = StyleSheet.create({
   rulesError: { gap: 9, paddingVertical: 3 },
   ruleRetryButton: { minHeight: 36, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 7, borderWidth: 1, paddingHorizontal: 10 },
   rulesEmpty: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, paddingVertical: 3 },
+  memberList: { gap: 1 },
+  memberRow: { borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 9, gap: 5 },
+  memberMainRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  memberRank: { width: 20, fontFamily: 'Inter_600SemiBold', fontSize: 11, textAlign: 'center' },
+  memberIdentity: { flex: 1, minWidth: 0, gap: 2 },
+  memberName: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  memberUsername: { fontFamily: 'Inter_400Regular', fontSize: 10 },
+  memberMessageCount: { minWidth: 62, alignItems: 'flex-end', gap: 1 },
+  memberMessageValue: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  memberJoinedRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 29 },
+  memberJoinedText: { fontFamily: 'Inter_400Regular', fontSize: 10 },
   ruleList: { gap: 2 },
   ruleRow: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 6 },
   ruleValue: { flex: 1, minWidth: 0, fontFamily: 'Inter_500Medium', fontSize: 12, lineHeight: 17 },

@@ -310,6 +310,8 @@ export * from './telegramCommunityLinkRule';
 export * from './telegramCommunityLiveInfo';
 export * from './telegramCommunityLiveInfoConnectionStatus';
 export * from './telegramCommunityManagementResponse';
+export * from './telegramCommunityMember';
+export * from './telegramCommunityMembersResponse';
 export * from './telegramCommunityPhraseInput';
 export * from './telegramCommunityPhraseRule';
 export * from './telegramCommunityRiddleSettings';

@@ -11,6 +11,8 @@ import {
   DeleteTelegramCommunityPhraseParams,
   GetTelegramCommunityRulesParams,
   GetTelegramCommunityRulesResponse,
+  GetTelegramCommunityMembersParams,
+  GetTelegramCommunityMembersResponse,
   UpdateTelegramCommunityRiddleSettingsBody,
   UpdateTelegramCommunityRiddleSettingsParams,
   UpdateTelegramCommunityRiddleSettingsResponse,
@@ -27,6 +29,10 @@ import {
   getTelegramCommunityLiveInfo,
   verifyTelegramCommunityMembership,
 } from "../lib/telegram";
+import {
+  CommunityMemberStatsMigrationRequiredError,
+  listTelegramCommunityTopMembers,
+} from "../lib/community-member-stats";
 import {
   addTelegramCommunityKeywordRule,
   addTelegramCommunityLinkRule,
@@ -263,6 +269,39 @@ router.get("/community/manage/:chatId/live-info", async (req, res) => {
   }
 
   res.json(await getTelegramCommunityLiveInfo(chatId));
+});
+
+router.get("/community/manage/:chatId/members", async (req, res) => {
+  const params = GetTelegramCommunityMembersParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: "That Telegram group identifier is invalid." });
+    return;
+  }
+
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+
+  const context = await getTelegramCommunityManagementContext(
+    params.data.chatId,
+    telegramUserId,
+  );
+  if (!context) {
+    res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+    return;
+  }
+
+  try {
+    const members = await listTelegramCommunityTopMembers(params.data.chatId);
+    res.json(GetTelegramCommunityMembersResponse.parse({ members }));
+  } catch (error) {
+    if (error instanceof CommunityMemberStatsMigrationRequiredError) {
+      res.status(503).json({
+        message: "Member activity tracking is waiting for its database migration.",
+      });
+      return;
+    }
+    throw error;
+  }
 });
 
 router.post("/community/me", async (req, res) => {

@@ -181,6 +181,7 @@ import type {
   TelegramCommunityLinkRule,
   TelegramCommunityLiveInfo,
   TelegramCommunityManagementResponse,
+  TelegramCommunityMembersResponse,
   TelegramCommunityPhraseInput,
   TelegramCommunityPhraseRule,
   TelegramCommunityRiddleSettings,
@@ -8854,6 +8855,83 @@ export function useGetTelegramCommunityLiveInfo<TData = Awaited<ReturnType<typeo
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetTelegramCommunityLiveInfoQueryOptions(chatId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTelegramCommunityMembersUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/members`
+}
+
+/**
+ * @summary Get the linked group’s top members by messages tracked by the bot
+ */
+export const getTelegramCommunityMembers = async (chatId: string, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityMembersResponse> => {
+
+  return customFetch<TelegramCommunityMembersResponse>(getGetTelegramCommunityMembersUrl(chatId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTelegramCommunityMembersQueryKey = (chatId: string,) => {
+    return [
+    `/api/community/manage/${chatId}/members`
+    ] as const;
+    }
+
+
+export const getGetTelegramCommunityMembersQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>>(chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTelegramCommunityMembersQueryKey(chatId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramCommunityMembers>>> = ({ signal }) => getTelegramCommunityMembers(chatId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: chatId !== null && chatId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTelegramCommunityMembersQueryResult = NonNullable<Awaited<ReturnType<typeof getTelegramCommunityMembers>>>
+export type GetTelegramCommunityMembersQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>
+
+
+/**
+ * @summary Get the linked group’s top members by messages tracked by the bot
+ */
+
+export function useGetTelegramCommunityMembers<TData = Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>>(
+ chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTelegramCommunityMembersQueryOptions(chatId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
