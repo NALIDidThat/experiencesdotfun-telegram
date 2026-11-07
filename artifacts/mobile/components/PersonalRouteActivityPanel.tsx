@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -21,7 +20,6 @@ import {
   useGetMyPersonalActivity,
   useListMyPersonalActivities,
   usePauseMyPersonalActivity,
-  usePlanMyPersonalActivity,
   useResumeMyPersonalActivity,
   useStartMyPersonalActivity,
   type PersonalActivity,
@@ -87,7 +85,13 @@ function dateLabel(value: string) {
     : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
-export function PersonalRouteActivityPanel() {
+export function PersonalRouteActivityPanel({
+  initialActivityId,
+  onCreateRoute,
+}: {
+  initialActivityId?: number;
+  onCreateRoute: () => void;
+}) {
   const colors = useColors();
   const queryClient = useQueryClient();
   const listQuery = useListMyPersonalActivities({
@@ -96,13 +100,12 @@ export function PersonalRouteActivityPanel() {
       retry: false,
     },
   });
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(initialActivityId ?? null);
   const selectedIdRef = useRef<number | null>(null);
   selectedIdRef.current = selectedId;
   const detailQuery = useGetMyPersonalActivity(selectedId ?? 0, {
     query: { enabled: selectedId !== null, queryKey: getGetMyPersonalActivityQueryKey(selectedId ?? 0) },
   });
-  const planMutation = usePlanMyPersonalActivity();
   const startMutation = useStartMyPersonalActivity();
   const pauseMutation = usePauseMyPersonalActivity();
   const resumeMutation = useResumeMyPersonalActivity();
@@ -110,10 +113,6 @@ export function PersonalRouteActivityPanel() {
   const finishMutation = useFinishMyPersonalActivity();
   const deleteMutation = useDeleteMyPersonalActivity();
 
-  const [goal, setGoal] = useState('');
-  const [destination, setDestination] = useState('');
-  const [activityType, setActivityType] = useState<ActivityType>('walk');
-  const [formOpen, setFormOpen] = useState(false);
   const [busyMessage, setBusyMessage] = useState('');
   const [actionError, setActionError] = useState('');
   const [locationDenied, setLocationDenied] = useState(false);
@@ -198,7 +197,7 @@ export function PersonalRouteActivityPanel() {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (!permission.granted) {
         setLocationDenied(true);
-        setActionError('Location access is off. Allow foreground location to plan or record your route.');
+        setActionError('Location access is off. Allow foreground location to record your route.');
         return null;
       }
       setLocationDenied(false);
@@ -212,41 +211,6 @@ export function PersonalRouteActivityPanel() {
       return null;
     }
   }, []);
-
-  const handlePlan = async () => {
-    if (goal.trim().length < 5 || destination.trim().length < 2) {
-      setActionError('Add a goal (at least 5 characters) and a destination to plan your route.');
-      return;
-    }
-    setBusyMessage('Finding a route for you…');
-    const origin = await askLocation();
-    if (!origin) {
-      setBusyMessage('');
-      return;
-    }
-    planMutation.mutate({
-      data: {
-        goal: goal.trim(),
-        destination: destination.trim(),
-        activityType,
-        originLatitude: origin.latitude,
-        originLongitude: origin.longitude,
-      },
-    }, {
-      onSuccess: async (planned) => {
-        setSelectedId(planned.id);
-        setFormOpen(false);
-        setGoal('');
-        setDestination('');
-        setBusyMessage('');
-        await refresh(planned.id);
-      },
-      onError: () => {
-        setBusyMessage('');
-        setActionError('We could not make that route just now. Your goal is still here; please try again.');
-      },
-    });
-  };
 
   const beginWatch = useCallback(async (id: number) => {
     if (selectedIdRef.current !== id) return;
@@ -415,7 +379,7 @@ export function PersonalRouteActivityPanel() {
     return { min: Math.min(...values), max: Math.max(...values) };
   }, [elevation]);
   const isInitialLoading = listQuery.isLoading && !listQuery.data;
-  const pending = planMutation.isPending || startMutation.isPending || pauseMutation.isPending
+  const pending = startMutation.isPending || pauseMutation.isPending
     || resumeMutation.isPending || finishMutation.isPending || deleteMutation.isPending
     || appendMutation.isPending || savingPoints;
   const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -461,7 +425,7 @@ export function PersonalRouteActivityPanel() {
             accessibilityRole="button"
             accessibilityLabel="Plan another personal route"
             testID="personal-route-new"
-            onPress={() => { setActionError(''); setFormOpen(true); }}
+            onPress={() => { setActionError(''); onCreateRoute(); }}
             style={[styles.newRouteButton, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
           >
             <Feather name="plus" size={15} color={colors.primaryForeground} />
@@ -512,78 +476,6 @@ export function PersonalRouteActivityPanel() {
           <Pressable accessibilityRole="button" testID="personal-route-list-retry" onPress={() => { void listQuery.refetch(); }}>
             <Text style={[styles.retryText, { color: colors.destructive }]}>Retry</Text>
           </Pressable>
-        </View>
-      ) : null}
-
-      {formOpen ? (
-        <View style={[styles.formCard, mutedCard, { borderRadius: colors.radius + 6 }]}>
-          <View style={styles.formHeading}>
-            <View style={[styles.formIcon, { backgroundColor: colors.primary + '14' }]}>
-              <Feather name="compass" size={17} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>What would you like to do?</Text>
-              <Text style={[styles.cardCaption, { color: colors.mutedForeground }]}>A few words are enough to begin.</Text>
-            </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Close route planner" testID="personal-route-form-close" onPress={() => setFormOpen(false)} hitSlop={10}>
-              <Feather name="x" size={19} color={colors.mutedForeground} />
-            </Pressable>
-          </View>
-          <Text style={[styles.inputLabel, { color: colors.foreground }]}>Your goal</Text>
-          <TextInput
-            accessibilityLabel="Describe your route goal"
-            testID="personal-route-goal-input"
-            value={goal}
-            onChangeText={setGoal}
-            placeholder="A quiet walk to clear my head"
-            placeholderTextColor={colors.mutedForeground}
-            multiline
-            maxLength={500}
-            style={[styles.goalInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
-          />
-          <Text style={[styles.inputLabel, { color: colors.foreground }]}>Destination</Text>
-          <TextInput
-            accessibilityLabel="Route destination"
-            testID="personal-route-destination-input"
-            value={destination}
-            onChangeText={setDestination}
-            placeholder="Park, neighbourhood, or place"
-            placeholderTextColor={colors.mutedForeground}
-            maxLength={180}
-            style={[styles.destinationInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
-          />
-          <Text style={[styles.inputLabel, { color: colors.foreground }]}>How are you going?</Text>
-          <View style={styles.typeRow}>
-            {TYPES.map((item) => {
-              const selected = activityType === item.value;
-              return (
-                <Pressable
-                  key={item.value}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={item.label}
-                  testID={`personal-route-type-${item.value}`}
-                  onPress={() => setActivityType(item.value)}
-                  style={[styles.typeChip, { backgroundColor: selected ? colors.primary : colors.background, borderColor: selected ? colors.primary : colors.border }]}
-                >
-                  <Feather name={item.icon} size={14} color={selected ? colors.primaryForeground : colors.mutedForeground} />
-                  <Text style={[styles.typeText, { color: selected ? colors.primaryForeground : colors.foreground }]}>{item.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <View style={[styles.locationHint, { backgroundColor: colors.muted }]}>
-            <Feather name="crosshair" size={14} color={colors.mutedForeground} />
-            <Text style={[styles.locationHintText, { color: colors.mutedForeground }]}>We’ll ask for foreground location when you plan. GPS altitude is never used.</Text>
-          </View>
-          <PrimaryButton
-            label={busyMessage || 'Plan my route'}
-            icon="arrow-right"
-            disabled={pending || !!busyMessage}
-            onPress={handlePlan}
-            colors={colors}
-            testID="personal-route-plan-submit"
-          />
         </View>
       ) : null}
 
@@ -756,7 +648,7 @@ export function PersonalRouteActivityPanel() {
           <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>
             Describe what you want from a walk, run, or ride. We’ll shape it into a route and keep your effort record personal.
           </Text>
-          <PrimaryButton label="Plan a personal route" icon="arrow-right" onPress={() => { setActionError(''); setFormOpen(true); }} colors={colors} testID="personal-route-create" />
+          <PrimaryButton label="Plan a personal route" icon="arrow-right" onPress={() => { setActionError(''); onCreateRoute(); }} colors={colors} testID="personal-route-create" />
         </View>
       )}
 

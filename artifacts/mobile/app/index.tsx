@@ -132,6 +132,7 @@ import {
   selectParticipantHomePriority,
 } from '@/lib/home-priority';
 import { PersonalActivityScreen } from '@/components/PersonalActivityScreen';
+import { PersonalRoutePlannerScreen } from '@/components/PersonalRoutePlannerScreen';
 import { OrganisationActivityDashboard } from '@/components/OrganisationActivityDashboard';
 import { OrganisationHomeScreen } from '@/components/OrganisationHomeScreen';
 import { ExperienceManagementCard } from '@/components/ExperienceManagementCard';
@@ -10243,7 +10244,7 @@ export default function App() {
         ? 'explore'
       : screen === 'host-detail'
         ? 'host'
-      : screen === 'activity'
+      : screen === 'activity' || screen === 'personal-route-planner'
         ? 'home'
       : screen === 'learning'
         ? 'home'
@@ -10773,10 +10774,27 @@ export default function App() {
       );
     }
     if (screen === 'explore') return <Explore go={go} />;
+    if (screen === 'personal-route-planner') {
+      return (
+        <PersonalRoutePlannerScreen
+          onBack={() => goBack('activity', { section: 'route-activities' })}
+          onComplete={(activityId) => go('activity', {
+            section: 'route-activities',
+            activityId: String(activityId),
+          })}
+        />
+      );
+    }
     if (screen === 'activity') {
       return (
         <PersonalActivityScreen
           profileId={user?.id ?? 0}
+          initialSection={routeParamString(params.section) === 'route-activities' ? 'route-activities' : 'activity'}
+          initialRouteActivityId={Number(routeParamString(params.activityId)) > 0 ? Number(routeParamString(params.activityId)) : undefined}
+          onCreatePersonalRoute={() => {
+            go('activity', { section: 'route-activities' });
+            go('personal-route-planner');
+          }}
           onOpenExperience={(id) => go('experience', { id: String(id) })}
           onOpenChallenges={() => go('challenges')}
           onExplore={() => go('explore')}
@@ -10881,7 +10899,7 @@ export default function App() {
       );
   })();
 
-  const noNav = ['experience', 'node-profile', 'host-detail', 'create', 'direct-message', 'memory-game', 'payout-proposal'].includes(screen);
+  const noNav = ['experience', 'node-profile', 'host-detail', 'create', 'personal-route-planner', 'direct-message', 'memory-game', 'payout-proposal'].includes(screen);
   const navActive = screen === 'funds' || screen === 'campaigns' || screen === 'payout-proposal'
     ? user.userType === 'organisation' && user.organisation?.type === 'charity' ? 'funds' : 'profile'
     : user.userType === 'organisation' && screen === 'experiences'
