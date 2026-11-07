@@ -20,7 +20,8 @@
     "migrate:telegram-community-moderation": "node ./scripts/apply-telegram-community-moderation.mjs",
     "migrate:telegram-community-link-rules": "node ./scripts/apply-telegram-community-link-rules.mjs",
     "migrate:telegram-community-member-stats": "node ./scripts/apply-telegram-community-member-stats.mjs",
-    "migrate:community-feed-notifications": "node ./scripts/apply-community-feed-notifications.mjs"
+    "migrate:community-feed-notifications": "node ./scripts/apply-community-feed-notifications.mjs",
+    "migrate:personal-route-activities": "node ./scripts/apply-personal-route-activities.mjs"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",
