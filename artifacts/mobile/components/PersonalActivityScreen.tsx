@@ -261,6 +261,7 @@ export function PersonalActivityScreen({
         ) : undefined}
       >
         <ScrollView
+          style={styles.sectionTabsScroll}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.sectionTabs}
@@ -605,8 +606,9 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'web' ? 70 : 14,
     paddingBottom: Platform.OS === 'web' ? 100 : 110,
   },
-  sectionTabs: { gap: 7, paddingBottom: 16 },
-  sectionTab: { minHeight: 36, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderWidth: 1, borderRadius: 18 },
+  sectionTabsScroll: { height: 52, flexGrow: 0, flexShrink: 0 },
+  sectionTabs: { height: 52, alignItems: 'center', gap: 7, paddingBottom: 0 },
+  sectionTab: { height: 36, minHeight: 36, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderWidth: 1, borderRadius: 18 },
   sectionTabText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
   header: { marginBottom: 19 },
   kicker: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.4 },

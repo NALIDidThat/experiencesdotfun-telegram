@@ -90,7 +90,12 @@ function dateLabel(value: string) {
 export function PersonalRouteActivityPanel() {
   const colors = useColors();
   const queryClient = useQueryClient();
-  const listQuery = useListMyPersonalActivities();
+  const listQuery = useListMyPersonalActivities({
+    query: {
+      queryKey: getListMyPersonalActivitiesQueryKey(),
+      retry: false,
+    },
+  });
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const selectedIdRef = useRef<number | null>(null);
   selectedIdRef.current = selectedId;

@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { Router, type ErrorRequestHandler, type IRouter } from "express";
 import { z } from "zod/v4";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import {
@@ -340,7 +340,12 @@ router.post("/me/personal-activities/plan", async (req, res) => {
       res.status(400).json({ message: "We couldn’t find a route to that destination. Try a more specific place." });
       return;
     }
-    logger.warn({ errorCode: code || "unknown" }, "A personal activity plan could not be generated.");
+    const safeErrorCode = code === "ROUTE_PROVIDER_UNAVAILABLE" ||
+      code === "ACTIVITY_PLAN_UNAVAILABLE" ||
+      code === "ACTIVITY_SAVE_FAILED"
+      ? code
+      : "ACTIVITY_PLAN_FAILED";
+    logger.warn({ errorCode: safeErrorCode }, "A personal activity plan could not be generated.");
     res.status(503).json({
       message: code === "ROUTE_PROVIDER_UNAVAILABLE"
         ? "Route planning is temporarily unavailable. Check the Maps API setup and try again."
@@ -646,5 +651,17 @@ router.delete("/me/personal-activities/:activityId", async (req, res) => {
   }
   res.status(204).end();
 });
+
+const handlePersonalActivityError: ErrorRequestHandler = (error, _req, res, next) => {
+  if (res.headersSent) {
+    next(error);
+    return;
+  }
+  const errorType = error instanceof Error ? error.name : typeof error;
+  logger.error({ errorType }, "A personal activity request failed.");
+  res.status(503).json({ message: "Personal routes are temporarily unavailable. Please try again." });
+};
+
+router.use(handlePersonalActivityError);
 
 export default router;
