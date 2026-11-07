@@ -46,6 +46,9 @@ type ActivityItem = {
 
 type Props = {
   profileId: number;
+  initialSection?: 'activity' | 'route-activities';
+  initialRouteActivityId?: number;
+  onCreatePersonalRoute: () => void;
   onOpenExperience: (experienceId: number) => void;
   onOpenChallenges: () => void;
   onExplore: () => void;
@@ -189,6 +192,9 @@ function queryCount(isLoading: boolean, isError: boolean, count: number | undefi
 
 export function PersonalActivityScreen({
   profileId,
+  initialSection = 'activity',
+  initialRouteActivityId,
+  onCreatePersonalRoute,
   onOpenExperience,
   onOpenChallenges,
   onExplore,
@@ -201,7 +207,7 @@ export function PersonalActivityScreen({
   const challengesQuery = useListExperienceChallenges();
   const xpQuery = useGetMyXpAwards();
   const [filter, setFilter] = useState<ActivityFilter>('all');
-  const [section, setSection] = useState<PersonalSection>('activity');
+  const [section, setSection] = useState<PersonalSection>(initialSection);
 
   const items = useMemo(() => {
     const participationItems = (participationsQuery.data ?? []).map(participationItem);
@@ -567,7 +573,10 @@ export function PersonalActivityScreen({
         ) : section === 'memories' ? (
           <PersonalMemoriesPanel profileId={profileId} />
         ) : section === 'route-activities' ? (
-          <PersonalRouteActivityPanel />
+          <PersonalRouteActivityPanel
+            initialActivityId={initialRouteActivityId}
+            onCreateRoute={onCreatePersonalRoute}
+          />
         ) : (
           <ProfilePosts profileId={profileId} />
         )}

@@ -300,6 +300,7 @@ router.post("/me/personal-activities/plan", async (req, res) => {
     return;
   }
 
+  let planStage: "route" | "save" = "route";
   try {
     const route = await computeRoute(parsed.data, apiKey);
     const elevationProfile = await elevationProfileForPolyline(
@@ -315,6 +316,7 @@ router.post("/me/personal-activities/plan", async (req, res) => {
       durationSeconds: route.durationSeconds,
       ascentMeters,
     });
+    planStage = "save";
     const [activity] = await db
       .insert(personalActivitiesTable)
       .values({
@@ -340,14 +342,18 @@ router.post("/me/personal-activities/plan", async (req, res) => {
       res.status(400).json({ message: "We couldn’t find a route to that destination. Try a more specific place." });
       return;
     }
-    const safeErrorCode = code === "ROUTE_PROVIDER_UNAVAILABLE" ||
+    const safeErrorCode = planStage === "save"
+      ? "ACTIVITY_SAVE_FAILED"
+      : code === "ROUTE_PROVIDER_UNAVAILABLE" ||
       code === "ACTIVITY_PLAN_UNAVAILABLE" ||
       code === "ACTIVITY_SAVE_FAILED"
       ? code
       : "ACTIVITY_PLAN_FAILED";
     logger.warn({ errorCode: safeErrorCode }, "A personal activity plan could not be generated.");
     res.status(503).json({
-      message: code === "ROUTE_PROVIDER_UNAVAILABLE"
+      message: planStage === "save"
+        ? "We found a route, but couldn’t save it yet. Your goal and destination are still here—please try again."
+        : code === "ROUTE_PROVIDER_UNAVAILABLE"
         ? "Route planning is temporarily unavailable. Check the Maps API setup and try again."
         : "We couldn’t generate this activity plan. Please try again.",
     });

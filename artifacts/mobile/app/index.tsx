@@ -164,7 +164,7 @@ import {
 } from '@/components/TelegramCommunityManagementScreen';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'learning' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'node-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-community-dashboard' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'learning' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'node-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'personal-route-planner' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-community-dashboard' | 'email';
 type ScreenTransitionDirection = 'forward' | 'back' | 'switch';
 type ScreenRouteParams = {
   id?: string;
@@ -178,6 +178,8 @@ type ScreenRouteParams = {
   experienceId?: string;
   experienceTitle?: string;
   draft?: string;
+  section?: string;
+  activityId?: string;
 };
 type ScreenHistoryEntry = { screen: Screen; params: ScreenRouteParams };
 type TelegramWebAppBackButton = {
@@ -200,7 +202,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'learning', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'node-profile', 'experience', 'host', 'host-detail', 'create', 'funds', 'campaigns', 'payout-proposal', 'contributions', 'telegram-communities', 'telegram-community-dashboard', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'learning', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'node-profile', 'experience', 'host', 'host-detail', 'create', 'personal-route-planner', 'funds', 'campaigns', 'payout-proposal', 'contributions', 'telegram-communities', 'telegram-community-dashboard', 'email'];
 
 function routeParamString(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -227,6 +229,8 @@ function createScreenHistoryEntry(screen: Screen, params: ScreenRouteParams = {}
       experienceId: screen === 'funds' ? params.experienceId : undefined,
       experienceTitle: screen === 'funds' ? params.experienceTitle : undefined,
       draft: screen === 'create' ? params.draft : undefined,
+      section: screen === 'activity' ? params.section : undefined,
+      activityId: screen === 'activity' ? params.activityId : undefined,
     },
   };
 }
@@ -10112,7 +10116,7 @@ function BottomNavInteractionHarness({ userType = 'participant' }: { userType?: 
 }
 
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; nodeId?: string; chatId?: string; category?: string; step?: string; focus?: string; participantId?: string; experienceId?: string; experienceTitle?: string; draft?: string; keyboardTest?: string; navTest?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; nodeId?: string; chatId?: string; category?: string; step?: string; focus?: string; participantId?: string; experienceId?: string; experienceTitle?: string; draft?: string; section?: string; activityId?: string; keyboardTest?: string; navTest?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -10142,6 +10146,8 @@ export default function App() {
     experienceId: routeParamString(params.experienceId),
     experienceTitle: routeParamString(params.experienceTitle),
     draft: routeParamString(params.draft),
+    section: routeParamString(params.section),
+    activityId: routeParamString(params.activityId),
   });
   const screenHistoryRef = useRef<ScreenHistoryEntry[]>([]);
   const currentRouteRef = useRef<ScreenHistoryEntry>(initialRouteEntry);
@@ -10193,6 +10199,8 @@ export default function App() {
       experienceId: routeParamString(params.experienceId),
       experienceTitle: routeParamString(params.experienceTitle),
       draft: routeParamString(params.draft),
+      section: routeParamString(params.section),
+      activityId: routeParamString(params.activityId),
     });
     if (screenHistoryKey(routeEntry) !== screenHistoryKey(currentRouteRef.current)) {
       screenHistoryRef.current = [];
@@ -10218,6 +10226,8 @@ export default function App() {
     params.experienceId,
     params.experienceTitle,
     params.draft,
+    params.section,
+    params.activityId,
   ]);
 
   useEffect(() => {
@@ -10268,6 +10278,8 @@ export default function App() {
       experienceTitle: entry.params.experienceTitle,
       chatId: entry.params.chatId,
       draft: entry.params.draft,
+      section: entry.params.section,
+      activityId: entry.params.activityId,
     });
   };
   const go = (next: Screen, nextParams?: Record<string, string>) => {
