@@ -3,9 +3,12 @@ import {
   ActivityIndicator,
   Keyboard,
   Pressable,
-  Text,
-  TextInput,
+  StyleSheet,
+  Text as NativeText,
+  TextInput as NativeTextInput,
   View,
+  type TextInputProps,
+  type TextProps,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import {
@@ -20,6 +23,26 @@ import { useColors } from "@/hooks/useColors";
 type Goal = AccountabilityDashboard["goals"][number];
 type Commitment = AccountabilityDashboard["commitments"][number];
 type FeedbackTone = "success" | "error";
+
+function Text({ style, ...props }: TextProps) {
+  const flattened = StyleSheet.flatten(style);
+  const weight = flattened?.fontWeight;
+  const numericWeight = typeof weight === "number" ? weight : Number(weight);
+  const fontFamily = flattened?.fontFamily ?? (
+    weight === "bold" || numericWeight >= 700
+      ? "Inter_700Bold"
+      : numericWeight >= 600
+        ? "Inter_600SemiBold"
+        : numericWeight >= 500
+          ? "Inter_500Medium"
+          : "Inter_400Regular"
+  );
+  return <NativeText {...props} style={[{ fontFamily }, style]} />;
+}
+
+function TextInput({ style, ...props }: TextInputProps) {
+  return <NativeTextInput {...props} style={[{ fontFamily: "Inter_400Regular" }, style]} />;
+}
 
 function messageFromError(error: unknown, fallback: string) {
   if (typeof error === "object" && error !== null && "data" in error) {
@@ -261,7 +284,7 @@ export function AccountabilityGoalsPanel({
   );
 
   return (
-    <View testID="accountability-goals-panel" style={[cardStyle, { gap: 14, padding: 16 }]}>
+    <View testID="accountability-goals-panel" style={[cardStyle, { gap: 12, padding: 14 }]}>
       <View style={{ alignItems: "center", flexDirection: "row", gap: 10 }}>
         <View style={{ alignItems: "center", backgroundColor: colors.teal + "16", borderRadius: 11, height: 34, justifyContent: "center", width: 34 }}>
           <Feather name="target" size={17} color={colors.teal} />
@@ -290,7 +313,7 @@ export function AccountabilityGoalsPanel({
       </View>
 
       {formOpen ? (
-        <View style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 9, padding: 12 }}>
+        <View style={{ backgroundColor: colors.muted, borderRadius: colors.radius - 4, gap: 9, padding: 12 }}>
           <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "700" }}>
             {editingGoalId ? "Edit goal" : "Set a goal"}
           </Text>
@@ -390,7 +413,7 @@ export function AccountabilityGoalsPanel({
           <View
             key={goal.id}
             testID={`accountability-goal-${goal.id}`}
-            style={{ backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 11, padding: 12 }}
+            style={{ backgroundColor: colors.muted, borderColor: colors.border, borderRadius: colors.radius - 4, borderWidth: 1, gap: 10, padding: 12 }}
           >
             <View style={{ alignItems: "flex-start", flexDirection: "row", gap: 8 }}>
               <View style={{ flex: 1, gap: 4 }}>
@@ -601,7 +624,7 @@ export function AccountabilityGoalsPanel({
           </View>
         );
       }) : (
-        <View style={{ alignItems: "center", backgroundColor: colors.background, borderRadius: colors.radius - 4, gap: 6, padding: 15 }}>
+        <View style={{ alignItems: "center", backgroundColor: colors.muted, borderRadius: colors.radius - 4, gap: 6, padding: 15 }}>
           <Feather name="flag" size={18} color={colors.teal} />
           <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "600" }}>No goals yet</Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16, textAlign: "center" }}>
@@ -616,7 +639,7 @@ export function AccountabilityGoalsPanel({
             Personal commitments
           </Text>
           {standaloneCommitments.map((commitment) => (
-            <View key={commitment.id} style={{ alignItems: "center", backgroundColor: colors.background, borderRadius: colors.radius - 4, flexDirection: "row", gap: 8, padding: 10 }}>
+              <View key={commitment.id} style={{ alignItems: "center", backgroundColor: colors.muted, borderRadius: colors.radius - 4, flexDirection: "row", gap: 8, padding: 10 }}>
               <View style={{ flex: 1, gap: 3 }}>
                 <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600" }}>{commitment.title}</Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>
