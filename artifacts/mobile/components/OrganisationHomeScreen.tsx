@@ -10,11 +10,13 @@ import {
   useListOrganisationFunds,
 } from '@workspace/api-client-react';
 import type {
+  FeedPostCategory,
   OrganisationProgressMilestoneId,
   OrganisationProgressNextAction,
   User,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
+import { FeedCategoryFilters } from '@/components/FeedCategoryFilters';
 import { NodeDashboardCard } from '@/components/NodeManagementPanel';
 import { UserAvatar } from '@/components/UserAvatar';
 import { selectOrganisationHomePriority } from '@/lib/home-priority';
@@ -68,6 +70,7 @@ export function OrganisationHomeScreen({ user, go }: Props) {
   const [loadedDismissalKey, setLoadedDismissalKey] = useState<string | null>(null);
   const [feedRefreshSignal, setFeedRefreshSignal] = useState(0);
   const [feedRefreshing, setFeedRefreshing] = useState(false);
+  const [feedCategory, setFeedCategory] = useState<FeedPostCategory>('personal');
   const isCharity = user.organisation?.type === 'charity';
   const overview = useGetHostOverview();
   const experiences = useListHostExperiences();
@@ -218,6 +221,12 @@ export function OrganisationHomeScreen({ user, go }: Props) {
         </Pressable>
       </View>
 
+      <FeedCategoryFilters
+        category={feedCategory}
+        onCategoryChange={setFeedCategory}
+        testIDPrefix="feed-home"
+      />
+
       <View style={styles.profileRow}>
         <UserAvatar
           avatarUrl={user.avatarUrl}
@@ -245,6 +254,8 @@ export function OrganisationHomeScreen({ user, go }: Props) {
 
       <SocialFeed
         currentUserId={user.id}
+        category={feedCategory}
+        showCategoryFilters={false}
         refreshSignal={feedRefreshSignal}
         onRefreshingChange={setFeedRefreshing}
         onOpenExperience={(id) => go('experience', { id: String(id) })}

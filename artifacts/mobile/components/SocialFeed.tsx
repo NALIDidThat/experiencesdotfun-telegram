@@ -50,6 +50,9 @@ type FeedReportReason = "spam" | "harassment" | "misinformation" | "unsafe" | "o
 
 type SocialFeedProps = {
   currentUserId: number;
+  category?: FeedPostCategory;
+  onCategoryChange?: (category: FeedPostCategory) => void;
+  showCategoryFilters?: boolean;
   refreshSignal?: number;
   openComposerSignal?: number | null;
   onComposerRequestHandled?: (signal: number) => void;
@@ -121,6 +124,9 @@ function eventIcon(type: FeedItem["type"]): keyof typeof Feather.glyphMap {
 
 export function SocialFeed({
   currentUserId,
+  category: controlledCategory,
+  onCategoryChange,
+  showCategoryFilters = true,
   refreshSignal = 0,
   openComposerSignal = null,
   onComposerRequestHandled,
@@ -136,7 +142,8 @@ export function SocialFeed({
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<FeedMode>("for-you");
-  const [category, setCategory] = useState<FeedPostCategory>("personal");
+  const [localCategory, setLocalCategory] = useState<FeedPostCategory>("personal");
+  const category = controlledCategory ?? localCategory;
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FeedItem | null>(null);
   const [postKind, setPostKind] = useState<PostKind>("thought");
@@ -184,6 +191,13 @@ export function SocialFeed({
     setLoadingMore(false);
     setLoadMoreError(false);
   }, []);
+
+  const previousCategory = useRef(category);
+  useEffect(() => {
+    if (previousCategory.current === category) return;
+    previousCategory.current = category;
+    resetPagination();
+  }, [category, resetPagination]);
 
   const invalidateFeed = useCallback(() => {
     resetPagination();
@@ -248,8 +262,14 @@ export function SocialFeed({
     setMode(nextMode);
   };
   const changeCategory = (nextCategory: FeedPostCategory) => {
+    if (nextCategory === category) return;
     resetPagination();
-    setCategory(nextCategory);
+    previousCategory.current = nextCategory;
+    if (controlledCategory === undefined) {
+      setLocalCategory(nextCategory);
+    } else {
+      onCategoryChange?.(nextCategory);
+    }
   };
 
   const loadMore = async () => {
@@ -327,7 +347,7 @@ export function SocialFeed({
       setEditingItem(null);
       setPostBody("");
       setComposerError("");
-      setCategory(postCategory);
+      changeCategory(postCategory);
       changeMode("for-you");
     } catch (error) {
       setComposerError(requestErrorMessage(
@@ -447,11 +467,13 @@ export function SocialFeed({
 
   return (
     <View style={styles.container}>
-      <FeedCategoryFilters
-        category={category}
-        onCategoryChange={changeCategory}
-        testIDPrefix="feed-home"
-      />
+      {showCategoryFilters ? (
+        <FeedCategoryFilters
+          category={category}
+          onCategoryChange={changeCategory}
+          testIDPrefix="feed-home"
+        />
+      ) : null}
 
       <View style={styles.headingRow}>
         <View style={styles.headingCopy}>
