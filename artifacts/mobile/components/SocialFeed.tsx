@@ -75,6 +75,12 @@ const kindLabels: Record<PostKind, string> = {
   thought: "Thought",
 };
 
+const kindIcons: Record<PostKind, keyof typeof Feather.glyphMap> = {
+  goal: "target",
+  doing: "activity",
+  thought: "message-circle",
+};
+
 const visibilityLabels: Record<PostVisibility, string> = {
   friends: "Friends",
   public: "Everyone",
@@ -668,187 +674,205 @@ export function SocialFeed({
         visible={composerOpen}
         testID="feed-composer-modal"
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={closeComposer}
       >
         <KeyboardAvoidingView
           behavior="padding"
           keyboardVerticalOffset={0}
-          style={[styles.modalScrim, { backgroundColor: colors.foreground + "80" }]}
+          style={[
+            styles.composerOverlay,
+            {
+              backgroundColor: colors.foreground + "80",
+              paddingTop: insets.top + 12,
+              paddingBottom: insets.bottom + 12,
+            },
+          ]}
         >
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            style={styles.composerScroll}
-            contentContainerStyle={styles.composerScrollContent}
+            style={styles.composerModalScroll}
+            contentContainerStyle={styles.composerModalScrollContent}
           >
-          <View
-            style={[
-              styles.composerSheet,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                borderTopLeftRadius: colors.radius + 8,
-                borderTopRightRadius: colors.radius + 8,
-                paddingBottom: 22 + insets.bottom,
-              },
-            ]}
-          >
-            <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-            <View style={styles.sheetHeader}>
-              <View>
-                <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
-                  {editingItem ? "Edit update" : "Share an update"}
-                </Text>
-                <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>
-                  Keep it focused on your experience.
-                </Text>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Close update form"
-                testID="feed-composer-close-button"
-                onPress={closeComposer}
-                hitSlop={8}
-              >
-                <Feather name="x" size={22} color={colors.mutedForeground} />
-              </Pressable>
-            </View>
-            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Feed</Text>
-            <FeedCategoryFilters
-              category={postCategory}
-              onCategoryChange={(nextCategory) => {
-                setPostCategory(nextCategory);
-                setPostTopic("general");
-              }}
-              testIDPrefix="feed-composer"
-            />
-            <View style={styles.choiceRow}>
-              {(Object.keys(kindLabels) as PostKind[]).map((kind) => {
-                const selected = postKind === kind;
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    key={kind}
-                    onPress={() => setPostKind(kind)}
-                    style={[
-                      styles.choiceChip,
-                      {
-                        backgroundColor: selected ? colors.primary + "14" : colors.muted,
-                        borderColor: "#f20789",
-                        borderWidth: 1.5,
-                        boxShadow: selected
-                          ? "0px 0px 12px rgba(242, 7, 137, 0.55)"
-                          : "0px 0px 7px rgba(242, 7, 137, 0.3)",
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.choiceText,
-                        { color: selected ? colors.primary : colors.mutedForeground },
-                      ]}
-                    >
-                      {kindLabels[kind]}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <TextInput
-              accessibilityLabel="Update text"
-              value={postBody}
-              onChangeText={(value) => {
-                setPostBody(value.slice(0, 500));
-                setComposerError("");
-              }}
-              placeholder={
-                postKind === "goal"
-                  ? "What are you working toward?"
-                  : postKind === "doing"
-                    ? "What are you doing today?"
-                    : "What’s on your mind?"
-              }
-              placeholderTextColor={colors.mutedForeground}
-              maxLength={500}
-              multiline
-              textAlignVertical="top"
+            <View
               style={[
-                styles.postInput,
+                styles.composerCard,
                 {
-                  color: colors.foreground,
-                  backgroundColor: colors.muted,
+                  backgroundColor: colors.card,
                   borderColor: colors.border,
-                  borderRadius: colors.radius,
-                },
-              ]}
-            />
-            <View style={styles.visibilityHeader}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>
-                {editingItem ? "Visibility stays the same" : "Who can see this?"}
-              </Text>
-              <Text style={[styles.characterCount, { color: colors.mutedForeground }]}>
-                {postBody.length}/500
-              </Text>
-            </View>
-            {!editingItem ? (
-              <View style={styles.choiceRow}>
-                {(Object.keys(visibilityLabels) as PostVisibility[]).map((item) => {
-                  const selected = visibility === item;
-                  return (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
-                      key={item}
-                      onPress={() => setVisibility(item)}
-                      style={[
-                        styles.choiceChip,
-                        {
-                          backgroundColor: selected ? colors.primary + "14" : colors.muted,
-                          borderColor: selected ? colors.primary : colors.border,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.choiceText,
-                          { color: selected ? colors.primary : colors.mutedForeground },
-                        ]}
-                      >
-                        {visibilityLabels[item]}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
-            {composerError ? (
-              <Text style={[styles.inlineError, { color: colors.destructive }]}>
-                {composerError}
-              </Text>
-            ) : null}
-            <Pressable
-              accessibilityRole="button"
-              disabled={createPostMutation.isPending || updatePostMutation.isPending}
-              onPress={() => void submitPost()}
-              style={[
-                styles.submitButton,
-                {
-                  backgroundColor: colors.primary,
-                  borderRadius: colors.radius,
-                  opacity: createPostMutation.isPending || updatePostMutation.isPending ? 0.65 : 1,
+                  borderRadius: colors.radius + 8,
                 },
               ]}
             >
-              {createPostMutation.isPending || updatePostMutation.isPending ? (
-                <ActivityIndicator color={colors.primaryForeground} />
-              ) : (
-                <Text style={[styles.submitButtonText, { color: colors.primaryForeground }]}>
-                  {editingItem ? "Save changes" : "Share update"}
+              <View style={styles.composerHeader}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Close update form"
+                  testID="feed-composer-close-button"
+                  onPress={closeComposer}
+                  hitSlop={8}
+                  style={styles.composerCloseButton}
+                >
+                  <Feather name="x" size={22} color={colors.foreground} />
+                </Pressable>
+                <Text style={[styles.composerTitle, { color: colors.foreground }]}>
+                  {editingItem ? "Edit post" : "Create a post"}
                 </Text>
-              )}
-            </Pressable>
-          </View>
+                <View style={styles.composerHeaderSpacer} />
+              </View>
+
+              <TextInput
+                accessibilityLabel="Update text"
+                value={postBody}
+                onChangeText={(value) => {
+                  setPostBody(value.slice(0, 500));
+                  setComposerError("");
+                }}
+                placeholder={
+                  postKind === "goal"
+                    ? "What are you working toward?"
+                    : postKind === "doing"
+                      ? "What are you doing today?"
+                      : "What’s happening on your journey?"
+                }
+                placeholderTextColor={colors.mutedForeground}
+                maxLength={500}
+                multiline
+                textAlignVertical="top"
+                style={[
+                  styles.postInput,
+                  {
+                    color: colors.foreground,
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                    borderRadius: colors.radius,
+                  },
+                ]}
+              />
+              <View style={styles.composerMetaRow}>
+                <View style={styles.kindSelector}>
+                  {(Object.keys(kindLabels) as PostKind[]).map((kind) => {
+                    const selected = postKind === kind;
+                    return (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        accessibilityLabel={`${kindLabels[kind]} post type`}
+                        key={kind}
+                        onPress={() => setPostKind(kind)}
+                        style={[
+                          styles.kindOption,
+                          {
+                            backgroundColor: selected ? colors.primary + "10" : "transparent",
+                            borderColor: selected ? colors.primary + "55" : "transparent",
+                          },
+                        ]}
+                      >
+                        <Feather
+                          name={kindIcons[kind]}
+                          size={17}
+                          color={selected ? colors.primary : colors.mutedForeground}
+                        />
+                        <Text
+                          style={[
+                            styles.kindOptionText,
+                            { color: selected ? colors.primary : colors.mutedForeground },
+                          ]}
+                        >
+                          {kindLabels[kind]}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={[styles.characterCount, { color: colors.mutedForeground }]}>
+                  {postBody.length}/500
+                </Text>
+              </View>
+
+              <View style={styles.composerSection}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Feed</Text>
+                <FeedCategoryFilters
+                  category={postCategory}
+                  onCategoryChange={(nextCategory) => {
+                    setPostCategory(nextCategory);
+                    setPostTopic("general");
+                  }}
+                  testIDPrefix="feed-composer"
+                  variant="minimal"
+                />
+              </View>
+
+              {!editingItem ? (
+                <View style={styles.composerSection}>
+                  <View style={styles.visibilityHeader}>
+                    <Text style={[styles.fieldLabel, { color: colors.foreground }]}>
+                      Who can see this?
+                    </Text>
+                  </View>
+                  <View style={styles.choiceRow}>
+                    {(Object.keys(visibilityLabels) as PostVisibility[]).map((item) => {
+                      const selected = visibility === item;
+                      return (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityState={{ selected }}
+                          key={item}
+                          onPress={() => setVisibility(item)}
+                          style={[
+                            styles.choiceChip,
+                            {
+                              backgroundColor: selected ? colors.primary + "10" : colors.muted,
+                              borderColor: selected ? colors.primary + "55" : colors.border,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.choiceText,
+                              { color: selected ? colors.primary : colors.mutedForeground },
+                            ]}
+                          >
+                            {visibilityLabels[item]}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
+              {editingItem ? (
+                <Text style={[styles.editVisibilityNote, { color: colors.mutedForeground }]}>
+                  Visibility stays the same
+                </Text>
+              ) : null}
+              {composerError ? (
+                <Text style={[styles.inlineError, { color: colors.destructive }]}>
+                  {composerError}
+                </Text>
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                disabled={createPostMutation.isPending || updatePostMutation.isPending}
+                onPress={() => void submitPost()}
+                style={[
+                  styles.submitButton,
+                  {
+                    backgroundColor: colors.primary,
+                    borderRadius: colors.radius,
+                    opacity: createPostMutation.isPending || updatePostMutation.isPending ? 0.65 : 1,
+                  },
+                ]}
+              >
+                {createPostMutation.isPending || updatePostMutation.isPending ? (
+                  <ActivityIndicator color={colors.primaryForeground} />
+                ) : (
+                  <Text style={[styles.submitButtonText, { color: colors.primaryForeground }]}>
+                    {editingItem ? "Save changes" : "Share post"}
+                  </Text>
+                )}
+              </Pressable>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
@@ -1420,9 +1444,21 @@ const styles = StyleSheet.create({
   loadMoreButton: { minHeight: 42, borderWidth: 1, borderRadius: 15, justifyContent: "center", alignItems: "center", paddingHorizontal: 14 },
   loadMoreText: { fontSize: 13, fontFamily: "Inter_700Bold" },
   modalScrim: { flex: 1, justifyContent: "flex-end" },
-  composerScroll: { maxHeight: "94%", flexGrow: 0 },
-  composerScrollContent: { justifyContent: "flex-end" },
-  composerSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 22, gap: 13 },
+  composerOverlay: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 16 },
+  composerModalScroll: { width: "100%", maxWidth: 460, maxHeight: "100%", flexGrow: 0 },
+  composerModalScrollContent: { flexGrow: 1, justifyContent: "center" },
+  composerCard: { width: "100%", borderWidth: 1, paddingHorizontal: 18, paddingTop: 15, paddingBottom: 18, gap: 14 },
+  composerSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 22, gap: 13 },
+  composerHeader: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  composerCloseButton: { width: 38, height: 38, alignItems: "flex-start", justifyContent: "center" },
+  composerTitle: { flex: 1, textAlign: "center", fontSize: 18, fontFamily: "Inter_700Bold" },
+  composerHeaderSpacer: { width: 38 },
+  composerMetaRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  kindSelector: { flex: 1, flexDirection: "row", justifyContent: "space-between", gap: 4 },
+  kindOption: { flex: 1, minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, borderWidth: 1, borderRadius: 13 },
+  kindOptionText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  composerSection: { gap: 8 },
+  editVisibilityNote: { fontSize: 11, fontFamily: "Inter_400Regular" },
   commentsSheet: { height: "76%", borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 16 },
   sheetHandle: { width: 38, height: 4, borderRadius: 3, alignSelf: "center", marginBottom: 5 },
   sheetHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
@@ -1431,7 +1467,7 @@ const styles = StyleSheet.create({
   choiceRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   choiceChip: { minHeight: 34, paddingHorizontal: 12, borderWidth: 1, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   choiceText: { fontSize: 12, fontFamily: "Inter_700Bold" },
-  postInput: { minHeight: 124, maxHeight: 200, borderWidth: 1, borderRadius: 16, padding: 13, fontSize: 14, lineHeight: 21, fontFamily: "Inter_400Regular" },
+  postInput: { minHeight: 150, maxHeight: 220, borderWidth: 1, borderRadius: 16, padding: 14, fontSize: 15, lineHeight: 22, fontFamily: "Inter_400Regular" },
   visibilityHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   fieldLabel: { fontSize: 12, fontFamily: "Inter_700Bold" },
   characterCount: { fontSize: 11, fontFamily: "Inter_400Regular" },

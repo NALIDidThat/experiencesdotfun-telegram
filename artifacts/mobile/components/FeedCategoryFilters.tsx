@@ -13,12 +13,15 @@ export function FeedCategoryFilters({
   category,
   onCategoryChange,
   testIDPrefix = "feed",
+  variant = "glass",
 }: {
   category: FeedPostCategory;
   onCategoryChange: (category: FeedPostCategory) => void;
   testIDPrefix?: string;
+  variant?: "glass" | "minimal";
 }) {
   const colors = useColors();
+  const minimal = variant === "minimal";
   const liquidGlassAvailable =
     Platform.OS === "ios" &&
     isLiquidGlassAvailable() &&
@@ -30,31 +33,33 @@ export function FeedCategoryFilters({
       style={[
         styles.glassControl,
         {
-          backgroundColor: `${colors.primary}08`,
-          borderColor: `${colors.primary}48`,
+          backgroundColor: minimal ? colors.muted : `${colors.primary}08`,
+          borderColor: minimal ? colors.border : `${colors.primary}48`,
         },
       ]}
     >
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.glassBackdrop]}>
-        {liquidGlassAvailable ? (
-          <GlassView
-            glassEffectStyle="regular"
-            tintColor={`${colors.primary}24`}
-            style={StyleSheet.absoluteFill}
+      {!minimal ? (
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.glassBackdrop]}>
+          {liquidGlassAvailable ? (
+            <GlassView
+              glassEffectStyle="regular"
+              tintColor={`${colors.primary}24`}
+              style={StyleSheet.absoluteFill}
+            />
+          ) : (
+            <BlurView intensity={42} tint="light" style={StyleSheet.absoluteFill} />
+          )}
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: `${colors.primary}12` },
+            ]}
           />
-        ) : (
-          <BlurView intensity={42} tint="light" style={StyleSheet.absoluteFill} />
-        )}
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: `${colors.primary}12` },
-          ]}
-        />
-      </View>
+        </View>
+      ) : null}
       <View
         accessibilityRole="tablist"
-        style={styles.categoryControl}
+        style={[styles.categoryControl, minimal && styles.minimalCategoryControl]}
       >
         {(Object.keys(feedCategoryLabels) as FeedPostCategory[]).map((item) => {
           const selected = category === item;
@@ -67,6 +72,7 @@ export function FeedCategoryFilters({
               onPress={() => onCategoryChange(item)}
               style={({ pressed }) => [
                 styles.categoryButton,
+                minimal && styles.minimalCategoryButton,
                 selected && { backgroundColor: colors.primary },
                 pressed && styles.categoryButtonPressed,
               ]}
@@ -97,7 +103,9 @@ const styles = StyleSheet.create({
   },
   glassBackdrop: { borderRadius: 999 },
   categoryControl: { flexDirection: "row", gap: 4 },
+  minimalCategoryControl: { gap: 3 },
   categoryButton: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 999 },
+  minimalCategoryButton: { minHeight: 42, borderRadius: 11 },
   categoryButtonPressed: { opacity: 0.78 },
   categoryText: { fontSize: 13, fontFamily: "Inter_700Bold" },
 });
