@@ -4365,15 +4365,11 @@ function SocialProfileHeader({
   user,
   friendsCount,
   onMetricPress,
-  isEditing,
-  onEditPress,
   onOrganisationToolsPress,
 }: {
   user: SocialProfileUser;
   friendsCount: number;
   onMetricPress?: (metric: ProfileMetricKey) => void;
-  isEditing?: boolean;
-  onEditPress?: () => void;
   onOrganisationToolsPress?: () => void;
 }) {
   const colors = useColors();
@@ -4449,25 +4445,6 @@ function SocialProfileHeader({
           ) : null}
         </View>
       </View>
-
-      {onEditPress ? (
-        <Pressable
-          testID="profile-edit-toggle"
-          accessibilityRole="button"
-          accessibilityLabel={isEditing ? 'Close edit form' : 'Edit profile'}
-          accessibilityHint={isEditing ? 'Closes the profile editor.' : 'Opens the profile editor.'}
-          onPress={() => { triggerHaptic(); onEditPress(); }}
-          style={({ pressed }) => [
-            styles.profileEditButton,
-            { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.72 : 1 },
-          ]}
-        >
-          <Feather name={isEditing ? 'x' : 'edit-2'} size={16} color={colors.primary} />
-          <Text style={[styles.profileEditButtonText, { color: colors.foreground }]}>
-            {isEditing ? 'Close edit form' : 'Edit profile'}
-          </Text>
-        </Pressable>
-      ) : null}
 
       {user.userType === 'participant' ? (
       <>
@@ -6287,8 +6264,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       <SocialProfileHeader
         user={current}
         friendsCount={friends.data?.length ?? 0}
-        isEditing={editing}
-        onEditPress={toggleProfileEditor}
         onOrganisationToolsPress={current.userType === 'organisation' ? openHostTools : undefined}
         onMetricPress={(metric) => {
           if (metric === 'friends') {
@@ -11586,8 +11561,6 @@ const styles = StyleSheet.create({
   profileBadgeText: { flexShrink: 1, fontSize: 10, fontFamily: 'Inter_600SemiBold' },
   profileSocialLinks: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 10 },
   profileSocialLink: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 15 },
-  profileEditButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 14, borderWidth: 1 },
-  profileEditButtonText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   profileBentoRow: { flexDirection: 'row', gap: 10 },
   profileMetricTopRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   profileCompletedTile: { flex: 1.05, minHeight: 148, justifyContent: 'space-between', padding: 13, borderWidth: 1 },
