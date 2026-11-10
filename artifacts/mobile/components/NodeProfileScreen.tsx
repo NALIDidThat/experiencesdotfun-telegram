@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
@@ -15,17 +15,13 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { NodeArtwork } from '@/components/NodeArtwork';
+import { runNodeConnectionAction } from '@/lib/node-connection-actions';
 
 const participationRoles: Array<{ key: NodeConnectionInput['role']; label: string; detail: string }> = [
   { key: 'participant', label: 'Participant', detail: 'Take part in activities and community life' },
   { key: 'volunteer', label: 'Volunteer', detail: 'Support the Node and its activities' },
   { key: 'learner', label: 'Learner', detail: 'Learn, practise, and build new skills' },
 ];
-
-function errorText(error: unknown) {
-  const data = (error as { data?: { error?: string; message?: string } })?.data;
-  return data?.error ?? data?.message ?? 'This action could not be completed. Please try again.';
-}
 
 export function NodeProfileScreen({
   nodeId,
@@ -46,23 +42,24 @@ export function NodeProfileScreen({
   const [selectedRole, setSelectedRole] = useState<NodeConnectionInput['role']>('participant');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const connectionActionLock = useRef(false);
   const busy = connect.isPending || updateConnection.isPending || disconnect.isPending;
   const data = profile.data;
   const membership = data?.membership as NodeProfile['membership'] | null | undefined;
   const canConnect = user?.userType === 'participant';
 
   const runConnectionAction = async (action: () => Promise<unknown>, successMessage: string) => {
-    setError('');
-    setNotice('');
-    try {
-      await action();
-      const refreshed = await profile.refetch();
-      if (refreshed.isError) throw refreshed.error;
-      void queryClient.invalidateQueries({ queryKey: getGetMyNodesQueryKey() });
-      setNotice(successMessage);
-    } catch (cause) {
-      setError(errorText(cause));
-    }
+    await runNodeConnectionAction({
+      action,
+      successMessage,
+      lock: connectionActionLock,
+      refetchProfile: () => profile.refetch(),
+      invalidateMyNodes: () => {
+        void queryClient.invalidateQueries({ queryKey: getGetMyNodesQueryKey() });
+      },
+      setError,
+      setNotice,
+    });
   };
 
   return (
