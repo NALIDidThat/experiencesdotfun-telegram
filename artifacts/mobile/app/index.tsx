@@ -156,7 +156,7 @@ import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSlide
 import { ExperienceLocationPicker, type ResolvedLocation } from '@/components/ExperienceLocationPicker';
 import { TimeWheelPicker } from '@/components/TimeWheelPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
-import { NodeDashboardCard, NodeManagementPanel, MyNodeConnectionsPanel } from '@/components/NodeManagementPanel';
+import { NodeDashboardCard, NodeManagementPanel } from '@/components/NodeManagementPanel';
 import { NodeProfileScreen } from '@/components/NodeProfileScreen';
 import { openTelegramBot, shareToTelegram } from '@/lib/telegram';
 import {
@@ -6321,7 +6321,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       {current.userType === 'participant' ? (
         <>
           <ContributionDashboard user={current} completed={completed.data} />
-          <MyNodeConnectionsPanel onOpenNode={(nodeId) => go('node-profile', { nodeId: String(nodeId) })} />
           <CommunityXpPanel />
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent impact</Text>
           {completed.isLoading ? <LoadingState /> : completed.isError ? (
