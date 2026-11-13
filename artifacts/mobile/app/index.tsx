@@ -3029,6 +3029,7 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
 
       <View pointerEvents="box-none" style={styles.exploreTopOverlay}>
         <View
+          pointerEvents="box-none"
           testID="explore-glass-header"
           style={[styles.exploreGlassHeader, { borderColor: `${colors.border}C8` }]}
         >

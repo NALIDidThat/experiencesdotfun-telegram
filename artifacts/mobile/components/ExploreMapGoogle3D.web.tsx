@@ -333,6 +333,7 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
           cities={props.cities}
           friends={props.friends}
           experienceLocations={props.experienceLocations}
+          nodes={props.nodes}
           mode={props.mode}
           selectedCity={props.selectedCity}
           selectedCityCoordinates={props.selectedCityCoordinates}
@@ -345,6 +346,7 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
           onSelectCity={props.onSelectCity}
           onSelectFriend={props.onSelectFriend}
           onSelectExperience={props.onSelectExperience}
+          onSelectNode={props.onSelectNode}
           onExploreCity={props.onExploreCity}
           onResetCity={props.onResetCity}
         />
@@ -437,7 +439,14 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
               title={`${node.name} · ${node.organisationName}${node.city ? ` · ${node.city}` : ''}`}
               onClick={() => props.onSelectNode?.(node.nodeId)}
             >
-              <View style={[styles.nodeMarker, { backgroundColor: colors.secondary, borderColor: colors.card }]}>
+              <View
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${node.name}, an Experiences.fun Node by ${node.organisationName}${node.city ? ` in ${node.city}` : ''}.`}
+                accessibilityHint="Opens the verified Node profile."
+                testID={`explore-node-pin-${node.nodeId}`}
+                style={[styles.nodeMarker, { backgroundColor: colors.secondary, borderColor: colors.card }]}
+              >
                 <Feather name="map-pin" size={14} color={colors.primaryForeground} />
               </View>
             </AdvancedMarker>
@@ -827,7 +836,7 @@ const styles = StyleSheet.create({
   cityMarker: { minWidth: 34, height: 34, borderRadius: 18, borderWidth: 2, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
   businessMarker: { minWidth: 28, height: 28, borderRadius: 15, borderWidth: 2, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   experienceMarker: { width: 27, height: 27, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  nodeMarker: { width: 32, height: 32, borderRadius: 17, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  nodeMarker: { width: 48, height: 48, borderRadius: 24, borderWidth: 2.5, alignItems: 'center', justifyContent: 'center' },
   friendMarker: { width: 29, height: 29, borderRadius: 15, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   markerLabel: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   notice: { position: 'absolute', left: 12, bottom: 12, borderWidth: 1, padding: 12, borderRadius: 10 },

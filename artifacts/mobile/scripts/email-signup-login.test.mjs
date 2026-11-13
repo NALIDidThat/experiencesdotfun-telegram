@@ -339,6 +339,31 @@ function apiResponseHeaders(request, domain) {
   ];
 }
 
+async function assertParticipantWalkthroughLayout(client, page) {
+  await delay(260);
+  const layout = await client.evaluate(`(() => {
+    const rect = (testId) => {
+      const element = document.querySelector('[data-testid="' + testId + '"]');
+      if (!element) return null;
+      const bounds = element.getBoundingClientRect();
+      return { top: bounds.top, bottom: bounds.bottom, left: bounds.left, right: bounds.right };
+    };
+    return {
+      viewportHeight: window.innerHeight,
+      page: rect("participant-walkthrough-page-${page}"),
+      sheet: rect("participant-walkthrough-sheet"),
+      illustration: rect("participant-walkthrough-illustration"),
+      title: rect("participant-walkthrough-title"),
+      footer: rect("participant-walkthrough-footer"),
+    };
+  })()`);
+  assert.ok(layout.page && layout.sheet && layout.illustration && layout.title && layout.footer);
+  assert.ok(Math.abs(layout.sheet.bottom - layout.viewportHeight) <= 2, "The participant copy card should meet the viewport bottom.");
+  assert.ok(layout.title.top >= layout.sheet.top, "The participant copy should sit inside its card.");
+  assert.ok(layout.footer.bottom <= layout.sheet.bottom - 24, "The participant controls should clear the bottom safe area.");
+  assert.ok(layout.illustration.bottom < layout.sheet.top, "The participant illustration should remain above the copy card.");
+}
+
 async function assertLoginIdentifierRequest(t, identifier, expectedInput) {
   const domain = process.env.REPLIT_EXPO_DEV_DOMAIN;
   assert.ok(domain, "REPLIT_EXPO_DEV_DOMAIN must be set to run the mobile email auth flow test.");
@@ -432,6 +457,7 @@ async function assertLoginIdentifierRequest(t, identifier, expectedInput) {
     Boolean,
     "the participant introduction",
   );
+  await assertParticipantWalkthroughLayout(client, 1);
   assert.equal(
     await client.evaluate(`document.querySelector('[data-testid="participant-walkthrough-title"]')?.textContent?.trim()`),
     "Find people who care about the same things.",

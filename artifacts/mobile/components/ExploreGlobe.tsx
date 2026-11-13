@@ -909,8 +909,8 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
               style={[
                 styles.nodeLocationHitTarget,
                 {
-                  left: globeOffsetX + point.x * globeScale - 17,
-                  top: globeOffsetY + point.y * globeScale - 17,
+                  left: globeOffsetX + point.x * globeScale - 24,
+                  top: globeOffsetY + point.y * globeScale - 24,
                 },
               ]}
             >
