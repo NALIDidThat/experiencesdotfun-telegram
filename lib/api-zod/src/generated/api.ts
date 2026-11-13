@@ -2069,6 +2069,56 @@ export const ListOrganisationFundsResponse = zod.array(ListOrganisationFundsResp
 
 
 /**
+ * @summary List pending allocation requests for a campaign owned by the signed-in charity
+ */
+
+
+
+export const ListFundAllocationRequestsParams = zod.object({
+  "fundId": zod.coerce.number().int().min(1)
+})
+
+export const ListFundAllocationRequestsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "fundId": zod.number().int(),
+  "amountSol": zod.string(),
+  "status": zod.enum(['pending', 'cancelled']),
+  "createdAt": zod.coerce.date()
+})
+export const ListFundAllocationRequestsResponse = zod.array(ListFundAllocationRequestsResponseItem)
+
+
+/**
+ * Creates an in-app pending request only. It does not create a multisig proposal or transfer SOL.
+ * @summary Save a pending request to allocate shared treasury funds to a campaign
+ */
+
+
+
+export const CreateFundAllocationRequestParams = zod.object({
+  "fundId": zod.coerce.number().int().min(1)
+})
+
+export const createFundAllocationRequestBodyAmountSolMax = 20;
+
+
+export const createFundAllocationRequestBodyAmountSolRegExp = new RegExp('^(?:0|[1-9]\\d{0,9})(?:\\.\\d{1,9})?$');
+
+
+export const CreateFundAllocationRequestBody = zod.object({
+  "amountSol": zod.string().min(1).max(createFundAllocationRequestBodyAmountSolMax).regex(createFundAllocationRequestBodyAmountSolRegExp)
+})
+
+export const CreateFundAllocationRequestResponse = zod.object({
+  "id": zod.number().int(),
+  "fundId": zod.number().int(),
+  "amountSol": zod.string(),
+  "status": zod.enum(['pending', 'cancelled']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * Outcome reports are charity-authored updates and do not change fundraising progress, verify delivery, or trigger payouts.
  * @summary Record an append-only charity outcome update for a campaign checkpoint
  */

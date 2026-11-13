@@ -9,17 +9,20 @@ import {
   getGetHostOverviewQueryKey,
   getGetOrganisationTreasuryQueryKey,
   getListOrganisationFundsQueryKey,
+  getListFundAllocationRequestsQueryKey,
   getListFundPayoutsQueryKey,
   getListHostExperiencesQueryKey,
   useCreateOrganisationFund,
+  useCreateFundAllocationRequest,
   useGetHostOverview,
   useListFundPayouts,
+  useListFundAllocationRequests,
   useListHostExperiences,
   useGetOrganisationTreasury,
   useListOrganisationFunds,
   useRegisterOrganisationTreasury,
 } from "@workspace/api-client-react";
-import type { FundPayout, HostExperience, HostOverview, OrganisationFund, OrganisationTreasuryDashboard, OrganisationTreasuryInput } from "@workspace/api-client-react";
+import type { FundAllocationRequest, FundPayout, HostExperience, HostOverview, OrganisationFund, OrganisationTreasuryDashboard, OrganisationTreasuryInput } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { ContributeToFund } from "@/components/fundraising/ContributionCheckout";
@@ -215,7 +218,11 @@ function FundMilestoneProgress({ fund }: { fund: OrganisationFund }) {
   );
 }
 
-function CampaignProgressCard({ fund, onPress }: { fund: OrganisationFund; onPress: () => void }) {
+function CampaignProgressCard({ fund, onPress, onAddFunds }: {
+  fund: OrganisationFund;
+  onPress: () => void;
+  onAddFunds?: () => void;
+}) {
   const colors = useColors();
   const progress = campaignProgress(fund);
   const raised = formatCampaignSol(fund.raisedSol);
@@ -223,13 +230,8 @@ function CampaignProgressCard({ fund, onPress }: { fund: OrganisationFund; onPre
   const creatorUsername = fund.creatorUsername?.trim().replace(/^@+/, "") ?? "";
   const depositLabel = `${fund.contributionCount} verified ${fund.contributionCount === 1 ? "deposit" : "deposits"}`;
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Open ${fund.title}, ${creatorUsername ? `created by @${creatorUsername}, ` : ""}${raised} SOL raised of ${goal} SOL goal, ${depositLabel}, ${Math.round(progress)}% funded`}
-      accessibilityHint="Opens campaign details."
-      testID={`campaign-progress-${fund.id}`}
-      onPress={onPress}
-      style={({ pressed }) => ({
+    <View
+      style={{
         overflow: "hidden",
         borderWidth: 1,
         borderColor: colors.border,
@@ -240,10 +242,16 @@ function CampaignProgressCard({ fund, onPress }: { fund: OrganisationFund; onPre
         shadowOpacity: 0.07,
         shadowRadius: 14,
         elevation: 2,
-        opacity: pressed ? 0.88 : 1,
-        transform: [{ scale: pressed ? 0.99 : 1 }],
-      })}
+      }}
     >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${fund.title}, ${creatorUsername ? `created by @${creatorUsername}, ` : ""}${raised} SOL raised of ${goal} SOL goal, ${depositLabel}, ${Math.round(progress)}% funded`}
+        accessibilityHint="Opens campaign details."
+        testID={`campaign-progress-${fund.id}`}
+        onPress={onPress}
+        style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] })}
+      >
       <View style={{ padding: 12, gap: 14 }}>
         <View style={{ padding: 13, gap: 9, borderRadius: colors.radius + 2, backgroundColor: colors.primary + "0D" }}>
           <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 11 }}>
@@ -309,7 +317,178 @@ function CampaignProgressCard({ fund, onPress }: { fund: OrganisationFund; onPre
           </View>
         </View>
       </View>
-    </Pressable>
+      </Pressable>
+      {onAddFunds && fund.status === "active" ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Add funds to ${fund.title}`}
+          testID={`campaign-add-funds-${fund.id}`}
+          onPress={onAddFunds}
+          style={({ pressed }) => ({
+            minHeight: 46,
+            marginHorizontal: 12,
+            marginBottom: 12,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 7,
+            borderRadius: colors.radius - 4,
+            backgroundColor: colors.secondary,
+            opacity: pressed ? 0.82 : 1,
+          })}
+        >
+          <Feather name="plus-circle" size={15} color={colors.primaryForeground} />
+          <Text style={{ color: colors.primaryForeground, fontSize: 12, fontFamily: "Inter_700Bold" }}>Add funds</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function FundAllocationRequestModal({ fund, onClose }: { fund: OrganisationFund | null; onClose: () => void }) {
+  const colors = useColors();
+  const queryClient = useQueryClient();
+  const [amountSol, setAmountSol] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [recentRequest, setRecentRequest] = useState<FundAllocationRequest | null>(null);
+  const requestsQuery = useListFundAllocationRequests(fund?.id ?? 0, {
+    query: {
+      queryKey: getListFundAllocationRequestsQueryKey(fund?.id ?? 0),
+      enabled: !!fund,
+      staleTime: 0,
+    },
+  });
+  const createRequest = useCreateFundAllocationRequest();
+
+  useEffect(() => {
+    setAmountSol("");
+    setFormError(null);
+    setSuccessMessage(null);
+    setRecentRequest(null);
+  }, [fund?.id]);
+
+  const submitRequest = async () => {
+    if (!fund) return;
+    const cleanAmount = amountSol.trim();
+    if (!/^(?:0|[1-9]\d{0,9})(?:\.\d{1,9})?$/.test(cleanAmount) || Number(cleanAmount) <= 0) {
+      setFormError("Enter an amount greater than zero with up to 9 decimal places.");
+      return;
+    }
+    setFormError(null);
+    setSuccessMessage(null);
+    try {
+      const request = await createRequest.mutateAsync({
+        fundId: fund.id,
+        data: { amountSol: cleanAmount },
+      });
+      setRecentRequest(request);
+      setAmountSol("");
+      setSuccessMessage("Request saved as pending. No SOL was moved or deducted.");
+      void queryClient.invalidateQueries({ queryKey: getListFundAllocationRequestsQueryKey(fund.id) });
+    } catch (error) {
+      const message = typeof error === "object" && error !== null && "data" in error
+        ? (error as { data?: { message?: string } }).data?.message
+        : undefined;
+      setFormError(message ?? (error instanceof Error ? error.message : "The request could not be saved."));
+    }
+  };
+
+  const requests = requestsQuery.data ?? [];
+  const visibleRequests = recentRequest && !requests.some((request) => request.id === recentRequest.id)
+    ? [recentRequest, ...requests]
+    : requests;
+
+  return (
+    <Modal visible={!!fund} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+      <View style={{ flex: 1, justifyContent: "center", backgroundColor: "#100C16B8", padding: 18 }}>
+        <View style={{ maxHeight: "92%", overflow: "hidden", borderRadius: colors.radius + 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 15 }}>
+            <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text accessibilityRole="header" style={{ color: colors.foreground, fontSize: 21, fontFamily: "Inter_700Bold" }}>Add funds</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>{fund?.title}</Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Close add funds dialog" testID="fund-allocation-close" onPress={onClose} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: 13, backgroundColor: colors.muted }}>
+                <Feather name="x" size={18} color={colors.foreground} />
+              </Pressable>
+            </View>
+
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 9, borderRadius: colors.radius - 3, backgroundColor: colors.primary + "10", padding: 12 }}>
+              <Feather name="shield" size={15} color={colors.primary} />
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={{ color: colors.foreground, fontSize: 11, fontFamily: "Inter_700Bold" }}>Shared charity treasury</Text>
+                <Text numberOfLines={1} style={{ color: colors.mutedForeground, fontSize: 10 }}>{fund ? shortAddress(fund.walletAddress) : ""}</Text>
+              </View>
+            </View>
+
+            <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 17 }}>
+              This saves a pending allocation request only. It does not create a multisig proposal, move SOL, or change the treasury balance.
+            </Text>
+
+            <View style={{ gap: 7 }}>
+              <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Request amount (SOL)</Text>
+              <TextInput
+                accessibilityLabel="Request amount in SOL"
+                testID="fund-allocation-amount"
+                value={amountSol}
+                onChangeText={(value) => { setAmountSol(value); setFormError(null); setSuccessMessage(null); }}
+                placeholder="0.00"
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="decimal-pad"
+                maxLength={20}
+                style={{ minHeight: 50, borderWidth: 1, borderColor: formError ? colors.destructive : colors.border, borderRadius: colors.radius - 4, backgroundColor: colors.background, paddingHorizontal: 13, color: colors.foreground, fontSize: 16 }}
+              />
+              {formError ? <Text accessibilityRole="alert" testID="fund-allocation-error" style={{ color: colors.destructive, fontSize: 11 }}>{formError}</Text> : null}
+              {successMessage ? <Text accessibilityLiveRegion="polite" testID="fund-allocation-success" style={{ color: colors.success, fontSize: 11, lineHeight: 16 }}>{successMessage}</Text> : null}
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              testID="fund-allocation-submit"
+              disabled={!amountSol.trim() || createRequest.isPending}
+              onPress={() => { void submitRequest(); }}
+              style={({ pressed }) => ({ minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: colors.radius - 4, backgroundColor: colors.primary, opacity: !amountSol.trim() || createRequest.isPending ? 0.55 : pressed ? 0.82 : 1 })}
+            >
+              {createRequest.isPending ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name="send" size={15} color={colors.primaryForeground} />}
+              <Text style={{ color: colors.primaryForeground, fontSize: 12, fontFamily: "Inter_700Bold" }}>{createRequest.isPending ? "Saving request…" : "Request funds"}</Text>
+            </Pressable>
+
+            <View style={{ gap: 9, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_700Bold" }}>Saved requests</Text>
+                {requestsQuery.isFetching ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+              </View>
+              {requestsQuery.isError ? (
+                <View style={{ gap: 5 }}>
+                  <Text accessibilityRole="alert" style={{ color: colors.destructive, fontSize: 11, lineHeight: 16 }}>
+                    Saved requests could not be loaded. Apply the approved campaign-request migration, then try again.
+                  </Text>
+                  <Pressable accessibilityRole="button" testID="fund-allocation-refresh" onPress={() => { void requestsQuery.refetch(); }} style={{ minHeight: 34, justifyContent: "center", alignSelf: "flex-start" }}>
+                    <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_700Bold" }}>Try again</Text>
+                  </Pressable>
+                </View>
+              ) : visibleRequests.length ? visibleRequests.map((request) => (
+                <View key={request.id} testID={`fund-allocation-request-${request.id}`} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, borderRadius: colors.radius - 5, backgroundColor: colors.muted + "80", padding: 11 }}>
+                  <View style={{ gap: 3 }}>
+                    <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_700Bold" }}>{formatSol(request.amountSol)} SOL</Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>{new Date(request.createdAt).toLocaleDateString()}</Text>
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 999, backgroundColor: colors.secondary + "18", paddingHorizontal: 9, paddingVertical: 6 }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.secondary }} />
+                    <Text style={{ color: colors.secondary, fontSize: 9, fontFamily: "Inter_700Bold" }}>{request.status}</Text>
+                  </View>
+                </View>
+              )) : requestsQuery.isLoading ? (
+                <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Loading saved requests…</Text>
+              ) : (
+                <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>No allocation requests have been saved for this campaign.</Text>
+              )}
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -784,6 +963,7 @@ export function OrganisationFundsScreen({
   const [campaignSearch, setCampaignSearch] = useState("");
   const [campaignSort, setCampaignSort] = useState<CampaignSort>("recent");
   const [campaignDetailTab, setCampaignDetailTab] = useState<CampaignDetailTab>("overview");
+  const [allocationRequestFund, setAllocationRequestFund] = useState<OrganisationFund | null>(null);
   const [experienceIdToAttach, setExperienceIdToAttach] = useState<number | undefined>(initialExperienceId);
   const { user } = useAuth();
   const hostOverviewQuery = useGetHostOverview({
@@ -830,6 +1010,7 @@ export function OrganisationFundsScreen({
     });
   }, [payoutsQuery.data, expandedMetric]);
   const selectedFundFromRoute = initialFundId ? fundsQuery.data?.find((fund) => fund.id === initialFundId) : undefined;
+  const openAllocationRequest = (fund: OrganisationFund) => setAllocationRequestFund(fund);
   const register = useRegisterOrganisationTreasury();
   const create = useCreateOrganisationFund({ mutation: { onSuccess: () => {
     void queryClient.invalidateQueries({ queryKey: getListOrganisationFundsQueryKey(organisationUserId) });
@@ -1454,7 +1635,12 @@ export function OrganisationFundsScreen({
               {button("Try again", () => { void fundsQuery.refetch(); }, true, fundsQuery.isFetching, "refresh-cw")}
             </View>
           ) : visibleCampaigns.length ? visibleCampaigns.map((fund) => (
-            <CampaignProgressCard key={fund.id} fund={fund} onPress={() => { setSelectedFund(fund); setCampaignDetailTab("overview"); setStage("detail"); }} />
+            <CampaignProgressCard
+              key={fund.id}
+              fund={fund}
+              onPress={() => { setSelectedFund(fund); setCampaignDetailTab("overview"); setStage("detail"); }}
+              onAddFunds={() => openAllocationRequest(fund)}
+            />
           )) : (
             <View testID="campaign-empty-state" style={{ alignItems: "center", borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius + 3, backgroundColor: colors.card, paddingVertical: 22, paddingHorizontal: 18, gap: 8 }}>
               <View style={{ width: 44, height: 44, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "12" }}>
@@ -1483,6 +1669,7 @@ export function OrganisationFundsScreen({
           )}
           <Text style={{ color: colors.mutedForeground, fontSize: 10, lineHeight: 15 }}>Progress includes recorded, finalized campaign deposits only. Transfers to the shared treasury may not be attributable to a campaign.</Text>
         </KeyboardAwareScrollViewCompat>
+        <FundAllocationRequestModal fund={allocationRequestFund} onClose={() => setAllocationRequestFund(null)} />
       </View>
     );
   }
@@ -1913,7 +2100,12 @@ export function OrganisationFundsScreen({
                     {button("Try again", () => { void fundsQuery.refetch(); }, true)}
                   </View>
                 ) : fundsQuery.data?.some((fund) => fund.status === "active") ? fundsQuery.data.filter((fund) => fund.status === "active").map((fund) => (
-                  <CampaignProgressCard key={fund.id} fund={fund} onPress={() => onOpenCampaign ? onOpenCampaign(fund.id) : (setSelectedFund(fund), setStage("detail"))} />
+                  <CampaignProgressCard
+                    key={fund.id}
+                    fund={fund}
+                    onPress={() => onOpenCampaign ? onOpenCampaign(fund.id) : (setSelectedFund(fund), setStage("detail"))}
+                    onAddFunds={() => openAllocationRequest(fund)}
+                  />
                 )) : (
                   <View style={{ alignItems: "center", paddingVertical: 20, paddingHorizontal: 18, gap: 8 }}>
                     <Feather name="heart" size={25} color={colors.primary} />
@@ -2066,6 +2258,7 @@ export function OrganisationFundsScreen({
         }}
         onClose={() => setExpandedMetric(null)}
       />
+      <FundAllocationRequestModal fund={allocationRequestFund} onClose={() => setAllocationRequestFund(null)} />
     </View>
   );
 }

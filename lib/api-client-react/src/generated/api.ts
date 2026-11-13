@@ -92,6 +92,8 @@ import type {
   FriendProfile,
   FriendRequest,
   FriendRequestCreateInput,
+  FundAllocationRequest,
+  FundAllocationRequestInput,
   FundCampaignActivity,
   FundContribution,
   FundContributionInput,
@@ -4725,6 +4727,173 @@ export function useListOrganisationFunds<TData = Awaited<ReturnType<typeof listO
 
 
 
+
+export const getListFundAllocationRequestsUrl = (fundId: number,) => {
+
+
+
+
+  return `/api/funds/${fundId}/allocation-requests`
+}
+
+/**
+ * @summary List pending allocation requests for a campaign owned by the signed-in charity
+ */
+export const listFundAllocationRequests = async (fundId: number, options?: Parameters<typeof customFetch>[1]): Promise<FundAllocationRequest[]> => {
+
+  return customFetch<FundAllocationRequest[]>(getListFundAllocationRequestsUrl(fundId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFundAllocationRequestsQueryKey = (fundId: number,) => {
+    return [
+    `/api/funds/${fundId}/allocation-requests`
+    ] as const;
+    }
+
+
+export const getListFundAllocationRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listFundAllocationRequests>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(fundId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFundAllocationRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFundAllocationRequestsQueryKey(fundId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFundAllocationRequests>>> = ({ signal }) => listFundAllocationRequests(fundId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: fundId !== null && fundId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFundAllocationRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFundAllocationRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listFundAllocationRequests>>>
+export type ListFundAllocationRequestsQueryError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+
+
+/**
+ * @summary List pending allocation requests for a campaign owned by the signed-in charity
+ */
+
+export function useListFundAllocationRequests<TData = Awaited<ReturnType<typeof listFundAllocationRequests>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(
+ fundId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFundAllocationRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFundAllocationRequestsQueryOptions(fundId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateFundAllocationRequestUrl = (fundId: number,) => {
+
+
+
+
+  return `/api/funds/${fundId}/allocation-requests`
+}
+
+/**
+ * Creates an in-app pending request only. It does not create a multisig proposal or transfer SOL.
+ * @summary Save a pending request to allocate shared treasury funds to a campaign
+ */
+export const createFundAllocationRequest = async (fundId: number,
+    fundAllocationRequestInput: FundAllocationRequestInput, options?: Parameters<typeof customFetch>[1]): Promise<FundAllocationRequest> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FundAllocationRequest>(getCreateFundAllocationRequestUrl(fundId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fundAllocationRequestInput)
+  }
+);}
+
+
+
+
+
+export const getCreateFundAllocationRequestMutationKey = () => ['createFundAllocationRequest'] as const;
+
+export const getCreateFundAllocationRequestMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFundAllocationRequest>>, TError,CreateFundAllocationRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createFundAllocationRequest>>, TError,CreateFundAllocationRequestMutationVariables, TContext> => {
+
+const mutationKey = getCreateFundAllocationRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFundAllocationRequest>>, CreateFundAllocationRequestMutationVariables> = (props) => {
+          const {fundId,data} = props ?? {};
+
+          return  createFundAllocationRequest(fundId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateFundAllocationRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createFundAllocationRequest>>>
+    export type CreateFundAllocationRequestMutationBody = BodyType<FundAllocationRequestInput>
+    export type CreateFundAllocationRequestMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | NotFoundResponse | ConflictResponse>
+    export type CreateFundAllocationRequestMutationVariables = {fundId: number;data: BodyType<FundAllocationRequestInput>}
+
+    /**
+ * @summary Save a pending request to allocate shared treasury funds to a campaign
+ */
+export const useCreateFundAllocationRequest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | Error | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFundAllocationRequest>>, TError,CreateFundAllocationRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createFundAllocationRequest>>,
+        TError,
+        CreateFundAllocationRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateFundAllocationRequestMutationOptions(options));
+    }
 
 export const getCreateFundMilestoneOutcomeReportUrl = (fundId: number,
     milestoneId: number,) => {

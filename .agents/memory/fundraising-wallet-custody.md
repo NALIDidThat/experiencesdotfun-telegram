@@ -5,6 +5,12 @@ description: Product decision for charity DAO treasury, wallet deposits, and vol
 
 Use one DAO treasury per charity, with campaigns and experiences allocating from that shared balance. Accept wallet-based deposits only for now; no fiat on-ramp. Contributions to the treasury should be visible regardless of sender. The charity selects volunteers and proposes payouts, while its multisig signers authorize transfers. Experiences.fun must never hold private keys or sign treasury transactions on the charity's behalf.
 
+Campaign allocation requests are pending records only: creating one must not transfer SOL, deduct or reserve the treasury balance, or create a multisig proposal. Multisig execution is a separate deferred feature.
+
+**Why:** The user asked to focus the Add funds flow on saved requests and add multisig handling later.
+
+**How to apply:** Keep the current request flow separate from treasury execution and campaign-raised totals. Do not imply a pending request has moved or reserved funds.
+
 Fundraising is optional for each Experience. Charity organisations can start a campaign from an Experience and attach that Experience to the fundraiser; treasury campaign cards should show verified progress and link to dedicated campaign tracking.
 
 Campaign milestones are cumulative SOL fundraising thresholds paired with planned outcomes. Reaching a threshold reports verified campaign funding progress; it does not verify delivery or earmark or release shared-treasury funds.

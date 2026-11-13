@@ -137,3 +137,18 @@ export const treasuryPayoutsTable = pgTable("treasury_payouts", {
   statusCheck: check("treasury_payouts_status_check", sql`${table.status} IN ('proposed','cancelled','paid')`),
   amountCheck: check("treasury_payouts_amount_check", sql`${table.amountLamports} > 0 AND ${table.amountLamports} <= 1000000000000000000`),
 }));
+
+export const organisationFundAllocationRequestsTable = pgTable("organisation_fund_allocation_requests", {
+  id: serial("id").primaryKey(),
+  fundId: integer("fund_id").notNull().references(() => organisationFundsTable.id, { onDelete: "restrict" }),
+  treasuryId: integer("treasury_id").notNull().references(() => organisationTreasuriesTable.id, { onDelete: "restrict" }),
+  requestedByUserId: integer("requested_by_user_id").notNull().references(() => usersTable.id, { onDelete: "restrict" }),
+  amountLamports: numeric("amount_lamports", { precision: 20, scale: 0 }).notNull(),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  fundCreatedIndex: index("organisation_fund_allocation_requests_fund_created_idx").on(table.fundId, table.createdAt, table.id),
+  treasuryStatusIndex: index("organisation_fund_allocation_requests_treasury_status_idx").on(table.treasuryId, table.status, table.createdAt),
+  statusCheck: check("organisation_fund_allocation_requests_status_check", sql`${table.status} IN ('pending', 'cancelled')`),
+  amountCheck: check("organisation_fund_allocation_requests_amount_check", sql`${table.amountLamports} > 0 AND ${table.amountLamports} <= 1000000000000000000`),
+}));

@@ -1768,6 +1768,8 @@ test("charity treasury dashboard shows live values and supports private balance 
   const apiTraffic = [];
   const unexpectedApiRequests = [];
   let createdPayoutBody;
+  let createdAllocationRequestBody;
+  let allocationRequests = [];
 
   client.on("Fetch.requestPaused", ({ params }) => {
     void (async () => {
@@ -1823,10 +1825,35 @@ test("charity treasury dashboard shows live values and supports private balance 
           };
         } else if (url.pathname === "/api/host/experiences" && method === "GET") {
           response = [];
+        } else if (url.pathname === "/api/organisations/nodes" && method === "GET") {
+          response = [];
+        } else if (url.pathname === "/api/feed" && method === "GET") {
+          response = {
+            items: [],
+            nextCursor: null,
+            mode: url.searchParams.get("mode") ?? "for-you",
+            city: user.city,
+          };
+        } else if (url.pathname === "/api/feed/preferences" && method === "GET") {
+          response = { shareActivityWithFriends: false };
         } else if (url.pathname === "/api/funds/treasury" && method === "GET") {
           response = treasuryDashboard;
         } else if (url.pathname === `/api/funds/${user.id}` && method === "GET") {
           response = [activeCampaign];
+        } else if (url.pathname === `/api/funds/${activeCampaign.id}/allocation-requests` && method === "GET") {
+          response = allocationRequests;
+        } else if (url.pathname === `/api/funds/${activeCampaign.id}/allocation-requests` && method === "POST") {
+          createdAllocationRequestBody = JSON.parse(params.request.postData ?? "{}");
+          const allocationRequest = {
+            id: 91,
+            fundId: activeCampaign.id,
+            amountSol: createdAllocationRequestBody.amountSol,
+            status: "pending",
+            createdAt: "2026-10-24T10:05:00.000Z",
+          };
+          allocationRequests = [allocationRequest, ...allocationRequests];
+          status = 201;
+          response = allocationRequest;
         } else if (
           method === "GET"
           && (
@@ -1926,6 +1953,39 @@ test("charity treasury dashboard shows live values and supports private balance 
   const treasuryRequestCountBeforeCampaignTracker = apiTraffic.filter(
     (request) => request === "GET /api/funds/treasury",
   ).length;
+  await client.send("Page.navigate", {
+    url: `${appBaseUrl}/?screen=campaigns`,
+  });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="campaign-add-funds-${activeCampaign.id}"]'))`,
+    Boolean,
+    "the Add funds action on the active campaign",
+  );
+  await tapTestId(client, `campaign-add-funds-${activeCampaign.id}`);
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="fund-allocation-amount"]'))`,
+    Boolean,
+    "the campaign allocation request popup",
+  );
+  await replaceInput(client, "fund-allocation-amount", "1.25");
+  await tapTestId(client, "fund-allocation-submit");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="fund-allocation-success"]'))`,
+    Boolean,
+    "the saved pending allocation confirmation",
+  );
+  assert.deepEqual(createdAllocationRequestBody, { amountSol: "1.25" });
+  assert.ok(
+    apiTraffic.includes(`POST /api/funds/${activeCampaign.id}/allocation-requests`),
+    "The Add funds popup should save a campaign allocation request.",
+  );
+  const savedRequestText = await client.evaluate(`document.querySelector('[data-testid="fund-allocation-request-91"]')?.innerText ?? ''`);
+  assert.match(savedRequestText, /1\.25 SOL/);
+  assert.match(savedRequestText, /pending/i);
+
   await client.send("Page.navigate", {
     url: `${appBaseUrl}/?screen=campaigns&id=${activeCampaign.id}`,
   });

@@ -3,6 +3,7 @@ import { Router, type IRouter, type ErrorRequestHandler } from "express";
 import { z } from "zod/v4";
 import {
   db,
+  organisationFundAllocationRequestsTable,
   organisationFundMilestonesTable,
   organisationFundOutcomeReportsTable,
   organisationFundsTable,
@@ -11,8 +12,14 @@ import {
   experiencesTable,
   usersTable,
 } from "@workspace/db";
+import {
+  CreateFundAllocationRequestBody,
+  CreateFundAllocationRequestResponse,
+  ListFundAllocationRequestsResponse,
+} from "@workspace/api-zod";
 import { currentUser, requireTelegramUser } from "../lib/auth";
 import { canLaunchCharityFund } from "../lib/fund-rules.mjs";
+import { solToLamports } from "../lib/fund-payments.mjs";
 import { validateFundMilestones } from "../lib/fund-milestone-rules.mjs";
 import { isHttpsEvidenceUrl } from "../lib/fund-outcome-report-rules.mjs";
 import { getSolanaBalance, getSolanaTreasuryActivity, isValidSolanaAddress, lamportsToSol } from "../lib/solana-rpc.mjs";
@@ -221,6 +228,111 @@ router.get("/:organisationUserId", async (req, res): Promise<void> => {
   })));
 });
 
+function fundAllocationRequestJson(request: typeof organisationFundAllocationRequestsTable.$inferSelect) {
+  return {
+    id: request.id,
+    fundId: request.fundId,
+    amountSol: lamportsToSol(request.amountLamports),
+    status: request.status,
+    createdAt: request.createdAt.toISOString(),
+  };
+}
+
+router.get("/:fundId/allocation-requests", requireTelegramUser, async (req, res): Promise<void> => {
+  const fundId = Number(req.params.fundId);
+  if (!Number.isSafeInteger(fundId) || fundId <= 0) {
+    res.status(400).json({ message: "Campaign not found." });
+    return;
+  }
+  const user = currentUser(req);
+  if (user.userType !== "organisation") {
+    res.status(403).json({ message: "Only the charity owner can view campaign allocation requests." });
+    return;
+  }
+  const [ownedFund] = await db.select({ id: organisationFundsTable.id })
+    .from(organisationFundsTable)
+    .innerJoin(organisationsTable, eq(organisationFundsTable.organisationId, organisationsTable.id))
+    .where(and(
+      eq(organisationFundsTable.id, fundId),
+      eq(organisationsTable.ownerUserId, user.id),
+      eq(organisationsTable.organisationType, "charity"),
+    ))
+    .limit(1);
+  if (!ownedFund) {
+    res.status(404).json({ message: "Campaign not found." });
+    return;
+  }
+  const requests = await db.select().from(organisationFundAllocationRequestsTable)
+    .where(eq(organisationFundAllocationRequestsTable.fundId, fundId))
+    .orderBy(desc(organisationFundAllocationRequestsTable.createdAt), desc(organisationFundAllocationRequestsTable.id))
+    .limit(50);
+  res.json(ListFundAllocationRequestsResponse.parse(requests.map(fundAllocationRequestJson)));
+});
+
+router.post("/:fundId/allocation-requests", requireTelegramUser, async (req, res): Promise<void> => {
+  const fundId = Number(req.params.fundId);
+  const parsed = CreateFundAllocationRequestBody.safeParse(req.body);
+  if (!Number.isSafeInteger(fundId) || fundId <= 0 || !parsed.success) {
+    res.status(400).json({ message: parsed.success ? "Campaign not found." : parsed.error.issues[0]?.message ?? "Enter a valid SOL amount." });
+    return;
+  }
+  const user = currentUser(req);
+  if (user.userType !== "organisation") {
+    res.status(403).json({ message: "Only charity organisation profiles can request campaign allocations." });
+    return;
+  }
+  let amountLamports: string;
+  try {
+    amountLamports = solToLamports(parsed.data.amountSol);
+  } catch (error) {
+    res.status(400).json({ message: error instanceof Error ? error.message : "Enter a valid SOL amount." });
+    return;
+  }
+
+  const result = await db.transaction(async (transaction) => {
+    const [fund] = await transaction.select().from(organisationFundsTable)
+      .where(eq(organisationFundsTable.id, fundId))
+      .for("update");
+    if (!fund) return { kind: "not-found" as const };
+    if (fund.status !== "active") return { kind: "closed" as const };
+
+    const [treasuryContext] = await transaction.select({
+      treasuryId: organisationTreasuriesTable.id,
+      ownerUserId: organisationsTable.ownerUserId,
+      organisationType: organisationsTable.organisationType,
+    }).from(organisationTreasuriesTable)
+      .innerJoin(organisationsTable, eq(organisationTreasuriesTable.organisationId, organisationsTable.id))
+      .where(eq(organisationsTable.id, fund.organisationId))
+      .limit(1);
+    if (
+      !treasuryContext
+      || treasuryContext.ownerUserId !== user.id
+      || treasuryContext.organisationType !== "charity"
+    ) {
+      return { kind: "not-found" as const };
+    }
+
+    const [request] = await transaction.insert(organisationFundAllocationRequestsTable).values({
+      fundId,
+      treasuryId: treasuryContext.treasuryId,
+      requestedByUserId: user.id,
+      amountLamports,
+    }).returning();
+    return { kind: "created" as const, request };
+  });
+
+  if (result.kind === "not-found") {
+    res.status(404).json({ message: "Campaign not found." });
+    return;
+  }
+  if (result.kind === "closed") {
+    res.status(409).json({ message: "This campaign is closed. No allocation request was created." });
+    return;
+  }
+  req.log?.info({ fundId, requestId: result.request.id }, "Saved pending campaign allocation request");
+  res.status(201).json(CreateFundAllocationRequestResponse.parse(fundAllocationRequestJson(result.request)));
+});
+
 router.post("/:fundId/milestones/:milestoneId/outcome-reports", requireTelegramUser, async (req, res): Promise<void> => {
   const fundId = Number(req.params.fundId);
   const milestoneId = Number(req.params.milestoneId);
@@ -358,7 +470,7 @@ const fundraisingErrorHandler: ErrorRequestHandler = (error, req, res, next) => 
   const cause = error?.cause ?? error;
   if (cause?.code === "42P01" || cause?.code === "42703") {
     req.log?.warn({ code: cause.code, message: cause.message }, "Fundraising database migration is missing");
-    res.status(503).json({ message: "Fundraising database setup is pending. The approved migrations must be applied before campaigns, milestones, outcome reports, or donations are available." });
+    res.status(503).json({ message: "Fundraising database setup is pending. The approved migrations must be applied before campaigns, milestones, outcome reports, allocation requests, or donations are available." });
     return;
   }
   next(error);

@@ -1253,6 +1253,31 @@ export interface OrganisationFundCreateInput {
   milestones?: FundMilestoneInput[];
 }
 
+export interface FundAllocationRequestInput {
+  /**
+     * @minLength 1
+     * @maxLength 20
+     * @pattern ^(?:0|[1-9]\d{0,9})(?:\.\d{1,9})?$
+     */
+  amountSol: string;
+}
+
+export type FundAllocationRequestStatus = typeof FundAllocationRequestStatus[keyof typeof FundAllocationRequestStatus];
+
+
+export const FundAllocationRequestStatus = {
+  pending: 'pending',
+  cancelled: 'cancelled',
+} as const;
+
+export interface FundAllocationRequest {
+  id: number;
+  fundId: number;
+  amountSol: string;
+  status: FundAllocationRequestStatus;
+  createdAt: string;
+}
+
 export type OrganisationTreasuryCluster = typeof OrganisationTreasuryCluster[keyof typeof OrganisationTreasuryCluster];
 
 

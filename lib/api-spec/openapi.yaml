@@ -1219,6 +1219,58 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+  /funds/{fundId}/allocation-requests:
+    get:
+      operationId: listFundAllocationRequests
+      tags: [host]
+      summary: List pending allocation requests for a campaign owned by the signed-in charity
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: fundId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Saved campaign treasury allocation requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FundAllocationRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createFundAllocationRequest
+      tags: [host]
+      summary: Save a pending request to allocate shared treasury funds to a campaign
+      description: Creates an in-app pending request only. It does not create a multisig proposal or transfer SOL.
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: fundId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FundAllocationRequestInput" }
+      responses:
+        "201":
+          description: Pending allocation request saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FundAllocationRequest" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Only the charity organisation owner can request an allocation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
   /funds/{fundId}/milestones/{milestoneId}/outcome-reports:
     post:
       operationId: createFundMilestoneOutcomeReport
@@ -5017,6 +5069,20 @@ components:
           maxItems: 12
           items: { $ref: "#/components/schemas/FundMilestoneInput" }
       required: [title, description, goalSol]
+    FundAllocationRequestInput:
+      type: object
+      properties:
+        amountSol: { type: string, minLength: 1, maxLength: 20, pattern: '^(?:0|[1-9]\d{0,9})(?:\.\d{1,9})?$' }
+      required: [amountSol]
+    FundAllocationRequest:
+      type: object
+      properties:
+        id: { type: integer }
+        fundId: { type: integer }
+        amountSol: { type: string }
+        status: { type: string, enum: [pending, cancelled] }
+        createdAt: { type: string, format: date-time }
+      required: [id, fundId, amountSol, status, createdAt]
     OrganisationTreasury:
       type: object
       properties:
