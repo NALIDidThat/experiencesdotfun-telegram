@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { OrganisationType } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { organisationOnboardingCopy } from "@/lib/organisation-onboarding-copy";
+import { participantOnboardingCopy } from "@/lib/participant-onboarding-copy";
 
 const pageVisuals = [
   { icon: "heart", color: "primary", label: "A mission with momentum" },
@@ -24,17 +25,36 @@ const pageVisuals = [
   { icon: "bar-chart-2", color: "secondary", label: "Progress you can follow" },
 ] as const;
 
-type Props = {
+const participantPageVisuals = [
+  { icon: "heart", color: "primary", label: "Choose what matters to you" },
+  { icon: "map-pin", color: "teal", label: "Find experiences near you" },
+  { icon: "award", color: "secondary", label: "Keep your participation visible" },
+] as const;
+
+type OrganisationProps = {
   organisationType: OrganisationType;
   onBackToOrganisationType: () => void;
   onContinueToSignIn: () => void;
 };
 
-export function OrganisationOnboardingWalkthrough({
+type ParticipantProps = {
+  onBackToAccountType: () => void;
+  onContinueToSignIn: () => void;
+};
+
+type WalkthroughProps = {
+  accountType: "participant" | "organisation";
+  organisationType?: OrganisationType;
+  onBack: () => void;
+  onContinueToSignIn: () => void;
+};
+
+function AccountOnboardingWalkthrough({
+  accountType,
   organisationType,
-  onBackToOrganisationType,
+  onBack,
   onContinueToSignIn,
-}: Props) {
+}: WalkthroughProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -46,10 +66,17 @@ export function OrganisationOnboardingWalkthrough({
   const direction = useRef(1);
   const touchStartX = useRef<number | null>(null);
   const stepRef = useRef<(delta: number) => void>(() => {});
-  const pages = organisationOnboardingCopy[organisationType];
+  const pages = accountType === "participant"
+    ? participantOnboardingCopy
+    : organisationOnboardingCopy[organisationType ?? "other"];
+  const visuals = accountType === "participant" ? participantPageVisuals : pageVisuals;
   const currentPage = pages[pageIndex];
-  const visual = pageVisuals[pageIndex];
+  const visual = visuals[pageIndex];
   const visualColor = colors[visual.color];
+  const idPrefix = accountType === "participant" ? "participant" : "organisation";
+  const testId = (part: string) => part === "screen"
+    ? `${idPrefix}-walkthrough`
+    : `${idPrefix}-walkthrough-${part}`;
   const illustrationHeight = height < 620 ? 108 : height < 720 ? 158 : 222;
   const compactSheet = height < 620;
   const topInset = Platform.OS === "web" ? Math.max(insets.top, 67) : Math.max(insets.top, 12);
@@ -58,7 +85,7 @@ export function OrganisationOnboardingWalkthrough({
   const movePage = (delta: number) => {
     const nextPage = pageRef.current + delta;
     if (nextPage < 0) {
-      onBackToOrganisationType();
+      onBack();
       return;
     }
     if (nextPage >= pages.length) {
@@ -133,17 +160,19 @@ export function OrganisationOnboardingWalkthrough({
   return (
     <View
       style={[styles.screen, { backgroundColor: colors.background }]}
-      testID="organisation-walkthrough"
+      testID={testId("screen")}
     >
       <View
         style={[styles.mainContent, { paddingTop: topInset }]}
-        testID="organisation-walkthrough-main"
+        testID={testId("main")}
       >
         <View style={styles.header}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={pageIndex === 0 ? "Back to organisation type selection" : "Return to previous introduction page"}
-            testID="organisation-walkthrough-back"
+            accessibilityLabel={pageIndex === 0
+              ? accountType === "participant" ? "Back to account type selection" : "Back to organisation type selection"
+              : "Return to previous introduction page"}
+            testID={testId("back")}
             onPress={() => movePage(-1)}
             hitSlop={10}
             style={[styles.backButton, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -159,12 +188,12 @@ export function OrganisationOnboardingWalkthrough({
         <View
           accessibilityLabel={`Introduction page ${pageIndex + 1} of ${pages.length}`}
           style={styles.progress}
-          testID="organisation-walkthrough-progress"
+          testID={testId("progress")}
         >
           {pages.map((_, index) => (
             <View
               key={index}
-              testID={`organisation-walkthrough-dot-${index + 1}`}
+              testID={testId(`dot-${index + 1}`)}
               style={[
                 styles.progressDot,
                 {
@@ -183,7 +212,7 @@ export function OrganisationOnboardingWalkthrough({
           onTouchEnd={handleTouchEnd}
           onTouchCancel={() => { touchStartX.current = null; }}
           style={[styles.page, animatedPageStyle, webSwipeStyle]}
-          testID={`organisation-walkthrough-page-${pageIndex + 1}`}
+          testID={testId(`page-${pageIndex + 1}`)}
         >
           <View
             accessibilityLabel={`Illustration: ${visual.label}`}
@@ -191,7 +220,7 @@ export function OrganisationOnboardingWalkthrough({
               styles.illustration,
               { backgroundColor: colors.primary + "10", height: illustrationHeight },
             ]}
-            testID="organisation-walkthrough-illustration"
+            testID={testId("illustration")}
           >
             <View style={[styles.illustrationOrb, styles.illustrationOrbLeft, { backgroundColor: colors.teal + "22" }]} />
             <View style={[styles.illustrationOrb, styles.illustrationOrbRight, { backgroundColor: colors.secondary + "18" }]} />
@@ -220,23 +249,25 @@ export function OrganisationOnboardingWalkthrough({
             paddingTop: compactSheet ? 20 : 26,
           },
         ]}
-        testID="organisation-walkthrough-sheet"
+        testID={testId("sheet")}
       >
         <View style={styles.sheetInner}>
           <View style={styles.copyContent}>
             <Text style={[styles.eyebrow, { color: colors.primary }]}>
-              {pageIndex === 0 ? "YOUR MISSION" : pageIndex === 1 ? "TAKE ACTION" : "SEE THE PROGRESS"}
+              {accountType === "participant"
+                ? pageIndex === 0 ? "YOUR INTERESTS" : pageIndex === 1 ? "GET INVOLVED" : "YOUR JOURNEY"
+                : pageIndex === 0 ? "YOUR MISSION" : pageIndex === 1 ? "TAKE ACTION" : "SEE THE PROGRESS"}
             </Text>
             <Text
               accessibilityRole="header"
               style={[styles.title, { color: colors.foreground }]}
-              testID="organisation-walkthrough-title"
+              testID={testId("title")}
             >
               {currentPage.headline}
             </Text>
             <Text
               style={[styles.description, { color: colors.mutedForeground }]}
-              testID="organisation-walkthrough-description"
+              testID={testId("description")}
             >
               {currentPage.description}
             </Text>
@@ -244,13 +275,13 @@ export function OrganisationOnboardingWalkthrough({
 
           <View
             style={[styles.footer, { marginTop: compactSheet ? 16 : 24 }]}
-            testID="organisation-walkthrough-footer"
+            testID={testId("footer")}
           >
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Skip introduction and continue to sign in"
               onPress={onContinueToSignIn}
-              testID="organisation-walkthrough-skip"
+              testID={testId("skip")}
               hitSlop={12}
               style={styles.skipButton}
             >
@@ -263,7 +294,7 @@ export function OrganisationOnboardingWalkthrough({
               accessibilityRole="button"
               accessibilityLabel={pageIndex === pages.length - 1 ? "Continue to sign in" : "Go to the next introduction page"}
               onPress={() => movePage(1)}
-              testID="organisation-walkthrough-next"
+              testID={testId("next")}
               style={[styles.nextButton, { backgroundColor: colors.primary }]}
             >
               <Feather name="arrow-right" size={20} color={colors.primaryForeground} />
@@ -272,6 +303,27 @@ export function OrganisationOnboardingWalkthrough({
         </View>
       </View>
     </View>
+  );
+}
+
+export function OrganisationOnboardingWalkthrough(props: OrganisationProps) {
+  return (
+    <AccountOnboardingWalkthrough
+      accountType="organisation"
+      organisationType={props.organisationType}
+      onBack={props.onBackToOrganisationType}
+      onContinueToSignIn={props.onContinueToSignIn}
+    />
+  );
+}
+
+export function ParticipantOnboardingWalkthrough(props: ParticipantProps) {
+  return (
+    <AccountOnboardingWalkthrough
+      accountType="participant"
+      onBack={props.onBackToAccountType}
+      onContinueToSignIn={props.onContinueToSignIn}
+    />
   );
 }
 

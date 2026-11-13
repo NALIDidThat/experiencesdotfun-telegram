@@ -428,6 +428,31 @@ async function assertLoginIdentifierRequest(t, identifier, expectedInput) {
   await tapTestId(client, "account-type-continue");
   await waitForValue(
     client,
+    `Boolean(document.querySelector('[data-testid="participant-walkthrough-page-1"]'))`,
+    Boolean,
+    "the participant introduction",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="participant-walkthrough-title"]')?.textContent?.trim()`),
+    "Find people who care about the same things.",
+  );
+  await tapTestId(client, "participant-walkthrough-next");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="participant-walkthrough-page-2"]'))`,
+    Boolean,
+    "the participant introduction's second page",
+  );
+  await tapTestId(client, "participant-walkthrough-next");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="participant-walkthrough-page-3"]'))`,
+    Boolean,
+    "the participant introduction's final page",
+  );
+  await tapTestId(client, "participant-walkthrough-skip");
+  await waitForValue(
+    client,
     `Boolean(document.querySelector('[data-testid="login-choice-email"]'))`,
     Boolean,
     "the sign-in method choices",
@@ -692,6 +717,13 @@ test("signup creates an authenticated session without production data", async (t
   await tapTestId(client, "account-type-continue");
   await waitForValue(
     client,
+    `Boolean(document.querySelector('[data-testid="participant-walkthrough-page-1"]'))`,
+    Boolean,
+    "the participant introduction before sign-in",
+  );
+  await tapTestId(client, "participant-walkthrough-skip");
+  await waitForValue(
+    client,
     `Boolean(document.querySelector('[data-testid="login-choice-email"]'))`,
     Boolean,
     "the sign-in method choices",
@@ -869,6 +901,15 @@ test("Telegram Mini App sign-in uses live init data and keeps Telegram first", a
   );
   await tapTestId(client, "account-type-participant");
   await tapTestId(client, "account-type-continue");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="participant-walkthrough-page-1"]'))`,
+    Boolean,
+    "the participant introduction before Telegram sign-in",
+  );
+  await tapTestId(client, "participant-walkthrough-next");
+  await tapTestId(client, "participant-walkthrough-next");
+  await tapTestId(client, "participant-walkthrough-next");
   await waitForValue(
     client,
     `Boolean(document.querySelector('[data-testid="login-choice-telegram"]'))`,

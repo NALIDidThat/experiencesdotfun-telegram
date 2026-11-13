@@ -119,7 +119,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useMotionPreferences } from '@/context/MotionContext';
 import { useColors } from '@/hooks/useColors';
 import { useExperienceMoment } from '@/components/ExperienceMomentProvider';
-import { OrganisationOnboardingWalkthrough } from '@/components/onboarding/OrganisationOnboardingWalkthrough';
+import {
+  OrganisationOnboardingWalkthrough,
+  ParticipantOnboardingWalkthrough,
+} from '@/components/onboarding/OrganisationOnboardingWalkthrough';
 import { AccountabilityPartnerScreen } from '@/components/AccountabilitySection';
 import { OrganisationPartnershipsSection } from '@/components/OrganisationPartnershipsSection';
 import { ContributionHistoryScreen } from '@/components/fundraising/ContributionHistoryScreen';
@@ -2907,7 +2910,11 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
       : mode === 'impact'
         ? 'Approximate city markers · XP offered, not earned'
         : verifiedExperienceLocations.length
-          ? 'Approximate city markers · check pins show consented, source-verified locations at rounded precision'
+          ? verifiedNodeLocations.length
+            ? 'Tap purple pins to open verified Nodes and their Experiences · all map locations are approximate'
+            : 'Approximate city markers · check pins show consented, source-verified locations at rounded precision'
+          : verifiedNodeLocations.length
+            ? 'Tap purple pins to open verified Nodes and their Experiences · all map locations are approximate'
           : sheetExpanded
             ? 'Swipe down · city locations are approximate'
             : 'Swipe up · city locations are approximate';
@@ -10098,7 +10105,7 @@ export default function App() {
   const analyticsMutation = useTrackAnalyticsEvent();
   const analyticsMutationRef = useRef(analyticsMutation);
   analyticsMutationRef.current = analyticsMutation;
-  const [entryStage, setEntryStage] = useState<'start' | 'account-type' | 'organisation-type' | 'organisation-introduction' | 'login'>('start');
+  const [entryStage, setEntryStage] = useState<'start' | 'account-type' | 'organisation-type' | 'organisation-introduction' | 'participant-introduction' | 'login'>('start');
   const [selectedAccountType, setSelectedAccountType] = useState<UserType | null>(null);
   const [selectedOrganisationType, setSelectedOrganisationType] = useState<OrganisationType | null>(null);
   const [accountAuthType, setAccountAuthType] = useState<UserType | null>(null);
@@ -10490,6 +10497,17 @@ export default function App() {
     );
   }
 
+  if (accountAuthType === 'participant' && entryStage === 'participant-introduction') {
+    return (
+      <AppShell showFeedbackBanner={false}>
+        <ParticipantOnboardingWalkthrough
+          onBackToAccountType={() => setEntryStage('account-type')}
+          onContinueToSignIn={() => setEntryStage('login')}
+        />
+      </AppShell>
+    );
+  }
+
   if (accountAuthType) {
     return (
       <AppShell showFeedbackBanner={false}>
@@ -10509,7 +10527,12 @@ export default function App() {
   if (!user) {
     return (
       <AppShell showFeedbackBanner={false}>
-        {entryStage === 'organisation-introduction' && selectedOrganisationType ? (
+        {entryStage === 'participant-introduction' ? (
+          <ParticipantOnboardingWalkthrough
+            onBackToAccountType={() => setEntryStage('account-type')}
+            onContinueToSignIn={() => setEntryStage('login')}
+          />
+        ) : entryStage === 'organisation-introduction' && selectedOrganisationType ? (
           <OrganisationOnboardingWalkthrough
             organisationType={selectedOrganisationType}
             onBackToOrganisationType={() => setEntryStage('organisation-type')}
@@ -10542,7 +10565,7 @@ export default function App() {
               if (!selectedAccountType) return;
               clearAuthError();
               setAccountTypeConfirmed(true);
-              setEntryStage(selectedAccountType === 'organisation' ? 'organisation-type' : 'login');
+              setEntryStage(selectedAccountType === 'organisation' ? 'organisation-type' : 'participant-introduction');
             }}
           />
         ) : (

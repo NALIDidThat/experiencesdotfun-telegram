@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { organisationOnboardingCopy } from "../lib/organisation-onboarding-copy.ts";
+import { participantOnboardingCopy } from "../lib/participant-onboarding-copy.ts";
 
 const supportedTypes = [
   "charity",
@@ -29,4 +30,14 @@ test("organisation onboarding copy covers every supported type with three comple
 test("charity introduction makes fundraising eligibility and review clear", () => {
   assert.match(organisationOnboardingCopy.charity[2].description, /Eligible charity profiles/);
   assert.match(organisationOnboardingCopy.charity[2].description, /after review/);
+});
+
+test("participant introduction has three complete, action-focused pages", () => {
+  assert.equal(participantOnboardingCopy.length, 3);
+  for (const [index, page] of participantOnboardingCopy.entries()) {
+    assert.ok(page.headline.trim(), `Participant page ${index + 1} needs a headline.`);
+    assert.ok(page.description.trim(), `Participant page ${index + 1} needs a description.`);
+  }
+  assert.match(participantOnboardingCopy[1].description, /Discover opportunities nearby/);
+  assert.match(participantOnboardingCopy[2].description, /joined and completed/);
 });

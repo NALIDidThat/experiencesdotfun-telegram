@@ -30,7 +30,7 @@ export function NodeProfileScreen({
 }: {
   nodeId: number;
   onBack: () => void;
-  onOpenExperience?: (experienceId: number) => void;
+  onOpenExperience: (experienceId: number) => void;
 }) {
   const colors = useColors();
   const queryClient = useQueryClient();
@@ -241,8 +241,9 @@ export function NodeProfileScreen({
               <Pressable
                 key={experience.id}
                 accessibilityRole="button"
-                disabled={!onOpenExperience}
-                onPress={() => onOpenExperience?.(experience.id)}
+                accessibilityLabel={`Open experience ${experience.title}`}
+                testID={`node-experience-${experience.id}`}
+                onPress={() => onOpenExperience(experience.id)}
                 style={{ padding: 14, borderWidth: 1, borderColor: colors.border, borderRadius: colors.radius, backgroundColor: colors.card, gap: 5 }}
               >
                 <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: 'Inter_700Bold' }}>{experience.title}</Text>

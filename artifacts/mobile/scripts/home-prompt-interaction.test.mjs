@@ -602,7 +602,7 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
         : count === 1
           ? "Community Garden 1 is on your calendar."
           : "Your next experience is Community Garden 1.")};
-      const actionText = ${JSON.stringify(count === 0 ? "Explore experiences" : "View upcoming experiences")};
+      const actionText = ${JSON.stringify(count === 0 ? "Explore experiences" : "View my experiences")};
       const title = exactText(titleText);
       const body = exactText(bodyText);
       const action = exactText(actionText);

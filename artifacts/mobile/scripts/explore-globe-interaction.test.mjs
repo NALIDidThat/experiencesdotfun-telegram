@@ -433,6 +433,51 @@ const experiences = [
   makeExperience(764, "Toronto Park Planting", "environmental", "Toronto"),
   makeExperience(765, "Springfield Food Sharing", "community", "Springfield"),
 ];
+
+const nodeProfile = {
+  node: {
+    id: 904,
+    organisationId: 120,
+    organisationName: "London Community Network",
+    organisationType: "charity",
+    organisationVerified: true,
+    name: "Riverside Community Hub",
+    slug: "riverside-community-hub",
+    description: "A welcoming local space for community experiences.",
+    categories: ["community"],
+    addressLine1: "10 Riverside Walk",
+    addressLine2: null,
+    city: "London",
+    country: "United Kingdom",
+    postcode: "SE1 2AA",
+    latitude: 18,
+    longitude: 25,
+    publicWebsite: null,
+    publicContactEmail: null,
+    visibility: "public",
+    approvalRequired: false,
+    verificationStatus: "verified",
+    submittedAt: "2026-10-01T10:00:00.000Z",
+    verifiedAt: "2026-10-02T10:00:00.000Z",
+    createdAt: "2026-10-01T09:00:00.000Z",
+    updatedAt: "2026-10-02T10:00:00.000Z",
+  },
+  stats: { connectedParticipants: 24, publishedExperiences: 1 },
+  experiences: [{
+    id: 761,
+    title: "London River Cleanup",
+    description: "Join neighbours to care for the riverbank.",
+    category: "environmental",
+    date: "2026-11-15",
+    startTime: "14:00",
+    endTime: "16:00",
+    location: "Riverside Walk",
+    city: "London",
+    status: "published",
+  }],
+  membership: null,
+};
+
 function makeParticipation(status) {
   return {
     id: 7610,
@@ -550,6 +595,10 @@ test("Participant experience details keep navigation visible and present concise
           response = aiConversation;
         } else if (url.pathname === "/api/me/saved-experiences" && method === "GET") {
           response = [];
+        } else if (url.pathname === "/api/nodes" && method === "GET") {
+          response = [nodeProfile.node];
+        } else if (url.pathname === `/api/nodes/${nodeProfile.node.id}` && method === "GET") {
+          response = nodeProfile;
         } else if (url.pathname === "/api/friends" && method === "GET") {
           response = friends;
         } else if (url.pathname === "/api/explore/activity" && method === "GET") {
@@ -1383,6 +1432,27 @@ Object.defineProperty(navigator, 'geolocation', {
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/me")), "The mock-auth session should load.");
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/me/saved-experiences")), "Explore should load the signed-in participant's saved experiences.");
   assert.ok(apiTraffic.some((request) => request.startsWith("GET /api/experiences/761")), "The backed experience detail should load.");
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=explore` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="explore-node-pin-${nodeProfile.node.id}"]'))`,
+    Boolean,
+    "the verified Node pin on the Explore globe",
+  );
+  await tapTestId(client, `explore-node-pin-${nodeProfile.node.id}`);
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('Riverside Community Hub') && document.body.innerText.includes('Experiences at this Node')`,
+    Boolean,
+    "the selected Node profile and its Experiences",
+  );
+  await tapTestId(client, "node-experience-761");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('Experience details') && document.body.innerText.includes('London River Cleanup')`,
+    Boolean,
+    "the Experience opened from the selected Node",
+  );
   assert.equal(interceptionError, undefined, "API request interception should complete without errors.");
   assert.deepEqual(unexpectedApiRequests, [], "The Explore screen should make no unexpected API requests.");
 });

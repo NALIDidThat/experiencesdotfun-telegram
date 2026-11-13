@@ -201,7 +201,7 @@ export function selectParticipantHomePriority(
       detail: upcoming.length === 1
         ? `${first.experience.title} is on your calendar.`
         : `Your next experience is ${first.experience.title}.`,
-      buttonLabel: "View upcoming experiences",
+      buttonLabel: "View my experiences",
       accessibilityLabel: "Open your upcoming experiences",
       icon: "calendar",
       experienceId: first.experience.id,

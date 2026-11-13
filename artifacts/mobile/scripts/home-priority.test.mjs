@@ -43,10 +43,9 @@ test("participant action-required work takes precedence over discovery and upcom
 });
 
 test("participant priorities separate upcoming, waitlisted, and awaiting-review states", () => {
-  assert.equal(
-    selectParticipantHomePriority({ participations: [participation(1, "joined")], now }).kind,
-    "upcoming",
-  );
+  const upcoming = selectParticipantHomePriority({ participations: [participation(1, "joined")], now });
+  assert.equal(upcoming.kind, "upcoming");
+  assert.equal(upcoming.buttonLabel, "View my experiences");
   assert.equal(
     selectParticipantHomePriority({ participations: [participation(1, "waitlisted")], now }).kind,
     "waitlisted",
