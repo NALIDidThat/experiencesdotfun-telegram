@@ -8,6 +8,17 @@
 import type { TelegramCommunityMember } from './telegramCommunityMember';
 
 export interface TelegramCommunityMembersResponse {
-  /** @maxItems 20 */
+  /** @maxItems 100 */
   members: TelegramCommunityMember[];
+  /** @minimum 0 */
+  total: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  limit: number;
+  /** @minimum 0 */
+  offset: number;
+  /** @nullable */
+  trackingStartedAt: Date | null;
 }

@@ -2734,22 +2734,34 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-  /community/manage/{chatId}/members:
+  /community/manage/members:
     get:
       operationId: getTelegramCommunityMembers
       tags: [community]
-      summary: Get the linked group’s top members by messages tracked by the bot
+      summary: List linked-group members by XP-qualifying messages observed by the bot
       security: [{ telegramInitData: [] }]
       parameters:
         - name: chatId
-          in: path
+          in: query
           required: true
           schema:
             type: string
             pattern: "^-?[0-9]{1,20}$"
+        - name: search
+          in: query
+          required: false
+          schema: { type: string, maxLength: 80 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, maximum: 100000, default: 0 }
       responses:
         "200":
-          description: Top members with tracked messages and observed join dates
+          description: Searchable member counts and the bot-link tracking start
           content:
             application/json:
               schema:
@@ -2766,6 +2778,170 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /community/manage/insights:
+    get:
+      operationId: getTelegramCommunityInsights
+      tags: [community]
+      summary: Get daily XP-qualifying message activity observed by the bot
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: query
+          required: true
+          schema: { type: string, pattern: "^-?[0-9]{1,20}$" }
+        - name: days
+          in: query
+          required: false
+          schema: { type: integer, enum: [7, 30, 90], default: 7 }
+      responses:
+        "200":
+          description: Daily qualifying-message counts and active tracked members
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityInsightsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: Member tracking is awaiting its database migration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /community/manage/member-history:
+    get:
+      operationId: getTelegramCommunityMemberHistory
+      tags: [community]
+      summary: Get recent XP-qualifying message history for one tracked member
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: query
+          required: true
+          schema: { type: string, pattern: "^-?[0-9]{1,20}$" }
+        - name: memberId
+          in: query
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: days
+          in: query
+          required: false
+          schema: { type: integer, enum: [7, 30, 90], default: 30 }
+      responses:
+        "200":
+          description: Daily qualifying-message totals for the selected tracked member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityMemberHistoryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: Member tracking is awaiting its database migration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /community/manage/moderation-events:
+    get:
+      operationId: getTelegramCommunityModerationEvents
+      tags: [community]
+      summary: List recent automated moderation actions for a linked group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: query
+          required: true
+          schema: { type: string, pattern: "^-?[0-9]{1,20}$" }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+        - name: offset
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, maximum: 100000, default: 0 }
+      responses:
+        "200":
+          description: Privacy-preserving moderation action history without message text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityModerationEventsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /community/manage/audit:
+    get:
+      operationId: getTelegramCommunityManagementAudit
+      tags: [community]
+      summary: List recent administrator changes to a linked group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: query
+          required: true
+          schema: { type: string, pattern: "^-?[0-9]{1,20}$" }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        "200":
+          description: Recent rule and group setting changes with actor names
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityManagementAuditResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /community/manage/{chatId}/rules/preview:
+    post:
+      operationId: previewTelegramCommunityRules
+      tags: [community]
+      summary: Test a sample message against saved protection rules
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema: { type: string, pattern: "^-?[0-9]{1,20}$" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramCommunityRulePreviewInput"
+      responses:
+        "200":
+          description: Matching phrase rules and unapproved links; sample is not stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityRulePreviewResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /community/{chatId}:
     get:
       operationId: getCommunityDetails
@@ -5935,19 +6111,112 @@ components:
       properties:
         members:
           type: array
-          maxItems: 20
+          maxItems: 100
           items:
             $ref: "#/components/schemas/TelegramCommunityMember"
-      required: [members]
+        total: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        offset: { type: integer, minimum: 0 }
+        trackingStartedAt: { type: [string, "null"], format: date-time }
+      required: [members, total, limit, offset, trackingStartedAt]
     TelegramCommunityMember:
       type: object
       properties:
         id: { type: integer }
         name: { type: string }
         username: { type: [string, "null"] }
-        messageCount: { type: integer, minimum: 0 }
+        qualifyingMessageCount: { type: integer, minimum: 0 }
         joinedAt: { type: [string, "null"], format: date-time }
-      required: [id, name, username, messageCount, joinedAt]
+        leftAt: { type: [string, "null"], format: date-time }
+        firstObservedAt: { type: string, format: date-time }
+        lastQualifyingMessageAt: { type: [string, "null"], format: date-time }
+      required: [id, name, username, qualifyingMessageCount, joinedAt, leftAt, firstObservedAt, lastQualifyingMessageAt]
+    TelegramCommunityInsightsResponse:
+      type: object
+      properties:
+        days:
+          type: array
+          maxItems: 90
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              qualifyingMessageCount: { type: integer, minimum: 0 }
+              activeMembers: { type: integer, minimum: 0 }
+            required: [date, qualifyingMessageCount, activeMembers]
+        trackingStartedAt: { type: [string, "null"], format: date-time }
+        daysRequested: { type: integer, enum: [7, 30, 90] }
+      required: [days, trackingStartedAt, daysRequested]
+    TelegramCommunityMemberHistoryResponse:
+      type: object
+      properties:
+        memberId: { type: integer }
+        days:
+          type: array
+          maxItems: 90
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              qualifyingMessageCount: { type: integer, minimum: 0 }
+            required: [date, qualifyingMessageCount]
+        trackingStartedAt: { type: [string, "null"], format: date-time }
+        daysRequested: { type: integer, enum: [7, 30, 90] }
+      required: [memberId, days, trackingStartedAt, daysRequested]
+    TelegramCommunityModerationEventsResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              ruleType: { type: string, enum: [phrase, link] }
+              ruleId: { type: [integer, "null"] }
+              deletionSucceeded: { type: boolean }
+              createdAt: { type: string, format: date-time }
+            required: [id, ruleType, ruleId, deletionSucceeded, createdAt]
+        total: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1, maximum: 50 }
+        offset: { type: integer, minimum: 0 }
+      required: [events, total, limit, offset]
+    TelegramCommunityManagementAuditResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              action: { type: string }
+              targetId: { type: [integer, "null"] }
+              actorName: { type: string }
+              actorUsername: { type: [string, "null"] }
+              createdAt: { type: string, format: date-time }
+            required: [id, action, targetId, actorName, actorUsername, createdAt]
+      required: [events]
+    TelegramCommunityRulePreviewInput:
+      type: object
+      properties:
+        text: { type: string, minLength: 1, maxLength: 2000 }
+      required: [text]
+      additionalProperties: false
+    TelegramCommunityRulePreviewResponse:
+      type: object
+      properties:
+        protectionEnabled: { type: boolean }
+        wouldDelete: { type: boolean }
+        matchedPhraseRuleIds:
+          type: array
+          items: { type: integer }
+        unapprovedLinks:
+          type: array
+          items: { type: string }
+      required: [protectionEnabled, wouldDelete, matchedPhraseRuleIds, unapprovedLinks]
     AddCommunityInput:
       type: object
       properties:

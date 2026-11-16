@@ -12,7 +12,12 @@ export interface TelegramCommunityMember {
   /** @nullable */
   username: string | null;
   /** @minimum 0 */
-  messageCount: number;
+  qualifyingMessageCount: number;
   /** @nullable */
   joinedAt: Date | null;
+  /** @nullable */
+  leftAt: Date | null;
+  firstObservedAt: Date;
+  /** @nullable */
+  lastQualifyingMessageAt: Date | null;
 }

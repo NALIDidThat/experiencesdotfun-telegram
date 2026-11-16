@@ -111,3 +111,55 @@ export const telegramCommunityLinkRulesTable = pgTable(
     ),
   }),
 );
+
+export const telegramCommunityModerationEventsTable = pgTable(
+  "telegram_community_moderation_events",
+  {
+    id: serial("id").primaryKey(),
+    chatId: text("chat_id")
+      .notNull()
+      .references(() => telegramCommunitiesTable.chatId, { onDelete: "cascade" }),
+    telegramMessageId: integer("telegram_message_id").notNull(),
+    telegramUserId: text("telegram_user_id"),
+    ruleType: text("rule_type").notNull(),
+    ruleId: integer("rule_id"),
+    deletionSucceeded: boolean("deletion_succeeded").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    chatMessageUnique: uniqueIndex("telegram_community_moderation_events_chat_message_idx").on(
+      table.chatId,
+      table.telegramMessageId,
+    ),
+    chatCreatedIndex: index("telegram_community_moderation_events_chat_created_idx").on(
+      table.chatId,
+      table.createdAt,
+    ),
+    ruleTypeCheck: check(
+      "telegram_community_moderation_events_rule_type_check",
+      sql`${table.ruleType} IN ('phrase', 'link')`,
+    ),
+  }),
+);
+
+export const telegramCommunityManagementAuditTable = pgTable(
+  "telegram_community_management_audit",
+  {
+    id: serial("id").primaryKey(),
+    chatId: text("chat_id")
+      .notNull()
+      .references(() => telegramCommunitiesTable.chatId, { onDelete: "cascade" }),
+    actorUserId: integer("actor_user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "restrict" }),
+    action: text("action").notNull(),
+    targetId: integer("target_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    chatCreatedIndex: index("telegram_community_management_audit_chat_created_idx").on(
+      table.chatId,
+      table.createdAt,
+    ),
+  }),
+);

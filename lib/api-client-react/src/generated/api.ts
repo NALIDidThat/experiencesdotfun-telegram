@@ -108,6 +108,11 @@ import type {
   GetNodesParams,
   GetOrganisationTreasuryParams,
   GetPrivateEvidenceAccess200,
+  GetTelegramCommunityInsightsParams,
+  GetTelegramCommunityManagementAuditParams,
+  GetTelegramCommunityMemberHistoryParams,
+  GetTelegramCommunityMembersParams,
+  GetTelegramCommunityModerationEventsParams,
   HealthStatus,
   HostExperience,
   HostExperienceMilestonesResponse,
@@ -184,15 +189,21 @@ import type {
   SocialInviteCreateInput,
   SyncCharityContributionLedger200,
   TelegramAuthInput,
+  TelegramCommunityInsightsResponse,
   TelegramCommunityLinkInput,
   TelegramCommunityLinkRule,
   TelegramCommunityLiveInfo,
+  TelegramCommunityManagementAuditResponse,
   TelegramCommunityManagementResponse,
+  TelegramCommunityMemberHistoryResponse,
   TelegramCommunityMembersResponse,
+  TelegramCommunityModerationEventsResponse,
   TelegramCommunityPhraseInput,
   TelegramCommunityPhraseRule,
   TelegramCommunityRiddleSettings,
   TelegramCommunityRiddleSettingsInput,
+  TelegramCommunityRulePreviewInput,
+  TelegramCommunityRulePreviewResponse,
   TelegramCommunityRulesResponse,
   TooManyRequestsResponse,
   TopFriendsInput,
@@ -9743,20 +9754,27 @@ export function useGetTelegramCommunityLiveInfo<TData = Awaited<ReturnType<typeo
 
 
 
-export const getGetTelegramCommunityMembersUrl = (chatId: string,) => {
+export const getGetTelegramCommunityMembersUrl = (params: GetTelegramCommunityMembersParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/community/manage/${chatId}/members`
+  return stringifiedParams.length > 0 ? `/api/community/manage/members?${stringifiedParams}` : `/api/community/manage/members`
 }
 
 /**
- * @summary Get the linked group’s top members by messages tracked by the bot
+ * @summary List linked-group members by XP-qualifying messages observed by the bot
  */
-export const getTelegramCommunityMembers = async (chatId: string, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityMembersResponse> => {
+export const getTelegramCommunityMembers = async (params: GetTelegramCommunityMembersParams, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityMembersResponse> => {
 
-  return customFetch<TelegramCommunityMembersResponse>(getGetTelegramCommunityMembersUrl(chatId),
+  return customFetch<TelegramCommunityMembersResponse>(getGetTelegramCommunityMembersUrl(params),
   {
     ...options,
     method: 'GET'
@@ -9769,29 +9787,29 @@ export const getTelegramCommunityMembers = async (chatId: string, options?: Para
 
 
 
-export const getGetTelegramCommunityMembersQueryKey = (chatId: string,) => {
+export const getGetTelegramCommunityMembersQueryKey = (params?: GetTelegramCommunityMembersParams,) => {
     return [
-    `/api/community/manage/${chatId}/members`
+    `/api/community/manage/members`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetTelegramCommunityMembersQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>>(chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetTelegramCommunityMembersQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>>(params: GetTelegramCommunityMembersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetTelegramCommunityMembersQueryKey(chatId);
+  const queryKey =  queryOptions?.queryKey ?? getGetTelegramCommunityMembersQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramCommunityMembers>>> = ({ signal }) => getTelegramCommunityMembers(chatId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramCommunityMembers>>> = ({ signal }) => getTelegramCommunityMembers(params, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: chatId !== null && chatId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError, TData> & { queryKey: QueryKey }
 }
 
 export type GetTelegramCommunityMembersQueryResult = NonNullable<Awaited<ReturnType<typeof getTelegramCommunityMembers>>>
@@ -9799,15 +9817,15 @@ export type GetTelegramCommunityMembersQueryError = ErrorType<UnauthorizedRespon
 
 
 /**
- * @summary Get the linked group’s top members by messages tracked by the bot
+ * @summary List linked-group members by XP-qualifying messages observed by the bot
  */
 
 export function useGetTelegramCommunityMembers<TData = Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>>(
- chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params: GetTelegramCommunityMembersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetTelegramCommunityMembersQueryOptions(chatId,options)
+  const queryOptions = getGetTelegramCommunityMembersQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -9819,6 +9837,431 @@ export function useGetTelegramCommunityMembers<TData = Awaited<ReturnType<typeof
 
 
 
+
+export const getGetTelegramCommunityInsightsUrl = (params: GetTelegramCommunityInsightsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/community/manage/insights?${stringifiedParams}` : `/api/community/manage/insights`
+}
+
+/**
+ * @summary Get daily XP-qualifying message activity observed by the bot
+ */
+export const getTelegramCommunityInsights = async (params: GetTelegramCommunityInsightsParams, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityInsightsResponse> => {
+
+  return customFetch<TelegramCommunityInsightsResponse>(getGetTelegramCommunityInsightsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTelegramCommunityInsightsQueryKey = (params?: GetTelegramCommunityInsightsParams,) => {
+    return [
+    `/api/community/manage/insights`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTelegramCommunityInsightsQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramCommunityInsights>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>>(params: GetTelegramCommunityInsightsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityInsights>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTelegramCommunityInsightsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramCommunityInsights>>> = ({ signal }) => getTelegramCommunityInsights(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityInsights>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTelegramCommunityInsightsQueryResult = NonNullable<Awaited<ReturnType<typeof getTelegramCommunityInsights>>>
+export type GetTelegramCommunityInsightsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>
+
+
+/**
+ * @summary Get daily XP-qualifying message activity observed by the bot
+ */
+
+export function useGetTelegramCommunityInsights<TData = Awaited<ReturnType<typeof getTelegramCommunityInsights>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>>(
+ params: GetTelegramCommunityInsightsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityInsights>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTelegramCommunityInsightsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTelegramCommunityMemberHistoryUrl = (params: GetTelegramCommunityMemberHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/community/manage/member-history?${stringifiedParams}` : `/api/community/manage/member-history`
+}
+
+/**
+ * @summary Get recent XP-qualifying message history for one tracked member
+ */
+export const getTelegramCommunityMemberHistory = async (params: GetTelegramCommunityMemberHistoryParams, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityMemberHistoryResponse> => {
+
+  return customFetch<TelegramCommunityMemberHistoryResponse>(getGetTelegramCommunityMemberHistoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTelegramCommunityMemberHistoryQueryKey = (params?: GetTelegramCommunityMemberHistoryParams,) => {
+    return [
+    `/api/community/manage/member-history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTelegramCommunityMemberHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramCommunityMemberHistory>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>>(params: GetTelegramCommunityMemberHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityMemberHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTelegramCommunityMemberHistoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramCommunityMemberHistory>>> = ({ signal }) => getTelegramCommunityMemberHistory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityMemberHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTelegramCommunityMemberHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getTelegramCommunityMemberHistory>>>
+export type GetTelegramCommunityMemberHistoryQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>
+
+
+/**
+ * @summary Get recent XP-qualifying message history for one tracked member
+ */
+
+export function useGetTelegramCommunityMemberHistory<TData = Awaited<ReturnType<typeof getTelegramCommunityMemberHistory>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error>>(
+ params: GetTelegramCommunityMemberHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityMemberHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTelegramCommunityMemberHistoryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTelegramCommunityModerationEventsUrl = (params: GetTelegramCommunityModerationEventsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/community/manage/moderation-events?${stringifiedParams}` : `/api/community/manage/moderation-events`
+}
+
+/**
+ * @summary List recent automated moderation actions for a linked group
+ */
+export const getTelegramCommunityModerationEvents = async (params: GetTelegramCommunityModerationEventsParams, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityModerationEventsResponse> => {
+
+  return customFetch<TelegramCommunityModerationEventsResponse>(getGetTelegramCommunityModerationEventsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTelegramCommunityModerationEventsQueryKey = (params?: GetTelegramCommunityModerationEventsParams,) => {
+    return [
+    `/api/community/manage/moderation-events`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTelegramCommunityModerationEventsQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramCommunityModerationEvents>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(params: GetTelegramCommunityModerationEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityModerationEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTelegramCommunityModerationEventsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramCommunityModerationEvents>>> = ({ signal }) => getTelegramCommunityModerationEvents(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityModerationEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTelegramCommunityModerationEventsQueryResult = NonNullable<Awaited<ReturnType<typeof getTelegramCommunityModerationEvents>>>
+export type GetTelegramCommunityModerationEventsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary List recent automated moderation actions for a linked group
+ */
+
+export function useGetTelegramCommunityModerationEvents<TData = Awaited<ReturnType<typeof getTelegramCommunityModerationEvents>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+ params: GetTelegramCommunityModerationEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityModerationEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTelegramCommunityModerationEventsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTelegramCommunityManagementAuditUrl = (params: GetTelegramCommunityManagementAuditParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/community/manage/audit?${stringifiedParams}` : `/api/community/manage/audit`
+}
+
+/**
+ * @summary List recent administrator changes to a linked group
+ */
+export const getTelegramCommunityManagementAudit = async (params: GetTelegramCommunityManagementAuditParams, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityManagementAuditResponse> => {
+
+  return customFetch<TelegramCommunityManagementAuditResponse>(getGetTelegramCommunityManagementAuditUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTelegramCommunityManagementAuditQueryKey = (params?: GetTelegramCommunityManagementAuditParams,) => {
+    return [
+    `/api/community/manage/audit`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTelegramCommunityManagementAuditQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramCommunityManagementAudit>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(params: GetTelegramCommunityManagementAuditParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityManagementAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTelegramCommunityManagementAuditQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramCommunityManagementAudit>>> = ({ signal }) => getTelegramCommunityManagementAudit(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityManagementAudit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTelegramCommunityManagementAuditQueryResult = NonNullable<Awaited<ReturnType<typeof getTelegramCommunityManagementAudit>>>
+export type GetTelegramCommunityManagementAuditQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary List recent administrator changes to a linked group
+ */
+
+export function useGetTelegramCommunityManagementAudit<TData = Awaited<ReturnType<typeof getTelegramCommunityManagementAudit>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+ params: GetTelegramCommunityManagementAuditParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityManagementAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTelegramCommunityManagementAuditQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPreviewTelegramCommunityRulesUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/rules/preview`
+}
+
+/**
+ * @summary Test a sample message against saved protection rules
+ */
+export const previewTelegramCommunityRules = async (chatId: string,
+    telegramCommunityRulePreviewInput: TelegramCommunityRulePreviewInput, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityRulePreviewResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TelegramCommunityRulePreviewResponse>(getPreviewTelegramCommunityRulesUrl(chatId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(telegramCommunityRulePreviewInput)
+  }
+);}
+
+
+
+
+
+export const getPreviewTelegramCommunityRulesMutationKey = () => ['previewTelegramCommunityRules'] as const;
+
+export const getPreviewTelegramCommunityRulesMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewTelegramCommunityRules>>, TError,PreviewTelegramCommunityRulesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewTelegramCommunityRules>>, TError,PreviewTelegramCommunityRulesMutationVariables, TContext> => {
+
+const mutationKey = getPreviewTelegramCommunityRulesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewTelegramCommunityRules>>, PreviewTelegramCommunityRulesMutationVariables> = (props) => {
+          const {chatId,data} = props ?? {};
+
+          return  previewTelegramCommunityRules(chatId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewTelegramCommunityRulesMutationResult = NonNullable<Awaited<ReturnType<typeof previewTelegramCommunityRules>>>
+    export type PreviewTelegramCommunityRulesMutationBody = BodyType<TelegramCommunityRulePreviewInput>
+    export type PreviewTelegramCommunityRulesMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type PreviewTelegramCommunityRulesMutationVariables = {chatId: string;data: BodyType<TelegramCommunityRulePreviewInput>}
+
+    /**
+ * @summary Test a sample message against saved protection rules
+ */
+export const usePreviewTelegramCommunityRules = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewTelegramCommunityRules>>, TError,PreviewTelegramCommunityRulesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewTelegramCommunityRules>>,
+        TError,
+        PreviewTelegramCommunityRulesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPreviewTelegramCommunityRulesMutationOptions(options));
+    }
 
 export const getGetCommunityDetailsUrl = (chatId: string,) => {
 

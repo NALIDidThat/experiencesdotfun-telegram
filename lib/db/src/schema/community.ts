@@ -1,5 +1,6 @@
 import {
   check,
+  date,
   index,
   integer,
   pgTable,
@@ -113,9 +114,11 @@ export const telegramCommunityMemberStatsTable = pgTable(
     name: text("name").notNull(),
     username: text("username"),
     messageCount: integer("message_count").notNull().default(0),
+    qualifyingMessageCount: integer("qualifying_message_count").notNull().default(0),
     telegramJoinedAt: timestamp("telegram_joined_at", { withTimezone: true }),
     telegramLeftAt: timestamp("telegram_left_at", { withTimezone: true }),
     lastMessageId: integer("last_message_id"),
+    lastQualifyingMessageAt: timestamp("last_qualifying_message_at", { withTimezone: true }),
     firstObservedAt: timestamp("first_observed_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -130,10 +133,44 @@ export const telegramCommunityMemberStatsTable = pgTable(
       "telegram_community_member_stats_message_count_check",
       sql`${table.messageCount} >= 0`,
     ),
+    qualifyingMessageCountCheck: check(
+      "telegram_community_member_stats_qualifying_message_count_check",
+      sql`${table.qualifyingMessageCount} >= 0`,
+    ),
     leaderboardIndex: index("telegram_community_member_stats_leaderboard_idx").on(
       table.chatId,
-      table.messageCount,
+      table.qualifyingMessageCount,
       table.id,
+    ),
+  }),
+);
+
+export const telegramCommunityMemberDailyActivityTable = pgTable(
+  "telegram_community_member_daily_activity",
+  {
+    id: serial("id").primaryKey(),
+    chatId: text("chat_id")
+      .notNull()
+      .references(() => telegramCommunitiesTable.chatId, { onDelete: "cascade" }),
+    telegramUserId: text("telegram_user_id").notNull(),
+    activityDate: date("activity_date", { mode: "string" }).notNull(),
+    qualifyingMessageCount: integer("qualifying_message_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    communityMemberDayUnique: uniqueIndex("telegram_community_member_daily_activity_unique_idx").on(
+      table.chatId,
+      table.telegramUserId,
+      table.activityDate,
+    ),
+    communityDayIndex: index("telegram_community_member_daily_activity_day_idx").on(
+      table.chatId,
+      table.activityDate,
+    ),
+    qualifyingMessageCountCheck: check(
+      "telegram_community_member_daily_activity_count_check",
+      sql`${table.qualifyingMessageCount} >= 0`,
     ),
   }),
 );

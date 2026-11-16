@@ -1,7 +1,9 @@
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
+  telegramCommunityMemberDailyActivityTable,
   telegramCommunityMemberStatsTable,
+  telegramCommunitiesTable,
 } from "@workspace/db/schema";
 import { logger } from "./logger";
 import { isNewTelegramCommunityMessageId } from "./telegram-community-message-policy";
@@ -37,6 +39,10 @@ async function ensureStatsTable(): Promise<void> {
     await db
       .select({ id: telegramCommunityMemberStatsTable.id })
       .from(telegramCommunityMemberStatsTable)
+      .limit(0);
+    await db
+      .select({ id: telegramCommunityMemberDailyActivityTable.id })
+      .from(telegramCommunityMemberDailyActivityTable)
       .limit(0);
     statsTableAvailable = true;
     statsTableUnavailableUntil = 0;
@@ -161,6 +167,8 @@ export async function recordTelegramCommunityMemberMessage(input: {
   name: string;
   username: string | null;
   telegramMessageId: number;
+  qualifies: boolean;
+  messageDate: Date;
 }): Promise<void> {
   await withStatsTable(() =>
     db.transaction(async (transaction) => {
@@ -186,67 +194,264 @@ export async function recordTelegramCommunityMemberMessage(input: {
           name: input.name,
           username: input.username,
           messageCount: 1,
+          qualifyingMessageCount: input.qualifies ? 1 : 0,
           lastMessageId: input.telegramMessageId,
+          lastQualifyingMessageAt: input.qualifies ? input.messageDate : null,
         });
-        return;
-      }
-
-      // Telegram delivers updates in order and message IDs increase within a
-      // chat. This makes retries idempotent without retaining every message.
-      if (
+      } else if (
+        // Telegram delivers updates in order and message IDs increase within a
+        // chat. This makes retries idempotent without retaining message text.
         !isNewTelegramCommunityMessageId(
           existing.lastMessageId,
           input.telegramMessageId,
         )
       ) {
         return;
+      } else {
+        await transaction
+          .update(telegramCommunityMemberStatsTable)
+          .set({
+            name: input.name,
+            username: input.username,
+            messageCount: sql`${telegramCommunityMemberStatsTable.messageCount} + 1`,
+            lastMessageId: input.telegramMessageId,
+            updatedAt: new Date(),
+            ...(input.qualifies
+              ? {
+                  qualifyingMessageCount: sql`${telegramCommunityMemberStatsTable.qualifyingMessageCount} + 1`,
+                  lastQualifyingMessageAt: input.messageDate,
+                }
+              : {}),
+          })
+          .where(
+            and(
+              eq(telegramCommunityMemberStatsTable.chatId, input.chatId),
+              eq(telegramCommunityMemberStatsTable.telegramUserId, input.telegramUserId),
+            ),
+          );
       }
 
-      await transaction
-        .update(telegramCommunityMemberStatsTable)
-        .set({
-          name: input.name,
-          username: input.username,
-          messageCount: sql`${telegramCommunityMemberStatsTable.messageCount} + 1`,
-          lastMessageId: input.telegramMessageId,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(telegramCommunityMemberStatsTable.chatId, input.chatId),
-            eq(telegramCommunityMemberStatsTable.telegramUserId, input.telegramUserId),
-          ),
-        );
+      if (input.qualifies) {
+        const activityDate = input.messageDate.toISOString().slice(0, 10);
+        await transaction
+          .insert(telegramCommunityMemberDailyActivityTable)
+          .values({
+            chatId: input.chatId,
+            telegramUserId: input.telegramUserId,
+            activityDate,
+            qualifyingMessageCount: 1,
+          })
+          .onConflictDoUpdate({
+            target: [
+              telegramCommunityMemberDailyActivityTable.chatId,
+              telegramCommunityMemberDailyActivityTable.telegramUserId,
+              telegramCommunityMemberDailyActivityTable.activityDate,
+            ],
+            set: {
+              qualifyingMessageCount: sql`${telegramCommunityMemberDailyActivityTable.qualifyingMessageCount} + 1`,
+              updatedAt: new Date(),
+            },
+          });
+      }
     }),
   );
 }
 
-export async function listTelegramCommunityTopMembers(chatId: string) {
+export async function listTelegramCommunityMembers(input: {
+  chatId: string;
+  search: string;
+  limit: number;
+  offset: number;
+}) {
   return withStatsTable(async () => {
-    const members = await db
+    const conditions = [eq(telegramCommunityMemberStatsTable.chatId, input.chatId)];
+    if (input.search) {
+      const search = `%${input.search}%`;
+      conditions.push(
+        or(
+          ilike(telegramCommunityMemberStatsTable.name, search),
+          ilike(telegramCommunityMemberStatsTable.username, search),
+          eq(telegramCommunityMemberStatsTable.telegramUserId, input.search),
+        )!,
+      );
+    }
+    const [members, [total]] = await Promise.all([
+      db
       .select({
         id: telegramCommunityMemberStatsTable.id,
         name: telegramCommunityMemberStatsTable.name,
         username: telegramCommunityMemberStatsTable.username,
-        messageCount: telegramCommunityMemberStatsTable.messageCount,
+        qualifyingMessageCount: telegramCommunityMemberStatsTable.qualifyingMessageCount,
         joinedAt: telegramCommunityMemberStatsTable.telegramJoinedAt,
+        leftAt: telegramCommunityMemberStatsTable.telegramLeftAt,
+        firstObservedAt: telegramCommunityMemberStatsTable.firstObservedAt,
+        lastQualifyingMessageAt: telegramCommunityMemberStatsTable.lastQualifyingMessageAt,
       })
       .from(telegramCommunityMemberStatsTable)
-      .where(
-        and(
-          eq(telegramCommunityMemberStatsTable.chatId, chatId),
-          isNull(telegramCommunityMemberStatsTable.telegramLeftAt),
-        ),
-      )
+      .where(and(...conditions))
       .orderBy(
-        desc(telegramCommunityMemberStatsTable.messageCount),
+        desc(telegramCommunityMemberStatsTable.qualifyingMessageCount),
         asc(telegramCommunityMemberStatsTable.id),
       )
-      .limit(20);
+      .limit(input.limit)
+      .offset(input.offset),
+      db
+        .select({ total: count() })
+        .from(telegramCommunityMemberStatsTable)
+        .where(and(...conditions)),
+    ]);
 
-    return members.map((member) => ({
-      ...member,
-      joinedAt: member.joinedAt?.toISOString() ?? null,
-    }));
+    const [community] = await db
+      .select({ trackingStartedAt: telegramCommunitiesTable.createdAt })
+      .from(telegramCommunitiesTable)
+      .where(eq(telegramCommunitiesTable.chatId, input.chatId))
+      .limit(1);
+
+    return {
+      members: members.map((member) => ({
+        ...member,
+        joinedAt: member.joinedAt?.toISOString() ?? null,
+        leftAt: member.leftAt?.toISOString() ?? null,
+        firstObservedAt: member.firstObservedAt.toISOString(),
+        lastQualifyingMessageAt: member.lastQualifyingMessageAt?.toISOString() ?? null,
+      })),
+      total: Number(total?.total ?? 0),
+      trackingStartedAt: community?.trackingStartedAt.toISOString() ?? null,
+      limit: input.limit,
+      offset: input.offset,
+    };
+  });
+}
+
+export async function getTelegramCommunityDailyInsights(input: {
+  chatId: string;
+  days: number;
+  now?: Date;
+}) {
+  return withStatsTable(async () => {
+    const now = input.now ?? new Date();
+    const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - input.days + 1))
+      .toISOString()
+      .slice(0, 10);
+    const [rows, [community]] = await Promise.all([
+      db
+        .select({
+          date: telegramCommunityMemberDailyActivityTable.activityDate,
+          qualifyingMessageCount: sql<number>`sum(${telegramCommunityMemberDailyActivityTable.qualifyingMessageCount})`,
+          activeMembers: sql<number>`count(distinct ${telegramCommunityMemberDailyActivityTable.telegramUserId})`,
+        })
+        .from(telegramCommunityMemberDailyActivityTable)
+        .where(and(
+          eq(telegramCommunityMemberDailyActivityTable.chatId, input.chatId),
+          gte(telegramCommunityMemberDailyActivityTable.activityDate, firstDay),
+        ))
+        .groupBy(telegramCommunityMemberDailyActivityTable.activityDate)
+        .orderBy(asc(telegramCommunityMemberDailyActivityTable.activityDate)),
+      db
+        .select({ trackingStartedAt: telegramCommunitiesTable.createdAt })
+        .from(telegramCommunitiesTable)
+        .where(eq(telegramCommunitiesTable.chatId, input.chatId))
+        .limit(1),
+    ]);
+    const activityByDate = new Map(rows.map((row) => [row.date, {
+      qualifyingMessageCount: Number(row.qualifyingMessageCount),
+      activeMembers: Number(row.activeMembers),
+    }]));
+    const trackingStartDate = community?.trackingStartedAt.toISOString().slice(0, 10);
+    const effectiveFirstDay = trackingStartDate && trackingStartDate > firstDay
+      ? trackingStartDate
+      : firstDay;
+    const days: Array<{
+      date: string;
+      qualifyingMessageCount: number;
+      activeMembers: number;
+    }> = [];
+    for (
+      let day = new Date(`${effectiveFirstDay}T00:00:00.000Z`);
+      day <= new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      day.setUTCDate(day.getUTCDate() + 1)
+    ) {
+      const date = day.toISOString().slice(0, 10);
+      const activity = activityByDate.get(date);
+      days.push({
+        date,
+        qualifyingMessageCount: activity?.qualifyingMessageCount ?? 0,
+        activeMembers: activity?.activeMembers ?? 0,
+      });
+    }
+    return {
+      days,
+      trackingStartedAt: community?.trackingStartedAt.toISOString() ?? null,
+      daysRequested: input.days,
+    };
+  });
+}
+
+export async function getTelegramCommunityMemberHistory(input: {
+  chatId: string;
+  memberId: number;
+  days: number;
+  now?: Date;
+}) {
+  return withStatsTable(async () => {
+    const now = input.now ?? new Date();
+    const [member] = await db
+      .select({
+        telegramUserId: telegramCommunityMemberStatsTable.telegramUserId,
+        firstObservedAt: telegramCommunityMemberStatsTable.firstObservedAt,
+      })
+      .from(telegramCommunityMemberStatsTable)
+      .where(and(
+        eq(telegramCommunityMemberStatsTable.chatId, input.chatId),
+        eq(telegramCommunityMemberStatsTable.id, input.memberId),
+      ))
+      .limit(1);
+    if (!member) return null;
+
+    const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - input.days + 1))
+      .toISOString()
+      .slice(0, 10);
+    const today = now.toISOString().slice(0, 10);
+    const firstObservedDate = member.firstObservedAt.toISOString().slice(0, 10);
+    const effectiveFirstDay = firstObservedDate > firstDay ? firstObservedDate : firstDay;
+    const [rows, [community]] = await Promise.all([
+      db
+        .select({
+          date: telegramCommunityMemberDailyActivityTable.activityDate,
+          qualifyingMessageCount: telegramCommunityMemberDailyActivityTable.qualifyingMessageCount,
+        })
+        .from(telegramCommunityMemberDailyActivityTable)
+        .where(and(
+          eq(telegramCommunityMemberDailyActivityTable.chatId, input.chatId),
+          eq(telegramCommunityMemberDailyActivityTable.telegramUserId, member.telegramUserId),
+          gte(telegramCommunityMemberDailyActivityTable.activityDate, effectiveFirstDay),
+          lte(telegramCommunityMemberDailyActivityTable.activityDate, today),
+        ))
+        .orderBy(asc(telegramCommunityMemberDailyActivityTable.activityDate)),
+      db
+        .select({ trackingStartedAt: telegramCommunitiesTable.createdAt })
+        .from(telegramCommunitiesTable)
+        .where(eq(telegramCommunitiesTable.chatId, input.chatId))
+        .limit(1),
+    ]);
+    const activityByDate = new Map(rows.map((row) => [row.date, Number(row.qualifyingMessageCount)]));
+    const days: Array<{ date: string; qualifyingMessageCount: number }> = [];
+    for (
+      let day = new Date(`${effectiveFirstDay}T00:00:00.000Z`);
+      day <= new Date(`${today}T00:00:00.000Z`);
+      day.setUTCDate(day.getUTCDate() + 1)
+    ) {
+      const date = day.toISOString().slice(0, 10);
+      days.push({
+        date,
+        qualifyingMessageCount: activityByDate.get(date) ?? 0,
+      });
+    }
+    return {
+      memberId: input.memberId,
+      days,
+      trackingStartedAt: community?.trackingStartedAt.toISOString() ?? null,
+      daysRequested: input.days,
+    };
   });
 }

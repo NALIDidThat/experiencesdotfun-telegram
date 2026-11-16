@@ -11,8 +11,19 @@ import {
   DeleteTelegramCommunityPhraseParams,
   GetTelegramCommunityRulesParams,
   GetTelegramCommunityRulesResponse,
-  GetTelegramCommunityMembersParams,
+  GetTelegramCommunityMembersQueryParams,
   GetTelegramCommunityMembersResponse,
+  GetTelegramCommunityInsightsQueryParams,
+  GetTelegramCommunityInsightsResponse,
+  GetTelegramCommunityMemberHistoryQueryParams,
+  GetTelegramCommunityMemberHistoryResponse,
+  GetTelegramCommunityModerationEventsQueryParams,
+  GetTelegramCommunityModerationEventsResponse,
+  GetTelegramCommunityManagementAuditQueryParams,
+  GetTelegramCommunityManagementAuditResponse,
+  PreviewTelegramCommunityRulesBody,
+  PreviewTelegramCommunityRulesParams,
+  PreviewTelegramCommunityRulesResponse,
   UpdateTelegramCommunityRiddleSettingsBody,
   UpdateTelegramCommunityRiddleSettingsParams,
   UpdateTelegramCommunityRiddleSettingsResponse,
@@ -31,19 +42,29 @@ import {
 } from "../lib/telegram";
 import {
   CommunityMemberStatsMigrationRequiredError,
-  listTelegramCommunityTopMembers,
+  getTelegramCommunityDailyInsights,
+  getTelegramCommunityMemberHistory,
+  listTelegramCommunityMembers,
 } from "../lib/community-member-stats";
 import {
   addTelegramCommunityKeywordRule,
   addTelegramCommunityLinkRule,
   getTelegramCommunityManagementContext,
+  listTelegramCommunityManagementAudit,
+  listTelegramCommunityModerationEvents,
   listTelegramCommunityKeywordRules,
   listTelegramCommunityLinkRules,
   listTelegramOwnedCommunitiesForManagement,
+  recordTelegramCommunityModerationEvent,
   removeTelegramCommunityKeywordRuleById,
   removeTelegramCommunityLinkRuleById,
   setTelegramCommunityRiddleSettings,
 } from "../lib/community-moderation";
+import {
+  extractCommunityMessageLinks,
+  isCommunityLinkWhitelisted,
+  matchesCommunityModerationPhrase,
+} from "../lib/community-rules";
 
 const router: IRouter = Router();
 router.use(requireTelegramUser);
@@ -271,28 +292,38 @@ router.get("/community/manage/:chatId/live-info", async (req, res) => {
   res.json(await getTelegramCommunityLiveInfo(chatId));
 });
 
-router.get("/community/manage/:chatId/members", async (req, res) => {
-  const params = GetTelegramCommunityMembersParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ message: "That Telegram group identifier is invalid." });
+function isMissingManagementTable(error: unknown): boolean {
+  const cause = typeof error === "object" && error !== null && "cause" in error
+    ? error.cause
+    : error;
+  return typeof cause === "object" && cause !== null && "code" in cause
+    && String(cause.code) === "42P01";
+}
+
+router.get("/community/manage/members", async (req, res) => {
+  const query = GetTelegramCommunityMembersQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ message: "Check the group, search text, and member-list page." });
     return;
   }
 
   const telegramUserId = getOrganisationTelegramUserId(req, res);
   if (telegramUserId === null) return;
 
-  const context = await getTelegramCommunityManagementContext(
-    params.data.chatId,
-    telegramUserId,
-  );
+  const context = await getTelegramCommunityManagementContext(query.data.chatId, telegramUserId);
   if (!context) {
     res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
     return;
   }
 
   try {
-    const members = await listTelegramCommunityTopMembers(params.data.chatId);
-    res.json(GetTelegramCommunityMembersResponse.parse({ members }));
+    const result = await listTelegramCommunityMembers({
+      chatId: query.data.chatId,
+      search: query.data.search?.trim() ?? "",
+      limit: query.data.limit,
+      offset: query.data.offset,
+    });
+    res.json(GetTelegramCommunityMembersResponse.parse(result));
   } catch (error) {
     if (error instanceof CommunityMemberStatsMigrationRequiredError) {
       res.status(503).json({
@@ -302,6 +333,159 @@ router.get("/community/manage/:chatId/members", async (req, res) => {
     }
     throw error;
   }
+});
+
+router.get("/community/manage/insights", async (req, res) => {
+  const query = GetTelegramCommunityInsightsQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ message: "Choose a valid group and activity period." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+  const context = await getTelegramCommunityManagementContext(query.data.chatId, telegramUserId);
+  if (!context) {
+    res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+    return;
+  }
+  try {
+    const result = await getTelegramCommunityDailyInsights({
+      chatId: query.data.chatId,
+      days: query.data.days,
+    });
+    res.json(GetTelegramCommunityInsightsResponse.parse(result));
+  } catch (error) {
+    if (error instanceof CommunityMemberStatsMigrationRequiredError) {
+      res.status(503).json({ message: "Telegram activity insights are waiting for their database migration." });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.get("/community/manage/member-history", async (req, res) => {
+  const query = GetTelegramCommunityMemberHistoryQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ message: "Choose a valid group, member, and history period." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+  const context = await getTelegramCommunityManagementContext(query.data.chatId, telegramUserId);
+  if (!context) {
+    res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+    return;
+  }
+  try {
+    const result = await getTelegramCommunityMemberHistory({
+      chatId: query.data.chatId,
+      memberId: query.data.memberId,
+      days: query.data.days,
+    });
+    if (!result) {
+      res.status(404).json({ message: "That member is not tracked in this Telegram group." });
+      return;
+    }
+    res.json(GetTelegramCommunityMemberHistoryResponse.parse(result));
+  } catch (error) {
+    if (error instanceof CommunityMemberStatsMigrationRequiredError) {
+      res.status(503).json({ message: "Member message history is waiting for its database migration." });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.get("/community/manage/moderation-events", async (req, res) => {
+  const query = GetTelegramCommunityModerationEventsQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ message: "Check the group and moderation activity page." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+  const context = await getTelegramCommunityManagementContext(query.data.chatId, telegramUserId);
+  if (!context) {
+    res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+    return;
+  }
+  try {
+    const result = await listTelegramCommunityModerationEvents({
+      chatId: query.data.chatId,
+      limit: query.data.limit,
+      offset: query.data.offset,
+    });
+    res.json(GetTelegramCommunityModerationEventsResponse.parse(result));
+  } catch (error) {
+    if (isMissingManagementTable(error)) {
+      res.status(503).json({ message: "Moderation history is waiting for its database migration." });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.get("/community/manage/audit", async (req, res) => {
+  const query = GetTelegramCommunityManagementAuditQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ message: "Check the group and administrator activity limit." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+  const context = await getTelegramCommunityManagementContext(query.data.chatId, telegramUserId);
+  if (!context) {
+    res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+    return;
+  }
+  try {
+    const events = await listTelegramCommunityManagementAudit({
+      chatId: query.data.chatId,
+      limit: query.data.limit,
+    });
+    res.json(GetTelegramCommunityManagementAuditResponse.parse({ events }));
+  } catch (error) {
+    if (isMissingManagementTable(error)) {
+      res.status(503).json({ message: "Administrator history is waiting for its database migration." });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.post("/community/manage/:chatId/rules/preview", async (req, res) => {
+  const params = PreviewTelegramCommunityRulesParams.safeParse(req.params);
+  const body = PreviewTelegramCommunityRulesBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ message: "Enter a sample message up to 2,000 characters." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+  const context = await getTelegramCommunityManagementContext(params.data.chatId, telegramUserId);
+  if (!context) {
+    res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+    return;
+  }
+
+  const [phraseRules, linkRules] = await Promise.all([
+    listTelegramCommunityKeywordRules(params.data.chatId, 100),
+    listTelegramCommunityLinkRules(params.data.chatId, 100),
+  ]);
+  const matchedPhraseRuleIds = phraseRules
+    .filter((rule) => matchesCommunityModerationPhrase(body.data.text, rule.phrase))
+    .map((rule) => rule.id);
+  const links = extractCommunityMessageLinks(body.data.text);
+  const unapprovedLinks = linkRules.length
+    ? links.filter((link) => !isCommunityLinkWhitelisted(link, linkRules))
+    : [];
+  res.json(PreviewTelegramCommunityRulesResponse.parse({
+    protectionEnabled: context.spamProtectionEnabled,
+    wouldDelete: context.spamProtectionEnabled
+      && (matchedPhraseRuleIds.length > 0 || unapprovedLinks.length > 0),
+    matchedPhraseRuleIds,
+    unapprovedLinks,
+  }));
 });
 
 router.post("/community/me", async (req, res) => {

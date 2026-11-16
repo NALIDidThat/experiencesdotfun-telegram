@@ -12,8 +12,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetCommunityFeedQueryKey,
   getGetFeedQueryKey,
+  getListHostExperiencesQueryKey,
   useCreateFeedPost,
   useGetCommunityFeed,
+  useListHostExperiences,
 } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 
@@ -22,6 +24,7 @@ export function CommunityFeedSection({ chatId }: { chatId: string }) {
   const queryClient = useQueryClient();
   const [body, setBody] = useState("");
   const [broadcastToTelegram, setBroadcastToTelegram] = useState(false);
+  const [selectedExperienceId, setSelectedExperienceId] = useState<number | null>(null);
   const [feedback, setFeedback] = useState("");
   const [feedbackIsError, setFeedbackIsError] = useState(false);
   const feedQuery = useGetCommunityFeed(chatId, {
@@ -31,8 +34,31 @@ export function CommunityFeedSection({ chatId }: { chatId: string }) {
       retry: 1,
     },
   });
+  const hostExperiences = useListHostExperiences({
+    query: {
+      queryKey: getListHostExperiencesQueryKey(),
+      enabled: feedQuery.data?.canBroadcastToTelegram === true,
+      retry: 1,
+    },
+  });
   const createPost = useCreateFeedPost();
   const updates = feedQuery.data?.items ?? [];
+  const upcomingExperiences = (hostExperiences.data ?? []).filter((experience) =>
+    experience.status === "published" && experience.date >= new Date().toISOString().slice(0, 10),
+  );
+
+  const draftExperienceAnnouncement = (experience: (typeof upcomingExperiences)[number]) => {
+    const titleLine = `Upcoming experience: ${experience.title}`;
+    const details = `${experience.date} · ${experience.startTime} · ${experience.city}`;
+    const location = experience.location.trim();
+    const prefix = [titleLine, details, location].filter(Boolean).join("\n");
+    const description = experience.description.trim();
+    const remaining = Math.max(0, 500 - prefix.length - (description ? 2 : 0));
+    setBody(description ? `${prefix}\n\n${description.slice(0, remaining)}`.slice(0, 500) : prefix.slice(0, 500));
+    setSelectedExperienceId(experience.id);
+    setFeedback("Experience details added to the draft. Review the text before sharing.");
+    setFeedbackIsError(false);
+  };
 
   const submit = async () => {
     const message = body.trim();
@@ -56,6 +82,7 @@ export function CommunityFeedSection({ chatId }: { chatId: string }) {
       });
       setBody("");
       setBroadcastToTelegram(false);
+      setSelectedExperienceId(null);
       setFeedback(
         result.telegramBroadcastStatus === "sent"
           ? "Update shared with the community and posted in Telegram."
@@ -140,6 +167,59 @@ export function CommunityFeedSection({ chatId }: { chatId: string }) {
           paddingVertical: 10,
         }}
       />
+      {feedQuery.data?.canBroadcastToTelegram ? (
+        <View style={{ gap: 7 }}>
+          <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "700" }}>
+            Curated experience announcements
+          </Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
+            Choose a published upcoming experience to draft an announcement. Review and edit it, then enable Telegram delivery if wanted.
+          </Text>
+          {hostExperiences.isLoading ? (
+            <ActivityIndicator color={colors.primary} size="small" />
+          ) : hostExperiences.isError ? (
+            <Pressable onPress={() => void hostExperiences.refetch()}>
+              <Text style={{ color: colors.destructive, fontSize: 11 }}>Experiences could not load. Tap to retry.</Text>
+            </Pressable>
+          ) : upcomingExperiences.length ? (
+            <View style={{ gap: 6 }}>
+              {upcomingExperiences.slice(0, 5).map((experience) => {
+                const selected = selectedExperienceId === experience.id;
+                return (
+                  <Pressable
+                    key={experience.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={`Draft an announcement for ${experience.title}`}
+                    testID={`community-announcement-experience-${experience.id}`}
+                    onPress={() => draftExperienceAnnouncement(experience)}
+                    style={({ pressed }) => ({
+                      backgroundColor: selected ? colors.primary + "12" : colors.background,
+                      borderColor: selected ? colors.primary : colors.border,
+                      borderRadius: colors.radius - 5,
+                      borderWidth: 1,
+                      opacity: pressed ? 0.76 : 1,
+                      paddingHorizontal: 10,
+                      paddingVertical: 8,
+                    })}
+                  >
+                    <Text numberOfLines={1} style={{ color: colors.foreground, fontSize: 12, fontWeight: "700" }}>
+                      {experience.title}
+                    </Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 10, marginTop: 3 }}>
+                      {experience.date} · {experience.city}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
+              No published upcoming experiences are available to announce.
+            </Text>
+          )}
+        </View>
+      ) : null}
       <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
         <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>{body.length}/500</Text>
         {feedQuery.data?.canBroadcastToTelegram ? (

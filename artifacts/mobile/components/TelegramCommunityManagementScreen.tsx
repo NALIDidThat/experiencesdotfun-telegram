@@ -11,8 +11,12 @@ import { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  getGetTelegramCommunityInsightsQueryKey,
+  getGetTelegramCommunityManagementAuditQueryKey,
   getGetTelegramCommunityMembersQueryKey,
+  getGetTelegramCommunityMemberHistoryQueryKey,
   getGetTelegramCommunityManagementQueryKey,
+  getGetTelegramCommunityModerationEventsQueryKey,
   getGetTelegramCommunityRulesQueryKey,
   useAddTelegramCommunityLink,
   useAddTelegramCommunityPhrase,
@@ -20,8 +24,13 @@ import {
   useDeleteTelegramCommunityPhrase,
   useGetTelegramCommunityLiveInfo,
   useGetTelegramCommunityMembers,
+  useGetTelegramCommunityMemberHistory,
   useGetTelegramCommunityManagement,
+  useGetTelegramCommunityInsights,
+  useGetTelegramCommunityManagementAudit,
+  useGetTelegramCommunityModerationEvents,
   useGetTelegramCommunityRules,
+  usePreviewTelegramCommunityRules,
   useUpdateTelegramCommunityRiddleSettings,
   type TelegramManagedCommunity,
 } from '@workspace/api-client-react';
@@ -30,6 +39,12 @@ import { useColors } from '@/hooks/useColors';
 import { CommunityFeedSection } from '@/components/CommunityFeedSection';
 
 type RuleFeedback = { message: string; tone: 'success' | 'error' };
+type RulePreviewResult = {
+  protectionEnabled: boolean;
+  wouldDelete: boolean;
+  matchedPhraseRuleIds: number[];
+  unapprovedLinks: string[];
+};
 
 const RIDDLE_INTERVALS = [
   { minutes: 30, label: '30 min', fullLabel: '30 minutes' },
@@ -48,9 +63,9 @@ function errorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function formatMemberJoinDate(joinedAt: string | null) {
+function formatMemberJoinDate(joinedAt: string | Date | null) {
   if (!joinedAt) return 'Not recorded';
-  const date = new Date(joinedAt);
+  const date = joinedAt instanceof Date ? joinedAt : new Date(joinedAt);
   if (!Number.isFinite(date.getTime())) return 'Not recorded';
   return new Intl.DateTimeFormat(undefined, {
     day: 'numeric',
@@ -416,6 +431,13 @@ export function TelegramCommunityDashboardScreen({
   const [phraseFeedback, setPhraseFeedback] = useState<RuleFeedback | null>(null);
   const [linkFeedback, setLinkFeedback] = useState<RuleFeedback | null>(null);
   const [riddleFeedback, setRiddleFeedback] = useState<RuleFeedback | null>(null);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberOffset, setMemberOffset] = useState(0);
+  const [expandedMemberId, setExpandedMemberId] = useState<number | null>(null);
+  const [insightDays, setInsightDays] = useState<7 | 30 | 90>(7);
+  const [previewText, setPreviewText] = useState('');
+  const [previewFeedback, setPreviewFeedback] = useState<RuleFeedback | null>(null);
+  const [previewResult, setPreviewResult] = useState<RulePreviewResult | null>(null);
   const management = useGetTelegramCommunityManagement();
   const liveInfo = useGetTelegramCommunityLiveInfo(chatId ?? '', {
     query: {
@@ -423,9 +445,54 @@ export function TelegramCommunityDashboardScreen({
       enabled: Boolean(chatId),
     },
   });
-  const members = useGetTelegramCommunityMembers(chatId ?? '', {
+  const memberQuery = {
+    chatId: chatId ?? '',
+    search: memberSearch.trim() || undefined,
+    limit: 20,
+    offset: memberOffset,
+  };
+  const members = useGetTelegramCommunityMembers(memberQuery, {
     query: {
-      queryKey: getGetTelegramCommunityMembersQueryKey(chatId ?? ''),
+      queryKey: getGetTelegramCommunityMembersQueryKey(memberQuery),
+      enabled: Boolean(chatId),
+    },
+  });
+  const memberHistoryQuery = {
+    chatId: chatId ?? '',
+    memberId: expandedMemberId ?? 0,
+    days: 30 as const,
+  };
+  const memberHistory = useGetTelegramCommunityMemberHistory(memberHistoryQuery, {
+    query: {
+      queryKey: getGetTelegramCommunityMemberHistoryQueryKey(memberHistoryQuery),
+      enabled: Boolean(chatId && expandedMemberId !== null),
+    },
+  });
+  const insights = useGetTelegramCommunityInsights({
+    chatId: chatId ?? '',
+    days: insightDays,
+  }, {
+    query: {
+      queryKey: getGetTelegramCommunityInsightsQueryKey({ chatId: chatId ?? '', days: insightDays }),
+      enabled: Boolean(chatId),
+    },
+  });
+  const moderationEvents = useGetTelegramCommunityModerationEvents({
+    chatId: chatId ?? '',
+    limit: 20,
+    offset: 0,
+  }, {
+    query: {
+      queryKey: getGetTelegramCommunityModerationEventsQueryKey({ chatId: chatId ?? '', limit: 20, offset: 0 }),
+      enabled: Boolean(chatId),
+    },
+  });
+  const managementAudit = useGetTelegramCommunityManagementAudit({
+    chatId: chatId ?? '',
+    limit: 20,
+  }, {
+    query: {
+      queryKey: getGetTelegramCommunityManagementAuditQueryKey({ chatId: chatId ?? '', limit: 20 }),
       enabled: Boolean(chatId),
     },
   });
@@ -440,6 +507,7 @@ export function TelegramCommunityDashboardScreen({
   const addLink = useAddTelegramCommunityLink();
   const removeLink = useDeleteTelegramCommunityLink();
   const updateRiddles = useUpdateTelegramCommunityRiddleSettings();
+  const previewRules = usePreviewTelegramCommunityRules();
   const community = management.data?.communities.find((item) => item.chatId === chatId);
   const displayedTitle = liveInfo.data?.connectionStatus !== 'error' && liveInfo.data?.chatTitle
     ? liveInfo.data.chatTitle
@@ -468,8 +536,8 @@ export function TelegramCommunityDashboardScreen({
         },
         {
           key: 'moderation',
-          label: 'Pending reviews',
-          value: 'Not tracked',
+          label: 'Moderation actions',
+          value: moderationEvents.data?.total.toLocaleString() ?? '—',
           icon: 'shield',
         },
         {
@@ -490,8 +558,8 @@ export function TelegramCommunityDashboardScreen({
       body: 'This counts text messages recorded by the Community XP system after meeting its message-length rule. It is not a count of every message sent in Telegram.',
     },
     moderation: {
-      title: 'Moderation reviews',
-      body: 'A saved review inbox is not available yet. Phrase and link rules remove matching messages automatically when the bot has Telegram permission to delete messages.',
+      title: 'Automated moderation actions',
+      body: 'This counts saved phrase and link matches, including whether Telegram confirmed deletion. Message text is not stored in the moderation history.',
     },
     xp: {
       title: 'XP distributed today',
@@ -549,6 +617,34 @@ export function TelegramCommunityDashboardScreen({
       await refreshRules();
     } catch (error) {
       setLinkFeedback({ message: errorMessage(error, 'Could not add that link. Try again.'), tone: 'error' });
+    }
+  }
+
+  async function testRulesAgainstSample() {
+    const text = previewText.trim();
+    if (!chatId || !text) {
+      setPreviewFeedback({ message: 'Enter a sample message to test.', tone: 'error' });
+      setPreviewResult(null);
+      return;
+    }
+    setPreviewFeedback(null);
+    setPreviewResult(null);
+    try {
+      const result = await previewRules.mutateAsync({ chatId, data: { text } });
+      setPreviewResult(result);
+      setPreviewFeedback({
+        message: result.wouldDelete
+          ? 'This sample would be removed by the current protection rules.'
+          : result.protectionEnabled
+            ? 'This sample would stay in the group.'
+            : 'Protection is off, so matching rules would not remove this sample.',
+        tone: 'success',
+      });
+    } catch (error) {
+      setPreviewFeedback({
+        message: errorMessage(error, 'Could not test the sample against these rules.'),
+        tone: 'error',
+      });
     }
   }
 
@@ -725,6 +821,17 @@ export function TelegramCommunityDashboardScreen({
                   <Feather name="refresh-cw" size={16} color={colors.primary} />
                 </Pressable>
               ) : null}
+              {liveInfo.data.connectionStatus !== 'connected' && community ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Open Telegram group setup to fix permissions"
+                  testID="telegram-community-fix-connection"
+                  onPress={() => onOpenBot(`community_${community.chatId}`)}
+                  hitSlop={8}
+                >
+                  <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Fix access</Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : liveInfo.isError ? (
             <View
@@ -862,7 +969,7 @@ export function TelegramCommunityDashboardScreen({
               <View style={styles.sectionTitleCopy}>
                 <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Community health</Text>
                 <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
-                  Today’s recorded activity and reviews
+                  Tracked activity and automated protection
                 </Text>
               </View>
             </View>
@@ -923,6 +1030,103 @@ export function TelegramCommunityDashboardScreen({
           </View>
 
           <View
+            testID="telegram-community-insights"
+            style={[
+              styles.dashboardCard,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+            ]}
+          >
+            <View style={styles.dashboardSectionHeader}>
+              <View style={[styles.setupIcon, { backgroundColor: colors.primary + '14' }]}>
+                <Feather name="activity" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Message activity</Text>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  XP-eligible messages received from linked-group updates
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.riddleIntervalGrid, { marginTop: 12 }]}>
+              {([7, 30, 90] as const).map((days) => {
+                const selected = insightDays === days;
+                return (
+                  <Pressable
+                    key={days}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Show ${days} days of Telegram message activity`}
+                    accessibilityState={{ selected }}
+                    testID={`telegram-community-insights-${days}`}
+                    onPress={() => setInsightDays(days)}
+                    style={({ pressed }) => [
+                      styles.riddleIntervalButton,
+                      {
+                        backgroundColor: selected ? colors.primary + '12' : colors.background,
+                        borderColor: selected ? colors.primary : colors.border,
+                        borderRadius: colors.radius - 5,
+                        opacity: pressed ? 0.75 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.riddleIntervalText, { color: selected ? colors.primary : colors.foreground }]}>
+                      {days} days
+                    </Text>
+                    {selected ? <Feather name="check" size={14} color={colors.primary} /> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+            {insights.isLoading ? (
+              <View style={styles.rulesLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>Loading message activity…</Text>
+              </View>
+            ) : insights.isError ? (
+              <View style={styles.rulesError}>
+                <Text style={[styles.sectionDescription, { color: colors.destructive }]}>
+                  {errorMessage(insights.error, 'Message activity could not be loaded.')}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry loading message activity"
+                  testID="telegram-community-insights-retry"
+                  onPress={() => { void insights.refetch(); }}
+                  style={[styles.ruleRetryButton, { borderColor: colors.border, borderRadius: colors.radius - 5 }]}
+                >
+                  <Feather name="refresh-cw" size={14} color={colors.primary} />
+                  <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Try again</Text>
+                </Pressable>
+              </View>
+            ) : insights.data?.days.length ? (
+              <View style={{ gap: 9, marginTop: 12 }}>
+                <Text style={[styles.sectionDescription, { color: colors.foreground }]}>
+                  {insights.data.days.reduce((total, day) => total + day.qualifyingMessageCount, 0).toLocaleString()} qualifying messages recorded
+                </Text>
+                {insights.data.days.slice(-14).map((day) => (
+                  <View
+                    key={day.date}
+                    style={[styles.memberRow, { borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between' }]}
+                  >
+                    <Text style={[styles.memberJoinedText, { color: colors.foreground }]}>
+                      {new Date(`${day.date}T00:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' })}
+                    </Text>
+                    <Text style={[styles.memberJoinedText, { color: colors.mutedForeground }]}>
+                      {day.qualifyingMessageCount.toLocaleString()} messages · {day.activeMembers.toLocaleString()} members
+                    </Text>
+                  </View>
+                ))}
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  Daily message totals use Telegram update dates. Only qualifying human text or captions count; this is not a measure of real-world contribution.
+                </Text>
+              </View>
+            ) : (
+              <Text style={[styles.rulesEmpty, { color: colors.mutedForeground }]}>
+                No qualifying messages were recorded for this period.
+              </Text>
+            )}
+          </View>
+
+          <View
             testID="telegram-community-top-members"
             style={[
               styles.dashboardCard,
@@ -934,15 +1138,49 @@ export function TelegramCommunityDashboardScreen({
                 <Feather name="users" size={18} color={colors.primary} />
               </View>
               <View style={styles.sectionTitleCopy}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Top 20 members</Text>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Tracked members</Text>
                 <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
-                  Ranked by messages tracked by the bot
+                  Search members and see their qualifying message totals
                 </Text>
               </View>
+              <Text style={[styles.count, { color: colors.mutedForeground }]}>
+                {members.data?.total.toLocaleString() ?? '—'}
+              </Text>
             </View>
             <Text style={[styles.sectionDescription, { color: colors.mutedForeground, marginBottom: 10 }]}>
-              Only current members observed by the bot appear here. Counts start when tracking is enabled; older messages are unavailable. Join dates appear only when the bot observes a join event.
+              Counts use the existing XP message rule: human group text or captions with at least seven words, excluding commands. The bot can count messages only after the group is linked; existing qualifying contribution records are included. Telegram does not provide the bot with older chat history.
             </Text>
+            {members.data?.trackingStartedAt ? (
+              <Text style={[styles.sectionDescription, { color: colors.mutedForeground, marginBottom: 10 }]}>
+                Tracking started · {formatMemberJoinDate(members.data.trackingStartedAt)}
+              </Text>
+            ) : null}
+            <TextInput
+              accessibilityLabel="Search tracked Telegram members"
+              testID="telegram-community-member-search"
+              value={memberSearch}
+              onChangeText={(value) => {
+                setMemberSearch(value);
+                setMemberOffset(0);
+                setExpandedMemberId(null);
+              }}
+              placeholder="Search name or username"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              style={[
+                styles.ruleInput,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  borderRadius: colors.radius - 5,
+                  color: colors.foreground,
+                  marginBottom: 10,
+                  width: '100%',
+                },
+              ]}
+            />
             {members.isLoading ? (
               <View style={styles.rulesLoading}>
                 <ActivityIndicator size="small" color={colors.primary} />
@@ -957,7 +1195,7 @@ export function TelegramCommunityDashboardScreen({
                 </Text>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Retry loading top members"
+                  accessibilityLabel="Retry loading tracked members"
                   testID="telegram-community-members-retry"
                   onPress={() => { void members.refetch(); }}
                   style={[
@@ -975,38 +1213,180 @@ export function TelegramCommunityDashboardScreen({
                   <View
                     key={member.id}
                     testID={`telegram-community-member-${member.id}`}
-                    style={[
-                      styles.memberRow,
-                      { borderBottomColor: colors.border },
-                    ]}
                   >
-                    <View style={styles.memberMainRow}>
-                      <Text style={[styles.memberRank, { color: colors.mutedForeground }]}>
-                        {index + 1}
-                      </Text>
-                      <View style={styles.memberIdentity}>
-                        <Text numberOfLines={1} style={[styles.memberName, { color: colors.foreground }]}>
-                          {member.name}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${member.name}, ${member.qualifyingMessageCount} qualifying messages. ${expandedMemberId === member.id ? 'Hide' : 'Show'} recent history`}
+                      accessibilityState={{ expanded: expandedMemberId === member.id }}
+                      testID={`telegram-community-member-expand-${member.id}`}
+                      onPress={() => setExpandedMemberId((current) => current === member.id ? null : member.id)}
+                      style={[
+                        styles.memberRow,
+                        { borderBottomColor: colors.border },
+                      ]}
+                    >
+                      <View style={styles.memberMainRow}>
+                        <Text style={[styles.memberRank, { color: colors.mutedForeground }]}>
+                          {index + 1}
                         </Text>
-                        {member.username ? (
-                          <Text numberOfLines={1} style={[styles.memberUsername, { color: colors.mutedForeground }]}>
-                            @{member.username}
+                        <View style={styles.memberIdentity}>
+                          <Text numberOfLines={1} style={[styles.memberName, { color: colors.foreground }]}>
+                            {member.name}
                           </Text>
-                        ) : null}
+                          {member.username ? (
+                            <Text numberOfLines={1} style={[styles.memberUsername, { color: colors.mutedForeground }]}>
+                              @{member.username}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <View style={styles.memberMessageCount}>
+                          <Text style={[styles.memberMessageValue, { color: colors.foreground }]}>
+                            {member.qualifyingMessageCount.toLocaleString()}
+                          </Text>
+                          <Text style={[styles.memberUsername, { color: colors.mutedForeground }]}>
+                            eligible
+                          </Text>
+                        </View>
+                        <Feather
+                          name={expandedMemberId === member.id ? 'chevron-up' : 'chevron-down'}
+                          size={16}
+                          color={colors.mutedForeground}
+                        />
                       </View>
-                      <View style={styles.memberMessageCount}>
-                        <Text style={[styles.memberMessageValue, { color: colors.foreground }]}>
-                          {member.messageCount.toLocaleString()}
+                      <View style={styles.memberJoinedRow}>
+                        <Feather name="calendar" size={12} color={colors.mutedForeground} />
+                        <Text style={[styles.memberJoinedText, { color: colors.mutedForeground }]}>
+                          {member.leftAt
+                            ? `Left · ${formatMemberJoinDate(member.leftAt)}`
+                            : `Joined · ${formatMemberJoinDate(member.joinedAt)}`}
+                        </Text>
+                      </View>
+                    </Pressable>
+                    {expandedMemberId === member.id ? (
+                      <View style={{ borderBottomColor: colors.border, borderBottomWidth: 1, gap: 7, paddingBottom: 12, paddingHorizontal: 12 }}>
+                        <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                          Recent qualifying-message history · last 30 days
+                        </Text>
+                        {memberHistory.isLoading ? (
+                          <ActivityIndicator size="small" color={colors.primary} />
+                        ) : memberHistory.isError ? (
+                          <Text style={[styles.sectionDescription, { color: colors.destructive }]}>
+                            {errorMessage(memberHistory.error, 'Member history could not be loaded.')}
+                          </Text>
+                        ) : memberHistory.data?.days.some((day) => day.qualifyingMessageCount > 0) ? (
+                          memberHistory.data.days
+                            .filter((day) => day.qualifyingMessageCount > 0)
+                            .slice(-14)
+                            .reverse()
+                            .map((day) => (
+                              <View key={day.date} style={{ alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <Text style={[styles.memberJoinedText, { color: colors.foreground }]}>
+                                  {new Date(`${day.date}T00:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' })}
+                                </Text>
+                                <Text style={[styles.memberJoinedText, { color: colors.mutedForeground }]}>
+                                  {day.qualifyingMessageCount.toLocaleString()} messages
+                                </Text>
+                              </View>
+                            ))
+                        ) : (
+                          <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                            No qualifying messages recorded in this period.
+                          </Text>
+                        )}
+                      </View>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={[styles.rulesEmpty, { color: colors.mutedForeground }]}>
+                {memberSearch.trim()
+                  ? 'No tracked members match that search.'
+                  : 'No members have been observed yet. Counts begin when the bot receives group updates.'}
+              </Text>
+            )}
+            {members.data?.total ? (
+              <View style={[styles.ruleInputRow, { justifyContent: 'space-between', marginTop: 12 }]}>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  {memberOffset + 1}–{Math.min(memberOffset + members.data.members.length, members.data.total)} of {members.data.total}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Previous member page"
+                    testID="telegram-community-members-previous"
+                    disabled={memberOffset === 0}
+                    onPress={() => {
+                      setExpandedMemberId(null);
+                      setMemberOffset((offset) => Math.max(0, offset - 20));
+                    }}
+                    style={[styles.ruleRetryButton, { borderColor: colors.border, borderRadius: colors.radius - 5, opacity: memberOffset === 0 ? 0.45 : 1 }]}
+                  >
+                    <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Previous</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Next member page"
+                    testID="telegram-community-members-next"
+                    disabled={memberOffset + (members.data?.members.length ?? 0) >= (members.data?.total ?? 0)}
+                    onPress={() => {
+                      setExpandedMemberId(null);
+                      setMemberOffset((offset) => offset + 20);
+                    }}
+                    style={[styles.ruleRetryButton, { borderColor: colors.border, borderRadius: colors.radius - 5, opacity: memberOffset + (members.data?.members.length ?? 0) >= (members.data?.total ?? 0) ? 0.45 : 1 }]}
+                  >
+                    <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Next</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+          </View>
+
+          <View
+            testID="telegram-community-moderation-history"
+            style={[
+              styles.dashboardCard,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+            ]}
+          >
+            <View style={styles.dashboardSectionHeader}>
+              <View style={[styles.setupIcon, { backgroundColor: colors.accent + '16' }]}>
+                <Feather name="shield" size={18} color={colors.accent} />
+              </View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Moderation history</Text>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  Rule matches and whether Telegram removed the message
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.sectionDescription, { color: colors.mutedForeground, marginTop: 5 }]}>
+              Message text and links are not saved in this history.
+            </Text>
+            {moderationEvents.isLoading ? (
+              <View style={styles.rulesLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>Loading moderation history…</Text>
+              </View>
+            ) : moderationEvents.isError ? (
+              <Text style={[styles.rulesEmpty, { color: colors.mutedForeground }]}>
+                {errorMessage(moderationEvents.error, 'Moderation history is unavailable.')}
+              </Text>
+            ) : moderationEvents.data?.events.length ? (
+              <View style={styles.memberList}>
+                {moderationEvents.data.events.map((event) => (
+                  <View key={event.id} style={[styles.memberRow, { borderBottomColor: colors.border }]}>
+                    <View style={styles.memberMainRow}>
+                      <View style={styles.memberIdentity}>
+                        <Text style={[styles.memberName, { color: colors.foreground }]}>
+                          {event.ruleType === 'phrase' ? 'Banned phrase matched' : 'Unapproved link matched'}
                         </Text>
                         <Text style={[styles.memberUsername, { color: colors.mutedForeground }]}>
-                          messages
+                          {event.deletionSucceeded ? 'Removed by Telegram' : 'Telegram could not remove it'}
                         </Text>
                       </View>
-                    </View>
-                    <View style={styles.memberJoinedRow}>
-                      <Feather name="calendar" size={12} color={colors.mutedForeground} />
-                      <Text style={[styles.memberJoinedText, { color: colors.mutedForeground }]}>
-                        Joined · {formatMemberJoinDate(member.joinedAt)}
+                      <Text style={[styles.memberUsername, { color: colors.mutedForeground }]}>
+                        {new Date(event.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
                       </Text>
                     </View>
                   </View>
@@ -1014,9 +1394,150 @@ export function TelegramCommunityDashboardScreen({
               </View>
             ) : (
               <Text style={[styles.rulesEmpty, { color: colors.mutedForeground }]}>
-                No member activity has been tracked yet. The list will fill as members send messages or join.
+                No automated moderation actions have been recorded.
               </Text>
             )}
+          </View>
+
+          <View
+            testID="telegram-community-admin-history"
+            style={[
+              styles.dashboardCard,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+            ]}
+          >
+            <View style={styles.dashboardSectionHeader}>
+              <View style={[styles.setupIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name="clock" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Administrator changes</Text>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  Recent protection and riddle setting updates
+                </Text>
+              </View>
+            </View>
+            {managementAudit.isLoading ? (
+              <View style={styles.rulesLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>Loading administrator history…</Text>
+              </View>
+            ) : managementAudit.isError ? (
+              <Text style={[styles.rulesEmpty, { color: colors.mutedForeground }]}>
+                {errorMessage(managementAudit.error, 'Administrator history is unavailable.')}
+              </Text>
+            ) : managementAudit.data?.events.length ? (
+              <View style={styles.memberList}>
+                {managementAudit.data.events.map((event) => (
+                  <View key={event.id} style={[styles.memberRow, { borderBottomColor: colors.border }]}>
+                    <View style={styles.memberMainRow}>
+                      <View style={styles.memberIdentity}>
+                        <Text style={[styles.memberName, { color: colors.foreground }]}>
+                          {event.action.replaceAll('_', ' ')}
+                        </Text>
+                        <Text style={[styles.memberUsername, { color: colors.mutedForeground }]}>
+                          {event.actorName}{event.actorUsername ? ` · @${event.actorUsername}` : ''}
+                        </Text>
+                      </View>
+                      <Text style={[styles.memberUsername, { color: colors.mutedForeground }]}>
+                        {new Date(event.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={[styles.rulesEmpty, { color: colors.mutedForeground }]}>
+                No administrator changes have been recorded yet.
+              </Text>
+            )}
+          </View>
+
+          <View
+            testID="telegram-community-rule-preview"
+            style={[
+              styles.dashboardCard,
+              { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+            ]}
+          >
+            <View style={styles.dashboardSectionHeader}>
+              <View style={[styles.setupIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name="eye" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Preview protection rules</Text>
+                <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+                  Test a sample without posting or saving it
+                </Text>
+              </View>
+            </View>
+            <TextInput
+              accessibilityLabel="Sample message to test against protection rules"
+              testID="telegram-community-rule-preview-input"
+              value={previewText}
+              onChangeText={(value) => {
+                setPreviewText(value);
+                setPreviewFeedback(null);
+                setPreviewResult(null);
+              }}
+              placeholder="Paste a sample message"
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              maxLength={2000}
+              textAlignVertical="top"
+              style={[
+                styles.ruleInput,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  borderRadius: colors.radius - 5,
+                  color: colors.foreground,
+                  minHeight: 96,
+                  marginTop: 12,
+                  paddingTop: 12,
+                  width: '100%',
+                },
+              ]}
+            />
+            <Pressable
+              accessibilityRole="button"
+              testID="telegram-community-rule-preview-submit"
+              disabled={previewRules.isPending || !previewText.trim()}
+              onPress={() => { void testRulesAgainstSample(); }}
+              style={({ pressed }) => [
+                styles.riddleToggleButton,
+                {
+                  backgroundColor: colors.primary,
+                  borderRadius: colors.radius - 5,
+                  marginTop: 10,
+                  opacity: pressed || previewRules.isPending ? 0.72 : !previewText.trim() ? 0.48 : 1,
+                },
+              ]}
+            >
+              {previewRules.isPending
+                ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                : <Feather name="search" size={16} color={colors.primaryForeground} />}
+              <Text style={[styles.riddleToggleText, { color: colors.primaryForeground }]}>
+                {previewRules.isPending ? 'Testing…' : 'Test sample'}
+              </Text>
+            </Pressable>
+            {previewFeedback ? (
+              <Text
+                accessibilityRole={previewFeedback.tone === 'error' ? 'alert' : 'text'}
+                testID="telegram-community-rule-preview-feedback"
+                style={[
+                  styles.ruleFeedback,
+                  { color: previewFeedback.tone === 'error' ? colors.destructive : colors.success },
+                ]}
+              >
+                {previewFeedback.message}
+              </Text>
+            ) : null}
+            {previewResult ? (
+              <Text style={[styles.sectionDescription, { color: colors.mutedForeground, marginTop: 6 }]}>
+                {previewResult.matchedPhraseRuleIds.length} phrase rule(s) matched · {previewResult.unapprovedLinks.length} unapproved link(s)
+              </Text>
+            ) : null}
           </View>
 
           <View

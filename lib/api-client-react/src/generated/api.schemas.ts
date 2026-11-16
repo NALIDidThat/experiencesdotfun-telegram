@@ -2086,14 +2086,141 @@ export interface TelegramCommunityMember {
   /** @nullable */
   username: string | null;
   /** @minimum 0 */
-  messageCount: number;
+  qualifyingMessageCount: number;
   /** @nullable */
   joinedAt: string | null;
+  /** @nullable */
+  leftAt: string | null;
+  firstObservedAt: string;
+  /** @nullable */
+  lastQualifyingMessageAt: string | null;
 }
 
 export interface TelegramCommunityMembersResponse {
-  /** @maxItems 20 */
+  /** @maxItems 100 */
   members: TelegramCommunityMember[];
+  /** @minimum 0 */
+  total: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  limit: number;
+  /** @minimum 0 */
+  offset: number;
+  /** @nullable */
+  trackingStartedAt: string | null;
+}
+
+export type TelegramCommunityInsightsResponseDaysItem = {
+  date: string;
+  /** @minimum 0 */
+  qualifyingMessageCount: number;
+  /** @minimum 0 */
+  activeMembers: number;
+};
+
+export type TelegramCommunityInsightsResponseDaysRequested = typeof TelegramCommunityInsightsResponseDaysRequested[keyof typeof TelegramCommunityInsightsResponseDaysRequested];
+
+
+export const TelegramCommunityInsightsResponseDaysRequested = {
+  NUMBER_7: 7,
+  NUMBER_30: 30,
+  NUMBER_90: 90,
+} as const;
+
+export interface TelegramCommunityInsightsResponse {
+  /** @maxItems 90 */
+  days: TelegramCommunityInsightsResponseDaysItem[];
+  /** @nullable */
+  trackingStartedAt: string | null;
+  daysRequested: TelegramCommunityInsightsResponseDaysRequested;
+}
+
+export type TelegramCommunityMemberHistoryResponseDaysItem = {
+  date: string;
+  /** @minimum 0 */
+  qualifyingMessageCount: number;
+};
+
+export type TelegramCommunityMemberHistoryResponseDaysRequested = typeof TelegramCommunityMemberHistoryResponseDaysRequested[keyof typeof TelegramCommunityMemberHistoryResponseDaysRequested];
+
+
+export const TelegramCommunityMemberHistoryResponseDaysRequested = {
+  NUMBER_7: 7,
+  NUMBER_30: 30,
+  NUMBER_90: 90,
+} as const;
+
+export interface TelegramCommunityMemberHistoryResponse {
+  memberId: number;
+  /** @maxItems 90 */
+  days: TelegramCommunityMemberHistoryResponseDaysItem[];
+  /** @nullable */
+  trackingStartedAt: string | null;
+  daysRequested: TelegramCommunityMemberHistoryResponseDaysRequested;
+}
+
+export type TelegramCommunityModerationEventsResponseEventsItemRuleType = typeof TelegramCommunityModerationEventsResponseEventsItemRuleType[keyof typeof TelegramCommunityModerationEventsResponseEventsItemRuleType];
+
+
+export const TelegramCommunityModerationEventsResponseEventsItemRuleType = {
+  phrase: 'phrase',
+  link: 'link',
+} as const;
+
+export type TelegramCommunityModerationEventsResponseEventsItem = {
+  id: number;
+  ruleType: TelegramCommunityModerationEventsResponseEventsItemRuleType;
+  /** @nullable */
+  ruleId: number | null;
+  deletionSucceeded: boolean;
+  createdAt: string;
+};
+
+export interface TelegramCommunityModerationEventsResponse {
+  /** @maxItems 50 */
+  events: TelegramCommunityModerationEventsResponseEventsItem[];
+  /** @minimum 0 */
+  total: number;
+  /**
+     * @minimum 1
+     * @maximum 50
+     */
+  limit: number;
+  /** @minimum 0 */
+  offset: number;
+}
+
+export type TelegramCommunityManagementAuditResponseEventsItem = {
+  id: number;
+  action: string;
+  /** @nullable */
+  targetId: number | null;
+  actorName: string;
+  /** @nullable */
+  actorUsername: string | null;
+  createdAt: string;
+};
+
+export interface TelegramCommunityManagementAuditResponse {
+  /** @maxItems 50 */
+  events: TelegramCommunityManagementAuditResponseEventsItem[];
+}
+
+export interface TelegramCommunityRulePreviewInput {
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  text: string;
+}
+
+export interface TelegramCommunityRulePreviewResponse {
+  protectionEnabled: boolean;
+  wouldDelete: boolean;
+  matchedPhraseRuleIds: number[];
+  unapprovedLinks: string[];
 }
 
 export interface AddCommunityInput {
@@ -3645,6 +3772,94 @@ topic?: FeedPostTopic;
  * @maxLength 256
  */
 cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+};
+
+export type GetTelegramCommunityMembersParams = {
+/**
+ * @pattern ^-?[0-9]{1,20}$
+ */
+chatId: string;
+/**
+ * @maxLength 80
+ */
+search?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+/**
+ * @minimum 0
+ * @maximum 100000
+ */
+offset?: number;
+};
+
+export type GetTelegramCommunityInsightsParams = {
+/**
+ * @pattern ^-?[0-9]{1,20}$
+ */
+chatId: string;
+days?: GetTelegramCommunityInsightsDays;
+};
+
+export type GetTelegramCommunityInsightsDays = typeof GetTelegramCommunityInsightsDays[keyof typeof GetTelegramCommunityInsightsDays];
+
+
+export const GetTelegramCommunityInsightsDays = {
+  NUMBER_7: 7,
+  NUMBER_30: 30,
+  NUMBER_90: 90,
+} as const;
+
+export type GetTelegramCommunityMemberHistoryParams = {
+/**
+ * @pattern ^-?[0-9]{1,20}$
+ */
+chatId: string;
+/**
+ * @minimum 1
+ */
+memberId: number;
+days?: GetTelegramCommunityMemberHistoryDays;
+};
+
+export type GetTelegramCommunityMemberHistoryDays = typeof GetTelegramCommunityMemberHistoryDays[keyof typeof GetTelegramCommunityMemberHistoryDays];
+
+
+export const GetTelegramCommunityMemberHistoryDays = {
+  NUMBER_7: 7,
+  NUMBER_30: 30,
+  NUMBER_90: 90,
+} as const;
+
+export type GetTelegramCommunityModerationEventsParams = {
+/**
+ * @pattern ^-?[0-9]{1,20}$
+ */
+chatId: string;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+/**
+ * @minimum 0
+ * @maximum 100000
+ */
+offset?: number;
+};
+
+export type GetTelegramCommunityManagementAuditParams = {
+/**
+ * @pattern ^-?[0-9]{1,20}$
+ */
+chatId: string;
 /**
  * @minimum 1
  * @maximum 50

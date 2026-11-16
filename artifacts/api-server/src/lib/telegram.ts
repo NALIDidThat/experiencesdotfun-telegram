@@ -55,6 +55,7 @@ import {
   clearTelegramCommunityActiveRiddle,
   removeTelegramCommunityKeywordRule,
   removeTelegramCommunityKeywordRuleById,
+  recordTelegramCommunityModerationEvent,
   saveTelegramCommunityActiveRiddle,
   setTelegramCommunitySpamProtection,
   setTelegramCommunityRiddleSettings,
@@ -2666,6 +2667,18 @@ async function moderateCommunityMessage(
           targetTelegramUserId: message.from?.id,
           deletionSucceeded: deleted === true,
         };
+        try {
+          await recordTelegramCommunityModerationEvent({
+            chatId: String(message.chat.id),
+            telegramMessageId: message.message_id,
+            telegramUserId: message.from?.id ? String(message.from.id) : null,
+            ruleType: "phrase",
+            ruleId: matchedPhrase.id,
+            deletionSucceeded: deleted === true,
+          });
+        } catch (error) {
+          logger.warn({ err: error, chatId: message.chat.id }, "Community moderation action could not be recorded");
+        }
         if (deleted === true) {
           logger.info(logFields, "Community message removed by a phrase filter");
         } else {
@@ -2697,6 +2710,18 @@ async function moderateCommunityMessage(
       unapprovedLink,
       deletionSucceeded: deleted === true,
     };
+    try {
+      await recordTelegramCommunityModerationEvent({
+        chatId: String(message.chat.id),
+        telegramMessageId: message.message_id,
+        telegramUserId: message.from?.id ? String(message.from.id) : null,
+        ruleType: "link",
+        ruleId: null,
+        deletionSucceeded: deleted === true,
+      });
+    } catch (error) {
+      logger.warn({ err: error, chatId: message.chat.id }, "Community moderation action could not be recorded");
+    }
     if (deleted === true) {
       logger.info(logFields, "Community message removed because it contained an unlisted link");
     } else {
@@ -2776,6 +2801,11 @@ async function trackLinkedGroupMemberActivity(
   const identity = message.from;
   if (!isCountableTelegramCommunityMessage(message)) return;
   if (!identity || identity.is_bot) return;
+  const qualification = getMessageQualification({
+    text: message.text ?? message.caption ?? "",
+    isGroup: true,
+    isBot: false,
+  });
 
   try {
     await recordTelegramCommunityMemberMessage({
@@ -2784,6 +2814,8 @@ async function trackLinkedGroupMemberActivity(
       name: toMemberName(identity),
       username: identity.username ?? null,
       telegramMessageId: message.message_id,
+      qualifies: qualification.qualifies,
+      messageDate: new Date(message.date * 1_000),
     });
   } catch (error) {
     if (!(error instanceof CommunityMemberStatsMigrationRequiredError)) {

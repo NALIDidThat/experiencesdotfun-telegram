@@ -4282,18 +4282,36 @@ export const GetTelegramCommunityLiveInfoResponse = zod.object({
 
 
 /**
- * @summary Get the linked group’s top members by messages tracked by the bot
+ * @summary List linked-group members by XP-qualifying messages observed by the bot
  */
-export const getTelegramCommunityMembersPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+export const getTelegramCommunityMembersQueryChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+export const getTelegramCommunityMembersQuerySearchMax = 80;
+
+export const getTelegramCommunityMembersQueryLimitDefault = 20;
+export const getTelegramCommunityMembersQueryLimitMax = 100;
+
+export const getTelegramCommunityMembersQueryOffsetDefault = 0;
+export const getTelegramCommunityMembersQueryOffsetMin = 0;
+export const getTelegramCommunityMembersQueryOffsetMax = 100000;
 
 
-export const GetTelegramCommunityMembersParams = zod.object({
-  "chatId": zod.coerce.string().regex(getTelegramCommunityMembersPathChatIdRegExp)
+
+export const GetTelegramCommunityMembersQueryParams = zod.object({
+  "chatId": zod.coerce.string().regex(getTelegramCommunityMembersQueryChatIdRegExp),
+  "search": zod.coerce.string().max(getTelegramCommunityMembersQuerySearchMax).optional(),
+  "limit": zod.coerce.number().int().min(1).max(getTelegramCommunityMembersQueryLimitMax).default(getTelegramCommunityMembersQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(getTelegramCommunityMembersQueryOffsetMin).max(getTelegramCommunityMembersQueryOffsetMax).default(getTelegramCommunityMembersQueryOffsetDefault)
 })
 
-export const getTelegramCommunityMembersResponseMembersItemMessageCountMin = 0;
+export const getTelegramCommunityMembersResponseMembersItemQualifyingMessageCountMin = 0;
 
-export const getTelegramCommunityMembersResponseMembersMax = 20;
+export const getTelegramCommunityMembersResponseMembersMax = 100;
+
+export const getTelegramCommunityMembersResponseTotalMin = 0;
+
+export const getTelegramCommunityMembersResponseLimitMax = 100;
+
+export const getTelegramCommunityMembersResponseOffsetMin = 0;
 
 
 
@@ -4302,9 +4320,175 @@ export const GetTelegramCommunityMembersResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "username": zod.string().nullable(),
-  "messageCount": zod.number().int().min(getTelegramCommunityMembersResponseMembersItemMessageCountMin),
-  "joinedAt": zod.coerce.date().nullable()
-})).max(getTelegramCommunityMembersResponseMembersMax)
+  "qualifyingMessageCount": zod.number().int().min(getTelegramCommunityMembersResponseMembersItemQualifyingMessageCountMin),
+  "joinedAt": zod.coerce.date().nullable(),
+  "leftAt": zod.coerce.date().nullable(),
+  "firstObservedAt": zod.coerce.date(),
+  "lastQualifyingMessageAt": zod.coerce.date().nullable()
+})).max(getTelegramCommunityMembersResponseMembersMax),
+  "total": zod.number().int().min(getTelegramCommunityMembersResponseTotalMin),
+  "limit": zod.number().int().min(1).max(getTelegramCommunityMembersResponseLimitMax),
+  "offset": zod.number().int().min(getTelegramCommunityMembersResponseOffsetMin),
+  "trackingStartedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Get daily XP-qualifying message activity observed by the bot
+ */
+export const getTelegramCommunityInsightsQueryChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+export const getTelegramCommunityInsightsQueryDaysDefault = 7;
+
+export const GetTelegramCommunityInsightsQueryParams = zod.object({
+  "chatId": zod.coerce.string().regex(getTelegramCommunityInsightsQueryChatIdRegExp),
+  "days": zod.union([zod.literal(7),zod.literal(30),zod.literal(90)]).default(getTelegramCommunityInsightsQueryDaysDefault)
+})
+
+export const getTelegramCommunityInsightsResponseDaysItemQualifyingMessageCountMin = 0;
+
+export const getTelegramCommunityInsightsResponseDaysItemActiveMembersMin = 0;
+
+export const getTelegramCommunityInsightsResponseDaysMax = 90;
+
+
+
+export const GetTelegramCommunityInsightsResponse = zod.object({
+  "days": zod.array(zod.object({
+  "date": zod.coerce.date(),
+  "qualifyingMessageCount": zod.number().int().min(getTelegramCommunityInsightsResponseDaysItemQualifyingMessageCountMin),
+  "activeMembers": zod.number().int().min(getTelegramCommunityInsightsResponseDaysItemActiveMembersMin)
+})).max(getTelegramCommunityInsightsResponseDaysMax),
+  "trackingStartedAt": zod.coerce.date().nullable(),
+  "daysRequested": zod.union([zod.literal(7),zod.literal(30),zod.literal(90)])
+})
+
+
+/**
+ * @summary Get recent XP-qualifying message history for one tracked member
+ */
+export const getTelegramCommunityMemberHistoryQueryChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+export const getTelegramCommunityMemberHistoryQueryDaysDefault = 30;
+
+export const GetTelegramCommunityMemberHistoryQueryParams = zod.object({
+  "chatId": zod.coerce.string().regex(getTelegramCommunityMemberHistoryQueryChatIdRegExp),
+  "memberId": zod.coerce.number().int().min(1),
+  "days": zod.union([zod.literal(7),zod.literal(30),zod.literal(90)]).default(getTelegramCommunityMemberHistoryQueryDaysDefault)
+})
+
+export const getTelegramCommunityMemberHistoryResponseDaysItemQualifyingMessageCountMin = 0;
+
+export const getTelegramCommunityMemberHistoryResponseDaysMax = 90;
+
+
+
+export const GetTelegramCommunityMemberHistoryResponse = zod.object({
+  "memberId": zod.number().int(),
+  "days": zod.array(zod.object({
+  "date": zod.coerce.date(),
+  "qualifyingMessageCount": zod.number().int().min(getTelegramCommunityMemberHistoryResponseDaysItemQualifyingMessageCountMin)
+})).max(getTelegramCommunityMemberHistoryResponseDaysMax),
+  "trackingStartedAt": zod.coerce.date().nullable(),
+  "daysRequested": zod.union([zod.literal(7),zod.literal(30),zod.literal(90)])
+})
+
+
+/**
+ * @summary List recent automated moderation actions for a linked group
+ */
+export const getTelegramCommunityModerationEventsQueryChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+export const getTelegramCommunityModerationEventsQueryLimitDefault = 20;
+export const getTelegramCommunityModerationEventsQueryLimitMax = 50;
+
+export const getTelegramCommunityModerationEventsQueryOffsetDefault = 0;
+export const getTelegramCommunityModerationEventsQueryOffsetMin = 0;
+export const getTelegramCommunityModerationEventsQueryOffsetMax = 100000;
+
+
+
+export const GetTelegramCommunityModerationEventsQueryParams = zod.object({
+  "chatId": zod.coerce.string().regex(getTelegramCommunityModerationEventsQueryChatIdRegExp),
+  "limit": zod.coerce.number().int().min(1).max(getTelegramCommunityModerationEventsQueryLimitMax).default(getTelegramCommunityModerationEventsQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(getTelegramCommunityModerationEventsQueryOffsetMin).max(getTelegramCommunityModerationEventsQueryOffsetMax).default(getTelegramCommunityModerationEventsQueryOffsetDefault)
+})
+
+export const getTelegramCommunityModerationEventsResponseEventsMax = 50;
+
+export const getTelegramCommunityModerationEventsResponseTotalMin = 0;
+
+export const getTelegramCommunityModerationEventsResponseLimitMax = 50;
+
+export const getTelegramCommunityModerationEventsResponseOffsetMin = 0;
+
+
+
+export const GetTelegramCommunityModerationEventsResponse = zod.object({
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "ruleType": zod.enum(['phrase', 'link']),
+  "ruleId": zod.number().int().nullable(),
+  "deletionSucceeded": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})).max(getTelegramCommunityModerationEventsResponseEventsMax),
+  "total": zod.number().int().min(getTelegramCommunityModerationEventsResponseTotalMin),
+  "limit": zod.number().int().min(1).max(getTelegramCommunityModerationEventsResponseLimitMax),
+  "offset": zod.number().int().min(getTelegramCommunityModerationEventsResponseOffsetMin)
+})
+
+
+/**
+ * @summary List recent administrator changes to a linked group
+ */
+export const getTelegramCommunityManagementAuditQueryChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+export const getTelegramCommunityManagementAuditQueryLimitDefault = 20;
+export const getTelegramCommunityManagementAuditQueryLimitMax = 50;
+
+
+
+export const GetTelegramCommunityManagementAuditQueryParams = zod.object({
+  "chatId": zod.coerce.string().regex(getTelegramCommunityManagementAuditQueryChatIdRegExp),
+  "limit": zod.coerce.number().int().min(1).max(getTelegramCommunityManagementAuditQueryLimitMax).default(getTelegramCommunityManagementAuditQueryLimitDefault)
+})
+
+export const getTelegramCommunityManagementAuditResponseEventsMax = 50;
+
+
+
+export const GetTelegramCommunityManagementAuditResponse = zod.object({
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "action": zod.string(),
+  "targetId": zod.number().int().nullable(),
+  "actorName": zod.string(),
+  "actorUsername": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})).max(getTelegramCommunityManagementAuditResponseEventsMax)
+})
+
+
+/**
+ * @summary Test a sample message against saved protection rules
+ */
+export const previewTelegramCommunityRulesPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const PreviewTelegramCommunityRulesParams = zod.object({
+  "chatId": zod.coerce.string().regex(previewTelegramCommunityRulesPathChatIdRegExp)
+})
+
+export const previewTelegramCommunityRulesBodyTextMax = 2000;
+
+
+
+export const PreviewTelegramCommunityRulesBody = zod.object({
+  "text": zod.string().min(1).max(previewTelegramCommunityRulesBodyTextMax)
+})
+
+export const PreviewTelegramCommunityRulesResponse = zod.object({
+  "protectionEnabled": zod.boolean(),
+  "wouldDelete": zod.boolean(),
+  "matchedPhraseRuleIds": zod.array(zod.number().int()),
+  "unapprovedLinks": zod.array(zod.string())
 })
 
 

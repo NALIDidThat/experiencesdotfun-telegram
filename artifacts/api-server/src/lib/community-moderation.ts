@@ -1,12 +1,14 @@
-import { and, asc, count, eq, gte, gt, inArray, isNotNull, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, gt, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   communityContributionsTable,
   communityMembersTable,
   organisationsTable,
   telegramCommunitiesTable,
+  telegramCommunityManagementAuditTable,
   telegramCommunityKeywordRulesTable,
   telegramCommunityLinkRulesTable,
+  telegramCommunityModerationEventsTable,
   usersTable,
 } from "@workspace/db/schema";
 import {
@@ -15,6 +17,7 @@ import {
   normalizeCommunityModerationPhrase,
 } from "./community-rules";
 import { TELEGRAM_COMMUNITY_RIDDLE_INTERVALS } from "./group-riddles";
+import { logger } from "./logger";
 
 export type OwnedTelegramOrganisation = {
   id: number;
@@ -238,6 +241,13 @@ export async function setTelegramCommunityRiddleSettings(input: {
     })
     .where(eq(telegramCommunitiesTable.id, context.communityId))
     .returning({ id: telegramCommunitiesTable.id });
+  if (updated) {
+    await recordTelegramCommunityManagementAudit({
+      chatId: input.chatId,
+      actorUserId: context.ownerUserId,
+      action: input.enabled ? "riddles_enabled" : "riddles_disabled",
+    });
+  }
   return updated
     ? {
         ...context,
@@ -426,6 +436,13 @@ export async function setTelegramCommunitySpamProtection(input: {
     })
     .where(eq(telegramCommunitiesTable.id, context.communityId))
     .returning({ id: telegramCommunitiesTable.id });
+  if (updated) {
+    await recordTelegramCommunityManagementAudit({
+      chatId: input.chatId,
+      actorUserId: context.ownerUserId,
+      action: input.enabled ? "phrase_protection_enabled" : "phrase_protection_disabled",
+    });
+  }
   return updated ? { ...context, spamProtectionEnabled: input.enabled } : null;
 }
 
@@ -507,6 +524,14 @@ export async function addTelegramCommunityKeywordRule(input: {
       phrase: telegramCommunityKeywordRulesTable.phrase,
       createdAt: telegramCommunityKeywordRulesTable.createdAt,
     });
+  if (inserted) {
+    await recordTelegramCommunityManagementAudit({
+      chatId: input.chatId,
+      actorUserId: context.ownerUserId,
+      action: "phrase_added",
+      targetId: inserted.id,
+    });
+  }
   return inserted
     ? { status: "added", ruleId: inserted.id, rule: inserted, context }
     : { status: "already_exists" };
@@ -540,6 +565,14 @@ export async function removeTelegramCommunityKeywordRule(input: {
       ),
     )
     .returning({ id: telegramCommunityKeywordRulesTable.id });
+  if (removed) {
+    await recordTelegramCommunityManagementAudit({
+      chatId: input.chatId,
+      actorUserId: context.ownerUserId,
+      action: "phrase_removed",
+      targetId: removed.id,
+    });
+  }
   return removed
     ? { status: "removed", ruleId: removed.id, context }
     : { status: "not_found" };
@@ -561,6 +594,14 @@ export async function removeTelegramCommunityKeywordRuleById(input: {
       ),
     )
     .returning({ id: telegramCommunityKeywordRulesTable.id });
+  if (removed) {
+    await recordTelegramCommunityManagementAudit({
+      chatId: input.chatId,
+      actorUserId: context.ownerUserId,
+      action: "phrase_removed",
+      targetId: removed.id,
+    });
+  }
   return removed
     ? { status: "removed" as const, ruleId: removed.id, context }
     : { status: "not_found" as const };
@@ -591,6 +632,101 @@ export async function listTelegramCommunityLinkRules(
     )
     .limit(Math.max(1, Math.min(101, Math.floor(limit))))
     .offset(Math.max(0, Math.floor(offset)));
+}
+
+export async function recordTelegramCommunityModerationEvent(input: {
+  chatId: string;
+  telegramMessageId: number;
+  telegramUserId: string | null;
+  ruleType: "phrase" | "link";
+  ruleId: number | null;
+  deletionSucceeded: boolean;
+}): Promise<void> {
+  await db
+    .insert(telegramCommunityModerationEventsTable)
+    .values(input)
+    .onConflictDoNothing({
+      target: [
+        telegramCommunityModerationEventsTable.chatId,
+        telegramCommunityModerationEventsTable.telegramMessageId,
+      ],
+    });
+}
+
+export async function recordTelegramCommunityManagementAudit(input: {
+  chatId: string;
+  actorUserId: number;
+  action: string;
+  targetId?: number | null;
+}): Promise<void> {
+  try {
+    await db.insert(telegramCommunityManagementAuditTable).values({
+      chatId: input.chatId,
+      actorUserId: input.actorUserId,
+      action: input.action,
+      targetId: input.targetId ?? null,
+    });
+  } catch (error) {
+    logger.warn(
+      { err: error, chatId: input.chatId, action: input.action },
+      "Telegram community administrator change could not be recorded",
+    );
+  }
+}
+
+export async function listTelegramCommunityModerationEvents(input: {
+  chatId: string;
+  limit: number;
+  offset: number;
+}) {
+  const where = eq(telegramCommunityModerationEventsTable.chatId, input.chatId);
+  const [events, [total]] = await Promise.all([
+    db
+      .select({
+        id: telegramCommunityModerationEventsTable.id,
+        telegramUserId: telegramCommunityModerationEventsTable.telegramUserId,
+        ruleType: telegramCommunityModerationEventsTable.ruleType,
+        ruleId: telegramCommunityModerationEventsTable.ruleId,
+        deletionSucceeded: telegramCommunityModerationEventsTable.deletionSucceeded,
+        createdAt: telegramCommunityModerationEventsTable.createdAt,
+      })
+      .from(telegramCommunityModerationEventsTable)
+      .where(where)
+      .orderBy(desc(telegramCommunityModerationEventsTable.createdAt), desc(telegramCommunityModerationEventsTable.id))
+      .limit(input.limit)
+      .offset(input.offset),
+    db
+      .select({ total: count() })
+      .from(telegramCommunityModerationEventsTable)
+      .where(where),
+  ]);
+  return {
+    events: events.map((event) => ({ ...event, createdAt: event.createdAt.toISOString() })),
+    total: Number(total?.total ?? 0),
+    limit: input.limit,
+    offset: input.offset,
+  };
+}
+
+export async function listTelegramCommunityManagementAudit(input: {
+  chatId: string;
+  limit: number;
+}) {
+  const events = await db
+    .select({
+      id: telegramCommunityManagementAuditTable.id,
+      action: telegramCommunityManagementAuditTable.action,
+      targetId: telegramCommunityManagementAuditTable.targetId,
+      actorName: usersTable.name,
+      actorUsername: usersTable.username,
+      createdAt: telegramCommunityManagementAuditTable.createdAt,
+    })
+    .from(telegramCommunityManagementAuditTable)
+    .innerJoin(usersTable, eq(usersTable.id, telegramCommunityManagementAuditTable.actorUserId))
+    .where(eq(telegramCommunityManagementAuditTable.chatId, input.chatId))
+    .orderBy(desc(telegramCommunityManagementAuditTable.createdAt), desc(telegramCommunityManagementAuditTable.id))
+    .limit(input.limit);
+  return events.map((event) => ({ ...event, createdAt: event.createdAt.toISOString() }));
 }
 
 export async function addTelegramCommunityLinkRule(input: {
@@ -628,6 +764,14 @@ export async function addTelegramCommunityLinkRule(input: {
       link: telegramCommunityLinkRulesTable.link,
       createdAt: telegramCommunityLinkRulesTable.createdAt,
     });
+  if (inserted) {
+    await recordTelegramCommunityManagementAudit({
+      chatId: input.chatId,
+      actorUserId: context.ownerUserId,
+      action: "link_added",
+      targetId: inserted.id,
+    });
+  }
   return inserted
     ? { status: "added", ruleId: inserted.id, rule: inserted, context }
     : { status: "already_exists" };
@@ -649,6 +793,14 @@ export async function removeTelegramCommunityLinkRuleById(input: {
       ),
     )
     .returning({ id: telegramCommunityLinkRulesTable.id });
+  if (removed) {
+    await recordTelegramCommunityManagementAudit({
+      chatId: input.chatId,
+      actorUserId: context.ownerUserId,
+      action: "link_removed",
+      targetId: removed.id,
+    });
+  }
   return removed
     ? { status: "removed" as const, ruleId: removed.id, context }
     : { status: "not_found" as const };
