@@ -570,6 +570,15 @@ export type ActiveRiddleRound = {
   expiresAt: number;
 };
 
+export function isReplyToActiveRiddleMessage(
+  activeMessageId: number | null | undefined,
+  replyMessageId: number | undefined,
+): boolean {
+  return activeMessageId !== null
+    && activeMessageId !== undefined
+    && activeMessageId === replyMessageId;
+}
+
 export function createRiddleRoundStore(ttlMs = RIDDLE_REVEAL_AFTER_MS) {
   const active = new Map<number, ActiveRiddleRound>();
 
@@ -666,6 +675,19 @@ export function normalizeRiddleAnswer(answer: string): string {
     .normalize("NFKC")
     .toLocaleLowerCase("en-GB")
     .replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+export function getGroupRiddleClue(riddle: Riddle): string {
+  const answer = riddle.answers[0] ?? "";
+  const letters = normalizeRiddleAnswer(answer);
+  const firstLetter = [...letters][0]?.toLocaleUpperCase("en-GB");
+  const wordCount = answer.trim().split(/\s+/).filter(Boolean).length;
+  if (!firstLetter || letters.length === 0) {
+    return "Look closely at the wording; the answer is hiding in plain sight.";
+  }
+  return `It starts with ${firstLetter} and has ${letters.length} letters${
+    wordCount > 1 ? ` across ${wordCount} words` : ""
+  }.`;
 }
 
 export function isCorrectGroupRiddleAnswer(

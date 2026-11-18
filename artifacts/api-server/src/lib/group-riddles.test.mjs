@@ -4,9 +4,11 @@ import {
   chooseGroupRiddle,
   chooseWrongRiddleAnswerResponse,
   createRiddleRoundStore,
+  getGroupRiddleClue,
   getGroupRiddleById,
   GROUP_RIDDLES,
   isCorrectGroupRiddleAnswer,
+  isReplyToActiveRiddleMessage,
   normalizeRiddleAnswer,
   RIDDLE_REVEAL_AFTER_MS,
   TELEGRAM_COMMUNITY_RIDDLE_INTERVALS,
@@ -59,6 +61,15 @@ test("only accepted answers solve a known riddle", () => {
   assert.equal(isCorrectGroupRiddleAnswer("keys", "!!!"), false);
 });
 
+test("riddle clues give the first answer letter and word shape without revealing it", () => {
+  const clue = getGroupRiddleClue(getGroupRiddleById("keys"));
+  assert.match(clue, /starts with P and has 5 letters/);
+  assert.doesNotMatch(clue, /piano/i);
+
+  const multiWordClue = getGroupRiddleClue(getGroupRiddleById("your-name"));
+  assert.match(multiWordClue, /starts with Y and has 8 letters across 2 words/);
+});
+
 test("community riddle intervals are bounded presets and stored IDs resolve safely", () => {
   assert.deepEqual(TELEGRAM_COMMUNITY_RIDDLE_INTERVALS, [30, 60, 180, 360, 720, 1440]);
   assert.equal(getGroupRiddleById(GROUP_RIDDLES[0].id), GROUP_RIDDLES[0]);
@@ -78,6 +89,13 @@ test("riddle rounds stay chat-scoped and only accept replies to the active riddl
   assert.equal(rounds.solve(-100, 42, "piano", 1_004)?.id, riddle.id);
   assert.equal(rounds.solve(-100, 42, "piano", 1_005), null);
   assert.equal(rounds.solve(1234, 44, "clock", 1_006)?.id, GROUP_RIDDLES[2].id);
+});
+
+test("group replies are matched to the exact active riddle message", () => {
+  assert.equal(isReplyToActiveRiddleMessage(42, 42), true);
+  assert.equal(isReplyToActiveRiddleMessage(42, 43), false);
+  assert.equal(isReplyToActiveRiddleMessage(null, 42), false);
+  assert.equal(isReplyToActiveRiddleMessage(undefined, undefined), false);
 });
 
 test("persisted rounds restore with their original expiry and reject stale state", () => {

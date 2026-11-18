@@ -80,7 +80,9 @@ import {
 import {
   chooseWrongRiddleAnswerResponse,
   chooseGroupRiddle,
+  getGroupRiddleClue,
   getGroupRiddleById,
+  isReplyToActiveRiddleMessage,
   createRiddleRoundStore,
   RIDDLE_REVEAL_AFTER_MS,
   TELEGRAM_COMMUNITY_RIDDLE_INTERVALS,
@@ -652,8 +654,8 @@ async function sendCommandMenu(chatId: number) {
   return sendTelegramMessage(
     chatId,
     groupChat
-      ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome and quick actions\n<code>/experiences</code> Browse upcoming experiences\n<code>/rank</code> Your Community XP rank · add <code>@username</code> to look up a member\n<code>/leaderboard</code> Top contributors in this group\n<code>/riddle</code> Start a random riddle; mention @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} when replying\n\n<b>Talk and research</b>\nMention @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} in a group message for a natural-language reply or web research. Private chats work without a mention.\n\n<b>Group controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code>\n<code>/filters</code> List saved phrases\n\nManage linked groups from a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} using <code>/community</code>.\n\n<code>/help</code> Show this guide\n\nFor private profile, XP, and friend commands, open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")}.`
-        : `<b>Experiences.fun · Quick menu</b>\n\nChoose where to start:\n\n1️⃣ <b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n2️⃣ <b>Track your XP</b>\n<code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Your community</b>\n<code>/rank</code> Your rank · <code>/leaderboard</code> Group leaders\n<code>/community</code> Manage groups you own\n<code>/riddle</code> Play a riddle here or in a group\n\n4️⃣ <b>Connect and host</b>\n<code>/profile</code> Passport · <code>/add @username</code> Friends · <code>/friends</code> List · <code>/requests</code> Requests · <code>/accountability</code> Partner space · <code>/create</code> Create · <code>/host</code> Manage\n\nNeed more help? Use <code>/help</code> or <code>/onboarding</code>.`,
+      ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome and quick actions\n<code>/experiences</code> Browse upcoming experiences\n<code>/rank</code> Your Community XP rank · add <code>@username</code> to look up a member\n<code>/leaderboard</code> Top contributors in this group\n<code>/riddle</code> Start a random riddle; reply directly with your guess\n<code>/clue</code> Get a nudge for the active riddle\n\n<b>Talk and research</b>\nMention @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} in a group message for a natural-language reply or web research. Private chats work without a mention.\n\n<b>Group controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code>\n<code>/filters</code> List saved phrases\n\nManage linked groups from a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} using <code>/community</code>.\n\n<code>/help</code> Show this guide\n\nFor private profile, XP, and friend commands, open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")}.`
+        : `<b>Experiences.fun · Quick menu</b>\n\nChoose where to start:\n\n1️⃣ <b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n2️⃣ <b>Track your XP</b>\n<code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Your community</b>\n<code>/rank</code> Your rank · <code>/leaderboard</code> Group leaders\n<code>/community</code> Manage groups you own\n<code>/riddle</code> Play a riddle here or in a group\n<code>/clue</code> Get a nudge for the active riddle\n\n4️⃣ <b>Connect and host</b>\n<code>/profile</code> Passport · <code>/add @username</code> Friends · <code>/friends</code> List · <code>/requests</code> Requests · <code>/accountability</code> Partner space · <code>/create</code> Create · <code>/host</code> Manage\n\nNeed more help? Use <code>/help</code> or <code>/onboarding</code>.`,
     menuKeyboard(groupChat),
   );
 }
@@ -731,6 +733,9 @@ async function handleCommand(
     case "/riddle":
       await handleRiddleCommand(chatId, chatType);
       break;
+    case "/clue":
+      await handleRiddleClueCommand(chatId);
+      break;
     case "/community":
       await runCommunityControlsSafely(chatId, "community", () =>
         handleCommunityCommand(
@@ -762,7 +767,7 @@ async function handleCommand(
       await sendTelegramMessage(
         chatId,
         groupChat
-            ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/help</code> This guide\n\n<b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n<b>Community XP</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n<b>Group game</b>\n<code>/riddle</code> Start a random riddle; mention @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} when replying\n\nFor natural conversation or web research, mention @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} in the group. Private chats work without a mention.\n\n<b>Spam controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view group controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code> · <code>/filters</code> List rules\n\nManage linked groups privately with <code>/community</code>. Profile, XP, friend, and host commands are also private. Open @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} to use them.`
+            ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/help</code> This guide\n\n<b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n<b>Community XP</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n<b>Group game</b>\n<code>/riddle</code> Start a random riddle; reply directly with your guess\n<code>/clue</code> Get a nudge for the active riddle\n\nFor natural conversation or web research, mention @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} in the group. Private chats work without a mention.\n\n<b>Spam controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view group controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code> · <code>/filters</code> List rules\n\nManage linked groups privately with <code>/community</code>. Profile, XP, friend, and host commands are also private. Open @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} to use them.`
             : `<b>Experiences.fun · Commands</b>\n\n1️⃣ <b>Start</b>\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/onboarding</code> Finish setup\n\n2️⃣ <b>Discover and track</b>\n<code>/experiences</code> Browse · <code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Community and games</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n<code>/community</code> Manage linked groups privately\n<code>/riddle</code> Start a riddle in this chat or a group; answer within 15 minutes\n\n4️⃣ <b>Talk and research</b>\nChat naturally here about your own Experiences.fun journey, discover published experiences, or ask for web research. With an Organisation profile, describe an experience you want to host; the assistant prepares a draft for you to review in the Mini App and confirm on the map before publishing.\n\n5️⃣ <b>Connect</b>\n<code>/profile</code> Passport · <code>/add @username</code> Add a friend · <code>/friends</code> Friends · <code>/requests</code> Requests · <code>/accountability</code> Partner space\n\n6️⃣ <b>Host</b>\n<code>/create</code> Create an experience · <code>/host</code> Host tools\n\nUse <code>/help</code> to open this guide.`,
         [[callbackButton("Open menu", "menu:open"), callbackButton("How it works", "onboarding:how")]],
       );
@@ -1170,14 +1175,11 @@ async function handleRiddleCommand(
     return;
   }
 
-  const mentionInstruction = isGroupChat(chatType)
-    ? ` and mention @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")}`
-    : "";
   await revealExpiredRiddle(chatId);
   if (riddleRounds.getActive(chatId)) {
     await sendTelegramMessage(
       chatId,
-      `There’s already a riddle open. Reply to that message${mentionInstruction} within 15 minutes before starting another.`,
+      "There’s already a riddle open. Reply directly to it or use /clue; start another after it’s solved or revealed.",
     );
     return;
   }
@@ -1186,7 +1188,7 @@ async function handleRiddleCommand(
   const heading = chatType === "private" ? "Your riddle" : "Group riddle";
   const sentMessage = await sendTelegramMessage(
     chatId,
-    `🧩 <b>${heading}</b>\n\n${escapeTelegramHtml(riddle.question)}\n\nReply directly to this message${mentionInstruction} with your answer. The first correct answer solves it; otherwise, the answer is revealed after 15 minutes.`,
+    `🧩 <b>${heading}</b>\n\n${escapeTelegramHtml(riddle.question)}\n\nReply directly to this message with your guess. The first correct answer solves it; use /clue if you need a nudge. The answer is revealed after 15 minutes.`,
   );
   if (!sentMessage || !Number.isSafeInteger(sentMessage.message_id)) {
     logger.warn({ chatId, riddleId: riddle.id }, "Group riddle message could not be posted");
@@ -1213,6 +1215,19 @@ async function handleRiddleCommand(
       logger.debug({ chatId, messageId: sentMessage.message_id }, "Riddle round has no linked community record");
     }
   }
+}
+
+async function handleRiddleClueCommand(chatId: number): Promise<void> {
+  await revealExpiredRiddle(chatId);
+  const round = riddleRounds.getActive(chatId);
+  if (!round) {
+    await sendTelegramMessage(chatId, "There isn’t an active riddle right now. Use /riddle to start one.");
+    return;
+  }
+  await sendTelegramMessage(
+    chatId,
+    `💡 <b>Tiny clue:</b> ${escapeTelegramHtml(getGroupRiddleClue(round.riddle))}`,
+  );
 }
 
 async function sendDueScheduledCommunityRiddles(): Promise<void> {
@@ -1282,7 +1297,7 @@ async function sendDueScheduledCommunityRiddles(): Promise<void> {
     const riddle = chooseGroupRiddle();
     const sentMessage = await sendTelegramMessage(
       chatId,
-      `🧩 <b>Scheduled group riddle</b>\n\n${escapeTelegramHtml(riddle.question)}\n\nReply directly to this message and mention @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} with your answer. The first correct answer solves it; otherwise, the answer is revealed after 15 minutes.`,
+      `🧩 <b>Scheduled group riddle</b>\n\n${escapeTelegramHtml(riddle.question)}\n\nReply directly to this message with your guess. The first correct answer solves it; use /clue if you need a nudge. The answer is revealed after 15 minutes.`,
     );
     if (!sentMessage || !Number.isSafeInteger(sentMessage.message_id)) {
       logger.warn({ chatId, riddleId: riddle.id }, "Scheduled group riddle could not be posted");
@@ -1323,8 +1338,10 @@ async function handleRiddleReply(
 ): Promise<boolean> {
   const now = Date.now();
   const replyMessageId = message.reply_to_message?.message_id;
-  const isReplyToActiveRiddle =
-    riddleRounds.getActive(message.chat.id, now)?.messageId === replyMessageId;
+  const isReplyToActiveRiddle = isReplyToActiveRiddleMessage(
+    riddleRounds.getActive(message.chat.id, now)?.messageId,
+    replyMessageId,
+  );
   const solvedRiddle = riddleRounds.solve(
     message.chat.id,
     replyMessageId ?? 0,
@@ -2888,6 +2905,18 @@ async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
 
   const rewardAmount = parseAdminRewardAmount(text);
   const reply = message.reply_to_message;
+  if (isReplyToActiveRiddleMessage(
+    riddleRounds.getActive(message.chat.id)?.messageId,
+    reply?.message_id,
+  )) {
+    const answer = extractBotMentionedText(
+      text,
+      message.entities ?? message.caption_entities,
+      botUsername,
+      botTelegramId,
+    ) ?? text;
+    if (await handleRiddleReply(message, identity, answer)) return;
+  }
   if (rewardAmount !== null && reply?.from && !reply.from.is_bot && reply.from.id !== identity.id) {
     if (!(await isTelegramChatAdmin(message.chat.id, identity.id))) return;
 

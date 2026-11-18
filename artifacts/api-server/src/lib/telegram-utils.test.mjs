@@ -22,6 +22,10 @@ test("group command mentions dispatch to this bot and preserve arguments", () =>
     { command: "/rank", args: ["@alice"] },
   );
   assert.deepEqual(
+    parseTelegramCommand("/clue@experiencesdotfun_bot", "experiencesdotfun_bot"),
+    { command: "/clue", args: [] },
+  );
+  assert.deepEqual(
     parseTelegramCommand("/start invite_opaque-token", "experiencesdotfun_bot"),
     { command: "/start", args: ["invite_opaque-token"] },
   );
