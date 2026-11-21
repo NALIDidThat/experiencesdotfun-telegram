@@ -3,6 +3,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
@@ -11,6 +12,11 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organisationsTable, usersTable } from "./experiences";
+
+export type TelegramCommunityWelcomeButton = {
+  label: string;
+  url: string;
+};
 
 export const telegramCommunitiesTable = pgTable(
   "telegram_communities",
@@ -25,6 +31,11 @@ export const telegramCommunitiesTable = pgTable(
       .notNull()
       .references(() => usersTable.id, { onDelete: "restrict" }),
     spamProtectionEnabled: boolean("spam_protection_enabled").notNull().default(false),
+    welcomeMessage: text("welcome_message").notNull().default(""),
+    welcomeButtons: jsonb("welcome_buttons")
+      .$type<TelegramCommunityWelcomeButton[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     riddlesEnabled: boolean("riddles_enabled").notNull().default(false),
     riddleIntervalMinutes: integer("riddle_interval_minutes").notNull().default(60),
     nextRiddleAt: timestamp("next_riddle_at", { withTimezone: true }),
@@ -40,6 +51,27 @@ export const telegramCommunitiesTable = pgTable(
     riddlesDueIndex: index("telegram_communities_riddles_due_idx").on(
       table.riddlesEnabled,
       table.nextRiddleAt,
+    ),
+    welcomeMessageLengthCheck: check(
+      "telegram_communities_welcome_message_length_check",
+      sql`char_length(${table.welcomeMessage}) <= 3500`,
+    ),
+    welcomeButtonsCheck: check(
+      "telegram_communities_welcome_buttons_check",
+      sql`CASE
+        WHEN jsonb_typeof(${table.welcomeButtons}) = 'array'
+        THEN jsonb_array_length(${table.welcomeButtons}) <= 6
+        ELSE false
+      END`,
+    ),
+    welcomeRequiresMessageCheck: check(
+      "telegram_communities_welcome_requires_message_check",
+      sql`CASE
+        WHEN jsonb_typeof(${table.welcomeButtons}) = 'array'
+        THEN char_length(btrim(${table.welcomeMessage})) > 0
+          OR jsonb_array_length(${table.welcomeButtons}) = 0
+        ELSE false
+      END`,
     ),
     riddleIntervalCheck: check(
       "telegram_communities_riddle_interval_check",

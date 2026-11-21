@@ -2043,6 +2043,33 @@ export interface TelegramCommunityRiddleSettings {
   intervalMinutes: TelegramCommunityRiddleSettingsIntervalMinutes;
 }
 
+export interface TelegramCommunityWelcomeButton {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  label: string;
+  /**
+     * @maxLength 2048
+     * @pattern ^https:\/\//
+     */
+  url: string;
+}
+
+export interface TelegramCommunityWelcomeSettingsInput {
+  /** @maxLength 3500 */
+  message: string;
+  /** @maxItems 6 */
+  buttons: TelegramCommunityWelcomeButton[];
+}
+
+export interface TelegramCommunityWelcomeSettings {
+  /** @maxLength 3500 */
+  message: string;
+  /** @maxItems 6 */
+  buttons: TelegramCommunityWelcomeButton[];
+}
+
 export interface TelegramCommunityPhraseRule {
   id: number;
   /** @maxLength 80 */

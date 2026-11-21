@@ -21,12 +21,17 @@ import {
   GetTelegramCommunityModerationEventsResponse,
   GetTelegramCommunityManagementAuditQueryParams,
   GetTelegramCommunityManagementAuditResponse,
+  GetTelegramCommunityWelcomeSettingsParams,
+  GetTelegramCommunityWelcomeSettingsResponse,
   PreviewTelegramCommunityRulesBody,
   PreviewTelegramCommunityRulesParams,
   PreviewTelegramCommunityRulesResponse,
   UpdateTelegramCommunityRiddleSettingsBody,
   UpdateTelegramCommunityRiddleSettingsParams,
   UpdateTelegramCommunityRiddleSettingsResponse,
+  UpdateTelegramCommunityWelcomeSettingsBody,
+  UpdateTelegramCommunityWelcomeSettingsParams,
+  UpdateTelegramCommunityWelcomeSettingsResponse,
 } from "@workspace/api-zod";
 import { db } from "@workspace/db";
 import { communityMembersTable } from "@workspace/db/schema";
@@ -54,6 +59,9 @@ import {
   addTelegramCommunityLinkRule,
   getTelegramCommunityManagementContext,
   listTelegramCommunityManagementAudit,
+  getTelegramCommunityWelcomeSettings,
+  setTelegramCommunityWelcomeSettings,
+  TelegramCommunityWelcomeMigrationRequiredError,
   listTelegramCommunityModerationEvents,
   listTelegramCommunityKeywordRules,
   listTelegramCommunityLinkRules,
@@ -68,6 +76,7 @@ import {
   isCommunityLinkWhitelisted,
   matchesCommunityModerationPhrase,
 } from "../lib/community-rules";
+import { isValidTelegramWelcomeButtonUrl } from "../lib/telegram-welcome";
 
 const router: IRouter = Router();
 router.use(requireTelegramUser);
@@ -180,6 +189,99 @@ router.patch("/community/manage/:chatId/riddles", async (req, res) => {
     enabled: updated.riddlesEnabled,
     intervalMinutes: updated.riddleIntervalMinutes,
   }));
+});
+
+router.get("/community/manage/:chatId/welcome", async (req, res) => {
+  const params = GetTelegramCommunityWelcomeSettingsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: "That Telegram group identifier is invalid." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+
+  try {
+    const settings = await getTelegramCommunityWelcomeSettings(
+      params.data.chatId,
+      telegramUserId,
+    );
+    if (!settings) {
+      res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+      return;
+    }
+    res.json(GetTelegramCommunityWelcomeSettingsResponse.parse(settings));
+  } catch (error) {
+    if (error instanceof TelegramCommunityWelcomeMigrationRequiredError) {
+      res.status(503).json({
+        message: "Join welcome messages are unavailable until the Telegram welcome migration is applied.",
+      });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.put("/community/manage/:chatId/welcome", async (req, res) => {
+  const params = UpdateTelegramCommunityWelcomeSettingsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: "That Telegram group identifier is invalid." });
+    return;
+  }
+  const body = UpdateTelegramCommunityWelcomeSettingsBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({
+      message: "Enter a welcome message of up to 3,500 characters and no more than six HTTPS buttons.",
+    });
+    return;
+  }
+
+  const message = body.data.message.trim();
+  const buttons = body.data.buttons.map(({ label, url }) => ({
+    label: label.trim(),
+    url: url.trim(),
+  }));
+  if (
+    buttons.some(
+      ({ label, url }) =>
+        label.length === 0 ||
+        label.length > 64 ||
+        !isValidTelegramWelcomeButtonUrl(url),
+    )
+  ) {
+    res.status(400).json({
+      message: "Each welcome button needs a label and a valid HTTPS link.",
+    });
+    return;
+  }
+  if (buttons.length > 0 && message.length === 0) {
+    res.status(400).json({ message: "Add welcome text before adding buttons." });
+    return;
+  }
+
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+
+  try {
+    const updated = await setTelegramCommunityWelcomeSettings({
+      chatId: params.data.chatId,
+      telegramUserId,
+      message,
+      buttons,
+    });
+    if (!updated) {
+      res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+      return;
+    }
+    res.json(UpdateTelegramCommunityWelcomeSettingsResponse.parse(updated));
+  } catch (error) {
+    if (error instanceof TelegramCommunityWelcomeMigrationRequiredError) {
+      res.status(503).json({
+        message: "Join welcome messages are unavailable until the Telegram welcome migration is applied.",
+      });
+      return;
+    }
+    throw error;
+  }
 });
 
 router.get("/community/manage/:chatId/rules", async (req, res) => {

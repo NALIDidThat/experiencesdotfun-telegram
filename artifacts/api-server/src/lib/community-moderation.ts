@@ -10,6 +10,7 @@ import {
   telegramCommunityLinkRulesTable,
   telegramCommunityModerationEventsTable,
   usersTable,
+  type TelegramCommunityWelcomeButton,
 } from "@workspace/db/schema";
 import {
   COMMUNITY_XP_CONFIG,
@@ -210,6 +211,109 @@ export async function getTelegramCommunityManagementContext(
     .where(eq(telegramCommunitiesTable.chatId, chatId))
     .limit(1);
   return context ?? null;
+}
+
+export class TelegramCommunityWelcomeMigrationRequiredError extends Error {
+  constructor() {
+    super("Telegram community welcome-message migration is required.");
+    this.name = "TelegramCommunityWelcomeMigrationRequiredError";
+  }
+}
+
+function isMissingWelcomeMessageColumn(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "42703",
+  );
+}
+
+async function readTelegramCommunityWelcomeSettings(
+  communityId: number,
+) {
+  try {
+    const [settings] = await db
+      .select({
+        message: telegramCommunitiesTable.welcomeMessage,
+        buttons: telegramCommunitiesTable.welcomeButtons,
+      })
+      .from(telegramCommunitiesTable)
+      .where(eq(telegramCommunitiesTable.id, communityId))
+      .limit(1);
+    return settings ?? null;
+  } catch (error) {
+    if (isMissingWelcomeMessageColumn(error)) {
+      throw new TelegramCommunityWelcomeMigrationRequiredError();
+    }
+    throw error;
+  }
+}
+
+export async function getTelegramCommunityWelcomeSettings(
+  chatId: string,
+  telegramUserId: number,
+) {
+  const context = await getTelegramCommunityManagementContext(chatId, telegramUserId);
+  if (!context) return null;
+  return readTelegramCommunityWelcomeSettings(context.communityId);
+}
+
+export async function getTelegramCommunityWelcomeSettingsForGroup(chatId: string) {
+  try {
+    const [settings] = await db
+      .select({
+        message: telegramCommunitiesTable.welcomeMessage,
+        buttons: telegramCommunitiesTable.welcomeButtons,
+      })
+      .from(telegramCommunitiesTable)
+      .where(eq(telegramCommunitiesTable.chatId, chatId))
+      .limit(1);
+    return settings ?? null;
+  } catch (error) {
+    if (isMissingWelcomeMessageColumn(error)) {
+      throw new TelegramCommunityWelcomeMigrationRequiredError();
+    }
+    throw error;
+  }
+}
+
+export async function setTelegramCommunityWelcomeSettings(input: {
+  chatId: string;
+  telegramUserId: number;
+  message: string;
+  buttons: TelegramCommunityWelcomeButton[];
+}) {
+  const context = await getTelegramCommunityManagementContext(input.chatId, input.telegramUserId);
+  if (!context) return null;
+
+  try {
+    const [updated] = await db
+      .update(telegramCommunitiesTable)
+      .set({
+        welcomeMessage: input.message,
+        welcomeButtons: input.buttons,
+        updatedAt: new Date(),
+      })
+      .where(eq(telegramCommunitiesTable.id, context.communityId))
+      .returning({
+        message: telegramCommunitiesTable.welcomeMessage,
+        buttons: telegramCommunitiesTable.welcomeButtons,
+      });
+    if (!updated) return null;
+
+    await recordTelegramCommunityManagementAudit({
+      chatId: input.chatId,
+      actorUserId: context.ownerUserId,
+      action: "welcome_message_updated",
+    });
+    return updated;
+  } catch (error) {
+    if (isMissingWelcomeMessageColumn(error)) {
+      throw new TelegramCommunityWelcomeMigrationRequiredError();
+    }
+    throw error;
+  }
 }
 
 export async function setTelegramCommunityRiddleSettings(input: {

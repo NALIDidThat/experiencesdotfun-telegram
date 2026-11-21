@@ -18,6 +18,7 @@ import {
   getGetTelegramCommunityManagementQueryKey,
   getGetTelegramCommunityModerationEventsQueryKey,
   getGetTelegramCommunityRulesQueryKey,
+  getGetTelegramCommunityWelcomeSettingsQueryKey,
   useAddTelegramCommunityLink,
   useAddTelegramCommunityPhrase,
   useDeleteTelegramCommunityLink,
@@ -30,8 +31,12 @@ import {
   useGetTelegramCommunityManagementAudit,
   useGetTelegramCommunityModerationEvents,
   useGetTelegramCommunityRules,
+  useGetTelegramCommunityWelcomeSettings,
   usePreviewTelegramCommunityRules,
   useUpdateTelegramCommunityRiddleSettings,
+  useUpdateTelegramCommunityWelcomeSettings,
+  type TelegramCommunityWelcomeButton,
+  type TelegramCommunityWelcomeSettings,
   type TelegramManagedCommunity,
 } from '@workspace/api-client-react';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -411,6 +416,411 @@ function ConnectionBadge({
       <View style={[styles.protectionDot, { backgroundColor: color }]} />
       <Text style={[styles.connectionText, { color }]}>{labels[status]}</Text>
     </View>
+  );
+}
+
+function isHttpsWelcomeUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && Boolean(url.hostname) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+function TelegramCommunityWelcomeForm({
+  chatId,
+  initialSettings,
+}: {
+  chatId: string;
+  initialSettings: TelegramCommunityWelcomeSettings;
+}) {
+  const colors = useColors();
+  const queryClient = useQueryClient();
+  const updateWelcome = useUpdateTelegramCommunityWelcomeSettings();
+  const [message, setMessage] = useState(initialSettings.message);
+  const [buttons, setButtons] = useState<TelegramCommunityWelcomeButton[]>(initialSettings.buttons);
+  const [feedback, setFeedback] = useState<RuleFeedback | null>(null);
+  const primaryButton = buttons[0] ?? { label: '', url: '' };
+
+  function updateButton(index: number, key: keyof TelegramCommunityWelcomeButton, value: string) {
+    setButtons((current) => {
+      const next = [...current];
+      next[index] = { ...(next[index] ?? { label: '', url: '' }), [key]: value };
+      return next;
+    });
+    setFeedback(null);
+  }
+
+  function addButton() {
+    if (buttons.length >= 6) return;
+    const lastButton = buttons[buttons.length - 1];
+    if (!lastButton?.label.trim() || !isHttpsWelcomeUrl(lastButton.url.trim())) {
+      setFeedback({
+        message: 'Finish the earlier button label and HTTPS link first.',
+        tone: 'error',
+      });
+      return;
+    }
+    setButtons((current) => [...current, { label: '', url: '' }]);
+    setFeedback(null);
+  }
+
+  function removeButton(index: number) {
+    setButtons((current) => current.filter((_, buttonIndex) => buttonIndex !== index));
+    setFeedback(null);
+  }
+
+  async function saveWelcomeMessage() {
+    if (!chatId || updateWelcome.isPending) return;
+    const cleanMessage = message.trim();
+    const cleanButtons = buttons
+      .map(({ label, url }) => ({ label: label.trim(), url: url.trim() }))
+      .filter(({ label, url }) => label.length > 0 || url.length > 0);
+
+    if (message.length > 3500) {
+      setFeedback({ message: 'Keep the welcome message under 3,500 characters.', tone: 'error' });
+      return;
+    }
+    if (cleanButtons.some(({ label, url }) => !label || !isHttpsWelcomeUrl(url))) {
+      setFeedback({
+        message: 'Each button needs a label and a valid HTTPS link.',
+        tone: 'error',
+      });
+      return;
+    }
+    if (cleanButtons.length > 0 && !cleanMessage) {
+      setFeedback({ message: 'Add welcome text before adding buttons.', tone: 'error' });
+      return;
+    }
+
+    setFeedback(null);
+    try {
+      await updateWelcome.mutateAsync({
+        chatId,
+        data: { message: cleanMessage, buttons: cleanButtons },
+      });
+      await queryClient.invalidateQueries({
+        queryKey: getGetTelegramCommunityWelcomeSettingsQueryKey(chatId),
+      });
+      setFeedback({
+        message: cleanMessage
+          ? 'Join welcome message saved.'
+          : 'Welcome message cleared. New members will not receive one.',
+        tone: 'success',
+      });
+    } catch (error) {
+      setFeedback({
+        message: errorMessage(error, 'Could not save the join welcome message. Try again.'),
+        tone: 'error',
+      });
+    }
+  }
+
+  return (
+    <View
+      testID="telegram-community-welcome-editor"
+      style={[
+        styles.dashboardCard,
+        { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+      ]}
+    >
+      <View style={styles.dashboardSectionHeader}>
+        <View style={[styles.setupIcon, { backgroundColor: colors.primary + '14' }]}>
+          <Feather name="message-circle" size={18} color={colors.primary} />
+        </View>
+        <View style={styles.sectionTitleCopy}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Welcome new members</Text>
+          <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+            Send this message to the group when people join.
+          </Text>
+        </View>
+      </View>
+
+      <TextInput
+        accessibilityLabel="Welcome message"
+        testID="telegram-community-welcome-message"
+        multiline
+        maxLength={3500}
+        editable={!updateWelcome.isPending}
+        value={message}
+        onChangeText={(value) => {
+          setMessage(value);
+          setFeedback(null);
+        }}
+        placeholder="Write a welcome message for new members"
+        placeholderTextColor={colors.mutedForeground}
+        textAlignVertical="top"
+        style={[
+          styles.welcomeMessageInput,
+          {
+            backgroundColor: colors.background,
+            borderColor: colors.border,
+            borderRadius: colors.radius - 5,
+            color: colors.foreground,
+          },
+        ]}
+      />
+      <Text style={[styles.welcomeCharacterCount, { color: colors.mutedForeground }]}>
+        {message.length} / 3,500 characters
+      </Text>
+
+      <View
+        testID="telegram-community-welcome-primary-button"
+        style={[
+          styles.welcomePrimaryCard,
+          { backgroundColor: colors.primary + '08', borderColor: colors.primary + '55', borderRadius: colors.radius - 5 },
+        ]}
+      >
+        <View style={styles.welcomeButtonHeading}>
+          <Text style={[styles.welcomeButtonTitle, { color: colors.primary }]}>
+            Primary button
+          </Text>
+          <Text style={[styles.welcomeButtonBadge, { color: colors.primary, backgroundColor: colors.primary + '14' }]}>
+            FIRST
+          </Text>
+        </View>
+        <TextInput
+          accessibilityLabel="Primary button label"
+          testID="telegram-community-welcome-primary-label"
+          value={primaryButton.label}
+          editable={!updateWelcome.isPending}
+          onChangeText={(value) => { updateButton(0, 'label', value); }}
+          placeholder="Button label"
+          placeholderTextColor={colors.mutedForeground}
+          maxLength={64}
+          style={[
+            styles.welcomeButtonInput,
+            { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 7, color: colors.foreground },
+          ]}
+        />
+        <TextInput
+          accessibilityLabel="Primary button HTTPS link"
+          testID="telegram-community-welcome-primary-url"
+          value={primaryButton.url}
+          editable={!updateWelcome.isPending}
+          onChangeText={(value) => { updateButton(0, 'url', value); }}
+          placeholder="https://example.org"
+          placeholderTextColor={colors.mutedForeground}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          maxLength={2048}
+          style={[
+            styles.welcomeButtonInput,
+            { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 7, color: colors.foreground },
+          ]}
+        />
+        {buttons.length > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Remove primary button"
+            testID="telegram-community-welcome-primary-remove"
+            disabled={updateWelcome.isPending}
+            onPress={() => { removeButton(0); }}
+            style={({ pressed }) => [
+              styles.welcomeRemoveButton,
+              { opacity: pressed || updateWelcome.isPending ? 0.6 : 1 },
+            ]}
+          >
+            <Feather name="trash-2" size={14} color={colors.destructive} />
+            <Text style={[styles.removeRuleText, { color: colors.destructive }]}>Remove button</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      {buttons.slice(1).map((button, secondaryIndex) => {
+        const index = secondaryIndex + 1;
+        return (
+          <View
+            key={index}
+            testID={`telegram-community-welcome-secondary-${index}`}
+            style={[
+              styles.welcomeSecondaryCard,
+              {
+                backgroundColor: colors.muted,
+                borderColor: colors.border,
+                borderLeftColor: colors.secondary,
+                borderRadius: colors.radius - 5,
+              },
+            ]}
+          >
+            <View style={styles.welcomeButtonHeading}>
+              <Text style={[styles.welcomeButtonTitle, { color: colors.foreground }]}>
+                Additional button {index}
+              </Text>
+              <Text style={[styles.welcomeButtonBadge, { color: colors.mutedForeground, backgroundColor: colors.background }]}>
+                BELOW PRIMARY
+              </Text>
+            </View>
+            <TextInput
+              accessibilityLabel={`Additional button ${index} label`}
+              testID={`telegram-community-welcome-secondary-${index}-label`}
+              value={button.label}
+              editable={!updateWelcome.isPending}
+              onChangeText={(value) => { updateButton(index, 'label', value); }}
+              placeholder="Button label"
+              placeholderTextColor={colors.mutedForeground}
+              maxLength={64}
+              style={[
+                styles.welcomeButtonInput,
+                { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 7, color: colors.foreground },
+              ]}
+            />
+            <TextInput
+              accessibilityLabel={`Additional button ${index} HTTPS link`}
+              testID={`telegram-community-welcome-secondary-${index}-url`}
+              value={button.url}
+              editable={!updateWelcome.isPending}
+              onChangeText={(value) => { updateButton(index, 'url', value); }}
+              placeholder="https://example.org"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              maxLength={2048}
+              style={[
+                styles.welcomeButtonInput,
+                { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 7, color: colors.foreground },
+              ]}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Remove additional button ${index}`}
+              testID={`telegram-community-welcome-secondary-${index}-remove`}
+              disabled={updateWelcome.isPending}
+              onPress={() => { removeButton(index); }}
+              style={({ pressed }) => [
+                styles.welcomeRemoveButton,
+                { opacity: pressed || updateWelcome.isPending ? 0.6 : 1 },
+              ]}
+            >
+              <Feather name="trash-2" size={14} color={colors.destructive} />
+              <Text style={[styles.removeRuleText, { color: colors.destructive }]}>Remove button</Text>
+            </Pressable>
+          </View>
+        );
+      })}
+
+      <Text style={[styles.welcomeOrderHint, { color: colors.mutedForeground }]}>
+        Buttons appear one per row in this order. Links must use HTTPS.
+      </Text>
+      {buttons.length > 0 && buttons.length < 6 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add another welcome button"
+          testID="telegram-community-welcome-add-button"
+          disabled={updateWelcome.isPending}
+          onPress={addButton}
+          style={({ pressed }) => [
+            styles.welcomeAddButton,
+            { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 5, opacity: pressed || updateWelcome.isPending ? 0.7 : 1 },
+          ]}
+        >
+          <Feather name="plus-circle" size={16} color={colors.primary} />
+          <Text style={[styles.addCommunityButtonText, { color: colors.primary }]}>Add another button</Text>
+        </Pressable>
+      ) : buttons.length >= 6 ? (
+        <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+          Maximum of six buttons reached.
+        </Text>
+      ) : null}
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Save join welcome message"
+        accessibilityState={{ disabled: updateWelcome.isPending }}
+        testID="telegram-community-welcome-save"
+        disabled={updateWelcome.isPending}
+        onPress={() => { void saveWelcomeMessage(); }}
+        style={({ pressed }) => [
+          styles.riddleToggleButton,
+          { backgroundColor: colors.primary, borderRadius: colors.radius - 5, marginTop: 12, opacity: pressed || updateWelcome.isPending ? 0.7 : 1 },
+        ]}
+      >
+        {updateWelcome.isPending
+          ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+          : <Feather name="save" size={16} color={colors.primaryForeground} />}
+        <Text style={[styles.riddleToggleText, { color: colors.primaryForeground }]}>
+          {updateWelcome.isPending ? 'Saving…' : 'Save welcome message'}
+        </Text>
+      </Pressable>
+      {feedback ? (
+        <Text
+          accessibilityRole={feedback.tone === 'error' ? 'alert' : 'text'}
+          testID="telegram-community-welcome-feedback"
+          style={[
+            styles.ruleFeedback,
+            { color: feedback.tone === 'error' ? colors.destructive : colors.success },
+          ]}
+        >
+          {feedback.message}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function TelegramCommunityWelcomeEditor({ chatId }: { chatId: string }) {
+  const colors = useColors();
+  const welcomeSettings = useGetTelegramCommunityWelcomeSettings(chatId, {
+    query: {
+      queryKey: getGetTelegramCommunityWelcomeSettingsQueryKey(chatId),
+      enabled: Boolean(chatId),
+    },
+  });
+
+  if (welcomeSettings.isLoading) {
+    return (
+      <View
+        style={[
+          styles.dashboardCard,
+          { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+        ]}
+      >
+        <ActivityIndicator color={colors.primary} />
+        <Text style={[styles.sectionDescription, { color: colors.mutedForeground, marginTop: 8 }]}>
+          Loading join welcome settings…
+        </Text>
+      </View>
+    );
+  }
+
+  if (welcomeSettings.isError || !welcomeSettings.data) {
+    return (
+      <View
+        style={[
+          styles.dashboardCard,
+          { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Welcome new members</Text>
+        <Text
+          accessibilityRole="alert"
+          testID="telegram-community-welcome-load-error"
+          style={[styles.sectionDescription, { color: colors.mutedForeground, marginTop: 8 }]}
+        >
+          {errorMessage(welcomeSettings.error, 'Join welcome settings could not be loaded.')}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          testID="telegram-community-welcome-retry"
+          onPress={() => { void welcomeSettings.refetch(); }}
+          style={[styles.welcomeAddButton, { borderColor: colors.border, borderRadius: colors.radius - 5, marginTop: 10 }]}
+        >
+          <Feather name="refresh-cw" size={15} color={colors.primary} />
+          <Text style={[styles.addCommunityButtonText, { color: colors.primary }]}>Try again</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <TelegramCommunityWelcomeForm
+      key={chatId}
+      chatId={chatId}
+      initialSettings={welcomeSettings.data}
+    />
   );
 }
 
@@ -963,6 +1373,8 @@ export function TelegramCommunityDashboardScreen({
               </Text>
             ) : null}
           </View>
+
+          <TelegramCommunityWelcomeEditor chatId={community.chatId} />
 
           <View>
             <View style={styles.sectionHeadingRow}>
@@ -1926,6 +2338,17 @@ const styles = StyleSheet.create({
   dashboardSections: { gap: 12 },
   dashboardCard: { borderWidth: 1, padding: 14 },
   dashboardSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  welcomeMessageInput: { minHeight: 116, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19 },
+  welcomeCharacterCount: { fontFamily: 'Inter_400Regular', fontSize: 10, textAlign: 'right', marginTop: 5 },
+  welcomePrimaryCard: { borderWidth: 1, padding: 12, gap: 8, marginTop: 10 },
+  welcomeSecondaryCard: { borderWidth: 1, borderLeftWidth: 3, padding: 12, gap: 8, marginTop: 9, marginLeft: 12 },
+  welcomeButtonHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 2 },
+  welcomeButtonTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  welcomeButtonBadge: { overflow: 'hidden', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 4, fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 0.5 },
+  welcomeButtonInput: { width: '100%', minHeight: 42, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 9, fontFamily: 'Inter_400Regular', fontSize: 13 },
+  welcomeRemoveButton: { minHeight: 32, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5, paddingHorizontal: 2 },
+  welcomeOrderHint: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15, marginTop: 10 },
+  welcomeAddButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, paddingHorizontal: 12, marginTop: 9 },
   riddleIntervalGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 12 },
   riddleIntervalButton: { flexBasis: '31%', flexGrow: 1, minHeight: 39, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, paddingHorizontal: 6 },
   riddleIntervalText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },

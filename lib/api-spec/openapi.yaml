@@ -2567,6 +2567,69 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /community/manage/{chatId}/welcome:
+    get:
+      operationId: getTelegramCommunityWelcomeSettings
+      tags: [community]
+      summary: Get the join welcome message and ordered buttons for a linked Telegram group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      responses:
+        "200":
+          description: Saved welcome message and buttons
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityWelcomeSettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    put:
+      operationId: updateTelegramCommunityWelcomeSettings
+      tags: [community]
+      summary: Save the join welcome message and ordered buttons for a linked Telegram group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramCommunityWelcomeSettingsInput"
+      responses:
+        "200":
+          description: Saved welcome message and buttons
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityWelcomeSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /community/manage/{chatId}/rules:
     get:
       operationId: getTelegramCommunityRules
@@ -6094,6 +6157,38 @@ components:
         enabled: { type: boolean }
         intervalMinutes: { type: integer, enum: [30, 60, 180, 360, 720, 1440] }
       required: [enabled, intervalMinutes]
+    TelegramCommunityWelcomeSettingsInput:
+      type: object
+      properties:
+        message: { type: string, maxLength: 3500 }
+        buttons:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/TelegramCommunityWelcomeButton"
+      required: [message, buttons]
+      additionalProperties: false
+    TelegramCommunityWelcomeSettings:
+      type: object
+      properties:
+        message: { type: string, maxLength: 3500 }
+        buttons:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/TelegramCommunityWelcomeButton"
+      required: [message, buttons]
+    TelegramCommunityWelcomeButton:
+      type: object
+      properties:
+        label: { type: string, minLength: 1, maxLength: 64 }
+        url:
+          type: string
+          format: uri
+          pattern: '^https:\/\//'
+          maxLength: 2048
+      required: [label, url]
+      additionalProperties: false
     TelegramCommunityRulesResponse:
       type: object
       properties:

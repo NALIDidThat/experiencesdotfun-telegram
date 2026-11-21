@@ -206,6 +206,8 @@ import type {
   TelegramCommunityRulePreviewInput,
   TelegramCommunityRulePreviewResponse,
   TelegramCommunityRulesResponse,
+  TelegramCommunityWelcomeSettings,
+  TelegramCommunityWelcomeSettingsInput,
   TooManyRequestsResponse,
   TopFriendsInput,
   UnauthorizedResponse,
@@ -9346,6 +9348,172 @@ export const useUpdateTelegramCommunityRiddleSettings = <TError = ErrorType<BadR
         TContext
       > => {
       return useMutation(getUpdateTelegramCommunityRiddleSettingsMutationOptions(options));
+    }
+
+export const getGetTelegramCommunityWelcomeSettingsUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/welcome`
+}
+
+/**
+ * @summary Get the join welcome message and ordered buttons for a linked Telegram group
+ */
+export const getTelegramCommunityWelcomeSettings = async (chatId: string, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityWelcomeSettings> => {
+
+  return customFetch<TelegramCommunityWelcomeSettings>(getGetTelegramCommunityWelcomeSettingsUrl(chatId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTelegramCommunityWelcomeSettingsQueryKey = (chatId: string,) => {
+    return [
+    `/api/community/manage/${chatId}/welcome`
+    ] as const;
+    }
+
+
+export const getGetTelegramCommunityWelcomeSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramCommunityWelcomeSettings>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>>(chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityWelcomeSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTelegramCommunityWelcomeSettingsQueryKey(chatId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramCommunityWelcomeSettings>>> = ({ signal }) => getTelegramCommunityWelcomeSettings(chatId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: chatId !== null && chatId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityWelcomeSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTelegramCommunityWelcomeSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getTelegramCommunityWelcomeSettings>>>
+export type GetTelegramCommunityWelcomeSettingsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary Get the join welcome message and ordered buttons for a linked Telegram group
+ */
+
+export function useGetTelegramCommunityWelcomeSettings<TData = Awaited<ReturnType<typeof getTelegramCommunityWelcomeSettings>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>>(
+ chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityWelcomeSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTelegramCommunityWelcomeSettingsQueryOptions(chatId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateTelegramCommunityWelcomeSettingsUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/welcome`
+}
+
+/**
+ * @summary Save the join welcome message and ordered buttons for a linked Telegram group
+ */
+export const updateTelegramCommunityWelcomeSettings = async (chatId: string,
+    telegramCommunityWelcomeSettingsInput: TelegramCommunityWelcomeSettingsInput, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityWelcomeSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TelegramCommunityWelcomeSettings>(getUpdateTelegramCommunityWelcomeSettingsUrl(chatId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(telegramCommunityWelcomeSettingsInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateTelegramCommunityWelcomeSettingsMutationKey = () => ['updateTelegramCommunityWelcomeSettings'] as const;
+
+export const getUpdateTelegramCommunityWelcomeSettingsMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTelegramCommunityWelcomeSettings>>, TError,UpdateTelegramCommunityWelcomeSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTelegramCommunityWelcomeSettings>>, TError,UpdateTelegramCommunityWelcomeSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateTelegramCommunityWelcomeSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTelegramCommunityWelcomeSettings>>, UpdateTelegramCommunityWelcomeSettingsMutationVariables> = (props) => {
+          const {chatId,data} = props ?? {};
+
+          return  updateTelegramCommunityWelcomeSettings(chatId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTelegramCommunityWelcomeSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateTelegramCommunityWelcomeSettings>>>
+    export type UpdateTelegramCommunityWelcomeSettingsMutationBody = BodyType<TelegramCommunityWelcomeSettingsInput>
+    export type UpdateTelegramCommunityWelcomeSettingsMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>
+    export type UpdateTelegramCommunityWelcomeSettingsMutationVariables = {chatId: string;data: BodyType<TelegramCommunityWelcomeSettingsInput>}
+
+    /**
+ * @summary Save the join welcome message and ordered buttons for a linked Telegram group
+ */
+export const useUpdateTelegramCommunityWelcomeSettings = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTelegramCommunityWelcomeSettings>>, TError,UpdateTelegramCommunityWelcomeSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTelegramCommunityWelcomeSettings>>,
+        TError,
+        UpdateTelegramCommunityWelcomeSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateTelegramCommunityWelcomeSettingsMutationOptions(options));
     }
 
 export const getGetTelegramCommunityRulesUrl = (chatId: string,) => {

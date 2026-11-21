@@ -45,6 +45,7 @@ import {
   disconnectTelegramCommunity,
   getTelegramCommunity,
   getTelegramCommunityManagementContext,
+  getTelegramCommunityWelcomeSettingsForGroup,
   listTelegramCommunityKeywordRules,
   listTelegramCommunityLinkRules,
   listDueTelegramCommunityRiddles,
@@ -59,6 +60,7 @@ import {
   saveTelegramCommunityActiveRiddle,
   setTelegramCommunitySpamProtection,
   setTelegramCommunityRiddleSettings,
+  TelegramCommunityWelcomeMigrationRequiredError,
 } from "./community-moderation";
 import {
   tryAcquireTelegramPollingLease,
@@ -87,6 +89,7 @@ import {
   RIDDLE_REVEAL_AFTER_MS,
   TELEGRAM_COMMUNITY_RIDDLE_INTERVALS,
 } from "./group-riddles";
+import { buildTelegramWelcomeKeyboard } from "./telegram-welcome";
 import { recordAnalyticsEvent } from "./analytics";
 import type {
   AiAssistantAction,
@@ -215,6 +218,7 @@ let telegramPollingLease: TelegramPollingLease | null = null;
 let telegramBotRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let consecutivePollingFailures = 0;
 let pollingConflictDetected = false;
+let telegramWelcomeMigrationWarningLogged = false;
 let lastPollingConflictLogAt = 0;
 let lastPollingLeaseBusyLogAt = 0;
 const pendingPrivateCommunityPhrases = new Map<
@@ -2803,8 +2807,10 @@ async function trackLinkedGroupMemberActivity(
   };
   const joinedAt = new Date(message.date * 1_000);
   if (Number.isFinite(joinedAt.getTime())) {
-    for (const joinedMember of message.new_chat_members ?? []) {
-      if (joinedMember.is_bot) continue;
+    const humanJoinedMembers = (message.new_chat_members ?? []).filter(
+      (joinedMember) => !joinedMember.is_bot,
+    );
+    for (const joinedMember of humanJoinedMembers) {
       try {
         await recordTelegramCommunityMemberJoin({
           chatId,
@@ -2818,6 +2824,36 @@ async function trackLinkedGroupMemberActivity(
           logger.error(
             { err: error, chatId, telegramUserId: joinedMember.id },
             "Telegram community join event could not be recorded",
+          );
+        }
+      }
+    }
+
+    if (humanJoinedMembers.length > 0) {
+      try {
+        const welcome = await getTelegramCommunityWelcomeSettingsForGroup(chatId);
+        if (welcome?.message.trim()) {
+          const keyboard = buildTelegramWelcomeKeyboard(welcome.buttons);
+          await telegramCall("sendMessage", {
+            chat_id: message.chat.id,
+            text: welcome.message,
+            disable_web_page_preview: true,
+            reply_markup: keyboard ? { inline_keyboard: keyboard } : undefined,
+          });
+        }
+      } catch (error) {
+        if (error instanceof TelegramCommunityWelcomeMigrationRequiredError) {
+          if (!telegramWelcomeMigrationWarningLogged) {
+            telegramWelcomeMigrationWarningLogged = true;
+            logger.warn(
+              { chatId },
+              "Telegram join welcome messages are disabled until the database migration is applied",
+            );
+          }
+        } else {
+          logger.error(
+            { err: error, chatId },
+            "Telegram community join welcome message could not be sent",
           );
         }
       }

@@ -4166,6 +4166,88 @@ export const UpdateTelegramCommunityRiddleSettingsResponse = zod.object({
 
 
 /**
+ * @summary Get the join welcome message and ordered buttons for a linked Telegram group
+ */
+export const getTelegramCommunityWelcomeSettingsPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const GetTelegramCommunityWelcomeSettingsParams = zod.object({
+  "chatId": zod.coerce.string().regex(getTelegramCommunityWelcomeSettingsPathChatIdRegExp)
+})
+
+export const getTelegramCommunityWelcomeSettingsResponseMessageMax = 3500;
+
+export const getTelegramCommunityWelcomeSettingsResponseButtonsItemLabelMax = 64;
+
+export const getTelegramCommunityWelcomeSettingsResponseButtonsItemUrlMax = 2048;
+
+
+export const getTelegramCommunityWelcomeSettingsResponseButtonsItemUrlRegExp = new RegExp('^https:\\/\\/');
+export const getTelegramCommunityWelcomeSettingsResponseButtonsMax = 6;
+
+
+
+export const GetTelegramCommunityWelcomeSettingsResponse = zod.object({
+  "message": zod.string().max(getTelegramCommunityWelcomeSettingsResponseMessageMax),
+  "buttons": zod.array(zod.object({
+  "label": zod.string().min(1).max(getTelegramCommunityWelcomeSettingsResponseButtonsItemLabelMax),
+  "url": zod.string().url().max(getTelegramCommunityWelcomeSettingsResponseButtonsItemUrlMax).regex(getTelegramCommunityWelcomeSettingsResponseButtonsItemUrlRegExp)
+})).max(getTelegramCommunityWelcomeSettingsResponseButtonsMax)
+})
+
+
+/**
+ * @summary Save the join welcome message and ordered buttons for a linked Telegram group
+ */
+export const updateTelegramCommunityWelcomeSettingsPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const UpdateTelegramCommunityWelcomeSettingsParams = zod.object({
+  "chatId": zod.coerce.string().regex(updateTelegramCommunityWelcomeSettingsPathChatIdRegExp)
+})
+
+export const updateTelegramCommunityWelcomeSettingsBodyMessageMax = 3500;
+
+export const updateTelegramCommunityWelcomeSettingsBodyButtonsItemLabelMax = 64;
+
+export const updateTelegramCommunityWelcomeSettingsBodyButtonsItemUrlMax = 2048;
+
+
+export const updateTelegramCommunityWelcomeSettingsBodyButtonsItemUrlRegExp = new RegExp('^https:\\/\\/');
+export const updateTelegramCommunityWelcomeSettingsBodyButtonsMax = 6;
+
+
+
+export const UpdateTelegramCommunityWelcomeSettingsBody = zod.object({
+  "message": zod.string().max(updateTelegramCommunityWelcomeSettingsBodyMessageMax),
+  "buttons": zod.array(zod.object({
+  "label": zod.string().min(1).max(updateTelegramCommunityWelcomeSettingsBodyButtonsItemLabelMax),
+  "url": zod.string().url().max(updateTelegramCommunityWelcomeSettingsBodyButtonsItemUrlMax).regex(updateTelegramCommunityWelcomeSettingsBodyButtonsItemUrlRegExp)
+})).max(updateTelegramCommunityWelcomeSettingsBodyButtonsMax)
+})
+
+export const updateTelegramCommunityWelcomeSettingsResponseMessageMax = 3500;
+
+export const updateTelegramCommunityWelcomeSettingsResponseButtonsItemLabelMax = 64;
+
+export const updateTelegramCommunityWelcomeSettingsResponseButtonsItemUrlMax = 2048;
+
+
+export const updateTelegramCommunityWelcomeSettingsResponseButtonsItemUrlRegExp = new RegExp('^https:\\/\\/');
+export const updateTelegramCommunityWelcomeSettingsResponseButtonsMax = 6;
+
+
+
+export const UpdateTelegramCommunityWelcomeSettingsResponse = zod.object({
+  "message": zod.string().max(updateTelegramCommunityWelcomeSettingsResponseMessageMax),
+  "buttons": zod.array(zod.object({
+  "label": zod.string().min(1).max(updateTelegramCommunityWelcomeSettingsResponseButtonsItemLabelMax),
+  "url": zod.string().url().max(updateTelegramCommunityWelcomeSettingsResponseButtonsItemUrlMax).regex(updateTelegramCommunityWelcomeSettingsResponseButtonsItemUrlRegExp)
+})).max(updateTelegramCommunityWelcomeSettingsResponseButtonsMax)
+})
+
+
+/**
  * @summary List a linked group's banned phrases and whitelisted links
  */
 export const getTelegramCommunityRulesPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');

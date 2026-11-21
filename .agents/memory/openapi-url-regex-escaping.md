@@ -3,8 +3,8 @@ name: OpenAPI URL regex escaping
 description: Keep generated Zod validators accurate when an OpenAPI pattern contains paired slashes.
 ---
 
-In this workspace's OpenAPI → Orval → Zod pipeline, leave each slash in a `//` URL prefix escaped as `\/` in a single-quoted YAML pattern. Unescaped slash pairs can be truncated in generated `RegExp` output, while over-escaping can make the validator require literal backslashes.
+In this workspace's OpenAPI → Orval → Zod pipeline, write an HTTPS prefix as `https:\/\//` in a single-quoted YAML pattern. That exact slash escaping lets Orval generate a regex that preserves both slashes in `https://`.
 
-**Why:** Outcome-evidence validation needed the generated client schema to retain both slashes in `https://`; the server and database already enforce the same protocol boundary.
+**Why:** Simpler escaped forms generated a malformed expression that rejected valid HTTPS links; the server and database must still enforce the same protocol boundary.
 
-**How to apply:** After changing a slash-containing OpenAPI pattern, regenerate the client, inspect the generated `RegExp`, and run positive and negative examples against it.
+**How to apply:** After changing a slash-containing OpenAPI pattern, regenerate the client, confirm the generated `RegExp` accepts `https://example.org` and rejects `http://example.org`, and retain a test for both cases.
