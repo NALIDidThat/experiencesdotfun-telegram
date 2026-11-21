@@ -159,7 +159,6 @@ import { DateSliderPicker, formatExperienceDateUk } from '@/components/DateSlide
 import { ExperienceLocationPicker, type ResolvedLocation } from '@/components/ExperienceLocationPicker';
 import { TimeWheelPicker } from '@/components/TimeWheelPicker';
 import { ExperienceXpSlider } from '@/components/ExperienceXpSlider';
-import { NodeDashboardCard, NodeManagementPanel } from '@/components/NodeManagementPanel';
 import { NodeProfileScreen } from '@/components/NodeProfileScreen';
 import { openTelegramBot, shareToTelegram } from '@/lib/telegram';
 import {
@@ -6296,7 +6295,6 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           onCreateExperience={() => go('create')}
         />
       ) : null}
-      {current.userType === 'organisation' ? <NodeManagementPanel /> : null}
       {current.userType === 'organisation' && current.organisation?.type === 'charity' ? (
         <OrganisationFundraiserSection organisationUserId={current.id} canLaunch onLaunch={() => go('funds')} />
       ) : null}
