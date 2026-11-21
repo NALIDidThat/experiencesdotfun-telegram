@@ -39,9 +39,20 @@ function postDateLabel(value: string) {
       });
 }
 
-export function ProfilePosts({ profileId }: { profileId: number }) {
+export function ProfilePosts({
+  profileId,
+  category: controlledCategory,
+  onCategoryChange,
+  showCategoryFilters = true,
+}: {
+  profileId: number;
+  category?: FeedPostCategory;
+  onCategoryChange?: (category: FeedPostCategory) => void;
+  showCategoryFilters?: boolean;
+}) {
   const colors = useColors();
-  const [category, setCategory] = useState<FeedPostCategory>("personal");
+  const [localCategory, setLocalCategory] = useState<FeedPostCategory>("personal");
+  const category = controlledCategory ?? localCategory;
   const [extraPages, setExtraPages] = useState<ProfilePostsResponse[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
@@ -59,7 +70,7 @@ export function ProfilePosts({ profileId }: { profileId: number }) {
     setExtraPages([]);
     setLoadingMore(false);
     setLoadMoreError(false);
-  }, [posts.dataUpdatedAt]);
+  }, [category, posts.dataUpdatedAt]);
   const items = [...(posts.data?.items ?? []), ...extraPages.flatMap((page) => page.items)];
   const resetPagination = () => {
     requestGeneration.current += 1;
@@ -68,8 +79,10 @@ export function ProfilePosts({ profileId }: { profileId: number }) {
     setLoadMoreError(false);
   };
   const changeCategory = (nextCategory: FeedPostCategory) => {
+    if (nextCategory === category) return;
     resetPagination();
-    setCategory(nextCategory);
+    if (controlledCategory === undefined) setLocalCategory(nextCategory);
+    else onCategoryChange?.(nextCategory);
   };
   const loadMore = async () => {
     const lastPage = extraPages.at(-1) ?? posts.data;
@@ -91,11 +104,13 @@ export function ProfilePosts({ profileId }: { profileId: number }) {
 
   return (
     <View testID="profile-posts" style={styles.section}>
-      <FeedCategoryFilters
-        category={category}
-        onCategoryChange={changeCategory}
-        testIDPrefix="profile-posts"
-      />
+      {showCategoryFilters ? (
+        <FeedCategoryFilters
+          category={category}
+          onCategoryChange={changeCategory}
+          testIDPrefix="profile-posts"
+        />
+      ) : null}
 
       <View style={styles.heading}>
         <View style={styles.headingCopy}>

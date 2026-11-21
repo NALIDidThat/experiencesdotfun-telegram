@@ -111,6 +111,7 @@ import {
   type ExperienceMilestoneSubmission,
   type OrganisationType,
   type Participation,
+  type FeedPostCategory,
   type User,
   type UserType,
 } from '@workspace/api-client-react';
@@ -130,6 +131,7 @@ import { PayoutProposalScreen } from '@/components/fundraising/Payouts';
 import { OrganisationFundsScreen, OrganisationFundraiserSection } from '@/components/OrganisationFundsScreen';
 import { SocialFeed } from '@/components/SocialFeed';
 import { ProfilePosts } from '@/components/ProfilePosts';
+import { FeedCategoryFilters } from '@/components/FeedCategoryFilters';
 import {
   getParticipantHomeCommitments,
   selectParticipantHomePriority,
@@ -2286,6 +2288,7 @@ function Home({
   const { user: authenticatedUser } = useAuth();
   const [feedRefreshSignal, setFeedRefreshSignal] = useState(0);
   const [feedRefreshing, setFeedRefreshing] = useState(false);
+  const [feedCategory, setFeedCategory] = useState<FeedPostCategory>('personal');
   const query = useListExperiences({ availableOnly: true });
   const participations = useListMyParticipations(undefined, {
     query: {
@@ -2344,6 +2347,11 @@ function Home({
       showsVerticalScrollIndicator={false}
     >
       {!authenticatedUser ? <TelegramConnectCard /> : null}
+      <FeedCategoryFilters
+        category={feedCategory}
+        onCategoryChange={setFeedCategory}
+        testIDPrefix="participant-home"
+      />
 
       <View style={styles.dashboardHero}>
         <View style={styles.dashboardGreeting}>
@@ -2624,6 +2632,9 @@ function Home({
 
       <SocialFeed
         currentUserId={user.id}
+        category={feedCategory}
+        onCategoryChange={setFeedCategory}
+        showCategoryFilters={false}
         refreshSignal={feedRefreshSignal}
         openComposerSignal={composerRequest}
         onComposerRequestHandled={onComposerRequestHandled}
@@ -5041,6 +5052,7 @@ function FriendProfileScreen({
   onBack: () => void;
 }) {
   const colors = useColors();
+  const [profilePostCategory, setProfilePostCategory] = useState<FeedPostCategory>('personal');
   const isValidFriendId = Number.isSafeInteger(friendId) && friendId > 0;
   const profile = useGetFriendProfile(friendId, {
     query: {
@@ -5087,6 +5099,11 @@ function FriendProfileScreen({
         />
       ) : friend ? (
         <>
+          <FeedCategoryFilters
+            category={profilePostCategory}
+            onCategoryChange={setProfilePostCategory}
+            testIDPrefix="friend-profile"
+          />
           <SocialProfileHeader
             user={{
               name: friend.name,
@@ -5109,7 +5126,12 @@ function FriendProfileScreen({
             }}
             friendsCount={friend.friendsCount}
           />
-          <ProfilePosts profileId={friend.id} />
+          <ProfilePosts
+            profileId={friend.id}
+            category={profilePostCategory}
+            onCategoryChange={setProfilePostCategory}
+            showCategoryFilters={false}
+          />
           {friend.userType === 'organisation' ? <OrganisationFundraiserSection organisationUserId={friend.id} /> : null}
         </>
       ) : null}
@@ -5990,6 +6012,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
   const [profileMenuError, setProfileMenuError] = useState<string | null>(null);
   const [selectedProfileMetric, setSelectedProfileMetric] = useState<ProfileMetricKey | null>(null);
+  const [profilePostCategory, setProfilePostCategory] = useState<FeedPostCategory>('personal');
   const current = profile.data ?? user;
   const profileMenuName = (
     current.userType === 'organisation' ? current.organisation?.name : current.name
@@ -6152,6 +6175,11 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         ]}
       />
       {profileMenuError ? <InlineError message={profileMenuError} /> : null}
+      <FeedCategoryFilters
+        category={profilePostCategory}
+        onCategoryChange={setProfilePostCategory}
+        testIDPrefix="profile"
+      />
 
       {profile.isError && !profile.data ? (
         <EmptyState title="Profile details didn’t load" body="Your saved profile is still available. Try again." actionLabel="Try again" onAction={() => { void profile.refetch(); }} />
@@ -6280,7 +6308,12 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           setSelectedProfileMetric(metric);
         }}
       />
-      {current.userType === 'organisation' ? <ProfilePosts profileId={current.id} /> : null}
+      <ProfilePosts
+        profileId={current.id}
+        category={profilePostCategory}
+        onCategoryChange={setProfilePostCategory}
+        showCategoryFilters={false}
+      />
       {current.userType !== 'participant' ? (
         <OrganisationActivityDashboard
           overview={hostOverview.data}
