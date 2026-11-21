@@ -34,9 +34,11 @@ import { currentUser, requireTelegramUser } from "../lib/auth";
 import {
   getCommunityDetails,
   getCommunityMemberSummary,
+  getCommunityRanksForUser,
   getMyCommunities,
 } from "../lib/contribution";
 import {
+  getTelegramCommunityOpenUrl,
   getTelegramCommunityLiveInfo,
   verifyTelegramCommunityMembership,
 } from "../lib/telegram";
@@ -44,6 +46,7 @@ import {
   CommunityMemberStatsMigrationRequiredError,
   getTelegramCommunityDailyInsights,
   getTelegramCommunityMemberHistory,
+  listActiveTelegramCommunityStats,
   listTelegramCommunityMembers,
 } from "../lib/community-member-stats";
 import {
@@ -86,6 +89,51 @@ function getOrganisationTelegramUserId(req: Request, res: Response): number | nu
 router.get("/community/me", async (req, res) => {
   const user = currentUser(req);
   res.json({ communities: await getMyCommunities(user.id) });
+});
+
+router.get("/community/me/telegram", async (req, res) => {
+  const user = currentUser(req);
+  if (user.userType !== "participant") {
+    res.status(403).json({ message: "Telegram participation summaries are for participant accounts." });
+    return;
+  }
+
+  const telegramUserId = String(user.telegramId ?? "").trim();
+  if (!/^[1-9]\d{0,19}$/.test(telegramUserId)) {
+    res.status(400).json({
+      message: "This participant profile needs a linked Telegram identity to show community activity.",
+    });
+    return;
+  }
+
+  try {
+    const trackedCommunities = await listActiveTelegramCommunityStats(telegramUserId);
+    const ranks = await getCommunityRanksForUser(
+      trackedCommunities.map((community) => community.chatId),
+      user.id,
+    );
+    const communities = await Promise.all(
+      trackedCommunities.map(async (community) => ({
+        chatId: community.chatId,
+        title: community.title,
+        messageCount: community.messageCount,
+        qualifyingMessageCount: community.qualifyingMessageCount,
+        rank: ranks.get(community.chatId) ?? null,
+        joinedAt: community.joinedAt?.toISOString() ?? null,
+        trackingStartedAt: community.trackingStartedAt.toISOString(),
+        openUrl: await getTelegramCommunityOpenUrl(community.chatId),
+      })),
+    );
+    res.json({ communities });
+  } catch (error) {
+    if (error instanceof CommunityMemberStatsMigrationRequiredError) {
+      res.status(503).json({
+        message: "Telegram participation tracking is not available until its database migration is applied.",
+      });
+      return;
+    }
+    throw error;
+  }
 });
 
 router.get("/community/manage", async (req, res) => {

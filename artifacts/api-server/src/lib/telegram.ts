@@ -321,6 +321,33 @@ type TelegramCommunityChat = {
   username?: string;
 };
 
+const communityOpenUrlCache = new Map<string, { expiresAt: number; url: string | null }>();
+
+export async function getTelegramCommunityOpenUrl(chatId: string): Promise<string | null> {
+  const now = Date.now();
+  const cached = communityOpenUrlCache.get(chatId);
+  if (cached && cached.expiresAt > now) return cached.url;
+
+  const numericChatId = Number(chatId);
+  if (!Number.isSafeInteger(numericChatId) || numericChatId >= 0) return null;
+
+  const chat = await telegramCall<TelegramCommunityChat>("getChat", {
+    chat_id: numericChatId,
+  });
+  const username = chat?.username?.replace(/^@/, "").trim();
+  const openUrl =
+    chat &&
+    (chat.type === "group" || chat.type === "supergroup") &&
+    username &&
+    /^[A-Za-z0-9_]+$/.test(username)
+      ? `https://t.me/${encodeURIComponent(username)}`
+      : null;
+
+  if (communityOpenUrlCache.size > 500) communityOpenUrlCache.clear();
+  communityOpenUrlCache.set(chatId, { expiresAt: now + 5 * 60_000, url: openUrl });
+  return openUrl;
+}
+
 type TelegramCommunityMember = {
   status: "creator" | "administrator" | "member" | "restricted" | "left" | "kicked";
   is_member?: boolean;

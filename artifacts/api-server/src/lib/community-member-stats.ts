@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   telegramCommunityMemberDailyActivityTable,
@@ -158,6 +158,32 @@ export async function recordTelegramCommunityMemberLeave(input: {
           ),
         );
     }),
+  );
+}
+
+export async function listActiveTelegramCommunityStats(telegramUserId: string) {
+  return withStatsTable(() =>
+    db
+      .select({
+        chatId: telegramCommunityMemberStatsTable.chatId,
+        title: telegramCommunitiesTable.chatTitle,
+        messageCount: telegramCommunityMemberStatsTable.messageCount,
+        qualifyingMessageCount: telegramCommunityMemberStatsTable.qualifyingMessageCount,
+        joinedAt: telegramCommunityMemberStatsTable.telegramJoinedAt,
+        trackingStartedAt: telegramCommunitiesTable.createdAt,
+      })
+      .from(telegramCommunityMemberStatsTable)
+      .innerJoin(
+        telegramCommunitiesTable,
+        eq(telegramCommunitiesTable.chatId, telegramCommunityMemberStatsTable.chatId),
+      )
+      .where(
+        and(
+          eq(telegramCommunityMemberStatsTable.telegramUserId, telegramUserId),
+          isNull(telegramCommunityMemberStatsTable.telegramLeftAt),
+        ),
+      )
+      .orderBy(asc(telegramCommunitiesTable.chatTitle), asc(telegramCommunityMemberStatsTable.id)),
   );
 }
 

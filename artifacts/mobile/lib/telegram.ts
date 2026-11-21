@@ -81,6 +81,20 @@ export function isTelegramMiniApp(): boolean {
   return typeof initData === 'string' && initData.trim().length > 0;
 }
 
+export function openTelegramLink(url: string): void {
+  if (!/^https:\/\/t\.me(?:\/|$)/i.test(url)) return;
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const webApp = (window as TelegramWindow).Telegram?.WebApp;
+    if (webApp?.openTelegramLink) {
+      webApp.openTelegramLink(url);
+      return;
+    }
+    window.location.assign(url);
+    return;
+  }
+  void Linking.openURL(url).catch(() => undefined);
+}
+
 export function openTelegramBot(
   username?: string | null,
   startPayload = 'login',

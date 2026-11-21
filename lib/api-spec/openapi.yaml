@@ -2491,6 +2491,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /community/me/telegram:
+    get:
+      operationId: getMyTelegramCommunities
+      tags: [community]
+      summary: List tracked Telegram communities and participation for the current participant
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Active tracked communities and the participant's recorded activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyTelegramCommunitiesResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          description: Telegram participation tracking is waiting for its database migration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /community/manage:
     get:
       operationId: getTelegramCommunityManagement
@@ -5984,6 +6009,34 @@ components:
           items:
             $ref: "#/components/schemas/CommunitySummary"
       required: [communities]
+    MyTelegramCommunitiesResponse:
+      type: object
+      properties:
+        communities:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyTelegramCommunity"
+      required: [communities]
+    MyTelegramCommunity:
+      type: object
+      properties:
+        chatId: { type: string }
+        title: { type: string }
+        messageCount: { type: integer, minimum: 0 }
+        qualifyingMessageCount: { type: integer, minimum: 0 }
+        rank: { type: [integer, "null"], minimum: 1 }
+        joinedAt: { type: [string, "null"], format: date-time }
+        trackingStartedAt: { type: string, format: date-time }
+        openUrl: { type: [string, "null"], format: uri }
+      required:
+        - chatId
+        - title
+        - messageCount
+        - qualifyingMessageCount
+        - rank
+        - joinedAt
+        - trackingStartedAt
+        - openUrl
     TelegramCommunityManagementResponse:
       type: object
       properties:

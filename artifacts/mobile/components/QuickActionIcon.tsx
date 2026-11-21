@@ -15,6 +15,7 @@ export type QuickActionArtwork =
   | "memory-game"
   | "challenges"
   | "accountability"
+  | "my-communities"
   | "post"
   | "create"
   | "telegram-communities"
@@ -108,6 +109,7 @@ function Artwork({ name }: { name: QuickActionArtwork }) {
           <Path d="M25 33h8" stroke="#fff" strokeLinecap="round" strokeOpacity={0.95} strokeWidth={2} />
         </G>
       );
+    case "my-communities":
     case "telegram-communities":
       return (
         <G>

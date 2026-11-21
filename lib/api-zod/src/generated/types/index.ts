@@ -209,6 +209,8 @@ export * from './myCommunitiesResponse';
 export * from './myNodeConnection';
 export * from './myNodeConnectionRole';
 export * from './myNodeConnectionStatus';
+export * from './myTelegramCommunitiesResponse';
+export * from './myTelegramCommunity';
 export * from './node';
 export * from './nodeCategoriesItem';
 export * from './nodeConnection';

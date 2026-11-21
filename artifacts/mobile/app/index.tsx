@@ -154,6 +154,7 @@ import { AiAssistantScreen } from '@/components/AiAssistantScreen';
 import { LearningDashboardScreen } from '@/components/LearningDashboardScreen';
 import { ExperienceChallengesScreen } from '@/components/ExperienceChallengesScreen';
 import { MemoryGameScreen } from '@/components/MemoryGameScreen';
+import { MyTelegramCommunitiesScreen } from '@/components/MyTelegramCommunitiesScreen';
 import { ExploreGlobe, type GlobeCity, type GlobeExperienceLocation, type GlobeFriend, type GlobeMode, type GlobeNodeLocation, type WelcomeGlobeActivityCity } from '@/components/ExploreGlobe';
 import ExploreMap from '@/components/ExploreMap';
 import type { ExploreMapHandle } from '@/components/ExploreMap.types';
@@ -169,7 +170,7 @@ import {
 } from '@/components/TelegramCommunityManagementScreen';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'learning' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'node-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'personal-route-planner' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-community-dashboard' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'learning' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'node-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'personal-route-planner' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-my-communities' | 'telegram-community-dashboard' | 'email';
 type ScreenTransitionDirection = 'forward' | 'back' | 'switch';
 type ScreenRouteParams = {
   id?: string;
@@ -197,7 +198,7 @@ type TelegramWindow = Window & {
   Telegram?: { WebApp?: { BackButton?: TelegramWebAppBackButton } };
 };
 type IconName = keyof typeof Feather.glyphMap;
-type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'assistant' | 'learning' | 'challenges' | 'accountability' | 'memory-game' | 'telegram-communities';
+type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'assistant' | 'learning' | 'challenges' | 'accountability' | 'memory-game' | 'my-communities' | 'telegram-communities';
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
 type HostSummaryMetric = 'live' | 'participants' | 'waitlist' | 'completion-reviews' | 'milestone-reviews';
@@ -207,7 +208,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'learning', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'node-profile', 'experience', 'host', 'host-detail', 'create', 'personal-route-planner', 'funds', 'campaigns', 'payout-proposal', 'contributions', 'telegram-communities', 'telegram-community-dashboard', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'learning', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'node-profile', 'experience', 'host', 'host-detail', 'create', 'personal-route-planner', 'funds', 'campaigns', 'payout-proposal', 'contributions', 'telegram-communities', 'telegram-my-communities', 'telegram-community-dashboard', 'email'];
 
 function routeParamString(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -270,6 +271,8 @@ function defaultBackEntry(entry: ScreenHistoryEntry): ScreenHistoryEntry {
       return createScreenHistoryEntry('friends');
     case 'telegram-community-dashboard':
       return createScreenHistoryEntry('telegram-communities');
+    case 'telegram-my-communities':
+      return createScreenHistoryEntry('home');
     case 'campaigns':
       return createScreenHistoryEntry('funds');
     case 'payout-proposal':
@@ -9499,6 +9502,12 @@ function BottomNav({
             description: 'Check in on shared commitments and support each other.',
             icon: 'target' as const,
           },
+          {
+            id: 'my-communities' as const,
+            label: 'My communities',
+            description: 'See your Telegram groups and participation.',
+            icon: 'users' as const,
+          },
         ]
       : []),
     {
@@ -10249,7 +10258,7 @@ export default function App() {
     const platform = Platform.OS === "ios" || Platform.OS === "android"
       ? Platform.OS
       : "web";
-    const analyticsScreen = screen === 'accounts' || screen === 'contributions' || screen === 'accountability' || screen === 'campaigns' || screen === 'telegram-communities' || screen === 'telegram-community-dashboard'
+    const analyticsScreen = screen === 'accounts' || screen === 'contributions' || screen === 'accountability' || screen === 'campaigns' || screen === 'telegram-communities' || screen === 'telegram-my-communities' || screen === 'telegram-community-dashboard'
       ? 'profile'
       : screen === 'payout-proposal'
         ? 'funds'
@@ -10379,6 +10388,10 @@ export default function App() {
     setFeedComposerRequest(feedComposerRequestSequence.current);
   };
   const handleBottomNavQuickAction = (action: BottomNavQuickAction) => {
+    if (action === 'my-communities') {
+      if (user?.userType === 'participant') go('telegram-my-communities');
+      return;
+    }
     if (action === 'telegram-communities') {
       if (user?.userType === 'organisation') go('telegram-communities');
       return;
@@ -10877,6 +10890,22 @@ export default function App() {
           />
         );
     }
+    if (screen === 'telegram-my-communities') {
+      return user.userType === 'participant'
+        ? (
+          <MyTelegramCommunitiesScreen
+            onBack={() => goBack('home')}
+          />
+        )
+        : (
+          <EmptyState
+            title="Participant account required"
+            body="Your Telegram community activity is available from a participant profile."
+            actionLabel="Back to profile"
+            onAction={() => go('profile')}
+          />
+        );
+    }
     if (screen === 'telegram-community-dashboard') {
       return user.userType === 'organisation'
         ? (
@@ -10935,7 +10964,7 @@ export default function App() {
     ? 'host'
     : screen === 'experiences'
       ? 'home'
-    : screen === 'contributions' || screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts' || screen === 'accountability' || screen === 'telegram-communities' || screen === 'telegram-community-dashboard'
+    : screen === 'contributions' || screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts' || screen === 'accountability' || screen === 'telegram-communities' || screen === 'telegram-my-communities' || screen === 'telegram-community-dashboard'
       ? 'profile'
       : screen === 'messages' || screen === 'direct-message'
         ? 'home'

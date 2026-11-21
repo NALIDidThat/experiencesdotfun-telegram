@@ -1939,6 +1939,29 @@ export interface MyCommunitiesResponse {
   communities: CommunitySummary[];
 }
 
+export interface MyTelegramCommunity {
+  chatId: string;
+  title: string;
+  /** @minimum 0 */
+  messageCount: number;
+  /** @minimum 0 */
+  qualifyingMessageCount: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  rank: number | null;
+  /** @nullable */
+  joinedAt: string | null;
+  trackingStartedAt: string;
+  /** @nullable */
+  openUrl: string | null;
+}
+
+export interface MyTelegramCommunitiesResponse {
+  communities: MyTelegramCommunity[];
+}
+
 export type TelegramManagedCommunityRiddleIntervalMinutes = typeof TelegramManagedCommunityRiddleIntervalMinutes[keyof typeof TelegramManagedCommunityRiddleIntervalMinutes];
 
 

@@ -4096,6 +4096,30 @@ export const AddMyCommunityResponse = zod.object({
 
 
 /**
+ * @summary List tracked Telegram communities and participation for the current participant
+ */
+export const getMyTelegramCommunitiesResponseCommunitiesItemMessageCountMin = 0;
+
+export const getMyTelegramCommunitiesResponseCommunitiesItemQualifyingMessageCountMin = 0;
+
+
+
+
+export const GetMyTelegramCommunitiesResponse = zod.object({
+  "communities": zod.array(zod.object({
+  "chatId": zod.string(),
+  "title": zod.string(),
+  "messageCount": zod.number().int().min(getMyTelegramCommunitiesResponseCommunitiesItemMessageCountMin),
+  "qualifyingMessageCount": zod.number().int().min(getMyTelegramCommunitiesResponseCommunitiesItemQualifyingMessageCountMin),
+  "rank": zod.number().int().min(1).nullable(),
+  "joinedAt": zod.coerce.date().nullable(),
+  "trackingStartedAt": zod.coerce.date(),
+  "openUrl": zod.string().url().nullable()
+}))
+})
+
+
+/**
  * @summary List linked Telegram groups owned by the current organisation profile
  */
 export const GetTelegramCommunityManagementResponse = zod.object({

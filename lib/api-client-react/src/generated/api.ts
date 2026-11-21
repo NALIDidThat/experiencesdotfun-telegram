@@ -138,6 +138,7 @@ import type {
   MilestoneEvidenceInput,
   MyCommunitiesResponse,
   MyNodeConnection,
+  MyTelegramCommunitiesResponse,
   Node,
   NodeConnection,
   NodeConnectionInput,
@@ -9103,6 +9104,83 @@ export const useAddMyCommunity = <TError = ErrorType<BadRequestResponse | Unauth
       > => {
       return useMutation(getAddMyCommunityMutationOptions(options));
     }
+
+export const getGetMyTelegramCommunitiesUrl = () => {
+
+
+
+
+  return `/api/community/me/telegram`
+}
+
+/**
+ * @summary List tracked Telegram communities and participation for the current participant
+ */
+export const getMyTelegramCommunities = async ( options?: Parameters<typeof customFetch>[1]): Promise<MyTelegramCommunitiesResponse> => {
+
+  return customFetch<MyTelegramCommunitiesResponse>(getGetMyTelegramCommunitiesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyTelegramCommunitiesQueryKey = () => {
+    return [
+    `/api/community/me/telegram`
+    ] as const;
+    }
+
+
+export const getGetMyTelegramCommunitiesQueryOptions = <TData = Awaited<ReturnType<typeof getMyTelegramCommunities>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | Error>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyTelegramCommunities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyTelegramCommunitiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyTelegramCommunities>>> = ({ signal }) => getMyTelegramCommunities({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyTelegramCommunities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyTelegramCommunitiesQueryResult = NonNullable<Awaited<ReturnType<typeof getMyTelegramCommunities>>>
+export type GetMyTelegramCommunitiesQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | Error>
+
+
+/**
+ * @summary List tracked Telegram communities and participation for the current participant
+ */
+
+export function useGetMyTelegramCommunities<TData = Awaited<ReturnType<typeof getMyTelegramCommunities>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | Error>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyTelegramCommunities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyTelegramCommunitiesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetTelegramCommunityManagementUrl = () => {
 

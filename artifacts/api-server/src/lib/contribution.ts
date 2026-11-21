@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { and, asc, count, desc, eq, gte, gt, lt, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, gt, inArray, lt, or, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   communityContributionsTable,
@@ -453,6 +453,46 @@ export async function getCommunityRank(chatId: string, userId: number): Promise<
     .from(communityMembersTable)
     .where(and(eq(communityMembersTable.chatId, chatId), ahead));
   return Number(position?.ahead ?? 0) + 1;
+}
+
+export async function getCommunityRanksForUser(
+  chatIds: string[],
+  userId: number,
+): Promise<Map<string, number>> {
+  const uniqueChatIds = [...new Set(chatIds)];
+  if (uniqueChatIds.length === 0) return new Map();
+
+  const rankedMembers = db
+    .select({
+      chatId: communityMembersTable.chatId,
+      userId: communityMembersTable.userId,
+      rank: sql<number>`row_number() over (
+        partition by ${communityMembersTable.chatId}
+        order by
+          ${communityMembersTable.communityXp} desc,
+          ${communityMembersTable.contributionCount} desc,
+          ${communityMembersTable.communityXpUpdatedAt} asc,
+          ${communityMembersTable.userId} asc
+      )`.as("rank"),
+    })
+    .from(communityMembersTable)
+    .where(
+      and(
+        inArray(communityMembersTable.chatId, uniqueChatIds),
+        or(
+          gt(communityMembersTable.communityXp, 0),
+          gt(communityMembersTable.contributionCount, 0),
+        ),
+      ),
+    )
+    .as("ranked_community_members");
+
+  const rows = await db
+    .select({ chatId: rankedMembers.chatId, rank: rankedMembers.rank })
+    .from(rankedMembers)
+    .where(eq(rankedMembers.userId, userId));
+
+  return new Map(rows.map((row) => [row.chatId, Number(row.rank)]));
 }
 
 export async function getCommunityLeaderboard(
