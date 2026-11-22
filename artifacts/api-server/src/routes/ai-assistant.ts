@@ -38,6 +38,42 @@ function parseConversationId(raw: string): number | null {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
+function safeAssistantErrorDetails(error: unknown, phase: string) {
+  const details: Record<string, string | number> = {
+    phase,
+    errorType: error instanceof Error ? error.name : typeof error,
+  };
+  if (typeof error !== "object" || error === null) return details;
+
+  const candidate = error as {
+    code?: unknown;
+    request_id?: unknown;
+    status?: unknown;
+    type?: unknown;
+  };
+  if (
+    typeof candidate.status === "number" &&
+    Number.isInteger(candidate.status) &&
+    candidate.status >= 100 &&
+    candidate.status <= 599
+  ) {
+    details.providerStatus = candidate.status;
+  }
+  for (const key of ["code", "type"] as const) {
+    const value = candidate[key];
+    if (typeof value === "string" && /^[a-zA-Z0-9_.-]{1,64}$/.test(value)) {
+      details[key === "code" ? "providerCode" : "providerErrorType"] = value;
+    }
+  }
+  if (
+    typeof candidate.request_id === "string" &&
+    /^[a-zA-Z0-9_-]{1,128}$/.test(candidate.request_id)
+  ) {
+    details.providerRequestId = candidate.request_id;
+  }
+  return details;
+}
+
 function canUseAssistant(user: ReturnType<typeof currentUser>, res: Response) {
   if (user.userType === "participant" || user.userType === "organisation") return true;
   sendError(
@@ -231,8 +267,10 @@ router.post("/conversations/:conversationId/messages", async (req, res) => {
     if (!res.writableEnded) abortController.abort();
   });
 
+  let failurePhase = "starting";
   try {
     writeEvent(res, { status: "thinking" });
+    failurePhase = "loading_history";
     const history = await db
       .select({
         role: aiAssistantMessagesTable.role,
@@ -260,6 +298,7 @@ router.post("/conversations/:conversationId/messages", async (req, res) => {
     let needsFinalStream = false;
 
     for (let round = 0; round < 2; round += 1) {
+      failurePhase = "requesting_model_tool_decision";
       const toolDecision = await openai.chat.completions.create(
         {
           model: "gpt-5.6-terra",
@@ -287,6 +326,7 @@ router.post("/conversations/:conversationId/messages", async (req, res) => {
       ];
       for (const toolCall of toolCalls) {
         if (toolCall.type !== "function") continue;
+        failurePhase = "executing_assistant_tool";
         const execution = await executeAiAssistantTool(user, {
           name: toolCall.function.name,
           arguments: toolCall.function.arguments,
@@ -311,6 +351,7 @@ router.post("/conversations/:conversationId/messages", async (req, res) => {
     }
 
     if (needsFinalStream || !finalContent) {
+      failurePhase = "streaming_final_response";
       const stream = await openai.chat.completions.create(
         {
           model: "gpt-5.6-terra",
@@ -347,11 +388,13 @@ router.post("/conversations/:conversationId/messages", async (req, res) => {
       finalContent += sourceBlock;
       writeEvent(res, { content: sourceBlock });
     }
+    failurePhase = "saving_assistant_message";
     const [saved] = await saveAssistantMessage(
       conversationId,
       finalContent,
       actions,
     );
+    failurePhase = "updating_conversation";
     await db
       .update(aiConversationsTable)
       .set({ updatedAt: saved?.createdAt ?? new Date() })
@@ -377,10 +420,8 @@ router.post("/conversations/:conversationId/messages", async (req, res) => {
     }
     res.end();
   } catch (assistantError) {
-    const errorType =
-      assistantError instanceof Error ? assistantError.name : typeof assistantError;
     logger.error(
-      { errorType, conversationId, userId: user.id },
+      { ...safeAssistantErrorDetails(assistantError, failurePhase), conversationId },
       "AI assistant request failed",
     );
     writeEvent(res, {
