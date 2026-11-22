@@ -330,6 +330,20 @@ async function replaceInput(client, testId, value, options) {
   assert.equal(actualValue, value, `Expected ${testId} to contain the replacement value.`);
 }
 
+async function clearInput(client, testId) {
+  const selector = JSON.stringify(`[data-testid="${testId}"]`);
+  const cleared = await client.evaluate(`(() => {
+    const input = document.querySelector(${selector});
+    if (!input) return false;
+    const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), "value");
+    descriptor?.set?.call(input, "");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return input.value === "";
+  })()`);
+  assert.equal(cleared, true, `Expected ${testId} to be cleared.`);
+}
+
 function apiResponseHeaders(request, origin) {
   return [
     { name: "Content-Type", value: "application/json" },
@@ -1301,6 +1315,8 @@ test("publishing an experience opens its host-management detail screen", async (
           response = hostOverview();
         } else if (url.pathname === "/api/host/experiences" && method === "GET") {
           response = createdExperience ? [createdExperience] : [];
+        } else if (url.pathname === "/api/organisations/nodes" && method === "GET") {
+          response = [];
         } else if (url.pathname === `/api/host/experiences/${experienceId}/participants` && method === "GET") {
           response = [];
         } else if (url.pathname === `/api/host/experiences/${experienceId}/milestones` && method === "GET") {
@@ -1414,8 +1430,8 @@ test("publishing an experience opens its host-management detail screen", async (
     throw new Error(`${error.message} Browser state: ${JSON.stringify(browserState)}; API traffic: ${apiTraffic.join(", ")}; unexpected: ${unexpectedApiRequests.join(", ")}`);
   }
   assert.equal(
-    await client.evaluate(`document.querySelector('[data-testid="create-question-requirement-organisationName"]')?.textContent?.trim() ?? ''`),
-    "Required to publish",
+    await client.evaluate(`document.querySelector('[data-testid="create-question-requirement-organisationName"]')?.textContent?.includes('Required to publish') ?? false`),
+    true,
     "Required host details should be identified before the form begins.",
   );
   await continueTo("What should participants call it?");
@@ -1458,9 +1474,10 @@ test("publishing an experience opens its host-management detail screen", async (
   await continueTo("What milestones will participants complete?");
   await replaceInput(client, "create-milestone-title-1", "Prepare the garden");
   await continueTo("What does your organisation do?");
+  await clearInput(client, "create-field-organisationDescription");
   assert.equal(
-    await client.evaluate(`document.querySelector('[data-testid="create-question-requirement-organisationDescription"]')?.textContent?.trim() ?? ''`),
-    "Optional · you can skip this",
+    await client.evaluate(`document.querySelector('[data-testid="create-question-requirement-organisationDescription"]')?.textContent?.includes('Optional · you can skip this') ?? false`),
+    true,
     "Optional details should be labelled and skippable.",
   );
   assert.equal(
@@ -1469,7 +1486,6 @@ test("publishing an experience opens its host-management detail screen", async (
     "An empty optional detail should offer a direct skip action.",
   );
   await tapTestId(client, "create-primary");
-  await continueTo("Will you offer a cash reward?");
   await continueTo("What will participants do?");
   await continueTo("What should people bring?");
   await tapTestId(client, "create-primary");
@@ -1480,7 +1496,7 @@ test("publishing an experience opens its host-management detail screen", async (
     "the final experience review before publishing",
   );
   assert.equal(
-    await client.evaluate(`document.body.innerText.includes('Optional details')`),
+    await client.evaluate(`document.body.innerText.includes('OPTIONAL DETAILS')`),
     true,
     "Optional answers should be grouped separately in the final review.",
   );

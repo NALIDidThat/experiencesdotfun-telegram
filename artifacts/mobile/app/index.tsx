@@ -6312,6 +6312,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           {current.userType === 'organisation' && !organisationDescription.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add an organisation description.</Text> : null}
           {profileSaveError ? <InlineError message={profileSaveError} /> : null}
           <Button
+            testID="profile-edit-save"
             label={update.isPending ? 'Saving…' : 'Save profile'}
             disabled={update.isPending || !name.trim() || Boolean(invalidSocialLink) || (current.userType === 'organisation' && (!city.trim() || interests.length === 0 || !organisationName.trim() || !organisationDescription.trim()))}
             onPress={() => void saveProfile()}

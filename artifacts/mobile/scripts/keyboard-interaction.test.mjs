@@ -40,9 +40,10 @@ async function installProfileApiMock(client, { meDelayMs = 0, xpAwardAfterFirstR
     rewardsPence: 0,
   };
   const source = `(() => {
-    const user = ${JSON.stringify(profileUser)};
+    let user = ${JSON.stringify(profileUser)};
     localStorage.setItem("@experiences/auth-token", "email_keyboard-profile-test");
     window.__keyboardTestUnexpectedApi = [];
+    window.__profileTestPatch = null;
     let xpAwardsReadCount = 0;
     const originalFetch = window.fetch.bind(window);
     window.fetch = async (input, init = {}) => {
@@ -55,6 +56,10 @@ async function installProfileApiMock(client, { meDelayMs = 0, xpAwardAfterFirstR
       let data;
       if (url.pathname === "/api/me" && method === "GET") {
         if (${meDelayMs} > 0) await new Promise((resolve) => setTimeout(resolve, ${meDelayMs}));
+        data = user;
+      } else if (url.pathname === "/api/me" && method === "PATCH") {
+        window.__profileTestPatch = JSON.parse(init.body ?? "{}");
+        user = { ...user, ...window.__profileTestPatch };
         data = user;
       } else if (url.pathname === "/api/me/xp-awards" && method === "GET") {
         xpAwardsReadCount += 1;
@@ -84,6 +89,10 @@ async function installProfileApiMock(client, { meDelayMs = 0, xpAwardAfterFirstR
       } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
         status = 202;
         data = { accepted: true };
+      } else if (url.pathname === "/api/organisations/nodes" && method === "GET") {
+        data = [];
+      } else if (url.pathname === "/api/profile-posts" && method === "GET") {
+        data = { items: [], nextCursor: null };
       } else {
         window.__keyboardTestUnexpectedApi.push(method + " " + url.pathname);
         status = 404;
@@ -438,6 +447,24 @@ async function bringTestIdIntoView(client, testId) {
     }
   })()`);
   await delay(80);
+}
+
+async function clearTextInput(client, testId) {
+  const selector = JSON.stringify(`[data-testid="${testId}"]`);
+  await client.evaluate(`(() => {
+    const input = document.querySelector(${selector});
+    if (!input) return;
+    const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), "value");
+    descriptor?.set?.call(input, "");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForValue(
+    client,
+    `document.querySelector(${selector})?.value ?? null`,
+    (value) => value === "",
+    `${testId} to be cleared`,
+  );
 }
 
 async function enterText(client, testId, text) {
@@ -806,6 +833,59 @@ test("actual signup, profile, and experience forms stay usable with the keyboard
 
 });
 
+test("participants can save their profile without a city or interests", async (t) => {
+  const appUrl = getAppPreviewUrl("The participant profile optional-fields test");
+  const client = await launchBrowser(t);
+  await setViewport(client, initialViewport.height);
+  await installProfileApiMock(client);
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=profile` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="profile-menu-toggle"]'))`,
+    Boolean,
+    "the participant profile",
+  );
+  await tapTestId(client, "profile-menu-toggle");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="profile-menu-edit-profile"]'))`,
+    Boolean,
+    "the profile edit action",
+  );
+  await tapTestId(client, "profile-menu-edit-profile");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="profile-edit-city"]') && document.querySelector('[data-testid="profile-edit-interest-environmental"]'))`,
+    Boolean,
+    "the participant profile editor",
+  );
+
+  await bringTestIdIntoView(client, "profile-edit-city");
+  await clearTextInput(client, "profile-edit-city");
+  await bringTestIdIntoView(client, "profile-edit-interest-environmental");
+  await tapTestId(client, "profile-edit-interest-environmental");
+
+  assert.equal(
+    await client.evaluate(`(() => {
+      const button = document.querySelector('[data-testid="profile-edit-save"]');
+      return Boolean(button && !button.disabled && button.getAttribute('aria-disabled') !== 'true');
+    })()`),
+    true,
+    "A participant should still be able to save after clearing their city and interests.",
+  );
+  await bringTestIdIntoView(client, "profile-edit-save");
+  await tapTestId(client, "profile-edit-save");
+  await waitForValue(
+    client,
+    `window.__profileTestPatch`,
+    (patch) => Boolean(patch),
+    "the profile update to reach the API",
+  );
+  const patch = await client.evaluate(`window.__profileTestPatch`);
+  assert.equal(patch.city, null);
+  assert.deepEqual(patch.interests, []);
+});
+
 test("experience creation shows one question and keeps it reachable with the keyboard open", async (t) => {
   const appUrl = getAppPreviewUrl("The mobile preview interaction test");
 
@@ -1106,33 +1186,12 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
   await bringTestIdIntoView(client, "bottom-nav-action-post");
   await waitForValue(
     client,
-    `Boolean(document.querySelector('[data-testid="bottom-nav-action-progress"]'))`,
-    Boolean,
-    "the reopened participant quick-action sheet",
-  );
-  await bringTestIdIntoView(client, "bottom-nav-action-progress");
-  await waitForValue(
-    client,
     `(() => {
       const element = document.querySelector('[data-testid="bottom-nav-action-post"]');
       if (!element) return null;
       const rect = element.getBoundingClientRect();
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-       const parents = [];
-       for (let parent = element.parentElement, depth = 0; parent && depth < 5; parent = parent.parentElement, depth += 1) {
-         const parentRect = parent.getBoundingClientRect();
-         parents.push({
-           tag: parent.tagName,
-           testId: parent.getAttribute('data-testid'),
-           className: String(parent.className ?? '').slice(0, 80),
-           top: parentRect.top,
-           bottom: parentRect.bottom,
-           height: parentRect.height,
-           position: getComputedStyle(parent).position,
-           overflowY: getComputedStyle(parent).overflowY,
-         });
-       }
-       return { visible: rect.top >= 0 && rect.bottom <= viewportHeight, top: rect.top, bottom: rect.bottom, viewportHeight, windowHeight: window.innerHeight, windowScrollY: window.scrollY, parents };
+      return { visible: rect.top >= 0 && rect.bottom <= viewportHeight, top: rect.top, bottom: rect.bottom };
     })()`,
     (position) => position?.visible === true,
     "the participant quick-action sheet to settle inside the viewport",
@@ -1152,25 +1211,19 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
   await tapTestId(client, "bottom-nav-quick-button");
   await waitForValue(
     client,
+    `Boolean(document.querySelector('[data-testid="bottom-nav-action-progress"]'))`,
+    Boolean,
+    "the reopened participant quick-action sheet",
+  );
+  await bringTestIdIntoView(client, "bottom-nav-action-progress");
+  await waitForValue(
+    client,
     `(() => {
       const element = document.querySelector('[data-testid="bottom-nav-action-progress"]');
       if (!element) return null;
       const rect = element.getBoundingClientRect();
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-       const parents = [];
-       for (let parent = element.parentElement, depth = 0; parent && depth < 4; parent = parent.parentElement, depth += 1) {
-         const parentRect = parent.getBoundingClientRect();
-         parents.push({
-           top: parentRect.top,
-           bottom: parentRect.bottom,
-           height: parentRect.height,
-           scrollTop: parent.scrollTop,
-           scrollHeight: parent.scrollHeight,
-           clientHeight: parent.clientHeight,
-           overflowY: getComputedStyle(parent).overflowY,
-         });
-       }
-       return { visible: rect.top >= 0 && rect.bottom <= viewportHeight, top: rect.top, bottom: rect.bottom, viewportHeight, parents };
+      return { visible: rect.top >= 0 && rect.bottom <= viewportHeight, top: rect.top, bottom: rect.bottom };
     })()`,
     (position) => position?.visible === true,
     "the reopened participant quick-action sheet to settle inside the viewport",
