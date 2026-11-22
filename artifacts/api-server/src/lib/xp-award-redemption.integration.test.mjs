@@ -101,6 +101,34 @@ async function postRedemption(baseUrl, sessionToken) {
   return body;
 }
 
+async function getMe(baseUrl, sessionToken) {
+  const response = await fetch(`${baseUrl}/api/me`, {
+    headers: { Authorization: `Bearer ${sessionToken}` },
+  });
+  const body = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(body));
+  return body;
+}
+
+function assertProfileProgress(user, expectedXp) {
+  assert.deepEqual(
+    {
+      xp: user.xp,
+      level: user.level,
+      levelProgress: user.levelProgress,
+      nextLevelXp: user.nextLevelXp,
+      xpToNextLevel: user.xpToNextLevel,
+    },
+    {
+      xp: expectedXp,
+      level: "Explorer",
+      levelProgress: 16,
+      nextLevelXp: 500,
+      xpToNextLevel: 419,
+    },
+  );
+}
+
 test(
   "concurrent and repeated XP redemptions credit each pending award once",
   {
@@ -120,12 +148,15 @@ test(
     });
     const telegramId = `xp-redemption-test-${randomBytes(16).toString("hex")}`;
     const username = `xpr_${randomBytes(12).toString("hex")}`;
+    const communityChatId = `xp-redemption-test-${randomBytes(16).toString("hex")}`;
     const sessionToken = `telegram_${randomBytes(32).toString("base64url")}`;
     const tokenHash = createHash("sha256").update(sessionToken).digest("hex");
     const startBalance = 17;
+    const communityXp = 137;
     const awardAmounts = [23, 41];
     let userId;
     let awardsInserted = false;
+    let communityMemberInserted = false;
     let sessionInserted = false;
     let apiProcess;
 
@@ -134,6 +165,7 @@ test(
         "users",
         "telegram_sessions",
         "xp_awards",
+        "community_members",
         "participations",
         "experiences",
         "organisations",
@@ -160,6 +192,13 @@ test(
         [telegramId, username, startBalance],
       );
       userId = insertedUser.rows[0].id;
+
+      await pool.query(
+        `INSERT INTO community_members (chat_id, chat_title, user_id, community_xp)
+         VALUES ($1, 'XP redemption integration test', $2, $3)`,
+        [communityChatId, userId, communityXp],
+      );
+      communityMemberInserted = true;
 
       await pool.query(
         `INSERT INTO xp_awards (user_id, source_type, source_id, source_title, amount, status)
@@ -240,6 +279,17 @@ test(
       );
       assert.deepEqual(redeemedAmounts, [0, pendingTotal]);
 
+      const successfulRedemption = concurrentResponses.find(
+        (response) => response.redeemedXp === pendingTotal,
+      );
+      assert.ok(successfulRedemption, "One request must redeem the pending XP.");
+      const creditedBalance = startBalance + pendingTotal;
+      assertProfileProgress(successfulRedemption.user, creditedBalance);
+
+      const me = await getMe(baseUrl, sessionToken);
+      assert.equal(me.id, userId);
+      assertProfileProgress(me, creditedBalance);
+
       const afterConcurrentRedemptions = await pool.query(
         `SELECT users.xp,
                 count(xp_awards.id)::int AS award_count,
@@ -267,13 +317,18 @@ test(
 
       const retry = await postRedemption(baseUrl, sessionToken);
       assert.equal(retry.redeemedXp, 0);
-      assert.equal(retry.user.xp, startBalance + pendingTotal);
+      assertProfileProgress(retry.user, creditedBalance);
 
       const finalBalance = await pool.query(
-        "SELECT xp FROM users WHERE id = $1",
-        [userId],
+        `SELECT users.xp,
+                community_members.community_xp
+         FROM users
+         JOIN community_members ON community_members.user_id = users.id
+         WHERE users.id = $1 AND community_members.chat_id = $2`,
+        [userId, communityChatId],
       );
-      assert.equal(finalBalance.rows[0].xp, startBalance + pendingTotal);
+      assert.equal(finalBalance.rows[0].xp, creditedBalance);
+      assert.equal(finalBalance.rows[0].community_xp, communityXp);
     } finally {
       try {
         if (apiProcess) await stopServer(apiProcess);
@@ -291,6 +346,12 @@ test(
               await cleanupClient.query(
                 "DELETE FROM xp_awards WHERE user_id = $1",
                 [userId],
+              );
+            }
+            if (communityMemberInserted) {
+              await cleanupClient.query(
+                "DELETE FROM community_members WHERE chat_id = $1 AND user_id = $2",
+                [communityChatId, userId],
               );
             }
             await cleanupClient.query("DELETE FROM users WHERE id = $1", [
