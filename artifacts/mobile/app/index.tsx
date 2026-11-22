@@ -6522,7 +6522,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
   };
   const organisationName = overview.data?.organisation?.name ?? user?.organisation?.name ?? 'Your organisation';
   const experienceForPeople = allExperiences.find((item) => item.participantCount > 0) ?? allExperiences[0];
-  const openExperience = (item: Experience | undefined, focus?: 'review' | 'waitlisted') => {
+  const openExperience = (item: Experience | undefined, focus?: 'review' | 'waitlisted' | 'participants' | 'milestone-review') => {
     if (!item) return;
     go('host-detail', { id: String(item.id), ...(focus ? { focus } : {}) });
   };
@@ -6532,6 +6532,47 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
     { key: 'waitlist', label: 'Waitlist', value: overview.data?.waitlistCount ?? 0, icon: 'clock' },
     { key: 'completion-reviews', label: 'Completion reviews', value: overview.data?.pendingCompletionReviews ?? 0, icon: 'check-circle' },
     { key: 'milestone-reviews', label: 'Milestone reviews', value: overview.data?.pendingMilestoneReviews ?? 0, icon: 'award' },
+  ];
+  const hostTools: Array<{
+    label: string;
+    detail: string;
+    icon: IconName;
+    disabled: boolean;
+    testID?: string;
+    onPress: () => void;
+  }> = [
+    {
+      label: 'Create experience',
+      detail: 'Publish an opportunity',
+      icon: 'calendar',
+      disabled: false,
+      testID: 'host-tool-create-experience',
+      onPress: () => go('create'),
+    },
+    {
+      label: 'Manage participants',
+      detail: 'View registrations',
+      icon: 'users',
+      disabled: !experienceForPeople,
+      testID: experienceForPeople ? 'host-quick-action-review-participants' : undefined,
+      onPress: () => openExperience(experienceForPeople, 'participants'),
+    },
+    {
+      label: 'Track activity',
+      detail: 'Experience insights',
+      icon: 'bar-chart-2',
+      disabled: !allExperiences.length,
+      testID: 'host-tool-track-impact',
+      onPress: () => setSelectedHostMetric('live'),
+    },
+    {
+      label: 'Milestone reviews',
+      detail: 'Review submissions',
+      icon: 'award',
+      disabled: !allExperiences.length,
+      testID: allExperiences.length ? 'host-quick-action-review-milestones' : undefined,
+      onPress: () => openExperience(allExperiences[0], 'milestone-review'),
+    },
   ];
 
   if (user?.userType !== 'organisation') {
@@ -6660,6 +6701,40 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
       </View>
 
       {overview.isError ? <EmptyState title="Host statistics couldn’t be loaded" body="Check your connection and try again." actionLabel="Try again" onAction={() => { void overview.refetch(); }} /> : null}
+
+      <View style={styles.hostToolsSection}>
+        <View style={styles.hostSectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Host tools</Text>
+          <Text style={[styles.hostSectionHint, { color: colors.mutedForeground, marginTop: 0 }]}>Manage your organisation</Text>
+        </View>
+        <View testID="host-tool-grid" style={styles.hostToolGrid}>
+          {hostTools.map((item) => (
+            <Pressable
+              key={item.label}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.label}. ${item.detail}`}
+              accessibilityState={{ disabled: item.disabled }}
+              disabled={item.disabled}
+              testID={item.testID}
+              onPress={() => { triggerHaptic(); item.onPress(); }}
+              style={({ pressed }) => [
+                styles.hostToolCard,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  borderRadius: colors.radius + 2,
+                  opacity: item.disabled ? 0.5 : pressed ? 0.78 : 1,
+                },
+              ]}
+            >
+              <View style={[styles.hostToolIcon, { backgroundColor: colors.primary + '12' }]}>
+                <Feather name={item.icon} size={18} color={colors.primary} />
+              </View>
+              <Text numberOfLines={2} style={[styles.hostToolLabel, { color: colors.foreground }]}>{item.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
 
       <View style={[styles.hostSectionHeader, styles.hostListSectionHeader]}>
         <View style={styles.hostSectionCopy}>
@@ -6791,75 +6866,32 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
         />
       )}
 
-      {(allExperiences.length > 0 || user.organisation?.type === 'charity') ? <View style={styles.hostQuickActionsSection}>
-        <View style={styles.hostQuickHeading}>
-          <Text style={[styles.hostQuickTitle, { color: colors.foreground }]}>Quick actions</Text>
-          <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>Common tasks to keep things moving.</Text>
-        </View>
-        <View style={styles.hostQuickActions}>
-          {[
-            ...(allExperiences.length > 0
-              ? [
-                  {
-                    label: 'Review participants',
-                    detail: 'Completion submissions',
-                    count: overview.data?.pendingCompletionReviews,
-                    icon: 'users' as const,
-                    color: colors.primary,
-                    onPress: () => openExperience(experienceForPeople, 'review'),
-                    disabled: !experienceForPeople,
-                  },
-                  {
-                    label: 'Review milestones',
-                    detail: 'Milestone submissions',
-                    count: overview.data?.pendingMilestoneReviews,
-                    icon: 'list' as const,
-                    color: colors.primary,
-                    onPress: () => openExperience(allExperiences[0]),
-                    disabled: !allExperiences.length,
-                  },
-                ]
-              : []),
-            ...(user.organisation?.type === 'charity'
-              ? [{
-                  label: 'Fundraising',
-                  detail: 'Manage campaigns and funds',
-                  count: undefined,
-                  icon: 'bar-chart-2' as const,
-                  color: colors.teal,
-                  onPress: () => go('funds'),
-                  disabled: false,
-                }]
-              : []),
-          ].map((action) => (
+      {user.organisation?.type === 'charity' ? (
+        <View style={styles.hostQuickActionsSection}>
+          <View style={styles.hostQuickHeading}>
+            <Text style={[styles.hostQuickTitle, { color: colors.foreground }]}>Fundraising</Text>
+            <Text style={[styles.hostSectionHint, { color: colors.mutedForeground }]}>Manage campaigns and funds.</Text>
+          </View>
+          <View style={styles.hostQuickActions}>
             <Pressable
-              key={action.label}
               accessibilityRole="button"
-              accessibilityLabel={action.label}
-              accessibilityState={{ disabled: action.disabled }}
-              disabled={action.disabled}
-              testID={`host-quick-action-${action.label.toLowerCase().replaceAll(' ', '-')}`}
-              onPress={() => { triggerHaptic(); action.onPress(); }}
-              style={({ pressed }) => [styles.hostQuickAction, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: action.disabled ? 0.45 : pressed ? 0.78 : 1 }]}
+              accessibilityLabel="Fundraising"
+              testID="host-quick-action-fundraising"
+              onPress={() => { triggerHaptic(); go('funds'); }}
+              style={({ pressed }) => [styles.hostQuickAction, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.78 : 1 }]}
             >
-              <View style={[styles.hostQuickIcon, { backgroundColor: action.color + '14' }]}>
-                <Feather name={action.icon} size={17} color={action.color} />
+              <View style={[styles.hostQuickIcon, { backgroundColor: colors.teal + '14' }]}>
+                <Feather name="bar-chart-2" size={17} color={colors.teal} />
               </View>
               <View style={styles.hostQuickCopy}>
-                <Text numberOfLines={1} style={[styles.hostQuickLabel, { color: colors.foreground }]}>{action.label}</Text>
-                <Text numberOfLines={1} style={[styles.hostQuickDetail, { color: colors.mutedForeground }]}>{action.detail}</Text>
+                <Text numberOfLines={1} style={[styles.hostQuickLabel, { color: colors.foreground }]}>Fundraising</Text>
+                <Text numberOfLines={1} style={[styles.hostQuickDetail, { color: colors.mutedForeground }]}>Manage campaigns and funds</Text>
               </View>
-              {action.count !== undefined ? (
-                <View style={[styles.hostQuickCount, { backgroundColor: action.color + '12' }]}>
-                  <Text style={[styles.hostQuickCountText, { color: action.color }]}>{action.count}</Text>
-                </View>
-              ) : null}
               <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
             </Pressable>
-          ))}
+          </View>
         </View>
-      </View>
-      : null}
+      ) : null}
 
       <View style={{ height: 120 }} />
     </KeyboardAwareScrollViewCompat>
@@ -12040,6 +12072,11 @@ const styles = StyleSheet.create({
   hostStatCopy: { flex: 1, minWidth: 0, gap: 2 },
   hostStatValue: { fontSize: 21, lineHeight: 24, fontFamily: 'Inter_700Bold' },
   hostStatLabel: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_500Medium' },
+  hostToolsSection: { gap: 9, marginBottom: 9 },
+  hostToolGrid: { flexDirection: 'row', alignItems: 'stretch', gap: 7 },
+  hostToolCard: { flex: 1, minWidth: 0, minHeight: 86, alignItems: 'center', justifyContent: 'center', borderWidth: 1, paddingHorizontal: 5, paddingVertical: 8, gap: 6 },
+  hostToolIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
+  hostToolLabel: { minHeight: 28, fontSize: 10, lineHeight: 13, fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
   hostMetricExperienceCard: { borderWidth: 1, padding: 12, marginBottom: 10, gap: 9 },
   hostMetricExperienceHeader: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10 },
   hostMetricExperienceIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },

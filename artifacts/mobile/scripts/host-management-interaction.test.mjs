@@ -861,6 +861,25 @@ test("organisation hosts can manage experience participants from a phone-sized d
     Boolean,
     "the loaded Host tools dashboard and experience listing",
   );
+  await setViewport(client, 360);
+  const narrowHostTools = await client.evaluate(`(() => {
+    const cards = [...document.querySelectorAll('[data-testid="host-tool-grid"] [role="button"]')];
+    const rects = cards.map((element) => element.getBoundingClientRect());
+    return {
+      labels: cards.map((element) => element.getAttribute('aria-label')),
+      allVisible: rects.length === 4 && rects.every((rect) => rect.left >= 0 && rect.right <= window.innerWidth),
+      sameRow: rects.length === 4 && rects.every((rect) => Math.abs(rect.top - rects[0].top) <= 1),
+    };
+  })()`);
+  assert.deepEqual(narrowHostTools.labels, [
+    "Create experience. Publish an opportunity",
+    "Manage participants. View registrations",
+    "Track activity. Experience insights",
+    "Milestone reviews. Review submissions",
+  ]);
+  assert.equal(narrowHostTools.allVisible, true, "Host shortcuts should fit the full width on a 360px phone.");
+  assert.equal(narrowHostTools.sameRow, true, "Host shortcuts should remain in one row on a 360px phone.");
+  await setViewport(client);
   if (process.env.HOST_TOOLS_METRICS_SCREENSHOT_PATH) {
     const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
     await writeFile(process.env.HOST_TOOLS_METRICS_SCREENSHOT_PATH, Buffer.from(screenshot.data, "base64"));
