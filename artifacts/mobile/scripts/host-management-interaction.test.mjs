@@ -564,8 +564,12 @@ test("organisation hosts can manage experience participants from a phone-sized d
           response = { notifications: [], unreadCount: 0 };
         } else if (url.pathname === "/api/organisations/verification" && method === "GET") {
           response = { status: "unsubmitted" };
+        } else if (url.pathname === "/api/organisations/nodes" && method === "GET") {
+          response = [];
         } else if (url.pathname === `/api/funds/${user.id}` && method === "GET") {
           response = [];
+        } else if (url.pathname === "/api/profile-posts" && method === "GET") {
+          response = { items: [], nextCursor: null };
         } else if (url.pathname === "/api/host/overview" && method === "GET") {
           response = hostOverview();
         } else if (url.pathname === "/api/host/experiences" && method === "GET") {
@@ -721,20 +725,29 @@ test("organisation hosts can manage experience participants from a phone-sized d
   assert.ok(missionCardText.includes("OUR MISSION"), "The organisation mission card should retain its label.");
   assert.ok(missionCardText.includes("A temporary in-memory host fixture."), "The organisation mission card should show its current description.");
   assert.ok(missionCardText.includes("Environmental"), "The organisation mission card should retain its cause category.");
-  const profileSectionOrder = await client.evaluate(`(() => {
+  const defaultProfileSections = await client.evaluate(`(() => {
     const mission = document.querySelector('[data-testid="organisation-profile-mission"]');
+    const tabs = document.querySelector('[data-testid="organisation-profile-tabs"]');
     const activity = document.querySelector('[data-testid="organisation-activity-dashboard"]');
     const fundraisers = document.querySelector('[data-testid="organisation-fundraiser-section"]');
-    if (!mission || !activity || !fundraisers) return false;
-    const missionBeforeActivity = mission.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING;
-    const activityBeforeFundraisers = activity.compareDocumentPosition(fundraisers) & Node.DOCUMENT_POSITION_FOLLOWING;
-    return Boolean(missionBeforeActivity && activityBeforeFundraisers);
+    if (!mission || !tabs || !activity) return null;
+    const labels = [...tabs.querySelectorAll('[data-testid^="organisation-profile-tab-"]')]
+      .map((element) => element.innerText.trim());
+    return {
+      labels,
+      missionBeforeTabs: Boolean(mission.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING),
+      tabsBeforeActivity: Boolean(tabs.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING),
+      fundraiserVisible: Boolean(fundraisers),
+      postsVisible: Boolean(document.querySelector('[data-testid="profile-posts"]')),
+    };
   })()`);
-  assert.equal(
-    profileSectionOrder,
-    true,
-    "The organisation activity dashboard should appear below its mission and above fundraisers.",
-  );
+  assert.deepEqual(defaultProfileSections, {
+    labels: ["Overview", "Community", "Fundraising"],
+    missionBeforeTabs: true,
+    tabsBeforeActivity: true,
+    fundraiserVisible: false,
+    postsVisible: false,
+  }, "The charity profile should open to Overview and keep community and fundraising content in their sections.");
   const organisationStats = await client.evaluate(`(() => ({
     stats: [...document.querySelectorAll('[data-testid^="organisation-activity-stat-"]')]
       .map((element) => element.innerText.replace(/[^\\x20-\\x7E]/g, ' ').replace(/\\s+/g, ' ').trim()),
@@ -750,6 +763,61 @@ test("organisation hosts can manage experience participants from a phone-sized d
     false,
     "An organisation profile should not show participant XP metrics.",
   );
+  await tapTestId(client, "organisation-profile-tab-community");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="profile-category-tabs"]')) && Boolean(document.querySelector('[data-testid="profile-posts"]')) && Boolean(document.querySelector('[data-testid="profile-friends-overview"]')) && !document.querySelector('[data-testid="organisation-activity-dashboard"]')`,
+    Boolean,
+    "community posts, filters, and connections in their organisation profile section",
+  );
+  const initialProfileFilterColors = await client.evaluate(`(() => ({
+    personal: getComputedStyle(document.querySelector('[data-testid="profile-category-personal"]')).backgroundColor,
+    professional: getComputedStyle(document.querySelector('[data-testid="profile-category-professional"]')).backgroundColor,
+  }))()`);
+  assert.notEqual(initialProfileFilterColors.personal, initialProfileFilterColors.professional,
+    "The current profile post category should remain visibly selected.");
+  await tapTestId(client, "profile-category-professional");
+  await waitForValue(
+    client,
+    `getComputedStyle(document.querySelector('[data-testid="profile-category-professional"]')).backgroundColor`,
+    (color) => color !== initialProfileFilterColors.professional,
+    "the Professional profile post category after switching to Community",
+  );
+  await tapTestId(client, "organisation-profile-tab-overview");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-activity-dashboard"]')) && !document.querySelector('[data-testid="profile-posts"]')`,
+    Boolean,
+    "the Overview section after leaving Community",
+  );
+  await tapTestId(client, "organisation-profile-tab-fundraising");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-fundraiser-section"]')) && !document.querySelector('[data-testid="organisation-activity-dashboard"]') && !document.querySelector('[data-testid="profile-posts"]')`,
+    Boolean,
+    "fundraising content in its own charity profile section",
+  );
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: 360,
+    height: 740,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await waitForValue(client, "window.innerWidth", (width) => width === 360, "the narrow organisation profile viewport");
+  await client.evaluate(`document.querySelector('[data-testid="organisation-profile-tabs"]')?.scrollIntoView({ block: "center" })`);
+  const narrowProfileTabs = await client.evaluate(`(() => {
+    const tabs = [...document.querySelectorAll('[data-testid^="organisation-profile-tab-"]')];
+    const rects = tabs.map((element) => element.getBoundingClientRect());
+    return {
+      labels: tabs.map((element) => element.innerText.trim()),
+      allVisible: rects.every((rect) => rect.left >= 0 && rect.right <= window.innerWidth),
+      sameRow: rects.every((rect) => Math.abs(rect.top - rects[0].top) <= 1),
+    };
+  })()`);
+  assert.deepEqual(narrowProfileTabs.labels, ["Overview", "Community", "Fundraising"]);
+  assert.equal(narrowProfileTabs.allVisible, true, "All charity profile categories should fit on a narrow phone.");
+  assert.equal(narrowProfileTabs.sameRow, true, "Organisation profile categories should stay in one horizontal row.");
+  await setViewport(client);
   if (process.env.ORGANISATION_PROFILE_SCREENSHOT_PATH) {
     await client.evaluate(`document.querySelector('[data-testid="organisation-profile-mission"]')?.scrollIntoView({ block: "center" })`);
     const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
@@ -1987,6 +2055,39 @@ test("charity treasury dashboard shows live values and supports private balance 
   assert.equal(homeState.treasuryCard, false, "The treasury balance card should not appear on the homepage.");
   assert.equal(homeState.treasuryShortcut, false, "The workspace should not duplicate a treasury shortcut.");
   assert.equal(homeState.treasuryTab, true, "The dedicated Treasury tab should remain available.");
+  const getHomeActionOrder = () => client.evaluate(`(() => {
+    const bounds = (element) => {
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom };
+    };
+    const feedHeading = [...document.querySelectorAll('*')]
+      .find((element) => element.children.length === 0 && element.textContent.trim() === 'Activity feed');
+    return {
+      width: window.innerWidth,
+      height: window.visualViewport?.height ?? window.innerHeight,
+      priority: bounds(document.querySelector('[data-testid="organisation-home-priority"]')),
+      filters: bounds(document.querySelector('[data-testid="feed-home-category-tabs"]')),
+      feed: bounds(feedHeading),
+      personalFilter: Boolean(document.querySelector('[data-testid="feed-home-category-personal"]')),
+      professionalFilter: Boolean(document.querySelector('[data-testid="feed-home-category-professional"]')),
+    };
+  })()`);
+  const assertHomeActionOrder = (layout, width, height) => {
+    assert.equal(layout.width, width, "The organisation Home should use the expected phone width.");
+    assert.equal(layout.height, height, "The organisation Home should use the expected phone height.");
+    assert.ok(layout.priority, "The active campaign action should remain visible.");
+    assert.ok(layout.filters, "The Personal and Professional feed filters should remain available.");
+    assert.ok(layout.feed, "The community feed should remain available.");
+    assert.ok(layout.personalFilter && layout.professionalFilter, "Both feed categories should remain present.");
+    assert.ok(layout.priority.top >= 0 && layout.priority.bottom <= height,
+      `The primary organisation action should fit within the first phone viewport: ${JSON.stringify(layout)}`);
+    assert.ok(layout.priority.bottom <= layout.filters.top + 1,
+      "The primary organisation action should appear before feed filters.");
+    assert.ok(layout.filters.bottom <= layout.feed.top + 1,
+      "Feed filters should remain immediately before the community feed.");
+  };
+  assertHomeActionOrder(await getHomeActionOrder(), 402, 874);
   await client.evaluate(
     `document.querySelector('[data-testid="organisation-home"]')?.scrollIntoView({ block: "start" })`,
   );
@@ -1997,6 +2098,42 @@ test("charity treasury dashboard shows live values and supports private balance 
       Buffer.from(screenshot.data, "base64"),
     );
   }
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: 360,
+    height: 740,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await waitForValue(client, "window.innerWidth", (width) => width === 360, "the narrow organisation Home viewport");
+  await delay(150);
+  assertHomeActionOrder(await getHomeActionOrder(), 360, 740);
+  const initialFeedFilterColors = await client.evaluate(`(() => ({
+    personal: getComputedStyle(document.querySelector('[data-testid="feed-home-category-personal"]')).backgroundColor,
+    professional: getComputedStyle(document.querySelector('[data-testid="feed-home-category-professional"]')).backgroundColor,
+  }))()`);
+  assert.notEqual(initialFeedFilterColors.personal, initialFeedFilterColors.professional,
+    "The current feed category should be visibly selected.");
+  await tapTestId(client, "feed-home-category-professional");
+  await waitForValue(
+    client,
+    `getComputedStyle(document.querySelector('[data-testid="feed-home-category-professional"]')).backgroundColor`,
+    (color) => color !== initialFeedFilterColors.professional,
+    "the Professional feed filter after moving it below the primary action",
+  );
+  await tapTestId(client, "feed-home-category-personal");
+  await waitForValue(
+    client,
+    `getComputedStyle(document.querySelector('[data-testid="feed-home-category-personal"]')).backgroundColor`,
+    (color) => color === initialFeedFilterColors.personal,
+    "the Personal feed filter after switching categories",
+  );
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: 402,
+    height: 874,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await waitForValue(client, "window.innerWidth", (width) => width === 402, "the charity dashboard viewport");
   const treasuryRequestCountBeforeCampaignTracker = apiTraffic.filter(
     (request) => request === "GET /api/funds/treasury",
   ).length;

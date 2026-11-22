@@ -5980,6 +5980,8 @@ function FriendsOverviewScreen({
   );
 }
 
+type OrganisationProfileTab = 'overview' | 'community' | 'fundraising';
+
 function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Record<string, string>) => void }) {
   const colors = useColors();
   const { user: authenticatedUser, authError, login, refresh, signOut } = useAuth();
@@ -6024,7 +6026,22 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
   const [profileMenuError, setProfileMenuError] = useState<string | null>(null);
   const [selectedProfileMetric, setSelectedProfileMetric] = useState<ProfileMetricKey | null>(null);
   const [profilePostCategory, setProfilePostCategory] = useState<FeedPostCategory>('personal');
+  const [activeOrganisationProfileTab, setActiveOrganisationProfileTab] = useState<OrganisationProfileTab>('overview');
   const current = profile.data ?? user;
+  const isOrganisationProfile = current.userType === 'organisation';
+  const isCharityProfile = isOrganisationProfile && current.organisation?.type === 'charity';
+  const organisationProfileTabs: Array<{ key: OrganisationProfileTab; label: string }> = isOrganisationProfile
+    ? [
+        { key: 'overview', label: 'Overview' },
+        { key: 'community', label: 'Community' },
+        ...(isCharityProfile ? [{ key: 'fundraising' as const, label: 'Fundraising' }] : []),
+      ]
+    : [];
+  const visibleOrganisationProfileTab = organisationProfileTabs.some(
+    ({ key }) => key === activeOrganisationProfileTab,
+  )
+    ? activeOrganisationProfileTab
+    : 'overview';
   const profileMenuName = (
     current.userType === 'organisation' ? current.organisation?.name : current.name
   )?.trim() || 'Your profile';
@@ -6186,11 +6203,13 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         ]}
       />
       {profileMenuError ? <InlineError message={profileMenuError} /> : null}
-      <FeedCategoryFilters
-        category={profilePostCategory}
-        onCategoryChange={setProfilePostCategory}
-        testIDPrefix="profile"
-      />
+      {!isOrganisationProfile ? (
+        <FeedCategoryFilters
+          category={profilePostCategory}
+          onCategoryChange={setProfilePostCategory}
+          testIDPrefix="profile"
+        />
+      ) : null}
 
       {profile.isError && !profile.data ? (
         <EmptyState title="Profile details didn’t load" body="Your saved profile is still available. Try again." actionLabel="Try again" onAction={() => { void profile.refetch(); }} />
@@ -6331,13 +6350,66 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           setSelectedProfileMetric(metric);
         }}
       />
-      <ProfilePosts
-        profileId={current.id}
-        category={profilePostCategory}
-        onCategoryChange={setProfilePostCategory}
-        showCategoryFilters={false}
-      />
-      {current.userType !== 'participant' ? (
+      {isOrganisationProfile ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          accessibilityLabel="Organisation profile sections"
+          contentContainerStyle={{ minWidth: '100%' }}
+        >
+          <View
+            testID="organisation-profile-tabs"
+            accessibilityRole="tablist"
+            style={[styles.hostDetailTabs, { borderBottomColor: colors.border, flexDirection: 'row' }]}
+          >
+            {organisationProfileTabs.map((tab) => {
+              const selected = visibleOrganisationProfileTab === tab.key;
+              return (
+                <Pressable
+                  key={tab.key}
+                  testID={`organisation-profile-tab-${tab.key}`}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected }}
+                  onPress={() => {
+                    triggerHaptic();
+                    setActiveOrganisationProfileTab(tab.key);
+                  }}
+                  style={[styles.hostDetailTab, selected && { borderBottomColor: colors.primary }]}
+                >
+                  <Text style={[styles.hostDetailTabText, { color: selected ? colors.primary : colors.mutedForeground }]}>
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
+      ) : null}
+      {isOrganisationProfile ? (
+        visibleOrganisationProfileTab === 'community' ? (
+          <>
+            <FeedCategoryFilters
+              category={profilePostCategory}
+              onCategoryChange={setProfilePostCategory}
+              testIDPrefix="profile"
+            />
+            <ProfilePosts
+              profileId={current.id}
+              category={profilePostCategory}
+              onCategoryChange={setProfilePostCategory}
+              showCategoryFilters={false}
+            />
+          </>
+        ) : null
+      ) : (
+        <ProfilePosts
+          profileId={current.id}
+          category={profilePostCategory}
+          onCategoryChange={setProfilePostCategory}
+          showCategoryFilters={false}
+        />
+      )}
+      {isOrganisationProfile && visibleOrganisationProfileTab === 'overview' ? (
         <OrganisationActivityDashboard
           overview={hostOverview.data}
           experiences={hosted.data}
@@ -6351,7 +6423,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
           onCreateExperience={() => go('create')}
         />
       ) : null}
-      {current.userType === 'organisation' && current.organisation?.type === 'charity' ? (
+      {isCharityProfile && visibleOrganisationProfileTab === 'fundraising' ? (
         <OrganisationFundraiserSection organisationUserId={current.id} canLaunch onLaunch={() => go('funds')} />
       ) : null}
 
@@ -6380,29 +6452,31 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         </>
       ) : null}
 
-      <Pressable
-        testID="profile-friends-overview"
-        accessibilityRole="button"
-        accessibilityLabel="Open My Connections"
-        accessibilityHint="Manage friend requests and view your friends."
-        onPress={() => { triggerHaptic(); go('friends'); }}
-        style={({ pressed }) => [
-          styles.friendPersonRow,
-          { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.72 : 1 },
-        ]}
-      >
-        <View style={[styles.friendAvatar, { backgroundColor: colors.primary + '12' }]}>
-          <Feather name="users" size={20} color={colors.primary} />
-        </View>
-        <View style={styles.friendPersonCopy}>
-          <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>My Connections</Text>
-          <Text numberOfLines={2} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>Manage requests and view your circle.</Text>
-        </View>
-        <View style={[styles.friendCountPill, { backgroundColor: colors.primary + '12' }]}>
-          <Text style={[styles.friendCountText, { color: colors.primary }]}>{friends.data?.length ?? 0}</Text>
-        </View>
-        <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-      </Pressable>
+      {!isOrganisationProfile || visibleOrganisationProfileTab === 'community' ? (
+        <Pressable
+          testID="profile-friends-overview"
+          accessibilityRole="button"
+          accessibilityLabel="Open My Connections"
+          accessibilityHint="Manage friend requests and view your friends."
+          onPress={() => { triggerHaptic(); go('friends'); }}
+          style={({ pressed }) => [
+            styles.friendPersonRow,
+            { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.72 : 1 },
+          ]}
+        >
+          <View style={[styles.friendAvatar, { backgroundColor: colors.primary + '12' }]}>
+            <Feather name="users" size={20} color={colors.primary} />
+          </View>
+          <View style={styles.friendPersonCopy}>
+            <Text numberOfLines={1} style={[styles.friendPersonName, { color: colors.foreground }]}>My Connections</Text>
+            <Text numberOfLines={2} style={[styles.friendPersonMeta, { color: colors.mutedForeground }]}>Manage requests and view your circle.</Text>
+          </View>
+          <View style={[styles.friendCountPill, { backgroundColor: colors.primary + '12' }]}>
+            <Text style={[styles.friendCountText, { color: colors.primary }]}>{friends.data?.length ?? 0}</Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+        </Pressable>
+      ) : null}
 
       <View style={{ height: 120 }} />
     </KeyboardAwareScrollViewCompat>

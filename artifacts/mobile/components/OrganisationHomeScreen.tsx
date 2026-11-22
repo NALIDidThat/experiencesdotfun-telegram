@@ -220,12 +220,6 @@ export function OrganisationHomeScreen({ user, go }: Props) {
         </Pressable>
       </View>
 
-      <FeedCategoryFilters
-        category={feedCategory}
-        onCategoryChange={setFeedCategory}
-        testIDPrefix="feed-home"
-      />
-
       <View style={styles.profileRow}>
         <UserAvatar
           avatarUrl={user.avatarUrl}
@@ -248,20 +242,6 @@ export function OrganisationHomeScreen({ user, go }: Props) {
           <Text style={[styles.editText, { color: colors.foreground }]}>Edit</Text>
         </Pressable>
       </View>
-
-      <SocialFeed
-        currentUserId={user.id}
-        category={feedCategory}
-        showCategoryFilters={false}
-        refreshSignal={feedRefreshSignal}
-        onRefreshingChange={setFeedRefreshing}
-        onOpenExperience={(id) => go('experience', { id: String(id) })}
-        onOpenFriend={(friendId) => go('friend-profile', { friendId: String(friendId) })}
-        onOpenSelf={() => go('profile')}
-        onOpenFriends={() => go('friends')}
-        onOpenProfile={() => go('profile')}
-        onOpenExplore={() => go('explore')}
-      />
 
       {canShowPriority ? (
         <>
@@ -375,6 +355,25 @@ export function OrganisationHomeScreen({ user, go }: Props) {
           )}
         </>
       ) : null}
+
+      <FeedCategoryFilters
+        category={feedCategory}
+        onCategoryChange={setFeedCategory}
+        testIDPrefix="feed-home"
+      />
+      <SocialFeed
+        currentUserId={user.id}
+        category={feedCategory}
+        showCategoryFilters={false}
+        refreshSignal={feedRefreshSignal}
+        onRefreshingChange={setFeedRefreshing}
+        onOpenExperience={(id) => go('experience', { id: String(id) })}
+        onOpenFriend={(friendId) => go('friend-profile', { friendId: String(friendId) })}
+        onOpenSelf={() => go('profile')}
+        onOpenFriends={() => go('friends')}
+        onOpenProfile={() => go('profile')}
+        onOpenExplore={() => go('explore')}
+      />
 
       {sectionTitle('Your workspace', 'Manage organisation', () => go('profile'))}
       <View style={styles.workspaceGrid}>

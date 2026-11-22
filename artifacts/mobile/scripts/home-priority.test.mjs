@@ -132,6 +132,73 @@ test("organisation priorities never turn failed requests into zero-count claims"
   );
 });
 
+test("organisation priorities distinguish first experiences from inactive programmes and empty charity funds", () => {
+  const firstExperience = selectOrganisationHomePriority({
+    pendingReviews: 0,
+    experiences: [],
+    totalExperiences: 0,
+    isCharity: false,
+    now,
+  });
+  assert.equal(firstExperience.kind, "create-experience");
+  assert.equal(firstExperience.action, "create");
+
+  const inactiveProgramme = selectOrganisationHomePriority({
+    pendingReviews: 0,
+    experiences: [{ id: 6, title: "Past workshop", date: "2026-10-01", status: "completed" }],
+    totalExperiences: 1,
+    isCharity: false,
+    now,
+  });
+  assert.equal(inactiveProgramme.kind, "manage");
+  assert.equal(inactiveProgramme.action, "host");
+
+  const noActiveCampaign = selectOrganisationHomePriority({
+    pendingReviews: 0,
+    experiences: [{ id: 6, title: "Past workshop", date: "2026-10-01", status: "completed" }],
+    totalExperiences: 1,
+    isCharity: true,
+    funds: [{ id: 10, title: "Past campaign", goalSol: 8, raisedSol: "2", status: "closed" }],
+    now,
+  });
+  assert.equal(noActiveCampaign.kind, "create-campaign");
+  assert.equal(noActiveCampaign.action, "funds");
+});
+
+test("organisation loading and fundraising errors remain explicit", () => {
+  assert.equal(
+    selectOrganisationHomePriority({ overviewLoading: true, isCharity: false }).kind,
+    "loading",
+  );
+  assert.equal(
+    selectOrganisationHomePriority({
+      pendingReviews: 0,
+      experiencesLoading: true,
+      isCharity: false,
+    }).kind,
+    "loading",
+  );
+  const fundsLoading = selectOrganisationHomePriority({
+    pendingReviews: 0,
+    experiences: [],
+    totalExperiences: 1,
+    isCharity: true,
+    fundsLoading: true,
+  });
+  assert.equal(fundsLoading.kind, "loading");
+  assert.equal(fundsLoading.action, "retry-funds");
+
+  const fundsError = selectOrganisationHomePriority({
+    pendingReviews: 0,
+    experiences: [],
+    totalExperiences: 1,
+    isCharity: true,
+    fundsError: true,
+  });
+  assert.equal(fundsError.kind, "error");
+  assert.equal(fundsError.action, "retry-funds");
+});
+
 test("charity campaign summaries use the campaign-linked contribution total", () => {
   const result = selectOrganisationHomePriority({
     pendingReviews: 0,
