@@ -21,6 +21,7 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { HorizontalScrollWithCue } from '@/components/HorizontalScrollWithCue';
+import { KeyboardAccessiblePressable } from '@/components/KeyboardAccessiblePressable';
 import { ProfilePosts } from '@/components/ProfilePosts';
 import { PersonalMemoriesPanel, SavedExperiencesPanel } from '@/components/PersonalCollections';
 import { LearningLibraryPanel } from '@/components/LearningDashboardScreen';
@@ -276,7 +277,7 @@ export function PersonalActivityScreen({
           {personalSections.map((item) => {
             const selected = section === item.key;
             return (
-              <Pressable
+              <KeyboardAccessiblePressable
                 key={item.key}
                 accessibilityRole="button"
                 accessibilityLabel={`Open ${item.label}`}
@@ -295,7 +296,7 @@ export function PersonalActivityScreen({
                 <Text style={[styles.sectionTabText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>
                   {item.label}
                 </Text>
-              </Pressable>
+              </KeyboardAccessiblePressable>
             );
           })}
         </HorizontalScrollWithCue>

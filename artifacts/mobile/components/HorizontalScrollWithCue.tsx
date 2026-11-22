@@ -1,6 +1,5 @@
 import React, { useRef, useState, type ReactNode } from 'react';
 import {
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { KeyboardAccessiblePressable } from '@/components/KeyboardAccessiblePressable';
 
 type Props = {
   accessibilityLabel: string;
@@ -56,7 +56,7 @@ export function HorizontalScrollWithCue({
         {children}
       </ScrollView>
       {hasOverflow ? (
-        <Pressable
+        <KeyboardAccessiblePressable
           accessibilityRole="button"
           accessibilityLabel={isAtEnd ? `Show the first ${accessibilityLabel}` : `Show the remaining ${accessibilityLabel}`}
           accessibilityHint={isAtEnd ? 'Moves the row back to its first options.' : 'Moves the row to its remaining options.'}
@@ -76,7 +76,7 @@ export function HorizontalScrollWithCue({
             {isAtEnd ? 'Back' : 'More'}
           </Text>
           <Feather name={isAtEnd ? 'chevron-left' : 'chevron-right'} size={14} color={colors.foreground} />
-        </Pressable>
+        </KeyboardAccessiblePressable>
       ) : null}
     </View>
   );

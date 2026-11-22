@@ -205,17 +205,18 @@ async function focusTestId(client, testId) {
 }
 
 async function pressKey(client, key) {
-  const windowsVirtualKeyCode = key === "Tab" ? 9 : 13;
+  const windowsVirtualKeyCode = key === "Tab" ? 9 : key === " " ? 32 : 13;
+  const code = key === " " ? "Space" : key;
   await client.send("Input.dispatchKeyEvent", {
     type: "keyDown",
     key,
-    code: key,
+    code,
     windowsVirtualKeyCode,
   });
   await client.send("Input.dispatchKeyEvent", {
     type: "keyUp",
     key,
-    code: key,
+    code,
     windowsVirtualKeyCode,
   });
 }
@@ -534,8 +535,10 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
           personalMemories = [memory, ...personalMemories];
           status = 201;
           response = memory;
-        } else if (/^\/api\/profiles\/\d+\/posts$/.test(url.pathname) && method === "GET") {
-          response = { items: [] };
+        } else if (url.pathname === "/api/profile-posts" && method === "GET") {
+          response = { items: [], nextCursor: null };
+        } else if (url.pathname === "/api/nodes" && method === "GET") {
+          response = [];
         } else if (url.pathname === "/api/feed" && method === "GET") {
           response = {
             items: [],
@@ -970,14 +973,15 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
       testId,
       `Keyboard focus should reach ${personalSectionKeys[index]} in order.`,
     );
-    await pressKey(client, "Enter");
-    await waitForValue(
-      client,
-      `document.querySelector('[data-testid="${testId}"]')?.getAttribute('aria-pressed') ?? null`,
-      (value) => value === "true",
-      `${personalSectionKeys[index]} to be selected with the keyboard`,
-    );
   }
+  await focusTestId(client, "personal-record-tab-route-activities");
+  await pressKey(client, "Enter");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="personal-record-tab-route-activities"]')?.getAttribute('aria-pressed') ?? null`,
+    (value) => value === "true",
+    "Route activities to be selected with the keyboard",
+  );
   await tapTestId(client, "personal-record-tab-activity");
   await waitForValue(
     client,
@@ -1041,7 +1045,8 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
     "professional",
     "The saved-experience API fixture should retain the new category.",
   );
-  await client.send("Page.navigate", { url: `${appUrl}/?screen=activity` });
+  await tapTestId(client, "experience-details-back");
+  await tapTestId(client, "bottom-nav-tab-activity");
   await waitForValue(
     client,
     `Boolean(document.querySelector('[data-testid="personal-record-tab-saved-experiences"]'))`,
@@ -1088,21 +1093,64 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
   );
   assert.match(await client.evaluate(`document.body.innerText`), /Only you/);
 
-  await tapTestId(client, "personal-record-tab-posts");
+  const postsRowAtEnd = await client.evaluate(`(() => {
+    const row = document.querySelector('[data-testid="personal-record-tabs-scroll"]');
+    return row ? row.scrollLeft >= row.scrollWidth - row.clientWidth - 4 : false;
+  })()`);
+  if (!postsRowAtEnd) await tapTestId(client, "personal-record-tabs-cue");
+  await waitForValue(
+    client,
+    `(() => {
+      const row = document.querySelector('[data-testid="personal-record-tabs-scroll"]');
+      const tab = document.querySelector('[data-testid="personal-record-tab-posts"]')?.getBoundingClientRect();
+      const bounds = row?.getBoundingClientRect();
+      return Boolean(row && tab && bounds)
+        && row.scrollLeft >= row.scrollWidth - row.clientWidth - 4
+        && tab.left >= bounds.left - 1
+        && tab.right <= bounds.right + 1;
+    })()`,
+    Boolean,
+    "Posts to be revealed by the section overflow cue",
+  );
+  await tapTestId(client, "personal-record-tab-posts", { scrollIntoView: false });
   await waitForValue(
     client,
     `Boolean(document.querySelector('[data-testid="profile-posts"]'))`,
     Boolean,
     "the existing profile Posts component inside Activity",
   );
+  try {
+    await waitForValue(
+      client,
+      `document.body.innerText.includes('No personal posts to show yet.')`,
+      Boolean,
+      "the empty Posts state after the profile query settles",
+    );
+  } catch (error) {
+    throw new Error(
+      `${error.message}\nPosts requests: ${apiTraffic.filter((request) => request.includes('/posts')).join(', ')}`
+      + `\nUnexpected requests: ${JSON.stringify(unexpectedApiRequests)}`
+      + `\nScreen: ${await client.evaluate('document.body.innerText')}`,
+    );
+  }
+  assert.match(await client.evaluate(`document.body.innerText`), /No personal posts to show yet/);
+  const postsRowAtStart = await client.evaluate(`(document.querySelector('[data-testid="personal-record-tabs-scroll"]')?.scrollLeft ?? 0) <= 1`);
+  if (!postsRowAtStart) await tapTestId(client, "personal-record-tabs-cue");
   await waitForValue(
     client,
-    `document.body.innerText.includes('No posts to show yet.')`,
+    `(() => {
+      const row = document.querySelector('[data-testid="personal-record-tabs-scroll"]');
+      const tab = document.querySelector('[data-testid="personal-record-tab-activity"]')?.getBoundingClientRect();
+      const bounds = row?.getBoundingClientRect();
+      return Boolean(row && tab && bounds)
+        && row.scrollLeft <= 1
+        && tab.left >= bounds.left - 1
+        && tab.right <= bounds.right + 1;
+    })()`,
     Boolean,
-    "the empty Posts state after the profile query settles",
+    "Activity to be revealed by the section overflow cue",
   );
-  assert.match(await client.evaluate(`document.body.innerText`), /No posts to show yet/);
-  await tapTestId(client, "personal-record-tab-activity");
+  await tapTestId(client, "personal-record-tab-activity", { scrollIntoView: false });
   await waitForValue(
     client,
     `Boolean(document.querySelector('[data-testid="activity-entry-challenge-52"]'))`,
@@ -1213,7 +1261,7 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
     "Creating a memory should persist it through the API.",
   );
   assert.ok(
-    apiTraffic.some((request) => request === `GET /api/profiles/${user.id}/posts`),
+    apiTraffic.some((request) => request.startsWith(`GET /api/profile-posts?profileId=${user.id}`)),
     "Posts should reuse the signed-in profile's existing feed.",
   );
   assert.deepEqual(unexpectedApiRequests, [], "The Home flow should only request the fixture-backed APIs.");

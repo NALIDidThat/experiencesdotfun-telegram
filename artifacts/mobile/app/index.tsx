@@ -28,6 +28,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { Feather } from '@expo/vector-icons';
 import { QuickActionIcon } from '@/components/QuickActionIcon';
+import { KeyboardAccessiblePressable } from '@/components/KeyboardAccessiblePressable';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -7648,7 +7649,7 @@ function HostExperienceDetail({
             {detailTabs.map((tab) => {
               const selected = activeDetailTab === tab.key;
               return (
-                <Pressable
+                <KeyboardAccessiblePressable
                   key={tab.key}
                   accessibilityRole="button"
                   accessibilityLabel={`${tab.label} experience section`}
@@ -7659,7 +7660,7 @@ function HostExperienceDetail({
                   style={[styles.hostDetailTab, selected && { borderBottomColor: colors.primary }]}
                 >
                   <Text style={[styles.hostDetailTabText, { color: selected ? colors.primary : colors.mutedForeground }]}>{tab.label}</Text>
-                </Pressable>
+                </KeyboardAccessiblePressable>
               );
             })}
           </HorizontalScrollWithCue>
@@ -7872,7 +7873,7 @@ function HostExperienceDetail({
               const active = participantFilter === option.key;
               const count = participants.isLoading ? '…' : participants.isError ? '—' : filterCounts[option.key];
               return (
-                <Pressable
+                <KeyboardAccessiblePressable
                   key={option.key}
                   accessibilityRole="button"
                   accessibilityLabel={`${option.label}, ${count} participants`}
@@ -7888,7 +7889,7 @@ function HostExperienceDetail({
                 >
                   <Text style={[styles.hostFilterText, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>{option.label}</Text>
                   <Text style={[styles.hostDetailFilterCount, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>{count}</Text>
-                </Pressable>
+                </KeyboardAccessiblePressable>
               );
             })}
           </HorizontalScrollWithCue>

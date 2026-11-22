@@ -307,17 +307,18 @@ async function focusTestId(client, testId) {
 }
 
 async function pressKey(client, key) {
-  const windowsVirtualKeyCode = key === "Tab" ? 9 : 13;
+  const windowsVirtualKeyCode = key === "Tab" ? 9 : key === " " ? 32 : 13;
+  const code = key === " " ? "Space" : key;
   await client.send("Input.dispatchKeyEvent", {
     type: "keyDown",
     key,
-    code: key,
+    code,
     windowsVirtualKeyCode,
   });
   await client.send("Input.dispatchKeyEvent", {
     type: "keyUp",
     key,
-    code: key,
+    code,
     windowsVirtualKeyCode,
   });
 }
