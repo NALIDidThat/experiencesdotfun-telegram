@@ -98,6 +98,83 @@ async function installProfileApiMock(client, { meDelayMs = 0, xpAwardAfterFirstR
   await client.send("Page.addScriptToEvaluateOnNewDocument", { source });
 }
 
+async function installOnboardingApiMock(client, accountType) {
+  const user = {
+    id: accountType === "participant" ? 991 : 992,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    telegramId: null,
+    email: "onboarding.qa@example.test",
+    name: accountType === "participant" ? "Participant QA" : "Organisation QA",
+    username: accountType === "participant" ? "participant_qa" : "organisation_qa",
+    avatarUrl: null,
+    bio: null,
+    city: null,
+    country: null,
+    socialLinks: {},
+    interests: [],
+    participationType: accountType === "participant" ? "join" : "host",
+    userType: accountType,
+    organisation: accountType === "organisation"
+      ? {
+          id: 992,
+          name: "",
+          description: "",
+          city: null,
+          country: null,
+          categories: [],
+          type: "nonprofit",
+          verified: false,
+        }
+      : null,
+    xp: 0,
+    level: "Explorer",
+    levelProgress: 0,
+    nextLevelXp: 500,
+    xpToNextLevel: 500,
+    completedCount: 0,
+    hostedCount: 0,
+    rewardsPence: 0,
+  };
+  const source = `(() => {
+    let user = ${JSON.stringify(user)};
+    localStorage.setItem("@experiences/auth-token", "onboarding_interaction_test");
+    window.__onboardingTestPatch = null;
+    window.__onboardingTestUnexpectedApi = [];
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (input, init = {}) => {
+      const rawUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
+      const url = new URL(rawUrl, window.location.href);
+      if (!url.pathname.startsWith("/api/")) return originalFetch(input, init);
+      const method = String(init.method ?? input.method ?? "GET").toUpperCase();
+      let status = 200;
+      let data;
+      if (url.pathname === "/api/me" && method === "GET") {
+        data = user;
+      } else if (url.pathname === "/api/me" && method === "PATCH") {
+        window.__onboardingTestPatch = JSON.parse(init.body ?? "{}");
+        user = { ...user, ...window.__onboardingTestPatch };
+        data = user;
+      } else if (url.pathname === "/api/me/xp-awards" && method === "GET") {
+        data = { balanceXp: 0, pendingXp: 0, awards: [] };
+      } else if (url.pathname === "/api/auth/telegram" && method === "POST") {
+        data = { user, token: "onboarding_interaction_test" };
+      } else if (url.pathname.endsWith("/analytics/events") && method === "POST") {
+        status = 202;
+        data = { accepted: true };
+      } else {
+        window.__onboardingTestUnexpectedApi.push(method + " " + url.pathname);
+        status = 404;
+        data = { message: "Unexpected API request in onboarding interaction test." };
+      }
+      return new Response(JSON.stringify(data), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      });
+    };
+  })();`;
+  await client.send("Page.addScriptToEvaluateOnNewDocument", { source });
+}
+
 class DevToolsClient {
   #socket;
   #nextId = 0;
@@ -330,6 +407,37 @@ async function tapTestId(client, testId) {
     button: "left",
     clickCount: 1,
   });
+}
+
+async function bringTestIdIntoView(client, testId) {
+  const selector = JSON.stringify(`[data-testid="${testId}"]`);
+  await delay(300);
+  await client.evaluate(`(() => {
+    const target = document.querySelector(${selector});
+    if (!target) return;
+    let scrollable = target.parentElement;
+    while (scrollable) {
+      const style = getComputedStyle(scrollable);
+      if (/(auto|scroll)/.test(style.overflowY) && scrollable.scrollHeight > scrollable.clientHeight) break;
+      scrollable = scrollable.parentElement;
+    }
+    if (scrollable) {
+      const targetRect = target.getBoundingClientRect();
+      const scrollRect = scrollable.getBoundingClientRect();
+      let nextScrollTop = scrollable.scrollTop;
+      if (targetRect.bottom > scrollRect.bottom) {
+        nextScrollTop += targetRect.bottom - scrollRect.bottom + 12;
+      } else if (targetRect.top < scrollRect.top) {
+        nextScrollTop -= scrollRect.top - targetRect.top + 12;
+      }
+      nextScrollTop = Math.max(0, Math.min(scrollable.scrollHeight - scrollable.clientHeight, nextScrollTop));
+      scrollable.scrollTo({ top: nextScrollTop, behavior: "instant" });
+      scrollable.scrollTop = nextScrollTop;
+    } else {
+      target.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+    }
+  })()`);
+  await delay(80);
 }
 
 async function enterText(client, testId, text) {
@@ -910,6 +1018,13 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
 
   await tapTestId(client, "bottom-nav-tab-explore");
   await waitForValue(client, activeTab, (value) => value === "explore", "a standard navigation tap");
+  await tapTestId(client, "bottom-nav-tab-ai");
+  await waitForValue(client, activeTab, (value) => value === "ai", "the AI assistant navigation tab");
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="bottom-nav-tab-ai"]')?.getAttribute('aria-label') ?? ''`),
+    "AI assistant",
+    "The assistant tab should have a clear accessibility label.",
+  );
   await tapTestId(client, "bottom-nav-tab-activity");
   await waitForValue(client, activeTab, (value) => value === "activity", "the Activity tab");
 
@@ -973,8 +1088,8 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
 
   assert.equal(
     await client.evaluate(`document.querySelectorAll('[data-testid^="bottom-nav-tab-"]').length`),
-    4,
-    "The quick-actions button should not become a fifth navigation tab.",
+    5,
+    "The AI assistant should be a primary tab, separate from quick actions.",
   );
   assert.equal(
     await client.evaluate(`document.querySelector('[data-testid="bottom-nav-quick-button"]')?.closest('[data-testid="bottom-nav-tabs"]') ?? null`),
@@ -988,6 +1103,14 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
     Boolean,
     "participant quick actions to open",
   );
+  await bringTestIdIntoView(client, "bottom-nav-action-post");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="bottom-nav-action-progress"]'))`,
+    Boolean,
+    "the reopened participant quick-action sheet",
+  );
+  await bringTestIdIntoView(client, "bottom-nav-action-progress");
   await waitForValue(
     client,
     `(() => {
@@ -995,7 +1118,21 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
       if (!element) return null;
       const rect = element.getBoundingClientRect();
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-      return { visible: rect.top >= 0 && rect.bottom <= viewportHeight, top: rect.top, bottom: rect.bottom };
+       const parents = [];
+       for (let parent = element.parentElement, depth = 0; parent && depth < 5; parent = parent.parentElement, depth += 1) {
+         const parentRect = parent.getBoundingClientRect();
+         parents.push({
+           tag: parent.tagName,
+           testId: parent.getAttribute('data-testid'),
+           className: String(parent.className ?? '').slice(0, 80),
+           top: parentRect.top,
+           bottom: parentRect.bottom,
+           height: parentRect.height,
+           position: getComputedStyle(parent).position,
+           overflowY: getComputedStyle(parent).overflowY,
+         });
+       }
+       return { visible: rect.top >= 0 && rect.bottom <= viewportHeight, top: rect.top, bottom: rect.bottom, viewportHeight, windowHeight: window.innerHeight, windowScrollY: window.scrollY, parents };
     })()`,
     (position) => position?.visible === true,
     "the participant quick-action sheet to settle inside the viewport",
@@ -1020,7 +1157,20 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
       if (!element) return null;
       const rect = element.getBoundingClientRect();
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-      return { visible: rect.top >= 0 && rect.bottom <= viewportHeight, top: rect.top, bottom: rect.bottom };
+       const parents = [];
+       for (let parent = element.parentElement, depth = 0; parent && depth < 4; parent = parent.parentElement, depth += 1) {
+         const parentRect = parent.getBoundingClientRect();
+         parents.push({
+           top: parentRect.top,
+           bottom: parentRect.bottom,
+           height: parentRect.height,
+           scrollTop: parent.scrollTop,
+           scrollHeight: parent.scrollHeight,
+           clientHeight: parent.clientHeight,
+           overflowY: getComputedStyle(parent).overflowY,
+         });
+       }
+       return { visible: rect.top >= 0 && rect.bottom <= viewportHeight, top: rect.top, bottom: rect.bottom, viewportHeight, parents };
     })()`,
     (position) => position?.visible === true,
     "the reopened participant quick-action sheet to settle inside the viewport",
@@ -1040,6 +1190,7 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
     Boolean,
     "the Assistant action in the plus menu",
   );
+  await bringTestIdIntoView(client, "bottom-nav-action-assistant");
   await waitForValue(
     client,
     `(() => {
@@ -1068,6 +1219,7 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
     Boolean,
     "the Challenges action in the plus menu",
   );
+  await bringTestIdIntoView(client, "bottom-nav-action-challenges");
   await waitForValue(
     client,
     `(() => {
@@ -1096,6 +1248,7 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
     Boolean,
     "the Memory Game action in the plus menu",
   );
+  await bringTestIdIntoView(client, "bottom-nav-action-memory-game");
   await waitForValue(
     client,
     `(() => {
@@ -1119,6 +1272,8 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
 
   await client.send("Page.navigate", { url: `${appUrl}/?navTest=organisation` });
   await waitForValue(client, activeTab, (value) => value === "home", "the organisation navigation test screen");
+  await tapTestId(client, "bottom-nav-tab-ai");
+  await waitForValue(client, activeTab, (value) => value === "ai", "the organisation AI assistant tab");
   await tapTestId(client, "bottom-nav-quick-button");
   await waitForValue(
     client,
@@ -1126,6 +1281,7 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
     Boolean,
     "the organisation experience-creation action",
   );
+  await bringTestIdIntoView(client, "bottom-nav-action-create");
   await waitForValue(
     client,
     `(() => {
@@ -1158,5 +1314,153 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
     `document.querySelector('[data-testid="nav-test-quick-action"]')?.textContent?.trim() ?? ''`,
     (value) => value === "telegram-communities",
     "the organisation Telegram group management action",
+  );
+});
+
+test("participants can defer city and interests during onboarding", async (t) => {
+  const appUrl = getAppPreviewUrl("The participant onboarding interaction test");
+  const client = await launchBrowser(t);
+  await setViewport(client, initialViewport.height);
+  await installOnboardingApiMock(client, "participant");
+  await client.send("Page.navigate", { url: `${appUrl}/?onboardingTest=participant` });
+
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="participant-onboarding-primary"]'))`,
+    Boolean,
+    "the participant onboarding form",
+  );
+  await tapTestId(client, "participant-onboarding-primary");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="onboarding-deferred-profile-details"]'))`,
+    Boolean,
+    "the participant preview with deferred profile details",
+  );
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="onboarding-city"]') || document.querySelector('[data-testid^="onboarding-interest-"]'))`),
+    false,
+    "Participant city and interests should not be required onboarding steps.",
+  );
+  await bringTestIdIntoView(client, "participant-onboarding-primary");
+  await tapTestId(client, "participant-onboarding-primary");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="onboarding-test-complete"]'))`,
+    Boolean,
+    "participant onboarding to save successfully",
+  );
+  assert.deepEqual(
+    await client.evaluate(`window.__onboardingTestPatch`),
+    {
+      name: "Participant QA",
+      username: "participant_qa",
+      bio: null,
+      city: null,
+      interests: [],
+      participationType: "join",
+      userType: "participant",
+    },
+    "The profile should save without requiring a city or interests.",
+  );
+  assert.deepEqual(
+    await client.evaluate(`window.__onboardingTestUnexpectedApi`),
+    [],
+    "Participant onboarding should not trigger unexpected API requests.",
+  );
+});
+
+test("organisation onboarding still requires its profile and location details", async (t) => {
+  const appUrl = getAppPreviewUrl("The organisation onboarding interaction test");
+  const client = await launchBrowser(t);
+  await setViewport(client, initialViewport.height);
+  await installOnboardingApiMock(client, "organisation");
+  await client.send("Page.navigate", { url: `${appUrl}/?onboardingTest=organisation` });
+
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="participant-onboarding-primary"]'))`,
+    Boolean,
+    "the organisation onboarding form",
+  );
+  await tapTestId(client, "participant-onboarding-primary");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="onboarding-organisation-name"]'))`,
+    Boolean,
+    "the organisation details step",
+  );
+  const organisationDetailsState = await client.evaluate(`(() => {
+      const button = document.querySelector('[data-testid="participant-onboarding-primary"]');
+      return {
+        disabled: Boolean(button?.disabled || button?.getAttribute('aria-disabled') === 'true'),
+        ariaDisabled: button?.getAttribute('aria-disabled'),
+        name: document.querySelector('[data-testid="onboarding-organisation-name"]')?.value,
+        description: document.querySelector('[data-testid="onboarding-organisation-description"]')?.value,
+        button: button?.outerHTML,
+      };
+    })()`);
+  assert.equal(
+    organisationDetailsState.disabled,
+    true,
+    `Organisation name and description should remain required: ${JSON.stringify(organisationDetailsState)}`,
+  );
+  await bringTestIdIntoView(client, "onboarding-organisation-name");
+  await enterText(client, "onboarding-organisation-name", "Community QA");
+  await bringTestIdIntoView(client, "onboarding-organisation-description");
+  await enterText(client, "onboarding-organisation-description", "A browser-tested community organisation.");
+  await bringTestIdIntoView(client, "participant-onboarding-primary");
+  await tapTestId(client, "participant-onboarding-primary");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="onboarding-city"]'))`,
+    Boolean,
+    "the required organisation location and focus step",
+  );
+  assert.equal(
+    await client.evaluate(`(() => {
+      const button = document.querySelector('[data-testid="participant-onboarding-primary"]');
+      return Boolean(button?.disabled || button?.getAttribute('aria-disabled') === 'true');
+    })()`),
+    true,
+    "An organisation city and cause should remain required.",
+  );
+  await bringTestIdIntoView(client, "onboarding-city");
+  await enterText(client, "onboarding-city", "London");
+  await bringTestIdIntoView(client, "onboarding-interest-environmental");
+  await tapTestId(client, "onboarding-interest-environmental");
+  assert.equal(
+    await client.evaluate(`(() => {
+      const button = document.querySelector('[data-testid="participant-onboarding-primary"]');
+      return Boolean(button?.disabled || button?.getAttribute('aria-disabled') === 'true');
+    })()`),
+    false,
+    "Completing the required location and cause should allow the organisation flow to continue.",
+  );
+  await bringTestIdIntoView(client, "participant-onboarding-primary");
+  await tapTestId(client, "participant-onboarding-primary");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('ORGANISATION PROFILE')`,
+    Boolean,
+    "the final organisation profile preview",
+  );
+  await bringTestIdIntoView(client, "participant-onboarding-primary");
+  await tapTestId(client, "participant-onboarding-primary");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="onboarding-test-complete"]'))`,
+    Boolean,
+    "organisation onboarding to save successfully",
+  );
+  const saved = await client.evaluate(`window.__onboardingTestPatch`);
+  assert.equal(saved.city, "London");
+  assert.deepEqual(saved.interests, ["environmental"]);
+  assert.equal(saved.organisation.name, "Community QA");
+  assert.equal(saved.organisation.description, "A browser-tested community organisation.");
+  assert.deepEqual(
+    await client.evaluate(`window.__onboardingTestUnexpectedApi`),
+    [],
+    "Organisation onboarding should not trigger unexpected API requests.",
   );
 });

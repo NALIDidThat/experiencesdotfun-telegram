@@ -1413,7 +1413,11 @@ test("publishing an experience opens its host-management detail screen", async (
     })`);
     throw new Error(`${error.message} Browser state: ${JSON.stringify(browserState)}; API traffic: ${apiTraffic.join(", ")}; unexpected: ${unexpectedApiRequests.join(", ")}`);
   }
-  await continueTo("What does your organisation do?");
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="create-question-requirement-organisationName"]')?.textContent?.trim() ?? ''`),
+    "Required to publish",
+    "Required host details should be identified before the form begins.",
+  );
   await continueTo("What should participants call it?");
   await replaceInput(client, "create-field-title", "Publish handoff test");
   await continueTo("What is the experience about?");
@@ -1453,6 +1457,18 @@ test("publishing an experience opens its host-management detail screen", async (
   await continueTo("How will you recognise participants?");
   await continueTo("What milestones will participants complete?");
   await replaceInput(client, "create-milestone-title-1", "Prepare the garden");
+  await continueTo("What does your organisation do?");
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="create-question-requirement-organisationDescription"]')?.textContent?.trim() ?? ''`),
+    "Optional · you can skip this",
+    "Optional details should be labelled and skippable.",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="create-primary"]')?.textContent?.includes('Skip optional detail') ?? false`),
+    true,
+    "An empty optional detail should offer a direct skip action.",
+  );
+  await tapTestId(client, "create-primary");
   await continueTo("Will you offer a cash reward?");
   await continueTo("What will participants do?");
   await continueTo("What should people bring?");
@@ -1462,6 +1478,21 @@ test("publishing an experience opens its host-management detail screen", async (
     `Boolean(document.querySelector('[data-testid="create-review-heading"]'))`,
     Boolean,
     "the final experience review before publishing",
+  );
+  assert.equal(
+    await client.evaluate(`document.body.innerText.includes('Optional details')`),
+    true,
+    "Optional answers should be grouped separately in the final review.",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="create-review-requirement-title"]')?.textContent?.trim() ?? ''`),
+    "REQUIRED",
+    "Required experience details should be identified in the final review.",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="create-review-requirement-whatToBring"]')?.textContent?.trim() ?? ''`),
+    "OPTIONAL",
+    "Optional experience details should be identified in the final review.",
   );
   const publishButtonState = await client.evaluate(`(() => {
     const button = document.querySelector('[data-testid="create-primary"]');

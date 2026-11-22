@@ -247,10 +247,10 @@ function screenHistoryKey(entry: ScreenHistoryEntry) {
 
 function isPrimaryNavigationScreen(screen: Screen, userType?: string | null, isCharity = false) {
   if (userType === 'organisation') {
-    return ['home', 'host', 'experiences', 'profile'].includes(screen)
+    return ['home', 'host', 'experiences', 'ai', 'profile'].includes(screen)
       || (isCharity ? screen === 'funds' : screen === 'explore');
   }
-  return ['home', 'explore', 'activity', 'profile'].includes(screen);
+  return ['home', 'explore', 'ai', 'activity', 'profile'].includes(screen);
 }
 
 function defaultBackEntry(entry: ScreenHistoryEntry): ScreenHistoryEntry {
@@ -1890,7 +1890,7 @@ function Onboarding({
   const update = useUpdateMe();
   const { refresh } = useAuth();
   const accountType = user.userType ?? initialAccountType;
-  const totalSteps = 4;
+  const totalSteps = accountType === 'organisation' ? 4 : 2;
   const [step, setStep] = useState(1);
   const [interests, setInterests] = useState<ExperienceCategory[]>(user.interests ?? []);
   const [city, setCity] = useState(user.city ?? '');
@@ -1915,9 +1915,7 @@ function Onboarding({
       ]
     : [
         { label: 'YOUR PROFILE', eyebrow: 'FIRST, THE BASICS', title: 'A name people will recognise.', description: 'This is how you’ll appear to people you meet through Experiences.fun.', icon: 'user' as IconName },
-        { label: 'YOUR INTERESTS', eyebrow: 'WHAT YOU CARE ABOUT', title: 'What would you like to do more of?', description: 'Choose the causes you want to see first. Select at least one.', icon: 'heart' as IconName },
-        { label: 'YOUR AREA', eyebrow: 'MAKE IT LOCAL', title: 'Where do you want to get involved?', description: 'We’ll use your city to surface experiences and opportunities nearby.', icon: 'map-pin' as IconName },
-        { label: 'PROFILE PREVIEW', eyebrow: 'READY TO BEGIN', title: 'Your passport is taking shape.', description: 'Review the essentials before creating your profile.', icon: 'award' as IconName },
+        { label: 'PROFILE PREVIEW', eyebrow: 'READY TO BEGIN', title: 'Your passport is taking shape.', description: 'Review the essentials and start exploring. You can add a city and interests later.', icon: 'award' as IconName },
       ];
   const activeStep = steps[step - 1];
 
@@ -1941,6 +1939,7 @@ function Onboarding({
         key={item.key}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: selected }}
+        testID={`onboarding-interest-${item.key}`}
         onPress={() => toggleInterest(interest)}
         style={[
           styles.interestCard,
@@ -1968,7 +1967,6 @@ function Onboarding({
     triggerHaptic();
     Keyboard.dismiss();
     if (step === 1 && (!name.trim() || !usernameIsValid)) return;
-    if (step === 2 && accountType === 'participant' && interests.length === 0) return;
     if (step === 2 && accountType === 'organisation' && (!organisationName.trim() || !organisationDescription.trim())) return;
     if (step === 3 && (!city.trim() || (accountType === 'organisation' && interests.length === 0))) return;
     if (step === totalSteps && accountType === 'organisation' && !organisationType) {
@@ -2004,7 +2002,7 @@ function Onboarding({
               name: name.trim(),
               username: normalizedUsername,
               bio: bio.trim() || null,
-              city: city.trim(),
+              city: city.trim() || null,
               interests,
               participationType: 'join' as const,
               userType: accountType,
@@ -2030,9 +2028,7 @@ function Onboarding({
 
   const stepIsInvalid =
     (step === 1 && (!name.trim() || !usernameIsValid)) ||
-    (step === 2 && (accountType === 'participant'
-      ? interests.length === 0
-      : !organisationName.trim() || !organisationDescription.trim())) ||
+    (step === 2 && accountType === 'organisation' && (!organisationName.trim() || !organisationDescription.trim())) ||
     (step === 3 && (!city.trim() || (accountType === 'organisation' && interests.length === 0)));
 
   const reviewItems = accountType === 'organisation'
@@ -2045,8 +2041,6 @@ function Onboarding({
     : [
         { label: 'Display name', value: name.trim() || 'Add your name', step: 1 },
         { label: 'Username', value: normalizedUsername ? `@${normalizedUsername}` : 'Choose a username', step: 1 },
-        { label: 'Interests', value: interests.map((value) => categoryLabel[value]).join(', ') || 'Choose interests', step: 2 },
-        { label: 'City', value: city.trim() || 'Add your city', step: 3 },
       ];
 
   return (
@@ -2078,6 +2072,7 @@ function Onboarding({
               {accountType === 'organisation' ? 'Contact name' : 'Display name'}
             </Text>
             <TextInput
+              testID="onboarding-display-name"
               accessibilityLabel={accountType === 'organisation' ? 'Contact name' : 'Display name'}
               value={name}
               onChangeText={setName}
@@ -2090,6 +2085,7 @@ function Onboarding({
             />
             <Text style={[styles.flowFieldLabel, { color: colors.foreground }]}>Public username</Text>
             <TextInput
+              testID="onboarding-username"
               accessibilityLabel="Public username"
               value={username}
               onChangeText={setUsername}
@@ -2109,16 +2105,11 @@ function Onboarding({
           </View>
         ) : null}
 
-        {step === 2 && accountType === 'participant' ? (
-          <View style={styles.interestList}>
-            {categories.slice(1).map(renderInterestOption)}
-          </View>
-        ) : null}
-
         {step === 2 && accountType === 'organisation' ? (
           <View style={styles.flowForm}>
             <Text style={[styles.flowFieldLabel, { color: colors.foreground }]}>Organisation name</Text>
             <TextInput
+              testID="onboarding-organisation-name"
               accessibilityLabel="Organisation name"
               value={organisationName}
               onChangeText={setOrganisationName}
@@ -2133,6 +2124,7 @@ function Onboarding({
               <Text style={[styles.optionalLabel, { color: colors.mutedForeground }]}>Required</Text>
             </View>
             <TextInput
+              testID="onboarding-organisation-description"
               accessibilityLabel="Organisation description"
               value={organisationDescription}
               onChangeText={setOrganisationDescription}
@@ -2153,6 +2145,7 @@ function Onboarding({
               {accountType === 'organisation' ? 'Organisation city' : 'City or area'}
             </Text>
             <TextInput
+              testID="onboarding-city"
               accessibilityLabel={accountType === 'organisation' ? 'Organisation city' : 'City or area'}
               value={city}
               onChangeText={setCity}
@@ -2208,8 +2201,12 @@ function Onboarding({
                   : `Participant${city.trim() ? ` · ${city.trim()}` : ''}`}
               </Text>
               <View style={styles.profilePreviewLocation}>
-                <Feather name="map-pin" size={14} color={colors.primaryForeground} />
-                <Text style={[styles.profilePreviewLocationText, { color: colors.primaryForeground }]}>{city.trim() || 'Your city'}</Text>
+                {city.trim() ? (
+                  <>
+                    <Feather name="map-pin" size={14} color={colors.primaryForeground} />
+                    <Text style={[styles.profilePreviewLocationText, { color: colors.primaryForeground }]}>{city.trim()}</Text>
+                  </>
+                ) : null}
               </View>
               <View style={styles.profilePreviewTags}>
                 {interests.map((interest) => (
@@ -2239,6 +2236,17 @@ function Onboarding({
                 </View>
               ))}
             </View>
+            {accountType === 'participant' ? (
+              <View
+                testID="onboarding-deferred-profile-details"
+                style={[styles.flowTip, { backgroundColor: colors.muted }]}
+              >
+                <Feather name="edit-2" size={16} color={colors.primary} />
+                <Text style={[styles.flowTipText, { color: colors.mutedForeground }]}>
+                  City and interests are optional for now. Add them any time from Edit profile to personalise local recommendations.
+                </Text>
+              </View>
+            ) : null}
 
             <View style={styles.bioSection}>
               <View style={styles.flowFieldLabelRow}>
@@ -2266,6 +2274,7 @@ function Onboarding({
       <View style={[styles.flowFooter, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         {saveError ? <InlineError message={saveError} /> : null}
         <Button
+          testID="participant-onboarding-primary"
           label={update.isPending ? 'Saving profile…' : step === totalSteps ? (accountType === 'organisation' ? 'Create organisation profile' : 'Create my passport') : 'Continue'}
           disabled={update.isPending || stepIsInvalid}
           onPress={() => { void next(); }}
@@ -6053,7 +6062,7 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
       }
       const baseData = {
         name: name.trim(),
-        city: city.trim(),
+        city: city.trim() || (current.userType === 'participant' ? null : ''),
         bio: bio.trim() || null,
         interests,
         socialLinks: normalizedSocialLinks,
@@ -6240,14 +6249,25 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
             </>
           ) : null}
           <TextInput testID="profile-edit-name" value={name} onChangeText={setName} placeholder={current.userType === 'organisation' ? 'Contact name' : 'Display name'} placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
-          <TextInput testID="profile-edit-city" value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
+          <View style={styles.flowFieldLabelRow}>
+            <Text style={[styles.formLabel, { color: colors.foreground }]}>City</Text>
+            <Text style={[styles.optionalLabel, { color: colors.mutedForeground }]}>
+              {current.userType === 'participant' ? 'Optional' : 'Required'}
+            </Text>
+          </View>
+          <TextInput testID="profile-edit-city" accessibilityLabel="City" value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
           <TextInput testID="profile-edit-bio" value={bio} onChangeText={setBio} multiline placeholder={current.userType === 'organisation' ? 'Short contact bio' : 'Short bio'} placeholderTextColor={colors.mutedForeground} style={[styles.input, styles.bioInput, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.background, borderRadius: colors.radius }]} />
-          <Text style={[styles.formLabel, { color: colors.foreground }]}>{current.userType === 'organisation' ? 'Causes your organisation supports' : 'Interests'}</Text>
+          <View style={styles.flowFieldLabelRow}>
+            <Text style={[styles.formLabel, { color: colors.foreground }]}>{current.userType === 'organisation' ? 'Causes your organisation supports' : 'Interests'}</Text>
+            <Text style={[styles.optionalLabel, { color: colors.mutedForeground }]}>
+              {current.userType === 'participant' ? 'Optional' : 'Required'}
+            </Text>
+          </View>
           <View style={styles.onboardingChoices}>
             {categories.slice(1).map((item) => {
               const selected = interests.includes(item.key as ExperienceCategory);
               return (
-                <Pressable key={item.key} onPress={() => setInterests((currentInterests) => selected ? currentInterests.filter((value) => value !== item.key) : [...currentInterests, item.key as ExperienceCategory])} style={[styles.choiceCard, { backgroundColor: selected ? colors.primary + '10' : colors.background, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}>
+                <Pressable key={item.key} testID={`profile-edit-interest-${item.key}`} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} onPress={() => setInterests((currentInterests) => selected ? currentInterests.filter((value) => value !== item.key) : [...currentInterests, item.key as ExperienceCategory])} style={[styles.choiceCard, { backgroundColor: selected ? colors.primary + '10' : colors.background, borderColor: selected ? colors.primary : colors.border, borderRadius: colors.radius }]}>
                   <ExperienceCategoryArtwork category={item.key as ExperienceCategory} size={42} />
                   <Text style={[styles.choiceTitle, { color: selected ? colors.primary : colors.foreground }]}>{item.label}</Text>
                   <Feather name={selected ? 'check-circle' : 'circle'} size={20} color={selected ? colors.primary : colors.border} />
@@ -6286,14 +6306,14 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
             );
           })}
           {!name.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add a display name to save your profile.</Text> : null}
-          {!city.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add a city to save your profile.</Text> : null}
-          {!interests.length ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Choose at least one interest to save your profile.</Text> : null}
+          {current.userType === 'organisation' && !city.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add a city to save your organisation profile.</Text> : null}
+          {current.userType === 'organisation' && !interests.length ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Choose at least one cause for your organisation.</Text> : null}
           {current.userType === 'organisation' && !organisationName.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add an organisation name.</Text> : null}
           {current.userType === 'organisation' && !organisationDescription.trim() ? <Text style={[styles.inputHint, { color: colors.destructive }]}>Add an organisation description.</Text> : null}
           {profileSaveError ? <InlineError message={profileSaveError} /> : null}
           <Button
             label={update.isPending ? 'Saving…' : 'Save profile'}
-            disabled={update.isPending || !name.trim() || !city.trim() || interests.length === 0 || Boolean(invalidSocialLink) || (current.userType === 'organisation' && (!organisationName.trim() || !organisationDescription.trim()))}
+            disabled={update.isPending || !name.trim() || Boolean(invalidSocialLink) || (current.userType === 'organisation' && (!city.trim() || interests.length === 0 || !organisationName.trim() || !organisationDescription.trim()))}
             onPress={() => void saveProfile()}
           />
         </View>
@@ -8384,7 +8404,6 @@ type MilestoneDraft = {
 
 const createExperienceQuestions: CreateExperienceQuestion[] = [
   { key: 'organisationName', prompt: 'Who is hosting?', description: 'Participants will see this name on your experience.', label: 'Organisation name', placeholder: 'e.g. The Good Gym' },
-  { key: 'organisationDescription', prompt: 'What does your organisation do?', description: 'A short introduction helps people understand who you are.', label: 'About your organisation', placeholder: 'A sentence or two about your community', multiline: true, optional: true },
   { key: 'title', prompt: 'What should participants call it?', description: 'Choose a clear, welcoming title for your experience.', label: 'Experience title', placeholder: 'e.g. Make a river wild again' },
   { key: 'description', prompt: 'What is the experience about?', description: 'Tell people what makes this worth showing up for.', label: 'Experience description', placeholder: 'Give your experience a warm, inviting introduction', multiline: true },
   { key: 'category', prompt: 'What kind of experience is it?', description: 'Choose the category that best fits what people will do.', label: 'Category', placeholder: '', kind: 'category' },
@@ -8396,18 +8415,19 @@ const createExperienceQuestions: CreateExperienceQuestion[] = [
   { key: 'capacity', prompt: 'How many people can join?', description: 'Set the number of confirmed places available.', label: 'Places available', placeholder: '12', keyboardType: 'number-pad', hint: 'You can manage a waitlist if all places fill.' },
   { key: 'xpReward', prompt: 'How will you recognise participants?', description: 'Choose the XP reward people earn after their participation is verified.', label: 'XP reward', placeholder: '', hint: 'Slide to select the XP reward.' },
   { key: 'milestones', prompt: 'What milestones will participants complete?', description: 'Split the XP reward across clear steps. Each step is submitted by the participant and verified by you before its XP is released.', label: 'Experience milestones', placeholder: '', kind: 'milestones' },
+  { key: 'organisationDescription', prompt: 'What does your organisation do?', description: 'A short introduction helps people understand who you are.', label: 'About your organisation', placeholder: 'A sentence or two about your community', multiline: true, optional: true },
   { key: 'monetaryRewardPence', prompt: 'Will you offer a cash reward?', description: 'This is optional. Enter the amount in pence.', label: 'Cash reward in pence', placeholder: '2000', keyboardType: 'number-pad', optional: true, hint: 'For example, enter 2000 for a £20 reward.' },
   { key: 'whatYouWillDo', prompt: 'What will participants do?', description: 'Help people picture the activity before they sign up.', label: 'What participants will do', placeholder: 'Walk, make, chat, discover…', multiline: true, optional: true },
   { key: 'whatToBring', prompt: 'What should people bring?', description: 'Share anything participants should have with them.', label: 'What to bring', placeholder: 'Comfortable shoes and a curious mind', multiline: true, optional: true },
 ];
 
 const createExperienceReviewSections: Array<{ title: string; keys: Array<keyof ExperienceCreateInput> }> = [
-  { title: 'Host', keys: ['organisationName', 'organisationDescription'] },
+  { title: 'Host', keys: ['organisationName'] },
   { title: 'Experience', keys: ['title', 'description', 'category'] },
   { title: 'When', keys: ['date', 'startTime', 'endTime'] },
   { title: 'Where', keys: ['city', 'location'] },
-  { title: 'Places and rewards', keys: ['capacity', 'xpReward', 'milestones', 'monetaryRewardPence'] },
-  { title: 'What to expect', keys: ['whatYouWillDo', 'whatToBring'] },
+  { title: 'Places and rewards', keys: ['capacity', 'xpReward', 'milestones'] },
+  { title: 'Optional details', keys: ['organisationDescription', 'monetaryRewardPence', 'whatYouWillDo', 'whatToBring'] },
 ];
 
 function parseExperienceDraft(value: string | string[] | undefined): Partial<ExperienceCreateInput> | undefined {
@@ -8870,6 +8890,27 @@ function CreateExperienceForm({
               ? 'Check the changes below. Tap any row to make an edit before saving.'
               : 'Check the details below. Tap any row to make an edit before publishing.')}
           </Text>
+          {activeQuestion ? (
+            <View
+              testID={`create-question-requirement-${activeQuestion.key}`}
+              style={[
+                styles.createRequirementPill,
+                { backgroundColor: activeQuestion.optional ? colors.muted : colors.primary + '12' },
+              ]}
+            >
+              <Feather
+                name={activeQuestion.optional ? 'info' : 'check-circle'}
+                size={14}
+                color={activeQuestion.optional ? colors.mutedForeground : colors.primary}
+              />
+              <Text style={[
+                styles.createRequirementText,
+                { color: activeQuestion.optional ? colors.mutedForeground : colors.primary },
+              ]}>
+                {activeQuestion.optional ? 'Optional · you can skip this' : 'Required to publish'}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {!user ? <TelegramConnectCard /> : null}
@@ -9127,9 +9168,20 @@ function CreateExperienceForm({
                         style={({ pressed }) => [styles.createReviewRow, pressed && { opacity: 0.65 }]}
                       >
                         <View style={styles.createReviewCopy}>
-                          <Text style={[styles.createReviewLabel, { color: colors.mutedForeground }]}>
-                            {question.label}{question.optional ? ' · optional' : ''}
-                          </Text>
+                          <View style={styles.createReviewLabelRow}>
+                            <Text style={[styles.createReviewLabel, { color: colors.mutedForeground }]}>
+                              {question.label}
+                            </Text>
+                            <Text
+                              testID={`create-review-requirement-${key}`}
+                              style={[
+                                styles.createReviewRequirement,
+                                { color: question.optional ? colors.mutedForeground : colors.primary },
+                              ]}
+                            >
+                              {question.optional ? 'OPTIONAL' : 'REQUIRED'}
+                            </Text>
+                          </View>
                           <Text numberOfLines={2} style={[styles.createReviewValue, { color: colors.foreground }]}>{reviewValue(key)}</Text>
                         </View>
                         <Feather name="edit-2" size={16} color={colors.primary} />
@@ -9211,7 +9263,10 @@ function CreateExperienceForm({
                   <Text style={[styles.createPrimaryText, { color: (step !== totalSteps || valid) ? colors.primaryForeground : colors.mutedForeground }]}>
                     {step === totalSteps
                       ? isEditing ? 'Save changes' : 'Publish experience'
-                      : returnToReview ? 'Save changes' : step === inputStepCount ? 'Review details' : 'Continue'}
+                      : returnToReview ? 'Save changes'
+                        : activeQuestion?.optional && (form[activeQuestion.key] == null || form[activeQuestion.key] === '')
+                          ? 'Skip optional detail'
+                          : step === inputStepCount ? 'Review details' : 'Continue'}
                   </Text>
                   <Feather name={step === totalSteps ? isEditing ? 'save' : 'send' : returnToReview ? 'check' : 'arrow-right'} size={20} color={(step !== totalSteps || valid) ? colors.primaryForeground : colors.mutedForeground} />
                 </>
@@ -9293,18 +9348,20 @@ function BottomNav({
     Platform.OS === 'ios' &&
     isLiquidGlassAvailable() &&
     isGlassEffectAPIAvailable();
-  const items: Array<{ key: Screen; label: string; icon: IconName }> = userType === 'organisation'
+  const items: Array<{ key: Screen; label: string; icon: IconName; accessibilityLabel?: string }> = userType === 'organisation'
     ? [
         { key: 'home', label: 'Home', icon: 'home' },
         { key: 'host', label: 'Experiences', icon: 'calendar' },
         canLaunchFunds
           ? { key: 'funds', label: 'Treasury', icon: 'credit-card' }
           : { key: 'explore', label: 'Explore', icon: 'compass' },
+        { key: 'ai', label: 'AI', icon: 'message-square', accessibilityLabel: 'AI assistant' },
         { key: 'profile', label: 'Profile', icon: 'user' },
       ]
     : [
         { key: 'home', label: 'Home', icon: 'home' },
         { key: 'explore', label: 'Explore', icon: 'compass' },
+        { key: 'ai', label: 'AI', icon: 'message-square', accessibilityLabel: 'AI assistant' },
         { key: 'activity', label: 'Activity', icon: 'activity' },
         { key: 'profile', label: 'Profile', icon: 'user' },
       ];
@@ -9593,7 +9650,7 @@ function BottomNav({
           return (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={item.label}
+              accessibilityLabel={item.accessibilityLabel ?? item.label}
               accessibilityHint="Press and slide across the bar to switch sections."
               accessibilityState={{ selected: active === item.key }}
               testID={`bottom-nav-tab-${item.key}`}
@@ -10138,8 +10195,68 @@ function BottomNavInteractionHarness({ userType = 'participant' }: { userType?: 
   );
 }
 
+function OnboardingInteractionHarness({ accountType }: { accountType: UserType }) {
+  const [completed, setCompleted] = useState(false);
+  const colors = useColors();
+  const user: User = {
+    id: accountType === 'participant' ? 991 : 992,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    telegramId: null,
+    email: 'onboarding.qa@example.test',
+    name: accountType === 'participant' ? 'Participant QA' : 'Organisation QA',
+    username: accountType === 'participant' ? 'participant_qa' : 'organisation_qa',
+    avatarUrl: null,
+    bio: null,
+    city: null,
+    country: null,
+    socialLinks: {},
+    interests: [],
+    participationType: accountType === 'participant' ? 'join' : 'host',
+    userType: accountType,
+    organisation: accountType === 'organisation'
+      ? {
+          id: 992,
+          name: '',
+          description: '',
+          city: null,
+          country: null,
+          categories: [],
+          type: 'nonprofit',
+          verified: false,
+        }
+      : null,
+    xp: 0,
+    level: 'Explorer',
+    levelProgress: 0,
+    nextLevelXp: 500,
+    xpToNextLevel: 500,
+    completedCount: 0,
+    hostedCount: 0,
+    rewardsPence: 0,
+  };
+
+  if (completed) {
+    return (
+      <AppShell showFeedbackBanner={false}>
+        <View style={[styles.screen, { backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }]}>
+          <Text testID="onboarding-test-complete" style={{ color: colors.foreground }}>Profile saved</Text>
+        </View>
+      </AppShell>
+    );
+  }
+
+  return (
+    <Onboarding
+      user={user}
+      accountType={accountType}
+      initialOrganisationType={accountType === 'organisation' ? 'nonprofit' : null}
+      onDone={() => setCompleted(true)}
+    />
+  );
+}
+
 export default function App() {
-  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; nodeId?: string; chatId?: string; category?: string; step?: string; focus?: string; participantId?: string; experienceId?: string; experienceTitle?: string; draft?: string; section?: string; activityId?: string; keyboardTest?: string; navTest?: string }>();
+  const params = useLocalSearchParams<{ screen?: string; id?: string; friendId?: string; nodeId?: string; chatId?: string; category?: string; step?: string; focus?: string; participantId?: string; experienceId?: string; experienceTitle?: string; draft?: string; section?: string; activityId?: string; keyboardTest?: string; navTest?: string; onboardingTest?: string }>();
   const router = useRouter();
   const { user, loading, login, clearAuthError } = useAuth();
   const colors = useColors();
@@ -10445,13 +10562,13 @@ export default function App() {
       || !user.organisation.name.trim()
       || !user.organisation.description?.trim()
       || !user.organisation.city?.trim()
-      || !user.organisation.categories.length);
+      || !user.organisation.categories.length
+      || !user.city?.trim()
+      || !user.interests.length);
   const needsOnboarding = Boolean(user && (
     !user.userType
     || !user.name.trim()
     || !/^[a-z0-9_]{5,32}$/.test(user.username?.toLowerCase() ?? '')
-    || !user.city?.trim()
-    || !user.interests.length
     || organisationProfileIncomplete
   ));
 
@@ -10475,6 +10592,14 @@ export default function App() {
     return (
       <BottomNavInteractionHarness
         userType={params.navTest === 'organisation' ? 'organisation' : 'participant'}
+      />
+    );
+  }
+
+  if (__DEV__ && (params.onboardingTest === 'participant' || params.onboardingTest === 'organisation')) {
+    return (
+      <OnboardingInteractionHarness
+        accountType={params.onboardingTest}
       />
     );
   }
@@ -12046,6 +12171,8 @@ const styles = StyleSheet.create({
   createEyebrow: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.6, marginBottom: 8 },
   createTitle: { fontSize: 31, lineHeight: 33, fontFamily: 'Inter_700Bold', letterSpacing: -0.9 },
   createDescription: { marginTop: 8, fontSize: 15, lineHeight: 23, fontFamily: 'Inter_400Regular' },
+  createRequirementPill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, marginTop: 12, paddingHorizontal: 10, paddingVertical: 7 },
+  createRequirementText: { fontSize: 11, lineHeight: 15, fontFamily: 'Inter_700Bold' },
   createFields: { gap: 20 },
   createTip: { borderRadius: 23, padding: 16, gap: 8 },
   createTipText: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular' },
@@ -12065,7 +12192,9 @@ const styles = StyleSheet.create({
   createReviewSectionTitle: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.2, marginBottom: 4 },
   createReviewRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
   createReviewCopy: { flex: 1, minWidth: 0, gap: 3 },
+  createReviewLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   createReviewLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  createReviewRequirement: { fontSize: 9, letterSpacing: 0.5, fontFamily: 'Inter_700Bold' },
   createReviewValue: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_500Medium' },
   createError: { textAlign: 'center', fontSize: 13, lineHeight: 19, fontFamily: 'Inter_600SemiBold', marginTop: 16 },
   createActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
