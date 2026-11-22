@@ -277,6 +277,165 @@ async function tapTestId(client, testId) {
   return point;
 }
 
+async function assertExploreLayoutAtViewport(client, width) {
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width,
+    height: viewport.height,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await waitForValue(
+    client,
+    `Math.round(document.querySelector('[data-testid="explore-screen-layout"]')?.getBoundingClientRect().width ?? 0)`,
+    (screenWidth) => screenWidth === width,
+    `Explore to render at ${width}px wide`,
+  );
+  await waitForSheetPosition(client, false, `the collapsed results sheet at ${width}px`);
+
+  const collapsed = await client.evaluate(`(() => {
+    const rect = (selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const bounds = element.getBoundingClientRect();
+      return { top: bounds.top, right: bounds.right, bottom: bounds.bottom, left: bounds.left, width: bounds.width, height: bounds.height };
+    };
+    const screen = rect('[data-testid="explore-screen-layout"]');
+    const header = rect('[data-testid="explore-glass-header"]');
+    const search = rect('[data-testid="explore-search-input"]');
+    const modes = rect('[aria-label="Map layers"]');
+    const filter = rect('[data-testid="explore-category-filter-toggle"]');
+    const sheet = rect('[data-testid="explore-experience-sheet"]');
+    return {
+      screenWidth: screen?.width ?? 0,
+      screenHeight: screen?.height ?? 0,
+      header,
+      search,
+      modes,
+      filter,
+      sheet,
+      mapSpace: (sheet?.top ?? 0) - (header?.bottom ?? 0),
+    };
+  })()`);
+
+  assert.equal(Math.round(collapsed.screenWidth), width, `Explore should use the requested ${width}px viewport.`);
+  assert.ok(collapsed.header && collapsed.search && collapsed.modes && collapsed.filter && collapsed.sheet,
+    `Search, map modes, filters, and results should all be present at ${width}px. Layout: ${JSON.stringify(collapsed)}`);
+  assert.ok(
+    collapsed.search.top >= collapsed.header.top
+      && collapsed.search.bottom <= collapsed.modes.top
+      && collapsed.modes.bottom <= collapsed.header.bottom
+      && collapsed.filter.top >= collapsed.header.top
+      && collapsed.filter.bottom <= collapsed.header.bottom
+      && collapsed.header.bottom < collapsed.sheet.top,
+    `The collapsed Explore controls should remain visible without overlapping the sheet at ${width}px. Layout: ${JSON.stringify(collapsed)}`,
+  );
+  assert.ok(
+    collapsed.mapSpace >= 100,
+    `Explore should leave at least 100px of clear map between controls and results at ${width}px. Layout: ${JSON.stringify(collapsed)}`,
+  );
+
+  await tapTestId(client, "explore-category-filter-toggle");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-category-filter-toggle"]')?.getAttribute('aria-expanded') ?? ''`,
+    (expanded) => expanded === "true",
+    `the category menu to open at ${width}px`,
+  );
+  const menu = await client.evaluate(`(() => {
+    const bounds = document.querySelector('[data-testid="explore-category-filter-menu"]')?.getBoundingClientRect();
+    const header = document.querySelector('[data-testid="explore-glass-header"]')?.getBoundingClientRect();
+    const sheet = document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect();
+    return { top: bounds?.top ?? 0, bottom: bounds?.bottom ?? 0, headerBottom: header?.bottom ?? 0, sheetTop: sheet?.top ?? 0 };
+  })()`);
+  assert.ok(
+    menu.top >= menu.headerBottom && menu.bottom <= menu.sheetTop,
+    `The category menu should sit between the header and collapsed results sheet at ${width}px. Layout: ${JSON.stringify(menu)}`,
+  );
+  await tapTestId(client, "explore-category-environmental");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+    (text) => text === "2 experiences",
+    `environmental results at ${width}px`,
+  );
+  await tapTestId(client, "explore-category-filter-toggle");
+  await tapTestId(client, "explore-category-all");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+    (text) => text === "5 experiences",
+    `all category results at ${width}px`,
+  );
+  await enterText(client, "explore-search-input", "Toronto");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+    (text) => text === "1 experience",
+    `search results at ${width}px`,
+  );
+  await tapTestId(client, "explore-clear-search");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-results-count"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+    (text) => text === "5 experiences",
+    `cleared search results at ${width}px`,
+  );
+
+  for (const mode of ["social", "activity", "impact", "explore"]) {
+    await tapTestId(client, `explore-mode-${mode}`);
+    const colors = await client.evaluate(`(() => {
+      const active = document.querySelector(${JSON.stringify(`[data-testid="explore-mode-${mode}"]`)});
+      const inactive = document.querySelector(${JSON.stringify(`[data-testid="explore-mode-${mode === "explore" ? "social" : "explore"}"]`)});
+      return {
+        active: active ? getComputedStyle(active).backgroundColor : "",
+        inactive: inactive ? getComputedStyle(inactive).backgroundColor : "",
+      };
+    })()`);
+    assert.ok(colors.active && colors.active !== colors.inactive,
+      `Selecting the ${mode} map mode should have a visible active state at ${width}px. Colors: ${JSON.stringify(colors)}`);
+  }
+
+  await tapTestId(client, "explore-sheet-toggle");
+  await waitForSheetPosition(client, true, `the expanded results sheet at ${width}px`);
+  const expanded = await client.evaluate(`(() => {
+    const header = document.querySelector('[data-testid="explore-glass-header"]')?.getBoundingClientRect();
+    const sheet = document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect();
+    return { headerBottom: header?.bottom ?? 0, sheetTop: sheet?.top ?? 0 };
+  })()`);
+  assert.ok(
+    expanded.sheetTop >= expanded.headerBottom + 8,
+    `The expanded results sheet should not cover search, modes, or filters at ${width}px. Layout: ${JSON.stringify(expanded)}`,
+  );
+
+  await tapTestId(client, "explore-category-filter-toggle");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="explore-category-filter-toggle"]')?.getAttribute('aria-expanded') ?? ''`,
+    (open) => open === "true",
+    `the category menu to open from the expanded sheet at ${width}px`,
+  );
+  await waitForSheetPosition(client, false, `the sheet to collapse for the category menu at ${width}px`);
+  const menuWithCollapsedSheet = await client.evaluate(`(() => {
+    const menu = document.querySelector('[data-testid="explore-category-filter-menu"]')?.getBoundingClientRect();
+    const sheet = document.querySelector('[data-testid="explore-experience-sheet"]')?.getBoundingClientRect();
+    return { menuBottom: menu?.bottom ?? 0, sheetTop: sheet?.top ?? 0 };
+  })()`);
+  assert.ok(
+    menuWithCollapsedSheet.menuBottom <= menuWithCollapsedSheet.sheetTop,
+    `The open category menu should not cover collapsed results at ${width}px. Layout: ${JSON.stringify(menuWithCollapsedSheet)}`,
+  );
+
+  await tapTestId(client, "explore-sheet-toggle");
+  await waitForSheetPosition(client, true, `the sheet to expand while dismissing filters at ${width}px`);
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="explore-category-filter-menu"]'))`),
+    false,
+    `Opening the results sheet should dismiss category filters at ${width}px.`,
+  );
+  await tapTestId(client, "explore-sheet-toggle");
+  await waitForSheetPosition(client, false, `the sheet to collapse after layout checks at ${width}px`);
+}
+
 async function enterText(client, testId, text) {
   await tapTestId(client, testId);
   await client.send("Input.insertText", { text });
@@ -1404,12 +1563,28 @@ Object.defineProperty(navigator, 'geolocation', {
     Boolean,
     "the verified Node pin on the Explore globe",
   );
+  await assertExploreLayoutAtViewport(client, 360);
   await tapTestId(client, `explore-node-pin-${nodeProfile.node.id}`);
   await waitForValue(
     client,
     `document.body.innerText.includes('Riverside Community Hub') && document.body.innerText.includes('Experiences at this Node')`,
     Boolean,
     "the selected Node profile and its Experiences",
+  );
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=explore` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="explore-node-pin-${nodeProfile.node.id}"]'))`,
+    Boolean,
+    "the verified Node pin after returning to Explore",
+  );
+  await assertExploreLayoutAtViewport(client, 390);
+  await tapTestId(client, `explore-node-pin-${nodeProfile.node.id}`);
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('Riverside Community Hub') && document.body.innerText.includes('Experiences at this Node')`,
+    Boolean,
+    "the selected Node profile at 390px",
   );
   await tapTestId(client, "node-experience-761");
   await waitForValue(
