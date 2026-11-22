@@ -20,6 +20,7 @@ import {
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { HorizontalScrollWithCue } from '@/components/HorizontalScrollWithCue';
 import { ProfilePosts } from '@/components/ProfilePosts';
 import { PersonalMemoriesPanel, SavedExperiencesPanel } from '@/components/PersonalCollections';
 import { LearningLibraryPanel } from '@/components/LearningDashboardScreen';
@@ -266,13 +267,11 @@ export function PersonalActivityScreen({
           />
         ) : undefined}
       >
-        <ScrollView
+        <HorizontalScrollWithCue
+          accessibilityLabel="Personal Activity sections"
+          testID="personal-record-tabs"
           style={styles.sectionTabsScroll}
-          horizontal
-          showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.sectionTabs}
-          keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled
         >
           {personalSections.map((item) => {
             const selected = section === item.key;
@@ -282,6 +281,7 @@ export function PersonalActivityScreen({
                 accessibilityRole="button"
                 accessibilityLabel={`Open ${item.label}`}
                 accessibilityState={{ selected }}
+                aria-pressed={selected}
                 testID={`personal-record-tab-${item.key}`}
                 onPress={() => setSection(item.key)}
                 style={[
@@ -298,7 +298,7 @@ export function PersonalActivityScreen({
               </Pressable>
             );
           })}
-        </ScrollView>
+        </HorizontalScrollWithCue>
 
         {section === 'activity' ? (
           <>

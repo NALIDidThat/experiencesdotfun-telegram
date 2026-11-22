@@ -194,6 +194,32 @@ async function tapTestId(client, testId, { scrollIntoView = true } = {}) {
   });
 }
 
+async function focusTestId(client, testId) {
+  const selector = JSON.stringify(`[data-testid="${testId}"]`);
+  return client.evaluate(`(() => {
+    const element = document.querySelector(${selector});
+    if (!element) return false;
+    element.focus();
+    return document.activeElement === element;
+  })()`);
+}
+
+async function pressKey(client, key) {
+  const windowsVirtualKeyCode = key === "Tab" ? 9 : 13;
+  await client.send("Input.dispatchKeyEvent", {
+    type: "keyDown",
+    key,
+    code: key,
+    windowsVirtualKeyCode,
+  });
+  await client.send("Input.dispatchKeyEvent", {
+    type: "keyUp",
+    key,
+    code: key,
+    windowsVirtualKeyCode,
+  });
+}
+
 async function enterTextInTestId(client, testId, text) {
   await tapTestId(client, testId);
   await client.send("Input.insertText", { text });
@@ -452,6 +478,12 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
           response = activityChallenges;
         } else if (url.pathname === "/api/me/xp-awards" && method === "GET") {
           response = xpAwards;
+        } else if (url.pathname === "/api/me/personal-activities" && method === "GET") {
+          response = [];
+        } else if (url.pathname === "/api/learning/me/research" && method === "GET") {
+          response = [];
+        } else if (url.pathname === "/api/learning/me/decks" && method === "GET") {
+          response = [];
         } else if (url.pathname === "/api/me/saved-experiences" && method === "GET") {
           response = savedExperiences;
         } else if (url.pathname === "/api/me/saved-experiences" && method === "PUT") {
@@ -862,6 +894,97 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
       Buffer.from(data, "base64"),
     );
   }
+
+  const personalNavigation = await client.evaluate(`(() => {
+    const tabs = [...document.querySelectorAll('[data-testid^="personal-record-tab-"]')];
+    const scroll = document.querySelector('[data-testid="personal-record-tabs-scroll"]');
+    const cue = document.querySelector('[data-testid="personal-record-tabs-cue"]');
+    return {
+      count: tabs.length,
+      scrollWidth: scroll?.scrollWidth ?? 0,
+      clientWidth: scroll?.clientWidth ?? 0,
+      cueVisible: Boolean(cue && cue.getBoundingClientRect().width > 0),
+      rowBounds: scroll ? {
+        width: scroll.getBoundingClientRect().width,
+        scrollWidth: scroll.scrollWidth,
+        childWidth: scroll.firstElementChild?.getBoundingClientRect().width ?? 0,
+      } : null,
+      tabBounds: tabs.map((tab) => ({
+        id: tab.getAttribute('data-testid'),
+        left: tab.getBoundingClientRect().left,
+        right: tab.getBoundingClientRect().right,
+        width: tab.getBoundingClientRect().width,
+      })),
+      tabsAccessible: tabs.every((tab) =>
+        tab.getAttribute('role') === 'button'
+        && Boolean(tab.getAttribute('aria-label'))
+        && tab.tabIndex >= 0
+      ),
+    };
+  })()`);
+  assert.equal(personalNavigation.count, 6, "Personal Activity must keep all six existing sections.");
+  assert.ok(
+    personalNavigation.scrollWidth > personalNavigation.clientWidth,
+    `The section row should overflow at 360px: ${JSON.stringify(personalNavigation)}`,
+  );
+  assert.equal(personalNavigation.cueVisible, true, "An overflow cue should be visible beside the section row.");
+  assert.equal(personalNavigation.tabsAccessible, true, "Every section should have a label and keyboard focus.");
+  await tapTestId(client, "personal-record-tabs-cue");
+  await waitForValue(
+    client,
+    `(() => {
+      const scroll = document.querySelector('[data-testid="personal-record-tabs-scroll"]');
+      const rect = document.querySelector('[data-testid="personal-record-tab-posts"]')?.getBoundingClientRect();
+      const row = scroll?.getBoundingClientRect();
+      return {
+        offset: scroll?.scrollLeft ?? 0,
+        max: scroll ? Math.max(0, scroll.scrollWidth - scroll.clientWidth) : 0,
+        lastTabVisible: Boolean(rect && row && rect.left >= row.left - 1 && rect.right <= row.right + 1),
+      };
+    })()`,
+    (state) => state.max > 0 && state.offset >= state.max - 1 && state.lastTabVisible,
+    "the remaining Personal Activity sections to be revealed",
+  );
+  await tapTestId(client, "personal-record-tabs-cue");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="personal-record-tabs-scroll"]')?.scrollLeft ?? 1`,
+    (offset) => offset <= 1,
+    "the section row to return to its first options",
+  );
+
+  assert.equal(await focusTestId(client, "personal-record-tab-activity"), true);
+  const personalSectionKeys = [
+    "activity",
+    "route-activities",
+    "saved-experiences",
+    "learning",
+    "memories",
+    "posts",
+  ];
+  for (let index = 0; index < personalSectionKeys.length; index += 1) {
+    const testId = `personal-record-tab-${personalSectionKeys[index]}`;
+    if (index > 0) await pressKey(client, "Tab");
+    assert.equal(
+      await client.evaluate(`document.activeElement?.getAttribute('data-testid') ?? null`),
+      testId,
+      `Keyboard focus should reach ${personalSectionKeys[index]} in order.`,
+    );
+    await pressKey(client, "Enter");
+    await waitForValue(
+      client,
+      `document.querySelector('[data-testid="${testId}"]')?.getAttribute('aria-pressed') ?? null`,
+      (value) => value === "true",
+      `${personalSectionKeys[index]} to be selected with the keyboard`,
+    );
+  }
+  await tapTestId(client, "personal-record-tab-activity");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="activity-entry-challenge-52"]'))`,
+    Boolean,
+    "the Activity timeline after keyboard navigation through all six sections",
+  );
 
   await tapTestId(client, "activity-filter-xp");
   assert.equal(

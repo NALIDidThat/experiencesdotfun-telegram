@@ -137,6 +137,7 @@ import {
   selectParticipantHomePriority,
 } from '@/lib/home-priority';
 import { PersonalActivityScreen } from '@/components/PersonalActivityScreen';
+import { HorizontalScrollWithCue } from '@/components/HorizontalScrollWithCue';
 import { PersonalRoutePlannerScreen } from '@/components/PersonalRoutePlannerScreen';
 import { OrganisationActivityDashboard } from '@/components/OrganisationActivityDashboard';
 import { OrganisationHomeScreen } from '@/components/OrganisationHomeScreen';
@@ -7639,11 +7640,10 @@ function HostExperienceDetail({
             </View>
           ) : null}
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={[styles.hostDetailTabs, { borderBottomColor: colors.border }]}
+          <HorizontalScrollWithCue
             accessibilityLabel="Experience management sections"
+            testID="host-detail-tabs"
+            contentContainerStyle={[styles.hostDetailTabs, { borderBottomColor: colors.border }]}
           >
             {detailTabs.map((tab) => {
               const selected = activeDetailTab === tab.key;
@@ -7651,7 +7651,9 @@ function HostExperienceDetail({
                 <Pressable
                   key={tab.key}
                   accessibilityRole="button"
+                  accessibilityLabel={`${tab.label} experience section`}
                   accessibilityState={{ selected }}
+                  aria-pressed={selected}
                   testID={`host-detail-tab-${tab.key}`}
                   onPress={() => { triggerHaptic(); setActiveDetailTab(tab.key); }}
                   style={[styles.hostDetailTab, selected && { borderBottomColor: colors.primary }]}
@@ -7660,7 +7662,7 @@ function HostExperienceDetail({
                 </Pressable>
               );
             })}
-          </ScrollView>
+          </HorizontalScrollWithCue>
           {actionError ? <InlineError message={actionError} /> : null}
 
           {activeDetailTab === 'milestones' ? (
@@ -7861,7 +7863,11 @@ function HostExperienceDetail({
               </Pressable>
             ) : null}
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hostFilterList}>
+          <HorizontalScrollWithCue
+            accessibilityLabel="Participant filters"
+            testID="host-participant-filters"
+            contentContainerStyle={styles.hostFilterList}
+          >
             {hostParticipantFilters.map((option) => {
               const active = participantFilter === option.key;
               const count = participants.isLoading ? '…' : participants.isError ? '—' : filterCounts[option.key];
@@ -7869,7 +7875,9 @@ function HostExperienceDetail({
                 <Pressable
                   key={option.key}
                   accessibilityRole="button"
+                  accessibilityLabel={`${option.label}, ${count} participants`}
                   accessibilityState={{ selected: active }}
+                  aria-pressed={active}
                   testID={`host-detail-filter-${option.key}`}
                   onPress={() => setParticipantFilter(option.key)}
                   style={[
@@ -7883,7 +7891,7 @@ function HostExperienceDetail({
                 </Pressable>
               );
             })}
-          </ScrollView>
+          </HorizontalScrollWithCue>
           <Text style={[styles.hostSectionHint, styles.hostParticipantCount, { color: colors.mutedForeground }]}>
             {participants.isLoading ? 'Loading people…' : participants.isError ? 'People could not be loaded' : `${filteredParticipants.length} of ${allParticipants.length} people`}
           </Text>

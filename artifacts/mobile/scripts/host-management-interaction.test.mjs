@@ -154,9 +154,9 @@ async function waitForValue(client, expression, predicate, description, timeoutM
   throw new Error(`Timed out waiting for ${description}. Last value: ${JSON.stringify(lastValue)}`);
 }
 
-async function setViewport(client) {
+async function setViewport(client, width = viewport.width) {
   await client.send("Emulation.setDeviceMetricsOverride", {
-    width: viewport.width,
+    width,
     height: viewport.height,
     deviceScaleFactor: 1,
     mobile: true,
@@ -294,6 +294,32 @@ async function tapTestId(client, testId, {
     await waitForStableElementBounds(client, selector, `the ${testId} control to settle in view`);
   }
   await tapSelector(client, selector, { scrollIntoView });
+}
+
+async function focusTestId(client, testId) {
+  const selector = JSON.stringify(`[data-testid="${testId}"]`);
+  return client.evaluate(`(() => {
+    const element = document.querySelector(${selector});
+    if (!element) return false;
+    element.focus();
+    return document.activeElement === element;
+  })()`);
+}
+
+async function pressKey(client, key) {
+  const windowsVirtualKeyCode = key === "Tab" ? 9 : 13;
+  await client.send("Input.dispatchKeyEvent", {
+    type: "keyDown",
+    key,
+    code: key,
+    windowsVirtualKeyCode,
+  });
+  await client.send("Input.dispatchKeyEvent", {
+    type: "keyUp",
+    key,
+    code: key,
+    windowsVirtualKeyCode,
+  });
 }
 
 async function revealParticipantControl(client, testId) {
@@ -1007,12 +1033,153 @@ test("organisation hosts can manage experience participants from a phone-sized d
     Boolean,
     "the host experience detail screen",
   );
-  await tapTestId(client, "host-detail-tab-participants");
+  await setViewport(client, 360);
+  await waitForValue(
+    client,
+    `window.innerWidth`,
+    (width) => width === 360,
+    "the host experience detail screen to render at 360px",
+  );
+  const hostTabLayout = await client.evaluate(`(() => {
+    const tabs = [...document.querySelectorAll('[data-testid^="host-detail-tab-"]')];
+    const scroll = document.querySelector('[data-testid="host-detail-tabs-scroll"]');
+    const cue = document.querySelector('[data-testid="host-detail-tabs-cue"]');
+    return {
+      count: tabs.length,
+      scrollWidth: scroll?.scrollWidth ?? 0,
+      clientWidth: scroll?.clientWidth ?? 0,
+      cueVisible: Boolean(cue && cue.getBoundingClientRect().width > 0),
+      tabsAccessible: tabs.every((tab) =>
+        tab.getAttribute('role') === 'button'
+        && Boolean(tab.getAttribute('aria-label'))
+        && tab.tabIndex >= 0
+      ),
+    };
+  })()`);
+  assert.equal(hostTabLayout.count, 5, "The host should retain all five experience sections.");
+  assert.ok(hostTabLayout.scrollWidth > hostTabLayout.clientWidth, "The host section row should overflow at 360px.");
+  assert.equal(hostTabLayout.cueVisible, true, "An overflow cue should be visible beside host sections.");
+  assert.equal(hostTabLayout.tabsAccessible, true, "Every host section should have an accessible label and keyboard focus.");
+  await tapTestId(client, "host-detail-tabs-cue");
+  await waitForValue(
+    client,
+    `(() => {
+      const scroll = document.querySelector('[data-testid="host-detail-tabs-scroll"]');
+      const rect = document.querySelector('[data-testid="host-detail-tab-analytics"]')?.getBoundingClientRect();
+      const row = scroll?.getBoundingClientRect();
+      return {
+        offset: scroll?.scrollLeft ?? 0,
+        max: scroll ? Math.max(0, scroll.scrollWidth - scroll.clientWidth) : 0,
+        lastTabVisible: Boolean(rect && row && rect.left >= row.left - 1 && rect.right <= row.right + 1),
+      };
+    })()`,
+    (state) => state.max > 0 && state.offset >= state.max - 1 && state.lastTabVisible,
+    "the remaining host experience sections to be revealed",
+  );
+  await tapTestId(client, "host-detail-tab-analytics", { scrollIntoView: false });
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="host-detail-tab-analytics"]')?.getAttribute('aria-pressed') ?? null`),
+    "true",
+    "The revealed host section should remain selectable.",
+  );
+  await tapTestId(client, "host-detail-tabs-cue");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="host-detail-tabs-scroll"]')?.scrollLeft ?? 1`,
+    (offset) => offset <= 1,
+    "the host section row to return to its first options",
+  );
+  assert.equal(await focusTestId(client, "host-detail-tab-overview"), true);
+  const hostTabKeys = ["overview", "participants", "milestones", "fundraising", "analytics"];
+  for (let index = 0; index < hostTabKeys.length; index += 1) {
+    const testId = `host-detail-tab-${hostTabKeys[index]}`;
+    if (index > 0) await pressKey(client, "Tab");
+    assert.equal(
+      await client.evaluate(`document.activeElement?.getAttribute('data-testid') ?? null`),
+      testId,
+      `Keyboard focus should reach the ${hostTabKeys[index]} host section.`,
+    );
+  }
+  await focusTestId(client, "host-detail-tab-participants");
+  await pressKey(client, "Enter");
   await waitForValue(
     client,
     `document.querySelector('[data-testid="host-detail-filter-all"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
     (value) => value === "All 5",
-    "the host participant records to load",
+    "the host participant records to load after keyboard navigation",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="host-detail-tab-participants"]')?.getAttribute('aria-pressed') ?? null`),
+    "true",
+    "The participant host section should be selectable with the keyboard.",
+  );
+  const participantFilterLayout = await client.evaluate(`(() => {
+    const filters = [...document.querySelectorAll('[data-testid^="host-detail-filter-"]')];
+    const scroll = document.querySelector('[data-testid="host-participant-filters-scroll"]');
+    const cue = document.querySelector('[data-testid="host-participant-filters-cue"]');
+    return {
+      count: filters.length,
+      scrollWidth: scroll?.scrollWidth ?? 0,
+      clientWidth: scroll?.clientWidth ?? 0,
+      cueVisible: Boolean(cue && cue.getBoundingClientRect().width > 0),
+      filtersAccessible: filters.every((filter) =>
+        filter.getAttribute('role') === 'button'
+        && Boolean(filter.getAttribute('aria-label'))
+        && filter.tabIndex >= 0
+      ),
+    };
+  })()`);
+  assert.equal(participantFilterLayout.count, 4, "All four participant filters should remain available.");
+  assert.ok(participantFilterLayout.scrollWidth > participantFilterLayout.clientWidth, "The participant filters should overflow at 360px.");
+  assert.equal(participantFilterLayout.cueVisible, true, "An overflow cue should be visible beside participant filters.");
+  assert.equal(participantFilterLayout.filtersAccessible, true, "Every participant filter should have an accessible label and keyboard focus.");
+  await tapTestId(client, "host-participant-filters-cue");
+  await waitForValue(
+    client,
+    `(() => {
+      const scroll = document.querySelector('[data-testid="host-participant-filters-scroll"]');
+      const rect = document.querySelector('[data-testid="host-detail-filter-waitlisted"]')?.getBoundingClientRect();
+      const row = scroll?.getBoundingClientRect();
+      return {
+        offset: scroll?.scrollLeft ?? 0,
+        max: scroll ? Math.max(0, scroll.scrollWidth - scroll.clientWidth) : 0,
+        finalFilterVisible: Boolean(rect && row && rect.left >= row.left - 1 && rect.right <= row.right + 1),
+      };
+    })()`,
+    (state) => state.max > 0 && state.offset >= state.max - 1 && state.finalFilterVisible,
+    "the remaining participant filters to be revealed",
+  );
+  assert.equal(await focusTestId(client, "host-detail-filter-all"), true);
+  const participantFilterKeys = ["all", "review", "participants", "waitlisted"];
+  for (let index = 0; index < participantFilterKeys.length; index += 1) {
+    const testId = `host-detail-filter-${participantFilterKeys[index]}`;
+    if (index > 0) await pressKey(client, "Tab");
+    assert.equal(
+      await client.evaluate(`document.activeElement?.getAttribute('data-testid') ?? null`),
+      testId,
+      `Keyboard focus should reach the ${participantFilterKeys[index]} participant filter.`,
+    );
+  }
+  await pressKey(client, "Enter");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="host-detail-filter-waitlisted"]')?.getAttribute('aria-pressed') ?? null`,
+    (value) => value === "true",
+    "the Waitlist filter to be selected with the keyboard",
+  );
+  await tapTestId(client, "host-detail-filter-all");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('5 of 5 people')`,
+    Boolean,
+    "the participant filter to return to All",
+  );
+  await setViewport(client);
+  await waitForValue(
+    client,
+    `window.innerWidth`,
+    (width) => width === viewport.width,
+    "the host screen to return to its standard phone width",
   );
 
   if (process.env.HOST_MANAGEMENT_SCREENSHOT_PATH) {
