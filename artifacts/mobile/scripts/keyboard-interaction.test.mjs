@@ -1098,12 +1098,10 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
 
   await tapTestId(client, "bottom-nav-tab-explore");
   await waitForValue(client, activeTab, (value) => value === "explore", "a standard navigation tap");
-  await tapTestId(client, "bottom-nav-tab-ai");
-  await waitForValue(client, activeTab, (value) => value === "ai", "the AI assistant navigation tab");
   assert.equal(
-    await client.evaluate(`document.querySelector('[data-testid="bottom-nav-tab-ai"]')?.getAttribute('aria-label') ?? ''`),
-    "AI assistant",
-    "The assistant tab should have a clear accessibility label.",
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="bottom-nav-tab-ai"]'))`),
+    false,
+    "The AI assistant should not appear in primary navigation.",
   );
   await tapTestId(client, "bottom-nav-tab-activity");
   await waitForValue(client, activeTab, (value) => value === "activity", "the Activity tab");
@@ -1168,8 +1166,8 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
 
   assert.equal(
     await client.evaluate(`document.querySelectorAll('[data-testid^="bottom-nav-tab-"]').length`),
-    5,
-    "The AI assistant should be a primary tab, separate from quick actions.",
+    4,
+    "Primary navigation should not include the AI assistant.",
   );
   assert.equal(
     await client.evaluate(`document.querySelector('[data-testid="bottom-nav-quick-button"]')?.closest('[data-testid="bottom-nav-tabs"]') ?? null`),
@@ -1239,38 +1237,14 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
   await tapTestId(client, "bottom-nav-quick-button");
   await waitForValue(
     client,
-    `Boolean(document.querySelector('[data-testid="bottom-nav-action-assistant"]'))`,
-    Boolean,
-    "the Assistant action in the plus menu",
-  );
-  await bringTestIdIntoView(client, "bottom-nav-action-assistant");
-  await waitForValue(
-    client,
-    `(() => {
-      const element = document.querySelector('[data-testid="bottom-nav-action-assistant"]');
-      if (!element) return null;
-      const rect = element.getBoundingClientRect();
-      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-      return { visible: rect.top >= 0 && rect.bottom <= viewportHeight };
-    })()`,
-    (position) => position?.visible === true,
-    "the Assistant quick action to settle inside the viewport",
-  );
-  await delay(450);
-  await tapTestId(client, "bottom-nav-action-assistant");
-  await waitForValue(
-    client,
-    `document.querySelector('[data-testid="nav-test-quick-action"]')?.textContent?.trim() ?? ''`,
-    (value) => value === "assistant",
-    "the Assistant quick action",
-  );
-  await delay(400);
-  await tapTestId(client, "bottom-nav-quick-button");
-  await waitForValue(
-    client,
     `Boolean(document.querySelector('[data-testid="bottom-nav-action-challenges"]'))`,
     Boolean,
     "the Challenges action in the plus menu",
+  );
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="bottom-nav-action-assistant"]'))`),
+    false,
+    "The quick-action menu should not link to the AI assistant.",
   );
   await bringTestIdIntoView(client, "bottom-nav-action-challenges");
   await waitForValue(
@@ -1325,14 +1299,22 @@ test("bottom navigation can be changed by holding and sliding", async (t) => {
 
   await client.send("Page.navigate", { url: `${appUrl}/?navTest=organisation` });
   await waitForValue(client, activeTab, (value) => value === "home", "the organisation navigation test screen");
-  await tapTestId(client, "bottom-nav-tab-ai");
-  await waitForValue(client, activeTab, (value) => value === "ai", "the organisation AI assistant tab");
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="bottom-nav-tab-ai"]'))`),
+    false,
+    "Organisation navigation should not include the AI assistant.",
+  );
   await tapTestId(client, "bottom-nav-quick-button");
   await waitForValue(
     client,
     `Boolean(document.querySelector('[data-testid="bottom-nav-action-create"]'))`,
     Boolean,
     "the organisation experience-creation action",
+  );
+  assert.equal(
+    await client.evaluate(`Boolean(document.querySelector('[data-testid="bottom-nav-action-assistant"]'))`),
+    false,
+    "The organisation quick-action menu should not link to the AI assistant.",
   );
   await bringTestIdIntoView(client, "bottom-nav-action-create");
   await waitForValue(

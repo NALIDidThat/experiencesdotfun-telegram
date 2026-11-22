@@ -150,7 +150,6 @@ import { ExperienceCategoryArtwork } from '@/components/ExperienceCategoryArtwor
 import { MotionPressable } from '@/components/MotionPressable';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { DirectMessagesScreen } from '@/components/DirectMessagesScreen';
-import { AiAssistantScreen } from '@/components/AiAssistantScreen';
 import { LearningDashboardScreen } from '@/components/LearningDashboardScreen';
 import { ExperienceChallengesScreen } from '@/components/ExperienceChallengesScreen';
 import { MemoryGameScreen } from '@/components/MemoryGameScreen';
@@ -170,7 +169,7 @@ import {
 } from '@/components/TelegramCommunityManagementScreen';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'ai' | 'learning' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'node-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'personal-route-planner' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-my-communities' | 'telegram-community-dashboard' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'learning' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'node-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'personal-route-planner' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-my-communities' | 'telegram-community-dashboard' | 'email';
 type ScreenTransitionDirection = 'forward' | 'back' | 'switch';
 type ScreenRouteParams = {
   id?: string;
@@ -198,7 +197,7 @@ type TelegramWindow = Window & {
   Telegram?: { WebApp?: { BackButton?: TelegramWebAppBackButton } };
 };
 type IconName = keyof typeof Feather.glyphMap;
-type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'assistant' | 'learning' | 'challenges' | 'accountability' | 'memory-game' | 'my-communities' | 'telegram-communities';
+type BottomNavQuickAction = 'post' | 'create' | 'fund' | 'progress' | 'learning' | 'challenges' | 'accountability' | 'memory-game' | 'my-communities' | 'telegram-communities';
 type HostExperienceFilter = 'all' | Experience['status'];
 type HostParticipantFilter = 'all' | 'participants' | 'review' | 'waitlisted';
 type HostSummaryMetric = 'live' | 'participants' | 'waitlist' | 'completion-reviews' | 'milestone-reviews';
@@ -208,7 +207,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'ai', 'learning', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'node-profile', 'experience', 'host', 'host-detail', 'create', 'personal-route-planner', 'funds', 'campaigns', 'payout-proposal', 'contributions', 'telegram-communities', 'telegram-my-communities', 'telegram-community-dashboard', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'learning', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'node-profile', 'experience', 'host', 'host-detail', 'create', 'personal-route-planner', 'funds', 'campaigns', 'payout-proposal', 'contributions', 'telegram-communities', 'telegram-my-communities', 'telegram-community-dashboard', 'email'];
 
 function routeParamString(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -247,10 +246,10 @@ function screenHistoryKey(entry: ScreenHistoryEntry) {
 
 function isPrimaryNavigationScreen(screen: Screen, userType?: string | null, isCharity = false) {
   if (userType === 'organisation') {
-    return ['home', 'host', 'experiences', 'ai', 'profile'].includes(screen)
+    return ['home', 'host', 'experiences', 'profile'].includes(screen)
       || (isCharity ? screen === 'funds' : screen === 'explore');
   }
-  return ['home', 'explore', 'ai', 'activity', 'profile'].includes(screen);
+  return ['home', 'explore', 'activity', 'profile'].includes(screen);
 }
 
 function defaultBackEntry(entry: ScreenHistoryEntry): ScreenHistoryEntry {
@@ -9356,13 +9355,11 @@ function BottomNav({
         canLaunchFunds
           ? { key: 'funds', label: 'Treasury', icon: 'credit-card' }
           : { key: 'explore', label: 'Explore', icon: 'compass' },
-        { key: 'ai', label: 'AI', icon: 'message-square', accessibilityLabel: 'AI assistant' },
         { key: 'profile', label: 'Profile', icon: 'user' },
       ]
     : [
         { key: 'home', label: 'Home', icon: 'home' },
         { key: 'explore', label: 'Explore', icon: 'compass' },
-        { key: 'ai', label: 'AI', icon: 'message-square', accessibilityLabel: 'AI assistant' },
         { key: 'activity', label: 'Activity', icon: 'activity' },
         { key: 'profile', label: 'Profile', icon: 'user' },
       ];
@@ -9528,12 +9525,6 @@ function BottomNav({
     description: string;
     icon: IconName;
   }> = [
-    {
-      id: 'assistant',
-      label: 'AI assistant',
-      description: 'Ask about your journey, discover experiences, or prepare a host draft.',
-      icon: 'message-square',
-    },
     ...(userType === 'participant'
       ? [
           {
@@ -10519,10 +10510,6 @@ export default function App() {
       requestFeedComposer();
       return;
     }
-    if (action === 'assistant') {
-      go('ai');
-      return;
-    }
     if (action === 'learning') {
       if (user?.userType === 'participant') go('learning');
       return;
@@ -10977,15 +10964,6 @@ export default function App() {
         <LearningDashboardScreen
           itemId={params.id}
           onBack={() => goBack('home')}
-        />
-      );
-    }
-    if (screen === 'ai') {
-      return (
-        <AiAssistantScreen
-          onOpenExperience={(id) => go('experience', { id: String(id) })}
-          canCreateExperience={user.userType === 'organisation'}
-          onCreateExperienceDraft={(draft) => go('create', { draft: JSON.stringify(draft) })}
         />
       );
     }

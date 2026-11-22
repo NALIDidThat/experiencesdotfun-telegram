@@ -1292,41 +1292,6 @@ Object.defineProperty(navigator, 'geolocation', {
   user.userType = "participant";
   user.organisation = null;
   participantRegistration = null;
-  await client.send("Page.navigate", { url: `${appUrl}/?screen=ai` });
-  await waitForValue(
-    client,
-    `Boolean(document.querySelector('[data-testid="ai-action-join-761"]'))`,
-    Boolean,
-    "the assistant’s experience join action",
-  );
-  await tapTestId(client, "ai-action-join-761");
-  await waitForValue(
-    client,
-    `document.body.innerText.includes('Join this experience?')`,
-    Boolean,
-    "the assistant join confirmation",
-  );
-  await tapTestId(client, "ai-action-confirm");
-  await waitForValue(
-    client,
-    `document.querySelector('[data-testid="experience-moment-title"]')?.textContent?.trim() ?? ''`,
-    (title) => title === "You’re in",
-    "the experience-started screen opened from the assistant",
-  );
-  assert.equal(
-    await client.evaluate(`document.body.innerText.includes('XP AFTER VERIFICATION') && !document.body.innerText.includes('+100')`),
-    true,
-    "The assistant join screen should not present XP as already earned or guess a reward amount.",
-  );
-  await tapTestId(client, "experience-moment-continue");
-  await waitForValue(
-    client,
-    `document.body.innerText.includes('You’ve joined this experience')`,
-    Boolean,
-    "the joined state on the assistant action",
-  );
-
-  participantRegistration = null;
   await client.send("Page.navigate", { url: `${appUrl}/?screen=experience&id=761` });
   await waitForValue(
     client,

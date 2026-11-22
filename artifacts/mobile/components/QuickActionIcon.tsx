@@ -10,7 +10,6 @@ import Svg, {
 } from "react-native-svg";
 
 export type QuickActionArtwork =
-  | "assistant"
   | "learning"
   | "memory-game"
   | "challenges"
@@ -32,15 +31,6 @@ type QuickActionIconProps = {
 
 function Artwork({ name }: { name: QuickActionArtwork }) {
   switch (name) {
-    case "assistant":
-      return (
-        <G>
-          <Path d="M13 17h21a5 5 0 0 1 5 5v7a5 5 0 0 1-5 5h-9l-6 4v-4h-6a5 5 0 0 1-5-5v-7a5 5 0 0 1 5-5Z" fill="url(#qa-side)" transform="translate(2 1)" />
-          <Path d="M13 15h21a5 5 0 0 1 5 5v7a5 5 0 0 1-5 5h-9l-6 4v-4h-6a5 5 0 0 1-5-5v-7a5 5 0 0 1 5-5Z" fill="url(#qa-face)" stroke="#fff" strokeOpacity={0.72} strokeWidth={1.2} />
-          <Path d="M15 22h14M15 27h9" stroke="#fff" strokeLinecap="round" strokeOpacity={0.94} strokeWidth={2} />
-          <Path d="m35 7 1.4 3.6L40 12l-3.6 1.4L35 17l-1.4-3.6L30 12l3.6-1.4L35 7Z" fill="url(#qa-accent)" />
-        </G>
-      );
     case "learning":
       return (
         <G>
