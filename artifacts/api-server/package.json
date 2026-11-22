@@ -10,6 +10,7 @@
     "test": "node --experimental-strip-types --test src/lib/*.test.mjs",
     "test:auth-routing": "node --test scripts/auth-routing.test.mjs",
     "test:fundraising": "node scripts/fund-ledger.integration.mjs",
+    "test:memory-game": "node scripts/memory-game.integration.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
