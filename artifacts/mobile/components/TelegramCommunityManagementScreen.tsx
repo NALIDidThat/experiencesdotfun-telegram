@@ -279,6 +279,9 @@ export function TelegramCommunityManagementScreen({ onBack, onOpenCommunity, onO
         >
           <Feather name="arrow-left" size={20} color={colors.foreground} />
         </Pressable>
+        <View style={[styles.dashboardHeroMark, { backgroundColor: colors.primary + '12' }]}>
+          <Feather name="users" size={18} color={colors.primary} />
+        </View>
         <View style={styles.headingCopy}>
           <Text style={[styles.eyebrow, { color: colors.primary }]}>ORGANISATION TOOLS</Text>
           <Text style={[styles.title, { color: colors.foreground }]}>Telegram groups</Text>
@@ -1121,6 +1124,9 @@ export function TelegramCommunityDashboardScreen({
         >
           <Feather name="arrow-left" size={20} color={colors.foreground} />
         </Pressable>
+        <View style={[styles.dashboardHeroMark, { backgroundColor: colors.primary + '12' }]}>
+          <Feather name="users" size={18} color={colors.primary} />
+        </View>
         <View style={styles.headingCopy}>
           <Text style={[styles.eyebrow, { color: colors.primary }]}>GROUP OVERVIEW</Text>
           <Text numberOfLines={2} style={[styles.title, { color: colors.foreground }]}>
@@ -1157,6 +1163,29 @@ export function TelegramCommunityDashboardScreen({
           </Pressable>
         ) : null}
       </View>
+
+      {community ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Manage ${displayedTitle} in Telegram`}
+          testID={`telegram-community-manage-${community.chatId}`}
+          onPress={() => onOpenBot(`community_${community.chatId}`)}
+          style={({ pressed }) => [
+            styles.dashboardPrimaryAction,
+            { backgroundColor: colors.primary, borderRadius: colors.radius - 4, opacity: pressed ? 0.82 : 1 },
+          ]}
+        >
+          <View style={styles.dashboardPrimaryActionCopy}>
+            <Text style={[styles.dashboardPrimaryActionTitle, { color: colors.primaryForeground }]}>
+              Manage this group in Telegram
+            </Text>
+            <Text style={[styles.dashboardPrimaryActionSubtitle, { color: colors.primaryForeground + 'CC' }]}>
+              Settings and bot permissions
+            </Text>
+          </View>
+          <Feather name="arrow-up-right" size={19} color={colors.primaryForeground} />
+        </Pressable>
+      ) : null}
 
       {management.isLoading ? (
         <View style={styles.loading}>
@@ -2242,20 +2271,6 @@ export function TelegramCommunityDashboardScreen({
                 </Text>
               </View>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Manage ${community.chatTitle} in Telegram`}
-              testID={`telegram-community-manage-${community.chatId}`}
-              onPress={() => onOpenBot(`community_${community.chatId}`)}
-              style={({ pressed }) => [
-                styles.manageButton,
-                { backgroundColor: colors.primary, borderRadius: colors.radius - 5, opacity: pressed ? 0.78 : 1 },
-              ]}
-            >
-              <Feather name="send" size={16} color={colors.primaryForeground} />
-              <Text style={[styles.manageButtonText, { color: colors.primaryForeground }]}>Manage in Telegram</Text>
-              <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />
-            </Pressable>
           </View>
         </View>
       )}
@@ -2265,9 +2280,9 @@ export function TelegramCommunityDashboardScreen({
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 30 },
-  topBar: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 18 },
-  backButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', marginTop: 3 },
+  content: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 32 },
+  topBar: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 15 },
+  backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginTop: 3 },
   headingCopy: { flex: 1, minWidth: 0 },
   eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1.1, marginBottom: 5 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 27, lineHeight: 32 },
@@ -2288,7 +2303,7 @@ const styles = StyleSheet.create({
   listHeading: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 1 },
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 17 },
   count: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
-  communityCard: { borderWidth: 1, padding: 14, marginBottom: 1 },
+  communityCard: { borderWidth: 1, padding: 16, marginBottom: 1 },
   addCommunityButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, paddingHorizontal: 14 },
   addCommunityButtonText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   communityHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48 },
@@ -2304,15 +2319,20 @@ const styles = StyleSheet.create({
   connectionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
   memberCountText: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
   settingsShortcut: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  dashboardHeroMark: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  dashboardPrimaryAction: { minHeight: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, paddingVertical: 11, marginBottom: 16 },
+  dashboardPrimaryActionCopy: { flex: 1, gap: 4 },
+  dashboardPrimaryActionTitle: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  dashboardPrimaryActionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
   communityDescription: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, marginTop: -8, marginBottom: 2 },
   connectionNotice: { flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, padding: 11 },
   connectionNoticeText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17 },
   sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   healthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  healthMetric: { width: '48%', minHeight: 110, borderWidth: 1, padding: 11 },
-  healthIcon: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 9, marginBottom: 7 },
-  healthLabel: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 14, minHeight: 28 },
-  healthValue: { fontFamily: 'Inter_700Bold', fontSize: 17, marginTop: 2 },
+  healthMetric: { width: '47%', minHeight: 96, borderWidth: 1, padding: 12 },
+  healthIcon: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: 10, marginBottom: 8 },
+  healthLabel: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 15, minHeight: 30 },
+  healthValue: { fontFamily: 'Inter_700Bold', fontSize: 20, marginTop: 3 },
   healthDetail: { borderWidth: 1, padding: 12, marginTop: 8, gap: 5 },
   healthDetailTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   protectionBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
@@ -2335,9 +2355,9 @@ const styles = StyleSheet.create({
   budgetNote: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 8, marginBottom: 13 },
   manageButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
   manageButtonText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
-  dashboardSections: { gap: 12 },
-  dashboardCard: { borderWidth: 1, padding: 14 },
-  dashboardSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  dashboardSections: { gap: 15 },
+  dashboardCard: { borderWidth: 1, padding: 16 },
+  dashboardSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 15 },
   welcomeMessageInput: { minHeight: 116, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19 },
   welcomeCharacterCount: { fontFamily: 'Inter_400Regular', fontSize: 10, textAlign: 'right', marginTop: 5 },
   welcomePrimaryCard: { borderWidth: 1, padding: 12, gap: 8, marginTop: 10 },

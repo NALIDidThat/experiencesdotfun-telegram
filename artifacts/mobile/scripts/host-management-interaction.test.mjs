@@ -1866,8 +1866,35 @@ test("organisations can start setup for another Telegram community", async (t) =
           response = user;
         } else if (url.pathname === "/api/community/manage" && method === "GET") {
           response = { communities: [community] };
+        } else if (url.pathname === `/api/community/manage/${community.chatId}/live-info` && method === "GET") {
+          response = {
+            chatId: community.chatId,
+            chatTitle: community.chatTitle,
+            description: null,
+            connectionStatus: "connected",
+            connectionMessage: null,
+            memberCount: 20,
+            botCanDeleteMessages: true,
+          };
+        } else if (url.pathname === `/api/community/${community.chatId}/feed` && method === "GET") {
+          response = {
+            community: { chatId: community.chatId, title: community.chatTitle },
+            canBroadcastToTelegram: false,
+            items: [],
+            nextCursor: null,
+          };
+        } else if (url.pathname === "/api/community/manage/members" && method === "GET") {
+          response = { members: [], total: 0, limit: 20, offset: 0, trackingStartedAt: null };
+        } else if (url.pathname === "/api/community/manage/insights" && method === "GET") {
+          response = { days: [], trackingStartedAt: null, daysRequested: 7 };
+        } else if (url.pathname === "/api/community/manage/moderation-events" && method === "GET") {
+          response = { events: [], total: 0, limit: 20, offset: 0 };
+        } else if (url.pathname === "/api/community/manage/audit" && method === "GET") {
+          response = { events: [] };
         } else if (url.pathname === `/api/community/manage/${community.chatId}/rules` && method === "GET") {
           response = { phraseRules, linkRules };
+        } else if (url.pathname === `/api/community/manage/${community.chatId}/welcome` && method === "GET") {
+          response = { message: "", buttons: [] };
         } else if (url.pathname === `/api/community/manage/${community.chatId}/rules/phrases` && method === "POST") {
           const body = JSON.parse(params.request.postData ?? "{}");
           submittedRuleRequests.push({ method, path: url.pathname, body });
@@ -1948,9 +1975,9 @@ test("organisations can start setup for another Telegram community", async (t) =
   await tapTestId(client, "telegram-community--100123456789");
   await waitForValue(
     client,
-    `Boolean(document.querySelector('[data-testid="telegram-community-dashboard-screen"]')) && Boolean(document.querySelector('[data-testid="telegram-community-phrase-input"]'))`,
+    `Boolean(document.querySelector('[data-testid="telegram-community-dashboard-screen"]')) && Boolean(document.querySelector('[data-testid="telegram-community-phrase-input"]')) && Boolean(document.querySelector('[data-testid^="telegram-community-manage-"]'))`,
     Boolean,
-    "the linked group's phrase and link rule editors",
+    "the linked group's top-level management action and phrase editor",
   );
   await waitForValue(
     client,
