@@ -7,8 +7,14 @@ import {
   AddTelegramCommunityPhraseBody,
   AddTelegramCommunityPhraseParams,
   AddTelegramCommunityPhraseResponse,
+  AddTelegramCommunityCustomCommandBody,
+  AddTelegramCommunityCustomCommandParams,
+  AddTelegramCommunityCustomCommandResponse,
   DeleteTelegramCommunityLinkParams,
   DeleteTelegramCommunityPhraseParams,
+  DeleteTelegramCommunityCustomCommandParams,
+  GetTelegramCommunityCustomCommandsParams,
+  GetTelegramCommunityCustomCommandsResponse,
   GetTelegramCommunityRulesParams,
   GetTelegramCommunityRulesResponse,
   GetTelegramCommunityMembersQueryParams,
@@ -32,6 +38,9 @@ import {
   UpdateTelegramCommunityWelcomeSettingsBody,
   UpdateTelegramCommunityWelcomeSettingsParams,
   UpdateTelegramCommunityWelcomeSettingsResponse,
+  UpdateTelegramCommunityCustomCommandBody,
+  UpdateTelegramCommunityCustomCommandParams,
+  UpdateTelegramCommunityCustomCommandResponse,
 } from "@workspace/api-zod";
 import { db } from "@workspace/db";
 import { communityMembersTable } from "@workspace/db/schema";
@@ -45,6 +54,8 @@ import {
 import {
   getTelegramCommunityOpenUrl,
   getTelegramCommunityLiveInfo,
+  isTelegramChatAdmin,
+  syncTelegramCommunityCommandMenu,
   verifyTelegramCommunityMembership,
 } from "../lib/telegram";
 import {
@@ -56,8 +67,10 @@ import {
 } from "../lib/community-member-stats";
 import {
   addTelegramCommunityKeywordRule,
+  addTelegramCommunityCustomCommand,
   addTelegramCommunityLinkRule,
   getTelegramCommunityManagementContext,
+  listTelegramCommunityCustomCommands,
   listTelegramCommunityManagementAudit,
   getTelegramCommunityWelcomeSettings,
   setTelegramCommunityWelcomeSettings,
@@ -68,8 +81,10 @@ import {
   listTelegramOwnedCommunitiesForManagement,
   recordTelegramCommunityModerationEvent,
   removeTelegramCommunityKeywordRuleById,
+  removeTelegramCommunityCustomCommand,
   removeTelegramCommunityLinkRuleById,
   setTelegramCommunityRiddleSettings,
+  updateTelegramCommunityCustomCommand,
 } from "../lib/community-moderation";
 import {
   extractCommunityMessageLinks,
@@ -93,6 +108,51 @@ function getOrganisationTelegramUserId(req: Request, res: Response): number | nu
     return null;
   }
   return telegramUserId;
+}
+
+async function getTelegramCommunityCommandAdmin(
+  req: Request,
+  res: Response,
+  chatId: string,
+): Promise<number | null> {
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return null;
+
+  const context = await getTelegramCommunityManagementContext(chatId, telegramUserId);
+  if (!context) {
+    res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+    return null;
+  }
+
+  const numericChatId = Number(chatId);
+  if (!Number.isSafeInteger(numericChatId) || numericChatId >= 0) {
+    res.status(400).json({ message: "That Telegram group identifier is invalid." });
+    return null;
+  }
+  if (!(await isTelegramChatAdmin(numericChatId, telegramUserId))) {
+    res.status(403).json({ message: "Only an administrator of this Telegram group can edit its commands." });
+    return null;
+  }
+  return telegramUserId;
+}
+
+function isMissingTelegramCustomCommandsTable(error: unknown): boolean {
+  const cause = typeof error === "object" && error !== null && "cause" in error
+    ? error.cause
+    : error;
+  return typeof cause === "object" && cause !== null && "code" in cause
+    && String(cause.code) === "42P01";
+}
+
+async function refreshTelegramCustomCommandMenu(req: Request, chatId: string) {
+  try {
+    const updated = await syncTelegramCommunityCommandMenu(chatId);
+    if (!updated) {
+      req.log.warn({ chatId }, "Telegram custom command menu could not be updated");
+    }
+  } catch (error) {
+    req.log.warn({ err: error, chatId }, "Telegram custom command menu could not be updated");
+  }
 }
 
 router.get("/community/me", async (req, res) => {
@@ -277,6 +337,157 @@ router.put("/community/manage/:chatId/welcome", async (req, res) => {
     if (error instanceof TelegramCommunityWelcomeMigrationRequiredError) {
       res.status(503).json({
         message: "Join welcome messages are unavailable until the Telegram welcome migration is applied.",
+      });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.get("/community/manage/:chatId/commands", async (req, res) => {
+  const params = GetTelegramCommunityCustomCommandsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: "That Telegram group identifier is invalid." });
+    return;
+  }
+  if (await getTelegramCommunityCommandAdmin(req, res, params.data.chatId) === null) return;
+
+  try {
+    const commands = await listTelegramCommunityCustomCommands(params.data.chatId);
+    res.json(GetTelegramCommunityCustomCommandsResponse.parse({ commands }));
+  } catch (error) {
+    if (isMissingTelegramCustomCommandsTable(error)) {
+      res.status(503).json({
+        message: "Custom group commands are unavailable until their database migration is applied.",
+      });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.post("/community/manage/:chatId/commands", async (req, res) => {
+  const params = AddTelegramCommunityCustomCommandParams.safeParse(req.params);
+  const body = AddTelegramCommunityCustomCommandBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({
+      message: "Use a 1–32 character command name and a response of up to 3,500 characters.",
+    });
+    return;
+  }
+  const telegramUserId = await getTelegramCommunityCommandAdmin(req, res, params.data.chatId);
+  if (telegramUserId === null) return;
+
+  try {
+    const result = await addTelegramCommunityCustomCommand({
+      chatId: params.data.chatId,
+      telegramUserId,
+      command: body.data.command,
+      response: body.data.response,
+    });
+    if (result.status === "invalid_command") {
+      res.status(400).json({
+        message: "Use letters, numbers, or underscores, and choose a command name not used by the bot.",
+      });
+      return;
+    }
+    if (result.status === "already_exists") {
+      res.status(409).json({ message: "That command name is already used in this group." });
+      return;
+    }
+    if (result.status === "limit_reached") {
+      res.status(409).json({ message: "This group already has the maximum of 20 custom commands." });
+      return;
+    }
+    if (result.status !== "created") {
+      res.status(404).json({ message: "This Telegram group is no longer linked to your organisation." });
+      return;
+    }
+    await refreshTelegramCustomCommandMenu(req, params.data.chatId);
+    res.status(201).json(AddTelegramCommunityCustomCommandResponse.parse(result.command));
+  } catch (error) {
+    if (isMissingTelegramCustomCommandsTable(error)) {
+      res.status(503).json({
+        message: "Custom group commands are unavailable until their database migration is applied.",
+      });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.put("/community/manage/:chatId/commands/:commandId", async (req, res) => {
+  const params = UpdateTelegramCommunityCustomCommandParams.safeParse(req.params);
+  const body = UpdateTelegramCommunityCustomCommandBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({
+      message: "Use a 1–32 character command name and a response of up to 3,500 characters.",
+    });
+    return;
+  }
+  const telegramUserId = await getTelegramCommunityCommandAdmin(req, res, params.data.chatId);
+  if (telegramUserId === null) return;
+
+  try {
+    const result = await updateTelegramCommunityCustomCommand({
+      chatId: params.data.chatId,
+      telegramUserId,
+      commandId: params.data.commandId,
+      command: body.data.command,
+      response: body.data.response,
+    });
+    if (result.status === "invalid_command") {
+      res.status(400).json({
+        message: "Use letters, numbers, or underscores, and choose a command name not used by the bot.",
+      });
+      return;
+    }
+    if (result.status === "already_exists") {
+      res.status(409).json({ message: "That command name is already used in this group." });
+      return;
+    }
+    if (result.status !== "updated") {
+      res.status(404).json({ message: "That custom command could not be found in this group." });
+      return;
+    }
+    await refreshTelegramCustomCommandMenu(req, params.data.chatId);
+    res.json(UpdateTelegramCommunityCustomCommandResponse.parse(result.command));
+  } catch (error) {
+    if (isMissingTelegramCustomCommandsTable(error)) {
+      res.status(503).json({
+        message: "Custom group commands are unavailable until their database migration is applied.",
+      });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.delete("/community/manage/:chatId/commands/:commandId", async (req, res) => {
+  const params = DeleteTelegramCommunityCustomCommandParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: "That Telegram group or command identifier is invalid." });
+    return;
+  }
+  const telegramUserId = await getTelegramCommunityCommandAdmin(req, res, params.data.chatId);
+  if (telegramUserId === null) return;
+
+  try {
+    const result = await removeTelegramCommunityCustomCommand({
+      chatId: params.data.chatId,
+      telegramUserId,
+      commandId: params.data.commandId,
+    });
+    if (result.status !== "removed") {
+      res.status(404).json({ message: "That custom command could not be found in this group." });
+      return;
+    }
+    await refreshTelegramCustomCommandMenu(req, params.data.chatId);
+    res.sendStatus(204);
+  } catch (error) {
+    if (isMissingTelegramCustomCommandsTable(error)) {
+      res.status(503).json({
+        message: "Custom group commands are unavailable until their database migration is applied.",
       });
       return;
     }

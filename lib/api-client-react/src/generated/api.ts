@@ -190,6 +190,9 @@ import type {
   SocialInviteCreateInput,
   SyncCharityContributionLedger200,
   TelegramAuthInput,
+  TelegramCommunityCustomCommand,
+  TelegramCommunityCustomCommandInput,
+  TelegramCommunityCustomCommandsResponse,
   TelegramCommunityInsightsResponse,
   TelegramCommunityLinkInput,
   TelegramCommunityLinkRule,
@@ -9514,6 +9517,339 @@ export const useUpdateTelegramCommunityWelcomeSettings = <TError = ErrorType<Bad
         TContext
       > => {
       return useMutation(getUpdateTelegramCommunityWelcomeSettingsMutationOptions(options));
+    }
+
+export const getGetTelegramCommunityCustomCommandsUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/commands`
+}
+
+/**
+ * @summary List custom slash commands for a linked Telegram group
+ */
+export const getTelegramCommunityCustomCommands = async (chatId: string, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityCustomCommandsResponse> => {
+
+  return customFetch<TelegramCommunityCustomCommandsResponse>(getGetTelegramCommunityCustomCommandsUrl(chatId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTelegramCommunityCustomCommandsQueryKey = (chatId: string,) => {
+    return [
+    `/api/community/manage/${chatId}/commands`
+    ] as const;
+    }
+
+
+export const getGetTelegramCommunityCustomCommandsQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramCommunityCustomCommands>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>>(chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityCustomCommands>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTelegramCommunityCustomCommandsQueryKey(chatId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramCommunityCustomCommands>>> = ({ signal }) => getTelegramCommunityCustomCommands(chatId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: chatId !== null && chatId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityCustomCommands>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTelegramCommunityCustomCommandsQueryResult = NonNullable<Awaited<ReturnType<typeof getTelegramCommunityCustomCommands>>>
+export type GetTelegramCommunityCustomCommandsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List custom slash commands for a linked Telegram group
+ */
+
+export function useGetTelegramCommunityCustomCommands<TData = Awaited<ReturnType<typeof getTelegramCommunityCustomCommands>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>>(
+ chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityCustomCommands>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTelegramCommunityCustomCommandsQueryOptions(chatId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddTelegramCommunityCustomCommandUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/commands`
+}
+
+/**
+ * @summary Add a custom slash command to a linked Telegram group
+ */
+export const addTelegramCommunityCustomCommand = async (chatId: string,
+    telegramCommunityCustomCommandInput: TelegramCommunityCustomCommandInput, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityCustomCommand> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TelegramCommunityCustomCommand>(getAddTelegramCommunityCustomCommandUrl(chatId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(telegramCommunityCustomCommandInput)
+  }
+);}
+
+
+
+
+
+export const getAddTelegramCommunityCustomCommandMutationKey = () => ['addTelegramCommunityCustomCommand'] as const;
+
+export const getAddTelegramCommunityCustomCommandMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTelegramCommunityCustomCommand>>, TError,AddTelegramCommunityCustomCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addTelegramCommunityCustomCommand>>, TError,AddTelegramCommunityCustomCommandMutationVariables, TContext> => {
+
+const mutationKey = getAddTelegramCommunityCustomCommandMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addTelegramCommunityCustomCommand>>, AddTelegramCommunityCustomCommandMutationVariables> = (props) => {
+          const {chatId,data} = props ?? {};
+
+          return  addTelegramCommunityCustomCommand(chatId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddTelegramCommunityCustomCommandMutationResult = NonNullable<Awaited<ReturnType<typeof addTelegramCommunityCustomCommand>>>
+    export type AddTelegramCommunityCustomCommandMutationBody = BodyType<TelegramCommunityCustomCommandInput>
+    export type AddTelegramCommunityCustomCommandMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error | ServiceUnavailableResponse>
+    export type AddTelegramCommunityCustomCommandMutationVariables = {chatId: string;data: BodyType<TelegramCommunityCustomCommandInput>}
+
+    /**
+ * @summary Add a custom slash command to a linked Telegram group
+ */
+export const useAddTelegramCommunityCustomCommand = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTelegramCommunityCustomCommand>>, TError,AddTelegramCommunityCustomCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addTelegramCommunityCustomCommand>>,
+        TError,
+        AddTelegramCommunityCustomCommandMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddTelegramCommunityCustomCommandMutationOptions(options));
+    }
+
+export const getUpdateTelegramCommunityCustomCommandUrl = (chatId: string,
+    commandId: number,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/commands/${commandId}`
+}
+
+/**
+ * @summary Update a custom slash command in a linked Telegram group
+ */
+export const updateTelegramCommunityCustomCommand = async (chatId: string,
+    commandId: number,
+    telegramCommunityCustomCommandInput: TelegramCommunityCustomCommandInput, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityCustomCommand> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TelegramCommunityCustomCommand>(getUpdateTelegramCommunityCustomCommandUrl(chatId,commandId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(telegramCommunityCustomCommandInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateTelegramCommunityCustomCommandMutationKey = () => ['updateTelegramCommunityCustomCommand'] as const;
+
+export const getUpdateTelegramCommunityCustomCommandMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTelegramCommunityCustomCommand>>, TError,UpdateTelegramCommunityCustomCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTelegramCommunityCustomCommand>>, TError,UpdateTelegramCommunityCustomCommandMutationVariables, TContext> => {
+
+const mutationKey = getUpdateTelegramCommunityCustomCommandMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTelegramCommunityCustomCommand>>, UpdateTelegramCommunityCustomCommandMutationVariables> = (props) => {
+          const {chatId,commandId,data} = props ?? {};
+
+          return  updateTelegramCommunityCustomCommand(chatId,commandId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTelegramCommunityCustomCommandMutationResult = NonNullable<Awaited<ReturnType<typeof updateTelegramCommunityCustomCommand>>>
+    export type UpdateTelegramCommunityCustomCommandMutationBody = BodyType<TelegramCommunityCustomCommandInput>
+    export type UpdateTelegramCommunityCustomCommandMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error | ServiceUnavailableResponse>
+    export type UpdateTelegramCommunityCustomCommandMutationVariables = {chatId: string;commandId: number;data: BodyType<TelegramCommunityCustomCommandInput>}
+
+    /**
+ * @summary Update a custom slash command in a linked Telegram group
+ */
+export const useUpdateTelegramCommunityCustomCommand = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | Error | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTelegramCommunityCustomCommand>>, TError,UpdateTelegramCommunityCustomCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTelegramCommunityCustomCommand>>,
+        TError,
+        UpdateTelegramCommunityCustomCommandMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateTelegramCommunityCustomCommandMutationOptions(options));
+    }
+
+export const getDeleteTelegramCommunityCustomCommandUrl = (chatId: string,
+    commandId: number,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/commands/${commandId}`
+}
+
+/**
+ * @summary Delete a custom slash command from a linked Telegram group
+ */
+export const deleteTelegramCommunityCustomCommand = async (chatId: string,
+    commandId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteTelegramCommunityCustomCommandUrl(chatId,commandId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteTelegramCommunityCustomCommandMutationKey = () => ['deleteTelegramCommunityCustomCommand'] as const;
+
+export const getDeleteTelegramCommunityCustomCommandMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTelegramCommunityCustomCommand>>, TError,DeleteTelegramCommunityCustomCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTelegramCommunityCustomCommand>>, TError,DeleteTelegramCommunityCustomCommandMutationVariables, TContext> => {
+
+const mutationKey = getDeleteTelegramCommunityCustomCommandMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTelegramCommunityCustomCommand>>, DeleteTelegramCommunityCustomCommandMutationVariables> = (props) => {
+          const {chatId,commandId} = props ?? {};
+
+          return  deleteTelegramCommunityCustomCommand(chatId,commandId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTelegramCommunityCustomCommandMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTelegramCommunityCustomCommand>>>
+
+    export type DeleteTelegramCommunityCustomCommandMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>
+    export type DeleteTelegramCommunityCustomCommandMutationVariables = {chatId: string;commandId: number}
+
+    /**
+ * @summary Delete a custom slash command from a linked Telegram group
+ */
+export const useDeleteTelegramCommunityCustomCommand = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTelegramCommunityCustomCommand>>, TError,DeleteTelegramCommunityCustomCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTelegramCommunityCustomCommand>>,
+        TError,
+        DeleteTelegramCommunityCustomCommandMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteTelegramCommunityCustomCommandMutationOptions(options));
     }
 
 export const getGetTelegramCommunityRulesUrl = (chatId: string,) => {

@@ -2630,6 +2630,154 @@ paths:
           $ref: "#/components/responses/NotFound"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+  /community/manage/{chatId}/commands:
+    get:
+      operationId: getTelegramCommunityCustomCommands
+      tags: [community]
+      summary: List custom slash commands for a linked Telegram group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      responses:
+        "200":
+          description: Commands configured for this group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityCustomCommandsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    post:
+      operationId: addTelegramCommunityCustomCommand
+      tags: [community]
+      summary: Add a custom slash command to a linked Telegram group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramCommunityCustomCommandInput"
+      responses:
+        "201":
+          description: Created group command
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityCustomCommand"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The command already exists or the group has reached its command limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /community/manage/{chatId}/commands/{commandId}:
+    put:
+      operationId: updateTelegramCommunityCustomCommand
+      tags: [community]
+      summary: Update a custom slash command in a linked Telegram group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+        - name: commandId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramCommunityCustomCommandInput"
+      responses:
+        "200":
+          description: Updated group command
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityCustomCommand"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The command name already exists in this group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    delete:
+      operationId: deleteTelegramCommunityCustomCommand
+      tags: [community]
+      summary: Delete a custom slash command from a linked Telegram group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+        - name: commandId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Command deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /community/manage/{chatId}/rules:
     get:
       operationId: getTelegramCommunityRules
@@ -6189,6 +6337,37 @@ components:
           maxLength: 2048
       required: [label, url]
       additionalProperties: false
+    TelegramCommunityCustomCommandInput:
+      type: object
+      properties:
+        command:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: "^[A-Za-z0-9_]+$"
+        response:
+          type: string
+          minLength: 1
+          maxLength: 3500
+      required: [command, response]
+      additionalProperties: false
+    TelegramCommunityCustomCommand:
+      type: object
+      properties:
+        id: { type: integer, minimum: 1 }
+        command: { type: string, minLength: 1, maxLength: 32 }
+        response: { type: string, minLength: 1, maxLength: 3500 }
+        updatedAt: { type: string, format: date-time }
+      required: [id, command, response, updatedAt]
+    TelegramCommunityCustomCommandsResponse:
+      type: object
+      properties:
+        commands:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/TelegramCommunityCustomCommand"
+      required: [commands]
     TelegramCommunityRulesResponse:
       type: object
       properties:

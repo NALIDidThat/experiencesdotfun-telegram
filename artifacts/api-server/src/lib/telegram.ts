@@ -45,11 +45,13 @@ import {
   disconnectTelegramCommunity,
   getTelegramCommunity,
   getTelegramCommunityManagementContext,
+  getTelegramCommunityCustomCommandResponse,
   getTelegramCommunityWelcomeSettingsForGroup,
   listTelegramCommunityKeywordRules,
   listTelegramCommunityLinkRules,
   listDueTelegramCommunityRiddles,
   listTelegramCommunityActiveRiddles,
+  listTelegramCommunityCustomCommands,
   listTelegramOwnedCommunities,
   listTelegramOwnedOrganisations,
   advanceTelegramCommunityRiddleSchedule,
@@ -219,6 +221,7 @@ let telegramBotRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let consecutivePollingFailures = 0;
 let pollingConflictDetected = false;
 let telegramWelcomeMigrationWarningLogged = false;
+let telegramCustomCommandMigrationWarningLogged = false;
 let lastPollingConflictLogAt = 0;
 let lastPollingLeaseBusyLogAt = 0;
 const pendingPrivateCommunityPhrases = new Map<
@@ -615,6 +618,33 @@ async function registerTelegramCommands() {
   }
 }
 
+export async function isTelegramChatAdmin(
+  chatId: number,
+  telegramUserId: number,
+): Promise<boolean> {
+  const member = await telegramCall<{ status?: string }>("getChatMember", {
+    chat_id: chatId,
+    user_id: telegramUserId,
+  });
+  return member?.status === "creator" || member?.status === "administrator";
+}
+
+export async function syncTelegramCommunityCommandMenu(chatId: string): Promise<boolean> {
+  const customCommands = await listTelegramCommunityCustomCommands(chatId);
+  const commands = [
+    ...groupBotCommands,
+    ...customCommands.map(({ command }) => ({
+      command,
+      description: "Custom command for this group",
+    })),
+  ];
+  const registered = await telegramCall<boolean>("setMyCommands", {
+    commands,
+    scope: { type: "chat", chat_id: Number(chatId) },
+  });
+  return registered === true;
+}
+
 function openButton(text: string, path: string): TelegramButton {
   return { text, web_app: { url: miniAppUrl(path) } };
 }
@@ -685,7 +715,7 @@ async function sendCommandMenu(chatId: number) {
   return sendTelegramMessage(
     chatId,
     groupChat
-      ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome and quick actions\n<code>/experiences</code> Browse upcoming experiences\n<code>/rank</code> Your Community XP rank · add <code>@username</code> to look up a member\n<code>/leaderboard</code> Top contributors in this group\n<code>/riddle</code> Start a random riddle; reply directly with your guess\n<code>/clue</code> Get a nudge for the active riddle\n\n<b>Talk and research</b>\nMention @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} in a group message for a natural-language reply or web research. Private chats work without a mention.\n\n<b>Group controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code>\n<code>/filters</code> List saved phrases\n\nManage linked groups from a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} using <code>/community</code>.\n\n<code>/help</code> Show this guide\n\nFor private profile, XP, and friend commands, open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")}.`
+        ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome and quick actions\n<code>/experiences</code> Browse upcoming experiences\n<code>/rank</code> Your Community XP rank · add <code>@username</code> to look up a member\n<code>/leaderboard</code> Top contributors in this group\n<code>/riddle</code> Start a random riddle; reply directly with your guess\n<code>/clue</code> Get a nudge for the active riddle\n\n<b>Custom commands</b>\nUse this group's saved slash commands for information such as project links or a contract address. An administrator can configure replies in the Telegram group dashboard.\n\n<b>Talk and research</b>\nMention @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} in a group message for a natural-language reply or web research. Private chats work without a mention.\n\n<b>Group controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code>\n<code>/filters</code> List saved phrases\n\nManage linked groups from a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} using <code>/community</code>.\n\n<code>/help</code> Show this guide\n\nFor private profile, XP, and friend commands, open a private chat with @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")}.`
         : `<b>Experiences.fun · Quick menu</b>\n\nChoose where to start:\n\n1️⃣ <b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n2️⃣ <b>Track your XP</b>\n<code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Your community</b>\n<code>/rank</code> Your rank · <code>/leaderboard</code> Group leaders\n<code>/community</code> Manage groups you own\n<code>/riddle</code> Play a riddle here or in a group\n<code>/clue</code> Get a nudge for the active riddle\n\n4️⃣ <b>Connect and host</b>\n<code>/profile</code> Passport · <code>/add @username</code> Friends · <code>/friends</code> List · <code>/requests</code> Requests · <code>/accountability</code> Partner space · <code>/create</code> Create · <code>/host</code> Manage\n\nNeed more help? Use <code>/help</code> or <code>/onboarding</code>.`,
     menuKeyboard(groupChat),
   );
@@ -798,7 +828,7 @@ async function handleCommand(
       await sendTelegramMessage(
         chatId,
         groupChat
-            ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/help</code> This guide\n\n<b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n<b>Community XP</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n<b>Group game</b>\n<code>/riddle</code> Start a random riddle; reply directly with your guess\n<code>/clue</code> Get a nudge for the active riddle\n\nFor natural conversation or web research, mention @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} in the group. Private chats work without a mention.\n\n<b>Spam controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view group controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code> · <code>/filters</code> List rules\n\nManage linked groups privately with <code>/community</code>. Profile, XP, friend, and host commands are also private. Open @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} to use them.`
+            ? `<b>Experiences.fun · Group commands</b>\n\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/help</code> This guide\n\n<b>Discover</b>\n<code>/experiences</code> Browse upcoming experiences\n\n<b>Community XP</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n\n<b>Group game</b>\n<code>/riddle</code> Start a random riddle; reply directly with your guess\n<code>/clue</code> Get a nudge for the active riddle\n\n<b>Custom commands</b>\nUse this group's saved slash commands for information such as project links or a contract address.\n\nFor natural conversation or web research, mention @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} in the group. Private chats work without a mention.\n\n<b>Spam controls · organisation owner + Telegram admin</b>\n<code>/community</code> Connect or view group controls · <code>/community disconnect</code> Unlink\n<code>/spam on</code> / <code>/spam off</code> Toggle phrase protection\n<code>/filter add phrase</code> / <code>/filter remove phrase</code> · <code>/filters</code> List rules\n\nManage linked groups privately with <code>/community</code>. Profile, XP, friend, and host commands are also private. Open @${escapeTelegramHtml(botUsername ?? "experiencesdotfun_bot")} to use them.`
             : `<b>Experiences.fun · Commands</b>\n\n1️⃣ <b>Start</b>\n<code>/start</code> Welcome · <code>/menu</code> Quick actions · <code>/onboarding</code> Finish setup\n\n2️⃣ <b>Discover and track</b>\n<code>/experiences</code> Browse · <code>/xp</code> Experience XP and rewards\n\n3️⃣ <b>Community and games</b>\n<code>/rank</code> Your rank · <code>/rank @username</code> Member rank · <code>/leaderboard</code> Group leaders\n<code>/community</code> Manage linked groups privately\n<code>/riddle</code> Start a riddle in this chat or a group; answer within 15 minutes\n\n4️⃣ <b>Talk and research</b>\nChat naturally here about your own Experiences.fun journey, discover published experiences, or ask for web research. With an Organisation profile, describe an experience you want to host; the assistant prepares a draft for you to review in the Mini App and confirm on the map before publishing.\n\n5️⃣ <b>Connect</b>\n<code>/profile</code> Passport · <code>/add @username</code> Add a friend · <code>/friends</code> Friends · <code>/requests</code> Requests · <code>/accountability</code> Partner space\n\n6️⃣ <b>Host</b>\n<code>/create</code> Create an experience · <code>/host</code> Host tools\n\nUse <code>/help</code> to open this guide.`,
         [[callbackButton("Open menu", "menu:open"), callbackButton("How it works", "onboarding:how")]],
       );
@@ -1094,6 +1124,30 @@ async function handleCommand(
       break;
     }
     default:
+      if (isGroupChat(chatType)) {
+        let customResponse: string | null = null;
+        try {
+          customResponse = await getTelegramCommunityCustomCommandResponse(
+            String(chatId),
+            command.slice(1),
+          );
+        } catch (error) {
+          const cause = typeof error === "object" && error !== null && "cause" in error
+            ? error.cause
+            : error;
+          const missingMigration = typeof cause === "object" && cause !== null
+            && "code" in cause && String(cause.code) === "42P01";
+          if (!missingMigration) throw error;
+          if (!telegramCustomCommandMigrationWarningLogged) {
+            telegramCustomCommandMigrationWarningLogged = true;
+            logger.warn("Telegram custom commands are unavailable until their database migration is applied.");
+          }
+        }
+        if (customResponse !== null) {
+          await sendTelegramMessage(chatId, escapeTelegramHtml(customResponse));
+          break;
+        }
+      }
       await sendTelegramMessage(chatId, "I don't recognise that command. Use /help to see what I can do.");
   }
 }
@@ -1698,14 +1752,6 @@ async function handleTelegramAssistantQuestion(
       message.message_id,
     );
   }
-}
-
-async function isTelegramChatAdmin(chatId: number, telegramUserId: number): Promise<boolean> {
-  const member = await telegramCall<{ status?: string }>("getChatMember", {
-    chat_id: chatId,
-    user_id: telegramUserId,
-  });
-  return member?.status === "creator" || member?.status === "administrator";
 }
 
 async function botCanDeleteMessages(chatId: number): Promise<boolean> {

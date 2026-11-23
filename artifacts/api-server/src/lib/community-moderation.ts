@@ -6,6 +6,7 @@ import {
   organisationsTable,
   telegramCommunitiesTable,
   telegramCommunityManagementAuditTable,
+  telegramCommunityCustomCommandsTable,
   telegramCommunityKeywordRulesTable,
   telegramCommunityLinkRulesTable,
   telegramCommunityModerationEventsTable,
@@ -18,6 +19,11 @@ import {
   normalizeCommunityModerationPhrase,
 } from "./community-rules";
 import { TELEGRAM_COMMUNITY_RIDDLE_INTERVALS } from "./group-riddles";
+import {
+  TELEGRAM_CUSTOM_COMMAND_LIMIT,
+  normalizeTelegramCustomCommand,
+  normalizeTelegramCustomCommandResponse,
+} from "./telegram-custom-command-rules.mjs";
 import { logger } from "./logger";
 
 export type OwnedTelegramOrganisation = {
@@ -314,6 +320,167 @@ export async function setTelegramCommunityWelcomeSettings(input: {
     }
     throw error;
   }
+}
+
+export async function listTelegramCommunityCustomCommands(chatId: string) {
+  return db
+    .select({
+      id: telegramCommunityCustomCommandsTable.id,
+      command: telegramCommunityCustomCommandsTable.command,
+      response: telegramCommunityCustomCommandsTable.response,
+      updatedAt: telegramCommunityCustomCommandsTable.updatedAt,
+    })
+    .from(telegramCommunityCustomCommandsTable)
+    .where(eq(telegramCommunityCustomCommandsTable.chatId, chatId))
+    .orderBy(asc(telegramCommunityCustomCommandsTable.command))
+    .limit(TELEGRAM_CUSTOM_COMMAND_LIMIT);
+}
+
+export async function getTelegramCommunityCustomCommandResponse(
+  chatId: string,
+  commandName: string,
+) {
+  const [command] = await db
+    .select({ response: telegramCommunityCustomCommandsTable.response })
+    .from(telegramCommunityCustomCommandsTable)
+    .where(
+      and(
+        eq(telegramCommunityCustomCommandsTable.chatId, chatId),
+        eq(telegramCommunityCustomCommandsTable.command, commandName),
+      ),
+    )
+    .limit(1);
+  return command?.response ?? null;
+}
+
+export async function addTelegramCommunityCustomCommand(input: {
+  chatId: string;
+  telegramUserId: number;
+  command: string;
+  response: string;
+}) {
+  const context = await getTelegramCommunityManagementContext(input.chatId, input.telegramUserId);
+  if (!context) return { status: "not_owner" as const };
+  const command = normalizeTelegramCustomCommand(input.command);
+  const response = normalizeTelegramCustomCommandResponse(input.response);
+  if (!command || !response) return { status: "invalid_command" as const };
+
+  const result = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${input.chatId}, 0))`);
+    const [currentCount] = await tx
+      .select({ value: count() })
+      .from(telegramCommunityCustomCommandsTable)
+      .where(eq(telegramCommunityCustomCommandsTable.chatId, input.chatId));
+    if (currentCount.value >= TELEGRAM_CUSTOM_COMMAND_LIMIT) {
+      return { status: "limit_reached" as const };
+    }
+    const [created] = await tx
+      .insert(telegramCommunityCustomCommandsTable)
+      .values({
+        chatId: input.chatId,
+        command,
+        response,
+        createdByUserId: context.ownerUserId,
+      })
+      .returning({
+        id: telegramCommunityCustomCommandsTable.id,
+        command: telegramCommunityCustomCommandsTable.command,
+        response: telegramCommunityCustomCommandsTable.response,
+        updatedAt: telegramCommunityCustomCommandsTable.updatedAt,
+      });
+    return created ? { status: "created" as const, command: created } : { status: "not_found" as const };
+  }).catch((error: unknown) => {
+    if (isUniqueConstraintViolation(error)) return { status: "already_exists" as const };
+    throw error;
+  });
+
+  if (result.status === "created") {
+    await recordTelegramCommunityManagementAudit({
+      chatId: input.chatId,
+      actorUserId: context.ownerUserId,
+      action: "custom_command_created",
+      targetId: result.command.id,
+    });
+  }
+  return result;
+}
+
+export async function updateTelegramCommunityCustomCommand(input: {
+  chatId: string;
+  telegramUserId: number;
+  commandId: number;
+  command: string;
+  response: string;
+}) {
+  const context = await getTelegramCommunityManagementContext(input.chatId, input.telegramUserId);
+  if (!context) return { status: "not_owner" as const };
+  const command = normalizeTelegramCustomCommand(input.command);
+  const response = normalizeTelegramCustomCommandResponse(input.response);
+  if (!command || !response) return { status: "invalid_command" as const };
+
+  const result = await db
+    .update(telegramCommunityCustomCommandsTable)
+    .set({ command, response, updatedAt: new Date() })
+    .where(
+      and(
+        eq(telegramCommunityCustomCommandsTable.chatId, input.chatId),
+        eq(telegramCommunityCustomCommandsTable.id, input.commandId),
+      ),
+    )
+    .returning({
+      id: telegramCommunityCustomCommandsTable.id,
+      command: telegramCommunityCustomCommandsTable.command,
+      response: telegramCommunityCustomCommandsTable.response,
+      updatedAt: telegramCommunityCustomCommandsTable.updatedAt,
+    })
+    .catch((error: unknown) => {
+      if (isUniqueConstraintViolation(error)) return null;
+      throw error;
+    });
+  if (result === null) return { status: "already_exists" as const };
+  const [updated] = result;
+  if (!updated) return { status: "not_found" as const };
+  await recordTelegramCommunityManagementAudit({
+    chatId: input.chatId,
+    actorUserId: context.ownerUserId,
+    action: "custom_command_updated",
+    targetId: updated.id,
+  });
+  return { status: "updated" as const, command: updated };
+}
+
+export async function removeTelegramCommunityCustomCommand(input: {
+  chatId: string;
+  telegramUserId: number;
+  commandId: number;
+}) {
+  const context = await getTelegramCommunityManagementContext(input.chatId, input.telegramUserId);
+  if (!context) return { status: "not_owner" as const };
+  const [removed] = await db
+    .delete(telegramCommunityCustomCommandsTable)
+    .where(
+      and(
+        eq(telegramCommunityCustomCommandsTable.chatId, input.chatId),
+        eq(telegramCommunityCustomCommandsTable.id, input.commandId),
+      ),
+    )
+    .returning({ id: telegramCommunityCustomCommandsTable.id });
+  if (!removed) return { status: "not_found" as const };
+  await recordTelegramCommunityManagementAudit({
+    chatId: input.chatId,
+    actorUserId: context.ownerUserId,
+    action: "custom_command_deleted",
+    targetId: removed.id,
+  });
+  return { status: "removed" as const };
+}
+
+function isUniqueConstraintViolation(error: unknown): boolean {
+  const cause = typeof error === "object" && error !== null && "cause" in error
+    ? error.cause
+    : error;
+  return typeof cause === "object" && cause !== null && "code" in cause
+    && String(cause.code) === "23505";
 }
 
 export async function setTelegramCommunityRiddleSettings(input: {

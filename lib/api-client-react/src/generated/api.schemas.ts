@@ -2070,6 +2070,41 @@ export interface TelegramCommunityWelcomeSettings {
   buttons: TelegramCommunityWelcomeButton[];
 }
 
+export interface TelegramCommunityCustomCommandInput {
+  /**
+     * @minLength 1
+     * @maxLength 32
+     * @pattern ^[A-Za-z0-9_]+$
+     */
+  command: string;
+  /**
+     * @minLength 1
+     * @maxLength 3500
+     */
+  response: string;
+}
+
+export interface TelegramCommunityCustomCommand {
+  /** @minimum 1 */
+  id: number;
+  /**
+     * @minLength 1
+     * @maxLength 32
+     */
+  command: string;
+  /**
+     * @minLength 1
+     * @maxLength 3500
+     */
+  response: string;
+  updatedAt: string;
+}
+
+export interface TelegramCommunityCustomCommandsResponse {
+  /** @maxItems 20 */
+  commands: TelegramCommunityCustomCommand[];
+}
+
 export interface TelegramCommunityPhraseRule {
   id: number;
   /** @maxLength 80 */

@@ -19,6 +19,7 @@ import {
   getGetTelegramCommunityModerationEventsQueryKey,
   getGetTelegramCommunityRulesQueryKey,
   getGetTelegramCommunityWelcomeSettingsQueryKey,
+  getGetTelegramCommunityCustomCommandsQueryKey,
   useAddTelegramCommunityLink,
   useAddTelegramCommunityPhrase,
   useDeleteTelegramCommunityLink,
@@ -32,11 +33,16 @@ import {
   useGetTelegramCommunityModerationEvents,
   useGetTelegramCommunityRules,
   useGetTelegramCommunityWelcomeSettings,
+  useGetTelegramCommunityCustomCommands,
   usePreviewTelegramCommunityRules,
   useUpdateTelegramCommunityRiddleSettings,
   useUpdateTelegramCommunityWelcomeSettings,
+  useAddTelegramCommunityCustomCommand,
+  useUpdateTelegramCommunityCustomCommand,
+  useDeleteTelegramCommunityCustomCommand,
   type TelegramCommunityWelcomeButton,
   type TelegramCommunityWelcomeSettings,
+  type TelegramCommunityCustomCommand,
   type TelegramManagedCommunity,
 } from '@workspace/api-client-react';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -827,6 +833,299 @@ function TelegramCommunityWelcomeEditor({ chatId }: { chatId: string }) {
   );
 }
 
+function TelegramCommunityCustomCommandsEditor({ chatId }: { chatId: string }) {
+  const colors = useColors();
+  const queryClient = useQueryClient();
+  const commandQuery = useGetTelegramCommunityCustomCommands(chatId, {
+    query: {
+      queryKey: getGetTelegramCommunityCustomCommandsQueryKey(chatId),
+      enabled: Boolean(chatId),
+    },
+  });
+  const addCommand = useAddTelegramCommunityCustomCommand();
+  const updateCommand = useUpdateTelegramCommunityCustomCommand();
+  const deleteCommand = useDeleteTelegramCommunityCustomCommand();
+  const [commandName, setCommandName] = useState('');
+  const [response, setResponse] = useState('');
+  const [editingCommandId, setEditingCommandId] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<RuleFeedback | null>(null);
+  const isSaving = addCommand.isPending || updateCommand.isPending;
+  const commandItems = commandQuery.data?.commands ?? [];
+
+  function beginEdit(command: TelegramCommunityCustomCommand) {
+    setEditingCommandId(command.id);
+    setCommandName(command.command);
+    setResponse(command.response);
+    setFeedback(null);
+  }
+
+  function resetForm() {
+    setEditingCommandId(null);
+    setCommandName('');
+    setResponse('');
+  }
+
+  async function saveCommand() {
+    const normalizedCommand = commandName.trim().replace(/^\/+/, '').toLowerCase();
+    const normalizedResponse = response.trim();
+    if (!/^[a-z0-9_]{1,32}$/.test(normalizedCommand)) {
+      setFeedback({ message: 'Use 1–32 letters, numbers, or underscores for the command name.', tone: 'error' });
+      return;
+    }
+    if (normalizedResponse.length === 0 || [...normalizedResponse].length > 3500) {
+      setFeedback({ message: 'Add a response of up to 3,500 characters.', tone: 'error' });
+      return;
+    }
+
+    setFeedback(null);
+    try {
+      const data = { command: normalizedCommand, response: normalizedResponse };
+      if (editingCommandId !== null) {
+        await updateCommand.mutateAsync({ chatId, commandId: editingCommandId, data });
+      } else {
+        await addCommand.mutateAsync({ chatId, data });
+      }
+      resetForm();
+      setFeedback({
+        message: editingCommandId === null ? 'Group command added.' : 'Group command updated.',
+        tone: 'success',
+      });
+      await queryClient.invalidateQueries({
+        queryKey: getGetTelegramCommunityCustomCommandsQueryKey(chatId),
+      });
+    } catch (error) {
+      setFeedback({
+        message: errorMessage(error, 'Could not save this command. Try again.'),
+        tone: 'error',
+      });
+    }
+  }
+
+  async function removeCommand(command: TelegramCommunityCustomCommand) {
+    setFeedback(null);
+    try {
+      await deleteCommand.mutateAsync({ chatId, commandId: command.id });
+      if (editingCommandId === command.id) resetForm();
+      setFeedback({ message: `/${command.command} removed from this group.`, tone: 'success' });
+      await queryClient.invalidateQueries({
+        queryKey: getGetTelegramCommunityCustomCommandsQueryKey(chatId),
+      });
+    } catch (error) {
+      setFeedback({
+        message: errorMessage(error, 'Could not remove this command. Try again.'),
+        tone: 'error',
+      });
+    }
+  }
+
+  return (
+    <View
+      testID="telegram-community-custom-commands"
+      style={[
+        styles.dashboardCard,
+        { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+      ]}
+    >
+      <View style={styles.dashboardSectionHeader}>
+        <View style={[styles.setupIcon, { backgroundColor: colors.primary + '14' }]}>
+          <Feather name="terminal" size={18} color={colors.primary} />
+        </View>
+        <View style={styles.sectionTitleCopy}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Custom group commands</Text>
+          <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+            {commandQuery.data
+              ? `${commandQuery.data.commands.length} of 20 commands`
+              : 'Create commands and saved replies'}
+          </Text>
+        </View>
+      </View>
+
+      <Text style={[styles.sectionDescription, { color: colors.mutedForeground, marginBottom: 12 }]}>
+        Commands and responses are available only in this group. For example, set /ca to return your project’s contract address. At least three commands are supported.
+      </Text>
+
+      {commandQuery.isLoading ? (
+        <View style={styles.rulesLoading}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+            Loading group commands…
+          </Text>
+        </View>
+      ) : commandQuery.isError ? (
+        <View style={styles.rulesError}>
+          <Text
+            accessibilityRole="alert"
+            testID="telegram-community-custom-commands-error"
+            style={[styles.sectionDescription, { color: colors.destructive }]}
+          >
+            {errorMessage(commandQuery.error, 'Custom commands could not be loaded.')}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading custom group commands"
+            testID="telegram-community-custom-commands-retry"
+            onPress={() => { void commandQuery.refetch(); }}
+            style={[
+              styles.ruleRetryButton,
+              { borderColor: colors.border, borderRadius: colors.radius - 5 },
+            ]}
+          >
+            <Feather name="refresh-cw" size={14} color={colors.primary} />
+            <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Try again</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <>
+          {commandItems.length ? (
+            <View style={styles.customCommandList}>
+              {commandItems.map((command) => (
+                <View
+                  key={command.id}
+                  testID={`telegram-community-custom-command-${command.id}`}
+                  style={[
+                    styles.customCommandRow,
+                    { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 5 },
+                  ]}
+                >
+                  <Text style={[styles.customCommandName, { color: colors.primary }]}>/{command.command}</Text>
+                  <Text numberOfLines={4} style={[styles.customCommandResponse, { color: colors.foreground }]}>
+                    {command.response}
+                  </Text>
+                  <View style={styles.customCommandActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Edit /${command.command}`}
+                      testID={`telegram-community-custom-command-edit-${command.id}`}
+                      onPress={() => beginEdit(command)}
+                      style={styles.customCommandAction}
+                    >
+                      <Feather name="edit-2" size={14} color={colors.primary} />
+                      <Text style={[styles.customCommandActionText, { color: colors.primary }]}>Edit</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove /${command.command}`}
+                      testID={`telegram-community-custom-command-remove-${command.id}`}
+                      disabled={deleteCommand.isPending}
+                      onPress={() => { void removeCommand(command); }}
+                      style={styles.customCommandAction}
+                    >
+                      {deleteCommand.isPending
+                        ? <ActivityIndicator size="small" color={colors.destructive} />
+                        : <Feather name="trash-2" size={14} color={colors.destructive} />}
+                      <Text style={[styles.customCommandActionText, { color: colors.destructive }]}>Remove</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={[styles.rulesEmpty, { color: colors.mutedForeground }]}>
+              No custom commands yet. Add one below; the bot will reply when members use it here.
+            </Text>
+          )}
+
+          <Text style={[styles.customCommandFieldLabel, { color: colors.foreground }]}>Command name</Text>
+          <View style={[styles.customCommandNameInputWrap, { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 5 }]}>
+            <Text style={[styles.customCommandSlash, { color: colors.mutedForeground }]}>/</Text>
+            <TextInput
+              accessibilityLabel="Custom group command name"
+              testID="telegram-community-custom-command-name"
+              value={commandName}
+              onChangeText={(value) => {
+                setCommandName(value);
+                setFeedback(null);
+              }}
+              placeholder="ca"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={32}
+              editable={!isSaving}
+              style={[styles.customCommandNameInput, { color: colors.foreground }]}
+            />
+          </View>
+          <Text style={[styles.customCommandFieldLabel, { color: colors.foreground }]}>Command response</Text>
+          <TextInput
+            accessibilityLabel="Custom group command response"
+            testID="telegram-community-custom-command-response"
+            value={response}
+            onChangeText={(value) => {
+              setResponse(value);
+              setFeedback(null);
+            }}
+            placeholder="Enter the text the bot should send"
+            placeholderTextColor={colors.mutedForeground}
+            multiline
+            maxLength={3500}
+            editable={!isSaving}
+            textAlignVertical="top"
+            style={[
+              styles.customCommandResponseInput,
+              { backgroundColor: colors.background, borderColor: colors.border, borderRadius: colors.radius - 5, color: colors.foreground },
+            ]}
+          />
+          <Text style={[styles.welcomeCharacterCount, { color: colors.mutedForeground }]}>
+            {[...response].length} / 3,500 characters
+          </Text>
+          <View style={styles.customCommandFormActions}>
+            <Pressable
+              accessibilityRole="button"
+              testID="telegram-community-custom-command-save"
+              disabled={isSaving || deleteCommand.isPending || (editingCommandId === null && (commandQuery.data?.commands.length ?? 0) >= 20)}
+              onPress={() => { void saveCommand(); }}
+              style={({ pressed }) => [
+                styles.manageButton,
+                {
+                  flex: 1,
+                  backgroundColor: colors.primary,
+                  borderRadius: colors.radius - 5,
+                  opacity: pressed || isSaving ? 0.72 : 1,
+                },
+              ]}
+            >
+              {isSaving
+                ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                : <Feather name="save" size={15} color={colors.primaryForeground} />}
+              <Text style={[styles.manageButtonText, { color: colors.primaryForeground }]}>
+                {isSaving ? 'Saving…' : editingCommandId === null ? 'Add command' : 'Save changes'}
+              </Text>
+            </Pressable>
+            {editingCommandId !== null ? (
+              <Pressable
+                accessibilityRole="button"
+                testID="telegram-community-custom-command-cancel"
+                disabled={isSaving}
+                onPress={resetForm}
+                style={[styles.secondaryButton, { borderColor: colors.border, borderRadius: colors.radius - 5 }]}
+              >
+                <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>Cancel</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          {commandQuery.data?.commands.length === 20 && editingCommandId === null ? (
+            <Text style={[styles.ruleFeedback, { color: colors.mutedForeground }]}>
+              This group has reached its 20-command limit.
+            </Text>
+          ) : null}
+        </>
+      )}
+      {feedback ? (
+        <Text
+          accessibilityRole={feedback.tone === 'error' ? 'alert' : 'text'}
+          testID="telegram-community-custom-command-feedback"
+          style={[
+            styles.ruleFeedback,
+            { color: feedback.tone === 'error' ? colors.destructive : colors.success },
+          ]}
+        >
+          {feedback.message}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 export function TelegramCommunityDashboardScreen({
   chatId,
   onBack,
@@ -1404,6 +1703,7 @@ export function TelegramCommunityDashboardScreen({
           </View>
 
           <TelegramCommunityWelcomeEditor chatId={community.chatId} />
+          <TelegramCommunityCustomCommandsEditor chatId={community.chatId} />
 
           <View>
             <View style={styles.sectionHeadingRow}>
@@ -2357,6 +2657,19 @@ const styles = StyleSheet.create({
   manageButtonText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   dashboardSections: { gap: 15 },
   dashboardCard: { borderWidth: 1, padding: 16 },
+  customCommandList: { gap: 8, marginBottom: 12 },
+  customCommandRow: { borderWidth: 1, padding: 11, gap: 6 },
+  customCommandName: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  customCommandResponse: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18 },
+  customCommandActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 14, marginTop: 2 },
+  customCommandAction: { minHeight: 35, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 3 },
+  customCommandActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  customCommandFieldLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 12, marginTop: 10, marginBottom: 6 },
+  customCommandNameInputWrap: { minHeight: 43, flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingHorizontal: 11 },
+  customCommandSlash: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
+  customCommandNameInput: { flex: 1, minWidth: 0, height: '100%', paddingVertical: 8, paddingLeft: 5, fontFamily: 'Inter_400Regular', fontSize: 13 },
+  customCommandResponseInput: { minHeight: 95, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 9, fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19 },
+  customCommandFormActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   dashboardSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 15 },
   welcomeMessageInput: { minHeight: 116, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19 },
   welcomeCharacterCount: { fontFamily: 'Inter_400Regular', fontSize: 10, textAlign: 'right', marginTop: 5 },

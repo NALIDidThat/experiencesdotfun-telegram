@@ -4248,6 +4248,128 @@ export const UpdateTelegramCommunityWelcomeSettingsResponse = zod.object({
 
 
 /**
+ * @summary List custom slash commands for a linked Telegram group
+ */
+export const getTelegramCommunityCustomCommandsPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const GetTelegramCommunityCustomCommandsParams = zod.object({
+  "chatId": zod.coerce.string().regex(getTelegramCommunityCustomCommandsPathChatIdRegExp)
+})
+
+
+export const getTelegramCommunityCustomCommandsResponseCommandsItemCommandMax = 32;
+
+export const getTelegramCommunityCustomCommandsResponseCommandsItemResponseMax = 3500;
+
+export const getTelegramCommunityCustomCommandsResponseCommandsMax = 20;
+
+
+
+export const GetTelegramCommunityCustomCommandsResponse = zod.object({
+  "commands": zod.array(zod.object({
+  "id": zod.number().int().min(1),
+  "command": zod.string().min(1).max(getTelegramCommunityCustomCommandsResponseCommandsItemCommandMax),
+  "response": zod.string().min(1).max(getTelegramCommunityCustomCommandsResponseCommandsItemResponseMax),
+  "updatedAt": zod.coerce.date()
+})).max(getTelegramCommunityCustomCommandsResponseCommandsMax)
+})
+
+
+/**
+ * @summary Add a custom slash command to a linked Telegram group
+ */
+export const addTelegramCommunityCustomCommandPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const AddTelegramCommunityCustomCommandParams = zod.object({
+  "chatId": zod.coerce.string().regex(addTelegramCommunityCustomCommandPathChatIdRegExp)
+})
+
+export const addTelegramCommunityCustomCommandBodyCommandMax = 32;
+
+
+export const addTelegramCommunityCustomCommandBodyCommandRegExp = new RegExp('^[A-Za-z0-9_]+$');
+export const addTelegramCommunityCustomCommandBodyResponseMax = 3500;
+
+
+
+export const AddTelegramCommunityCustomCommandBody = zod.object({
+  "command": zod.string().min(1).max(addTelegramCommunityCustomCommandBodyCommandMax).regex(addTelegramCommunityCustomCommandBodyCommandRegExp),
+  "response": zod.string().min(1).max(addTelegramCommunityCustomCommandBodyResponseMax)
+})
+
+
+export const addTelegramCommunityCustomCommandResponseCommandMax = 32;
+
+export const addTelegramCommunityCustomCommandResponseResponseMax = 3500;
+
+
+
+export const AddTelegramCommunityCustomCommandResponse = zod.object({
+  "id": zod.number().int().min(1),
+  "command": zod.string().min(1).max(addTelegramCommunityCustomCommandResponseCommandMax),
+  "response": zod.string().min(1).max(addTelegramCommunityCustomCommandResponseResponseMax),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a custom slash command in a linked Telegram group
+ */
+export const updateTelegramCommunityCustomCommandPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+
+export const UpdateTelegramCommunityCustomCommandParams = zod.object({
+  "chatId": zod.coerce.string().regex(updateTelegramCommunityCustomCommandPathChatIdRegExp),
+  "commandId": zod.coerce.number().int().min(1)
+})
+
+export const updateTelegramCommunityCustomCommandBodyCommandMax = 32;
+
+
+export const updateTelegramCommunityCustomCommandBodyCommandRegExp = new RegExp('^[A-Za-z0-9_]+$');
+export const updateTelegramCommunityCustomCommandBodyResponseMax = 3500;
+
+
+
+export const UpdateTelegramCommunityCustomCommandBody = zod.object({
+  "command": zod.string().min(1).max(updateTelegramCommunityCustomCommandBodyCommandMax).regex(updateTelegramCommunityCustomCommandBodyCommandRegExp),
+  "response": zod.string().min(1).max(updateTelegramCommunityCustomCommandBodyResponseMax)
+})
+
+
+export const updateTelegramCommunityCustomCommandResponseCommandMax = 32;
+
+export const updateTelegramCommunityCustomCommandResponseResponseMax = 3500;
+
+
+
+export const UpdateTelegramCommunityCustomCommandResponse = zod.object({
+  "id": zod.number().int().min(1),
+  "command": zod.string().min(1).max(updateTelegramCommunityCustomCommandResponseCommandMax),
+  "response": zod.string().min(1).max(updateTelegramCommunityCustomCommandResponseResponseMax),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a custom slash command from a linked Telegram group
+ */
+export const deleteTelegramCommunityCustomCommandPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+
+export const DeleteTelegramCommunityCustomCommandParams = zod.object({
+  "chatId": zod.coerce.string().regex(deleteTelegramCommunityCustomCommandPathChatIdRegExp),
+  "commandId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteTelegramCommunityCustomCommandResponse = zod.void()
+
+
+/**
  * @summary List a linked group's banned phrases and whitelisted links
  */
 export const getTelegramCommunityRulesPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
