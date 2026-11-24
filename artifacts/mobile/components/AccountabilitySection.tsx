@@ -7,12 +7,9 @@ import {
   Platform,
   Share,
   StyleSheet,
-  Text as NativeText,
-  TextInput as NativeTextInput,
   View,
-  type TextInputProps,
-  type TextProps,
 } from "react-native";
+import { PoppinsText as Text, PoppinsTextInput as TextInput } from "@/components/Typography";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -49,26 +46,6 @@ type Friend = {
 type Feedback = { message: string; tone: "success" | "error" };
 type CheckInStatus = "completed" | "partial" | "missed" | "rescheduled";
 type EncouragementType = "keep_going" | "nearly_there" | "proud_of_you" | "lets_do_this" | "join_me";
-
-function Text({ style, ...props }: TextProps) {
-  const flattened = StyleSheet.flatten(style);
-  const weight = flattened?.fontWeight;
-  const numericWeight = typeof weight === "number" ? weight : Number(weight);
-  const fontFamily = flattened?.fontFamily ?? (
-    weight === "bold" || numericWeight >= 700
-      ? "Inter_700Bold"
-      : numericWeight >= 600
-        ? "Inter_600SemiBold"
-        : numericWeight >= 500
-          ? "Inter_500Medium"
-          : "Inter_400Regular"
-  );
-  return <NativeText {...props} style={[{ fontFamily }, style]} />;
-}
-
-function TextInput({ style, ...props }: TextInputProps) {
-  return <NativeTextInput {...props} style={[{ fontFamily: "Inter_400Regular" }, style]} />;
-}
 
 function errorMessage(error: unknown, fallback: string) {
   if (typeof error === "object" && error !== null && "data" in error) {

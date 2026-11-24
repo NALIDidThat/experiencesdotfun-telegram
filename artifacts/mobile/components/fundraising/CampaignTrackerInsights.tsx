@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
+import { PoppinsText as Text } from "@/components/Typography";
 import { Feather } from "@expo/vector-icons";
 import { getGetFundCampaignActivityQueryKey, useGetFundCampaignActivity } from "@workspace/api-client-react";
 import type { OrganisationFund } from "@workspace/api-client-react";

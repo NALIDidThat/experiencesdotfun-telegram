@@ -4,12 +4,9 @@ import {
   Keyboard,
   Pressable,
   StyleSheet,
-  Text as NativeText,
-  TextInput as NativeTextInput,
   View,
-  type TextInputProps,
-  type TextProps,
 } from "react-native";
+import { PoppinsText as Text, PoppinsTextInput as TextInput } from "@/components/Typography";
 import { Feather } from "@expo/vector-icons";
 import {
   useCreateAccountabilityCheckIn,
@@ -23,26 +20,6 @@ import { useColors } from "@/hooks/useColors";
 type Goal = AccountabilityDashboard["goals"][number];
 type Commitment = AccountabilityDashboard["commitments"][number];
 type FeedbackTone = "success" | "error";
-
-function Text({ style, ...props }: TextProps) {
-  const flattened = StyleSheet.flatten(style);
-  const weight = flattened?.fontWeight;
-  const numericWeight = typeof weight === "number" ? weight : Number(weight);
-  const fontFamily = flattened?.fontFamily ?? (
-    weight === "bold" || numericWeight >= 700
-      ? "Inter_700Bold"
-      : numericWeight >= 600
-        ? "Inter_600SemiBold"
-        : numericWeight >= 500
-          ? "Inter_500Medium"
-          : "Inter_400Regular"
-  );
-  return <NativeText {...props} style={[{ fontFamily }, style]} />;
-}
-
-function TextInput({ style, ...props }: TextInputProps) {
-  return <NativeTextInput {...props} style={[{ fontFamily: "Inter_400Regular" }, style]} />;
-}
 
 function messageFromError(error: unknown, fallback: string) {
   if (typeof error === "object" && error !== null && "data" in error) {

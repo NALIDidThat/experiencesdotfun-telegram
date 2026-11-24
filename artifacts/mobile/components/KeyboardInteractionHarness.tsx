@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Text, TextInput, View } from "react-native";
+import { View } from "react-native";
+import { PoppinsText as Text, PoppinsTextInput as TextInput } from "@/components/Typography";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useColors } from "@/hooks/useColors";
 

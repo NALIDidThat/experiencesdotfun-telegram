@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 
 export default function Map3DBridgeNativeFallback() {
   return (

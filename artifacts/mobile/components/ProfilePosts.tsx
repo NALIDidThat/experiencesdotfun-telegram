@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { PoppinsText as Text } from "@/components/Typography";
 import { Feather } from "@expo/vector-icons";
 import {
   getListProfilePostsQueryKey,

@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 import { useColors } from '../hooks/useColors';
 import { GlassWheelColumn } from './DateSliderPicker';
 

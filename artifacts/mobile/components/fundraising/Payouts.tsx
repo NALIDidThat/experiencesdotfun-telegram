@@ -1,5 +1,6 @@
 import { ReactNode, useState } from "react";
-import { Image, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { Image, Platform, Pressable, View } from "react-native";
+import { PoppinsText as Text, PoppinsTextInput as TextInput } from "@/components/Typography";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

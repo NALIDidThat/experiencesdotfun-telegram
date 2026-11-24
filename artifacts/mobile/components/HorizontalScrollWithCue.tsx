@@ -2,11 +2,11 @@ import React, { useRef, useState, type ReactNode } from 'react';
 import {
   ScrollView,
   StyleSheet,
-  Text,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAccessiblePressable } from '@/components/KeyboardAccessiblePressable';

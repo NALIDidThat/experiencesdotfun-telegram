@@ -2,12 +2,12 @@ import { useState } from 'react';
 import {
   Image,
   StyleSheet,
-  Text,
   View,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 
 type UserAvatarProps = {
   avatarUrl?: string | null;

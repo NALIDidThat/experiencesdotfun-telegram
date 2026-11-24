@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { PoppinsText as Text, PoppinsTextInput as TextInput } from '@/components/Typography';
 import { useColors } from '@/hooks/useColors';
 import { ExploreGlobe } from '@/components/ExploreGlobe';
 import {

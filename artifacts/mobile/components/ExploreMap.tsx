@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 import { WebView, type WebViewMessageEvent, type WebViewProps } from 'react-native-webview';
 import { ExploreGlobe } from '@/components/ExploreGlobe';
 import { useColors } from '@/hooks/useColors';

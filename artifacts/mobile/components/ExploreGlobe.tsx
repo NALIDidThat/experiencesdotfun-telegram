@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, PanResponder, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { Svg, Circle, ClipPath, Defs, Ellipse, G, Line, Path, RadialGradient, Stop, SvgText } from '@/components/SvgCompat';
 import { Feather } from '@expo/vector-icons';
@@ -679,7 +680,7 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
                   ) : null}
                   <Circle cx={point.x} cy={point.y} r={dotRadius} fill={markerColor} stroke={space.foreground} strokeOpacity="0.88" strokeWidth="1.3" />
                   <Circle cx={point.x} cy={point.y} r={1.7} fill={space.foreground} />
-                  {showLabel ? <SvgText x={point.x + 13} y={point.y - 9} fill={space.foreground} fontSize="10" fontWeight="600">{city.city} · {valueLabel}</SvgText> : null}
+                  {showLabel ? <SvgText x={point.x + 13} y={point.y - 9} fill={space.foreground} fontFamily="Poppins_600SemiBold" fontSize="10" fontWeight="600">{city.city} · {valueLabel}</SvgText> : null}
                 </G>
               );
             })}
@@ -687,7 +688,7 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
               <G>
                 <Circle cx={visibleSelectedSearchPoint.x} cy={visibleSelectedSearchPoint.y} r={locationPicker ? 12 : 9} fill="none" stroke={locationPicker ? colors.primary : colors.teal} strokeOpacity="0.8" strokeWidth="1.5" strokeDasharray="2 2" />
                 <Circle cx={visibleSelectedSearchPoint.x} cy={visibleSelectedSearchPoint.y} r={locationPicker ? 4 : 3} fill={locationPicker ? colors.primary : colors.teal} />
-                <SvgText x={visibleSelectedSearchPoint.x + 13} y={visibleSelectedSearchPoint.y - 9} fill={space.foreground} fontSize="10" fontWeight="600">{selectedCity}</SvgText>
+                <SvgText x={visibleSelectedSearchPoint.x + 13} y={visibleSelectedSearchPoint.y - 9} fill={space.foreground} fontFamily="Poppins_600SemiBold" fontSize="10" fontWeight="600">{selectedCity}</SvgText>
               </G>
             ) : null}
           </G>
@@ -695,11 +696,11 @@ const SvgGlobeEngine = React.forwardRef<ExploreGlobeHandle, Props>(function SvgG
           {!fullScreen && !locationPicker && !welcomeMode ? (
             <>
               <Line x1="18" y1="266" x2="58" y2="266" stroke={colors.primary} strokeOpacity="0.6" strokeWidth="1" />
-              <SvgText x="65" y="269" fill={space.subdued} fontSize="8" letterSpacing="1.1">APPROX. CITY</SvgText>
+            <SvgText x="65" y="269" fill={space.subdued} fontFamily="Poppins_500Medium" fontSize="8" letterSpacing="1.1">APPROX. CITY</SvgText>
             </>
           ) : null}
           {!welcomeMode ? (
-            <SvgText testID="explore-globe-rotation" x="322" y="269" fill={space.subdued} fontSize="8" textAnchor="end">{Math.round(rotation % 360)}°</SvgText>
+            <SvgText testID="explore-globe-rotation" x="322" y="269" fill={space.subdued} fontFamily="Poppins_500Medium" fontSize="8" textAnchor="end">{Math.round(rotation % 360)}°</SvgText>
           ) : null}
         </Svg>
         <View style={[styles.markerLayer, { pointerEvents: 'box-none' }]}>

@@ -31,7 +31,6 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "@expo-google-fonts/inter": "^0.4.0",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@stardazed/streams-text-encoding": "^1.0.2",
@@ -74,6 +73,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@expo-google-fonts/poppins": "^0.4.1",
     "@types/google.maps": "^3.66.5",
     "@vis.gl/react-google-maps": "^1.10.1",
     "expo-clipboard": "~57.0.2",

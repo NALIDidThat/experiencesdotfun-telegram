@@ -5,9 +5,9 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
+import { PoppinsText as Text } from "@/components/Typography";
 import { useColors } from "@/hooks/useColors";
 import { UserAvatar } from "@/components/UserAvatar";
 

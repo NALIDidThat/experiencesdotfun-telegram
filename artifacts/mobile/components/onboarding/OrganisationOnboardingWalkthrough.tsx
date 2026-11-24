@@ -7,11 +7,11 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
   View,
   type ViewStyle,
   useWindowDimensions,
 } from "react-native";
+import { PoppinsText as Text } from "@/components/Typography";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { OrganisationType } from "@workspace/api-client-react";

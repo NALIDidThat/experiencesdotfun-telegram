@@ -5,10 +5,10 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
+  TextInput as NativeTextInput,
   View,
 } from 'react-native';
+import { PoppinsText as Text, PoppinsTextInput as TextInput } from '@/components/Typography';
 import { Feather } from '@expo/vector-icons';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useQueryClient } from '@tanstack/react-query';
@@ -360,7 +360,7 @@ function DirectMessageThread({
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<NativeTextInput>(null);
   const readAttemptDataTime = useRef(0);
   const [draft, setDraft] = useState('');
   const [olderMessages, setOlderMessages] = useState<DirectMessage[]>([]);

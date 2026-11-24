@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
-import { ActivityIndicator, Linking, Pressable, Share, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, Share, View } from "react-native";
+import { PoppinsText as Text } from "@/components/Typography";
 import { Feather } from "@expo/vector-icons";
 import type { QueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";

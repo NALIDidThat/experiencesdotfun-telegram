@@ -1,4 +1,5 @@
-import { Pressable, Platform, StyleSheet, Text, View } from "react-native";
+import { Pressable, Platform, StyleSheet, View } from "react-native";
+import { PoppinsText as Text } from "@/components/Typography";
 import { BlurView } from "expo-blur";
 import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from "expo-glass-effect";
 import type { FeedPostCategory } from "@workspace/api-client-react";

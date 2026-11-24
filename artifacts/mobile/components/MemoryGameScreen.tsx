@@ -6,11 +6,11 @@ import {
   Pressable,
   StatusBar,
   StyleSheet,
-  Text,
   View,
   useWindowDimensions,
   Platform,
 } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from '@/components/LinearGradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

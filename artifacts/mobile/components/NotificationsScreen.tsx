@@ -6,9 +6,9 @@ import {
   Pressable,
   Platform,
   ScrollView,
-  Text,
   View,
 } from "react-native";
+import { PoppinsText as Text } from "@/components/Typography";
 import { Feather } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";

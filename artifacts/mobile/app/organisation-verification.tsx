@@ -3,11 +3,10 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
   Platform,
 } from 'react-native';
+import { PoppinsText as Text, PoppinsTextInput as TextInput } from '@/components/Typography';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Linking from 'expo-linking';

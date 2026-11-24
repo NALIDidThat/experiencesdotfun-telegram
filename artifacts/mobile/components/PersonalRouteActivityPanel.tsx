@@ -5,9 +5,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 import { Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useQueryClient } from '@tanstack/react-query';

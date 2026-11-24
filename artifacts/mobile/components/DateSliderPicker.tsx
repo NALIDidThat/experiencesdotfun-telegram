@@ -6,9 +6,9 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
   View,
 } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 import { useColors } from '../hooks/useColors';
 
 type DateParts = { day: number; month: number; year: number };

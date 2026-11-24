@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, GestureResponderEvent, Image, Keyboard, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, GestureResponderEvent, Image, Keyboard, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
+import { PoppinsText as Text, PoppinsTextInput as TextInput } from "@/components/Typography";
 import * as Clipboard from "expo-clipboard";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 import { Feather } from '@expo/vector-icons';
 import {
   AdvancedMarker,

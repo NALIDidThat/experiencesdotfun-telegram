@@ -1,5 +1,6 @@
 import { Link, Stack } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 import { useColors } from '@/hooks/useColors';
 
 export default function NotFoundScreen() {

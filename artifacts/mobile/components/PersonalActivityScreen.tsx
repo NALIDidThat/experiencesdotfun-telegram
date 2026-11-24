@@ -6,9 +6,9 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 import { Feather } from '@expo/vector-icons';
 import {
   useGetMyXpAwards,

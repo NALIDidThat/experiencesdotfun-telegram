@@ -2,7 +2,8 @@ import { Feather } from '@expo/vector-icons';
 import { useGetMyTelegramCommunities } from '@workspace/api-client-react';
 import { openTelegramLink } from '@/lib/telegram';
 import { useColors } from '@/hooks/useColors';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 
 type Props = {
   onBack: () => void;

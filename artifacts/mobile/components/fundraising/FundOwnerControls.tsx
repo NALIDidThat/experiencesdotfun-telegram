@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Text, TextInput, View } from "react-native";
+import { View } from "react-native";
+import { PoppinsText as Text, PoppinsTextInput as TextInput } from "@/components/Typography";
 import { useUpdateOrganisationFund } from "@workspace/api-client-react";
 import type { OrganisationFund } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";

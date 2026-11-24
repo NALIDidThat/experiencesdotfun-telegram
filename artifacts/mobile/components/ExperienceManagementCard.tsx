@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Feather } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 import type { Experience } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 

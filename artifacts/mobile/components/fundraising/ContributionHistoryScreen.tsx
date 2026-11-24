@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Pressable, RefreshControl, Text, View } from "react-native";
+import { Pressable, RefreshControl, View } from "react-native";
+import { PoppinsText as Text } from "@/components/Typography";
 import { Feather } from "@expo/vector-icons";
 import { getListMyContributionsQueryKey, useListMyContributions } from "@workspace/api-client-react";
 import type { FundContribution } from "@workspace/api-client-react";

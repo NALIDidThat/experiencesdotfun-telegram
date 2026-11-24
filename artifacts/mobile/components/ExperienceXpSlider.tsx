@@ -2,10 +2,10 @@ import { useMemo, useRef, useState } from 'react';
 import {
   PanResponder,
   StyleSheet,
-  Text,
   View,
   type LayoutChangeEvent,
 } from 'react-native';
+import { PoppinsText as Text } from '@/components/Typography';
 import { useColors } from '@/hooks/useColors';
 
 const MIN_XP = 0;

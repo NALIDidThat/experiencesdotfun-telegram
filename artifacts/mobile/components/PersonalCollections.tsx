@@ -5,10 +5,9 @@ import {
   Linking,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
+import { PoppinsText as Text, PoppinsTextInput as TextInput } from "@/components/Typography";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useQueryClient } from "@tanstack/react-query";
