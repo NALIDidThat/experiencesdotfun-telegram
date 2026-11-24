@@ -49,3 +49,4 @@
 - [Telegram qualifying message tracking](telegram-qualifying-message-tracking.md) — use post-link Telegram updates; backfill only qualifying ledger records, never import older chat history.
 - [React Native Web keyboard activation](react-native-web-keyboard-activation.md) — horizontal-row buttons need explicit Enter support and duplicate-press protection in browser tests.
 - [Journey learning links](journey-learning-links.md) — shared programme resources must not expose profile-owned research or decks, and resource links do not count as lesson completion.
+- [Experience XP league events](experience-xp-league-events.md) — snapshot award-time categories and count milestone verification even before the whole participation completes.

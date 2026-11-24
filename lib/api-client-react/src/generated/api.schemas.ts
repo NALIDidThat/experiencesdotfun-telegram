@@ -1970,6 +1970,118 @@ export interface XpProgressionResponse {
   rules: XpProgressionRules;
 }
 
+export interface XpLeagueOptInUpdate {
+  category: ExperienceCategory;
+  enabled: boolean;
+}
+
+export interface XpLeagueOptInResponse {
+  category: ExperienceCategory;
+  optedIn: boolean;
+  /**
+     * @minimum 1
+     * @maximum 3
+     * @nullable
+     */
+  division: number | null;
+  /** @nullable */
+  effectiveAt: string | null;
+}
+
+export interface XpLeagueMember {
+  /** @minimum 1 */
+  rank: number;
+  userId: number;
+  name: string;
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @minimum 0 */
+  scoreXp: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  xpToNextRank: number | null;
+  /**
+     * @minimum 1
+     * @maximum 3
+     */
+  division: number;
+  isCurrentUser: boolean;
+}
+
+export type XpLeagueWeekHistoryMovement = typeof XpLeagueWeekHistoryMovement[keyof typeof XpLeagueWeekHistoryMovement];
+
+
+export const XpLeagueWeekHistoryMovement = {
+  held: 'held',
+  promoted: 'promoted',
+  demoted: 'demoted',
+} as const;
+
+export interface XpLeagueWeekHistory {
+  weekStart: string;
+  weekEnd: string;
+  /** @minimum 1 */
+  rank: number;
+  /** @minimum 0 */
+  scoreXp: number;
+  /**
+     * @minimum 1
+     * @maximum 3
+     */
+  division: number;
+  movement: XpLeagueWeekHistoryMovement;
+}
+
+export interface XpLeagueRules {
+  scoring: string;
+  weekBoundary: string;
+  privacy: string;
+  tieBreak: string;
+  movement: string;
+  history: string;
+}
+
+export type XpLeagueResponseTimezone = typeof XpLeagueResponseTimezone[keyof typeof XpLeagueResponseTimezone];
+
+
+export const XpLeagueResponseTimezone = {
+  UTC: 'UTC',
+} as const;
+
+export interface XpLeagueResponse {
+  category: ExperienceCategory;
+  optedIn: boolean;
+  /** @nullable */
+  effectiveAt: string | null;
+  weekStart: string;
+  weekEnd: string;
+  timezone: XpLeagueResponseTimezone;
+  /**
+     * @minimum 1
+     * @maximum 3
+     * @nullable
+     */
+  division: number | null;
+  currentStanding: XpLeagueMember | null;
+  members: XpLeagueMember[];
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 20
+     */
+  pageSize: number;
+  /** @minimum 0 */
+  total: number;
+  hasMore: boolean;
+  history: XpLeagueWeekHistory[];
+  rules: XpLeagueRules;
+}
+
 export interface RedeemXpAwardsResponse {
   redeemedXp: number;
   user: User;
@@ -4381,6 +4493,20 @@ cursor?: string;
  * @maximum 50
  */
 limit?: number;
+};
+
+export type GetMyXpLeagueParams = {
+category: ExperienceCategory;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 20
+ */
+pageSize?: number;
 };
 
 export type GetTelegramCommunityMembersParams = {

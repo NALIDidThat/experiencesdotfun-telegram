@@ -4514,6 +4514,125 @@ export const GetMyProgressionResponse = zod.object({
 
 
 /**
+ * Only opted-in participant profiles appear in category rankings. Week boundaries use UTC Monday midnight.
+ * @summary Get my weekly Experience XP league and recent history
+ */
+export const getMyXpLeagueQueryPageDefault = 1;
+export const getMyXpLeagueQueryPageMax = 50;
+
+export const getMyXpLeagueQueryPageSizeDefault = 20;
+export const getMyXpLeagueQueryPageSizeMax = 20;
+
+
+
+export const GetMyXpLeagueQueryParams = zod.object({
+  "category": zod.enum(['environmental', 'education', 'community']),
+  "page": zod.coerce.number().int().min(1).max(getMyXpLeagueQueryPageMax).default(getMyXpLeagueQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(getMyXpLeagueQueryPageSizeMax).default(getMyXpLeagueQueryPageSizeDefault)
+})
+
+export const getMyXpLeagueResponseDivisionMax = 3;
+
+
+export const getMyXpLeagueResponseCurrentStandingOneScoreXpMin = 0;
+
+export const getMyXpLeagueResponseCurrentStandingOneXpToNextRankMin = 0;
+
+export const getMyXpLeagueResponseCurrentStandingOneDivisionMax = 3;
+
+
+export const getMyXpLeagueResponseMembersItemScoreXpMin = 0;
+
+export const getMyXpLeagueResponseMembersItemXpToNextRankMin = 0;
+
+export const getMyXpLeagueResponseMembersItemDivisionMax = 3;
+
+
+export const getMyXpLeagueResponsePageSizeMax = 20;
+
+export const getMyXpLeagueResponseTotalMin = 0;
+
+
+export const getMyXpLeagueResponseHistoryItemScoreXpMin = 0;
+
+export const getMyXpLeagueResponseHistoryItemDivisionMax = 3;
+
+
+
+export const GetMyXpLeagueResponse = zod.object({
+  "category": zod.enum(['environmental', 'education', 'community']),
+  "optedIn": zod.boolean(),
+  "effectiveAt": zod.coerce.date().nullable(),
+  "weekStart": zod.coerce.date(),
+  "weekEnd": zod.coerce.date(),
+  "timezone": zod.enum(['UTC']),
+  "division": zod.number().int().min(1).max(getMyXpLeagueResponseDivisionMax).nullable(),
+  "currentStanding": zod.union([zod.object({
+  "rank": zod.number().int().min(1),
+  "userId": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable(),
+  "scoreXp": zod.number().int().min(getMyXpLeagueResponseCurrentStandingOneScoreXpMin),
+  "xpToNextRank": zod.number().int().min(getMyXpLeagueResponseCurrentStandingOneXpToNextRankMin).nullable(),
+  "division": zod.number().int().min(1).max(getMyXpLeagueResponseCurrentStandingOneDivisionMax),
+  "isCurrentUser": zod.boolean()
+}),zod.null()]),
+  "members": zod.array(zod.object({
+  "rank": zod.number().int().min(1),
+  "userId": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().url().nullable(),
+  "scoreXp": zod.number().int().min(getMyXpLeagueResponseMembersItemScoreXpMin),
+  "xpToNextRank": zod.number().int().min(getMyXpLeagueResponseMembersItemXpToNextRankMin).nullable(),
+  "division": zod.number().int().min(1).max(getMyXpLeagueResponseMembersItemDivisionMax),
+  "isCurrentUser": zod.boolean()
+})),
+  "page": zod.number().int().min(1),
+  "pageSize": zod.number().int().min(1).max(getMyXpLeagueResponsePageSizeMax),
+  "total": zod.number().int().min(getMyXpLeagueResponseTotalMin),
+  "hasMore": zod.boolean(),
+  "history": zod.array(zod.object({
+  "weekStart": zod.coerce.date(),
+  "weekEnd": zod.coerce.date(),
+  "rank": zod.number().int().min(1),
+  "scoreXp": zod.number().int().min(getMyXpLeagueResponseHistoryItemScoreXpMin),
+  "division": zod.number().int().min(1).max(getMyXpLeagueResponseHistoryItemDivisionMax),
+  "movement": zod.enum(['held', 'promoted', 'demoted'])
+})),
+  "rules": zod.object({
+  "scoring": zod.string(),
+  "weekBoundary": zod.string(),
+  "privacy": zod.string(),
+  "tieBreak": zod.string(),
+  "movement": zod.string(),
+  "history": zod.string()
+})
+})
+
+
+/**
+ * @summary Join or leave one weekly Experience XP category league
+ */
+export const UpdateMyXpLeagueOptInBody = zod.object({
+  "category": zod.enum(['environmental', 'education', 'community']),
+  "enabled": zod.boolean()
+})
+
+export const updateMyXpLeagueOptInResponseDivisionMax = 3;
+
+
+
+export const UpdateMyXpLeagueOptInResponse = zod.object({
+  "category": zod.enum(['environmental', 'education', 'community']),
+  "optedIn": zod.boolean(),
+  "division": zod.number().int().min(1).max(updateMyXpLeagueOptInResponseDivisionMax).nullable(),
+  "effectiveAt": zod.coerce.date().nullable()
+})
+
+
+/**
  * @summary Redeem all pending Experience XP into the profile balance
  */
 

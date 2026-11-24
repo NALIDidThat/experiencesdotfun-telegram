@@ -275,6 +275,7 @@ paths:
                   checkedAt: { type: string }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /funds/campaigns/{fundId}:
     patch:
@@ -2619,6 +2620,57 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+  /me/xp-leagues:
+    get:
+      operationId: getMyXpLeague
+      tags: [profile]
+      summary: Get my weekly Experience XP league and recent history
+      description: Only opted-in participant profiles appear in category rankings. Week boundaries use UTC Monday midnight.
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: category
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/ExperienceCategory"
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 20, default: 20 }
+      responses:
+        "200":
+          description: Current weekly category league and the signed-in profile's recent standings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/XpLeagueResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /me/xp-leagues/opt-in:
+    patch:
+      operationId: updateMyXpLeagueOptIn
+      tags: [profile]
+      summary: Join or leave one weekly Experience XP category league
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/XpLeagueOptInUpdate" }
+      responses:
+        "200":
+          description: The updated opt-in setting
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/XpLeagueOptInResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /me/xp-awards/redeem:
     post:
       operationId: redeemMyXpAwards
@@ -6660,6 +6712,76 @@ components:
         - achievements
         - nextAction
         - rules
+    XpLeagueOptInUpdate:
+      type: object
+      properties:
+        category: { $ref: "#/components/schemas/ExperienceCategory" }
+        enabled: { type: boolean }
+      required: [category, enabled]
+    XpLeagueOptInResponse:
+      type: object
+      properties:
+        category: { $ref: "#/components/schemas/ExperienceCategory" }
+        optedIn: { type: boolean }
+        division: { type: [integer, "null"], minimum: 1, maximum: 3 }
+        effectiveAt: { type: [string, "null"], format: date-time }
+      required: [category, optedIn, division, effectiveAt]
+    XpLeagueMember:
+      type: object
+      properties:
+        rank: { type: integer, minimum: 1 }
+        userId: { type: integer }
+        name: { type: string }
+        username: { type: [string, "null"] }
+        avatarUrl: { type: [string, "null"], format: uri }
+        scoreXp: { type: integer, minimum: 0 }
+        xpToNextRank: { type: [integer, "null"], minimum: 0 }
+        division: { type: integer, minimum: 1, maximum: 3 }
+        isCurrentUser: { type: boolean }
+      required: [rank, userId, name, username, avatarUrl, scoreXp, xpToNextRank, division, isCurrentUser]
+    XpLeagueWeekHistory:
+      type: object
+      properties:
+        weekStart: { type: string, format: date }
+        weekEnd: { type: string, format: date }
+        rank: { type: integer, minimum: 1 }
+        scoreXp: { type: integer, minimum: 0 }
+        division: { type: integer, minimum: 1, maximum: 3 }
+        movement: { type: string, enum: [held, promoted, demoted] }
+      required: [weekStart, weekEnd, rank, scoreXp, division, movement]
+    XpLeagueRules:
+      type: object
+      properties:
+        scoring: { type: string }
+        weekBoundary: { type: string }
+        privacy: { type: string }
+        tieBreak: { type: string }
+        movement: { type: string }
+        history: { type: string }
+      required: [scoring, weekBoundary, privacy, tieBreak, movement, history]
+    XpLeagueResponse:
+      type: object
+      properties:
+        category: { $ref: "#/components/schemas/ExperienceCategory" }
+        optedIn: { type: boolean }
+        effectiveAt: { type: [string, "null"], format: date-time }
+        weekStart: { type: string, format: date }
+        weekEnd: { type: string, format: date }
+        timezone: { type: string, enum: [UTC] }
+        division: { type: [integer, "null"], minimum: 1, maximum: 3 }
+        currentStanding: { oneOf: [{ $ref: "#/components/schemas/XpLeagueMember" }, { type: "null" }] }
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/XpLeagueMember" }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 20 }
+        total: { type: integer, minimum: 0 }
+        hasMore: { type: boolean }
+        history:
+          type: array
+          items: { $ref: "#/components/schemas/XpLeagueWeekHistory" }
+        rules: { $ref: "#/components/schemas/XpLeagueRules" }
+      required: [category, optedIn, effectiveAt, weekStart, weekEnd, timezone, division, currentStanding, members, page, pageSize, total, hasMore, history, rules]
     RedeemXpAwardsResponse:
       type: object
       properties:

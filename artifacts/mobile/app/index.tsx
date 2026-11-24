@@ -149,6 +149,7 @@ import { AccountsCenterScreen } from '@/components/AccountsCenterScreen';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
+import { ExperienceXpLeaguePanel } from '@/components/ExperienceXpLeaguePanel';
 import { UserAvatar } from '@/components/UserAvatar';
 import { ExperienceCategoryArtwork } from '@/components/ExperienceCategoryArtwork';
 import { MotionPressable } from '@/components/MotionPressable';
@@ -5162,6 +5163,7 @@ function ProfileMetricDetailsSheet({
                     </Text>
                   </View>
                 )}
+                <ExperienceXpLeaguePanel />
               </View>
             ) : (
               <View style={styles.profileMetricState}>

@@ -21,6 +21,7 @@ import nodesRouter from "./nodes";
 import learningRouter from "./learning";
 import questsRouter from "./quests";
 import journeysRouter from "./journeys";
+import xpLeaguesRouter from "./xp-leagues";
 
 const router: IRouter = Router();
 
@@ -37,6 +38,7 @@ router.use("/quests", questsRouter);
 router.use("/ai", aiAssistantRouter);
 router.use("/learning", learningRouter);
 router.use("/journeys", journeysRouter);
+router.use("/me/xp-leagues", xpLeaguesRouter);
 router.use("/memory-game", memoryGameRouter);
 router.use("/funds", fundsRouter);
 router.use(privateEvidenceRouter);

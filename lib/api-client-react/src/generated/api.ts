@@ -108,6 +108,7 @@ import type {
   GetCharityContributionLedgerParams,
   GetFeedParams,
   GetMemoryGameLeaderboardParams,
+  GetMyXpLeagueParams,
   GetNodesParams,
   GetOrganisationTreasuryParams,
   GetPrivateEvidenceAccess200,
@@ -233,6 +234,9 @@ import type {
   UpdateFeedPreferencesInput,
   User,
   XpAwardsResponse,
+  XpLeagueOptInResponse,
+  XpLeagueOptInUpdate,
+  XpLeagueResponse,
   XpProgressionResponse
 } from './api.schemas';
 
@@ -1204,7 +1208,7 @@ return customFetch<SyncCharityContributionLedger200>(getSyncCharityContributionL
 
 export const getSyncCharityContributionLedgerMutationKey = () => ['syncCharityContributionLedger'] as const;
 
-export const getSyncCharityContributionLedgerMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+export const getSyncCharityContributionLedgerMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ConflictResponse | ServiceUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncCharityContributionLedger>>, TError,SyncCharityContributionLedgerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof syncCharityContributionLedger>>, TError,SyncCharityContributionLedgerMutationVariables, TContext> => {
 
@@ -1233,13 +1237,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type SyncCharityContributionLedgerMutationResult = NonNullable<Awaited<ReturnType<typeof syncCharityContributionLedger>>>
     export type SyncCharityContributionLedgerMutationBody = BodyType<CharityLedgerSyncInput>
-    export type SyncCharityContributionLedgerMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+    export type SyncCharityContributionLedgerMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ConflictResponse | ServiceUnavailableResponse>
     export type SyncCharityContributionLedgerMutationVariables = {data: BodyType<CharityLedgerSyncInput>}
 
     /**
  * @summary Import one page of finalized incoming treasury transfers, including unattributed deposits
  */
-export const useSyncCharityContributionLedger = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+export const useSyncCharityContributionLedger = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ConflictResponse | ServiceUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncCharityContributionLedger>>, TError,SyncCharityContributionLedgerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof syncCharityContributionLedger>>,
@@ -9598,6 +9602,179 @@ export function useGetMyProgression<TData = Awaited<ReturnType<typeof getMyProgr
 
 
 
+
+export const getGetMyXpLeagueUrl = (params: GetMyXpLeagueParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/me/xp-leagues?${stringifiedParams}` : `/api/me/xp-leagues`
+}
+
+/**
+ * Only opted-in participant profiles appear in category rankings. Week boundaries use UTC Monday midnight.
+ * @summary Get my weekly Experience XP league and recent history
+ */
+export const getMyXpLeague = async (params: GetMyXpLeagueParams, options?: Parameters<typeof customFetch>[1]): Promise<XpLeagueResponse> => {
+
+  return customFetch<XpLeagueResponse>(getGetMyXpLeagueUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyXpLeagueQueryKey = (params?: GetMyXpLeagueParams,) => {
+    return [
+    `/api/me/xp-leagues`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetMyXpLeagueQueryOptions = <TData = Awaited<ReturnType<typeof getMyXpLeague>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | ServiceUnavailableResponse>>(params: GetMyXpLeagueParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyXpLeague>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyXpLeagueQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyXpLeague>>> = ({ signal }) => getMyXpLeague(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyXpLeague>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyXpLeagueQueryResult = NonNullable<Awaited<ReturnType<typeof getMyXpLeague>>>
+export type GetMyXpLeagueQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary Get my weekly Experience XP league and recent history
+ */
+
+export function useGetMyXpLeague<TData = Awaited<ReturnType<typeof getMyXpLeague>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | ServiceUnavailableResponse>>(
+ params: GetMyXpLeagueParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyXpLeague>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyXpLeagueQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateMyXpLeagueOptInUrl = () => {
+
+
+
+
+  return `/api/me/xp-leagues/opt-in`
+}
+
+/**
+ * @summary Join or leave one weekly Experience XP category league
+ */
+export const updateMyXpLeagueOptIn = async (xpLeagueOptInUpdate: XpLeagueOptInUpdate, options?: Parameters<typeof customFetch>[1]): Promise<XpLeagueOptInResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<XpLeagueOptInResponse>(getUpdateMyXpLeagueOptInUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(xpLeagueOptInUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateMyXpLeagueOptInMutationKey = () => ['updateMyXpLeagueOptIn'] as const;
+
+export const getUpdateMyXpLeagueOptInMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyXpLeagueOptIn>>, TError,UpdateMyXpLeagueOptInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMyXpLeagueOptIn>>, TError,UpdateMyXpLeagueOptInMutationVariables, TContext> => {
+
+const mutationKey = getUpdateMyXpLeagueOptInMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMyXpLeagueOptIn>>, UpdateMyXpLeagueOptInMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateMyXpLeagueOptIn(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMyXpLeagueOptInMutationResult = NonNullable<Awaited<ReturnType<typeof updateMyXpLeagueOptIn>>>
+    export type UpdateMyXpLeagueOptInMutationBody = BodyType<XpLeagueOptInUpdate>
+    export type UpdateMyXpLeagueOptInMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+    export type UpdateMyXpLeagueOptInMutationVariables = {data: BodyType<XpLeagueOptInUpdate>}
+
+    /**
+ * @summary Join or leave one weekly Experience XP category league
+ */
+export const useUpdateMyXpLeagueOptIn = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyXpLeagueOptIn>>, TError,UpdateMyXpLeagueOptInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMyXpLeagueOptIn>>,
+        TError,
+        UpdateMyXpLeagueOptInMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateMyXpLeagueOptInMutationOptions(options));
+    }
 
 export const getRedeemMyXpAwardsUrl = () => {
 

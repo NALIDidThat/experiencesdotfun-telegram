@@ -25,6 +25,7 @@ export * from "./community-moderation";
 export * from "./telegram-community-commands";
 export * from "./accountability";
 export * from "./xp-awards";
+export * from "./xp-leagues";
 export * from "./memory-game";
 export * from "./social-invites";
 export * from "./social-feed";

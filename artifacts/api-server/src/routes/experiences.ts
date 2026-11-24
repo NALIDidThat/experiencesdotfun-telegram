@@ -32,6 +32,7 @@ import {
 import { db, pool } from "@workspace/db";
 import {
   emailAccountsTable,
+  experienceCategorySchema,
   experienceMilestoneSubmissionsTable,
   experienceMilestoneReviewEventsTable,
   experienceMilestonesTable,
@@ -2907,6 +2908,7 @@ router.post("/host/participations/:participationId/verify", async (req, res) => 
         userId: participation.userId,
         sourceType: "experience",
         sourceId: String(participation.id),
+        sourceCategory: experienceCategorySchema.parse(experience.category),
         sourceTitle: experience.title,
         amount: experience.xpReward,
         status: "pending",
@@ -2981,6 +2983,7 @@ router.post(
           participationId: experienceMilestoneSubmissionsTable.participationId,
           milestoneId: experienceMilestonesTable.id,
           experienceId: experiencesTable.id,
+          experienceCategory: experiencesTable.category,
           experienceTitle: experiencesTable.title,
           organisationId: experiencesTable.organisationId,
           milestoneTitle: experienceMilestonesTable.title,
@@ -3111,6 +3114,7 @@ router.post(
             userId: participation.userId,
             sourceType: "milestone",
             sourceId: String(verified.id),
+            sourceCategory: experienceCategorySchema.parse(context.experienceCategory),
             sourceTitle: `${context.experienceTitle} · ${context.milestoneTitle}`,
             amount: context.xpReward,
             status: "pending",

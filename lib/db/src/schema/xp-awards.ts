@@ -1,4 +1,5 @@
 import {
+  check,
   index,
   integer,
   pgTable,
@@ -7,6 +8,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { usersTable } from "./experiences";
 
 export const xpAwardsTable = pgTable(
@@ -20,6 +22,9 @@ export const xpAwardsTable = pgTable(
       enum: ["email_signup", "experience", "milestone", "memory_game"],
     }).notNull(),
     sourceId: text("source_id").notNull(),
+    sourceCategory: text("source_category", {
+      enum: ["environmental", "education", "community"],
+    }),
     sourceTitle: text("source_title").notNull(),
     amount: integer("amount").notNull(),
     status: text("status", { enum: ["pending", "redeemed"] })
@@ -39,6 +44,16 @@ export const xpAwardsTable = pgTable(
     userHistory: index("xp_awards_user_history_idx").on(
       table.userId,
       table.awardedAt,
+    ),
+    leagueSourceHistory: index("xp_awards_league_source_history_idx").on(
+      table.sourceType,
+      table.sourceCategory,
+      table.awardedAt,
+      table.userId,
+    ),
+    sourceCategoryCheck: check(
+      "xp_awards_source_category_check",
+      sql`${table.sourceCategory} IS NULL OR ${table.sourceCategory} IN ('environmental', 'education', 'community')`,
     ),
     pendingUser: index("xp_awards_pending_user_idx").on(
       table.userId,
