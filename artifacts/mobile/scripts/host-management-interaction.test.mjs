@@ -1967,12 +1967,17 @@ test("organisations can start setup for another Telegram community", async (t) =
   await setViewport(client);
   await client.send("Page.navigate", { url: `${appUrl}/?screen=telegram-communities` });
 
-  await waitForValue(
-    client,
-    `Boolean(document.querySelector('[data-testid="telegram-community--100123456789"]')) && Boolean(document.querySelector('[data-testid="telegram-community-add"]'))`,
-    Boolean,
-    "the linked Telegram group and its add-community action",
-  );
+  try {
+    await waitForValue(
+      client,
+      `Boolean(document.querySelector('[data-testid="telegram-community--100123456789"]')) && Boolean(document.querySelector('[data-testid="telegram-community-add"]'))`,
+      Boolean,
+      "the linked Telegram group and its add-community action",
+    );
+  } catch (error) {
+    const pageText = await client.evaluate("document.body.innerText");
+    throw new Error(`${error.message}\nAPI requests: ${apiTraffic.join(", ")}\nPage text: ${pageText}`);
+  }
   const addCommunityPlacement = await client.evaluate(`(() => {
     const group = document.querySelector('[data-testid="telegram-community--100123456789"]')?.getBoundingClientRect();
     const add = document.querySelector('[data-testid="telegram-community-add"]')?.getBoundingClientRect();
