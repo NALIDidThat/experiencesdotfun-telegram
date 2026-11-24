@@ -1898,16 +1898,6 @@ function communityRiddleSettingsKeyboard(
     privateControls
       ? `community:private:riddle-toggle:${groupChatId}:${enabled ? "on" : "off"}`
       : `community:riddle:toggle:${enabled ? "on" : "off"}`;
-  const intervalData = (minutes: number) =>
-    privateControls
-      ? `community:private:riddle-interval:${groupChatId}:${minutes}`
-      : `community:riddle:interval:${minutes}`;
-  const intervals = TELEGRAM_COMMUNITY_RIDDLE_INTERVALS.map((minutes) =>
-    callbackButton(
-      `${context.riddleIntervalMinutes === minutes ? "✓ " : ""}${formatCommunityRiddleInterval(minutes)}`,
-      intervalData(minutes),
-    ),
-  );
 
   return [
     [
@@ -1916,9 +1906,6 @@ function communityRiddleSettingsKeyboard(
         toggleData(!context.riddlesEnabled),
       ),
     ],
-    ...Array.from({ length: Math.ceil(intervals.length / 2) }, (_, index) =>
-      intervals.slice(index * 2, index * 2 + 2),
-    ),
   ];
 }
 
