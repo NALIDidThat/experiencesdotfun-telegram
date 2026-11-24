@@ -5,6 +5,7 @@ import {
   buildWelcomeKeyboard,
   escapeTelegramHtml,
   formatTelegramExperienceDate,
+  formatTelegramXpProgress,
   formatTelegramAiReply,
   formatContributionRejectedNotice,
   formatContributionVerifiedNotice,
@@ -14,6 +15,27 @@ import {
   makeChatCompatibleKeyboard,
   parseTelegramCommand,
 } from "./telegram-utils.ts";
+
+test("Telegram XP progress keeps the credited level separate from pending awards", () => {
+  const summary = formatTelegramXpProgress(
+    {
+      xp: 320,
+      level: "Pathfinder",
+      levelProgress: 28,
+      nextLevelXp: 500,
+      xpToNextLevel: 180,
+    },
+    [
+      { title: "Community cleanup", amount: 80 },
+    ],
+  );
+
+  assert.match(summary, /<b>320 XP<\/b> · Pathfinder/);
+  assert.match(summary, /28% · 180 XP to next level/);
+  assert.match(summary, /Pending redemption · 80 XP/);
+  assert.match(summary, /not in your credited balance/);
+  assert.doesNotMatch(summary, /400 XP/);
+});
 
 test("group command mentions dispatch to this bot and preserve arguments", () => {
   assert.deepEqual(

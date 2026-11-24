@@ -118,6 +118,7 @@ import {
   formatHostNewParticipantNotice,
   formatTelegramAiReply,
   formatTelegramExperienceDate,
+  formatTelegramXpProgress,
   formatWelcomeMessage,
   makeChatCompatibleKeyboard,
   parseTelegramCommand,
@@ -899,16 +900,14 @@ async function handleCommand(
           .orderBy(desc(xpAwardsTable.awardedAt)),
       ]);
       const pendingXp = pendingAwards.reduce((sum, award) => sum + award.amount, 0);
+      const progressSummary = formatTelegramXpProgress(profile, pendingAwards);
       const sources = recent.length
         ? `\n\n<b>Recent verified experiences</b>\n${recent.map(({ experience }) => `+${experience.xpReward} XP · ${escapeTelegramHtml(experience.title)}`).join("\n")}`
         : "\n\nComplete and verify an experience to start earning XP.";
-      const pendingSummary = pendingXp > 0
-        ? `\n\n<b>Ready to redeem · ${pendingXp} XP</b>\n${pendingAwards.slice(0, 5).map((award) => `+${award.amount} XP · ${escapeTelegramHtml(award.title)}`).join("\n")}`
-        : "";
       await sendTelegramMessage(
         chatId,
-        `<b>⚡ Your Experience XP</b>\n\n<b>${profile.xp} XP</b> · ${escapeTelegramHtml(profile.level)}\n${profile.completedCount} experiences completed · ${profile.hostedCount} hosted\n£${(profile.rewardsPence / 100).toFixed(2)} in rewards earned${pendingSummary}${sources}\n\nExperience XP is part of your profile. Community XP is tracked separately in each group; use <code>/rank</code> there.`,
-        [[openButton("View XP history", "/?screen=profile")]],
+        `<b>⚡ Your Experience XP</b>\n\n${progressSummary}\n${profile.completedCount} verified experiences · ${profile.hostedCount} hosted\n£${(profile.rewardsPence / 100).toFixed(2)} in rewards earned${sources}\n\nExperience XP is part of your profile. Community XP is tracked separately in each group; use <code>/rank</code> there.`,
+        [[openButton(pendingXp > 0 ? "Redeem pending XP" : "Find an experience", pendingXp > 0 ? "/?screen=profile" : "/?screen=explore")]],
       );
       break;
     }

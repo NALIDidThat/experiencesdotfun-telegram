@@ -9,41 +9,46 @@ test("experience XP progress starts at Explorer and advances within a level", ()
   assert.deepEqual(getExperienceXpProgress(0), {
     level: "Explorer",
     levelProgress: 0,
-    nextLevelXp: 500,
-    xpToNextLevel: 500,
+    nextLevelXp: 250,
+    xpToNextLevel: 250,
   });
-  assert.deepEqual(getExperienceXpProgress(250), {
+  assert.deepEqual(getExperienceXpProgress(125), {
     level: "Explorer",
     levelProgress: 50,
+    nextLevelXp: 250,
+    xpToNextLevel: 125,
+  });
+});
+
+test("experience XP level thresholds reset progress at each new level", () => {
+  assert.deepEqual(getExperienceXpProgress(249), {
+    level: "Explorer",
+    levelProgress: 99,
+    nextLevelXp: 250,
+    xpToNextLevel: 1,
+  });
+  assert.deepEqual(getExperienceXpProgress(250), {
+    level: "Pathfinder",
+    levelProgress: 0,
     nextLevelXp: 500,
     xpToNextLevel: 250,
   });
 });
 
-test("experience XP level thresholds reset progress at each new level", () => {
-  assert.deepEqual(getExperienceXpProgress(499), {
-    level: "Explorer",
-    levelProgress: 99,
-    nextLevelXp: 500,
-    xpToNextLevel: 1,
-  });
-  assert.deepEqual(getExperienceXpProgress(500), {
-    level: "Contributor",
-    levelProgress: 0,
-    nextLevelXp: 1_500,
-    xpToNextLevel: 1_000,
-  });
-  assert.equal(getExperienceXpProgress(1_500).level, "Champion");
-  assert.equal(getExperienceXpProgress(2_500).level, "Leader");
-});
-
 test("every level threshold has a one-point-before and exact-threshold state", () => {
-  for (const [threshold, levelBefore, levelAt] of [
-    [500, "Explorer", "Contributor"],
-    [1_500, "Contributor", "Champion"],
-    [2_500, "Champion", "Leader"],
-    [5_000, "Leader", "Legend"],
-  ]) {
+  const levels = [
+    { threshold: 250, levelBefore: "Explorer", levelAt: "Pathfinder" },
+    { threshold: 500, levelBefore: "Pathfinder", levelAt: "Trailblazer" },
+    { threshold: 1_000, levelBefore: "Trailblazer", levelAt: "Pioneer" },
+    { threshold: 1_500, levelBefore: "Pioneer", levelAt: "Innovator" },
+    { threshold: 2_500, levelBefore: "Innovator", levelAt: "Architect" },
+    { threshold: 5_000, levelBefore: "Architect", levelAt: "Visionary" },
+    { threshold: 7_500, levelBefore: "Visionary", levelAt: "Luminary" },
+    { threshold: 10_000, levelBefore: "Luminary", levelAt: "Vanguard" },
+    { threshold: 15_000, levelBefore: "Vanguard", levelAt: "Legacy Builder" },
+  ];
+
+  for (const { threshold, levelBefore, levelAt } of levels) {
     const before = getExperienceXpProgress(threshold - 1);
     assert.equal(before.level, levelBefore);
     assert.equal(before.xpToNextLevel, 1);
@@ -51,18 +56,19 @@ test("every level threshold has a one-point-before and exact-threshold state", (
 
     const at = getExperienceXpProgress(threshold);
     assert.equal(at.level, levelAt);
-    assert.equal(at.levelProgress, levelAt === "Legend" ? 100 : 0);
+    assert.equal(at.levelProgress, levelAt === "Legacy Builder" ? 100 : 0);
+    assert.equal(at.nextLevelXp === null, levelAt === "Legacy Builder");
   }
 });
 
-test("Legend is the maximum level and has no next-level target", () => {
-  assert.deepEqual(getExperienceXpProgress(5_000), {
-    level: "Legend",
+test("Legacy Builder is the maximum level and has no next-level target", () => {
+  assert.deepEqual(getExperienceXpProgress(15_000), {
+    level: "Legacy Builder",
     levelProgress: 100,
     nextLevelXp: null,
     xpToNextLevel: null,
   });
-  assert.equal(getExperienceXpProgress(8_000).levelProgress, 100);
+  assert.equal(getExperienceXpProgress(20_000).levelProgress, 100);
 });
 
 test("invalid or negative XP cannot produce negative progression", () => {
@@ -141,7 +147,7 @@ test("late verification credits its verification date and a full idle UTC day re
 
 test("missions and achievements expose progress without awarding XP", () => {
   const summary = buildVerifiedProgression({
-    balanceXp: 499,
+    balanceXp: 249,
     pendingXp: 25,
     verifiedExperiences: [
       verifiedEvent("2026-03-01T12:00:00.000Z"),
@@ -161,5 +167,5 @@ test("missions and achievements expose progress without awarding XP", () => {
     label: "Redeem 25 pending XP",
   });
   assert.equal(summary.missions[1].status, "completed");
-  assert.equal(summary.balanceXp, 499);
+  assert.equal(summary.balanceXp, 249);
 });

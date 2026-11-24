@@ -150,6 +150,7 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { KeyboardInteractionHarness } from '@/components/KeyboardInteractionHarness';
 import { CommunityXpPanel } from '@/components/CommunityXpPanel';
 import { ExperienceXpLeaguePanel } from '@/components/ExperienceXpLeaguePanel';
+import { ExperienceXpProgressSummary } from '@/components/ExperienceXpProgressSummary';
 import { UserAvatar } from '@/components/UserAvatar';
 import { ExperienceCategoryArtwork } from '@/components/ExperienceCategoryArtwork';
 import { MotionPressable } from '@/components/MotionPressable';
@@ -2248,6 +2249,13 @@ function Home({
       queryKey: getListMyParticipationsQueryKey(),
     },
   });
+  const homeXpAwards = useGetMyXpAwards({
+    query: {
+      queryKey: getGetMyXpAwardsQueryKey(),
+      enabled: user.userType === 'participant',
+      staleTime: 30_000,
+    },
+  });
   const directConversations = useListDirectConversations({
     query: {
       enabled: Boolean(authenticatedUser),
@@ -2287,11 +2295,11 @@ function Home({
       contentContainerStyle={[styles.dashboardContent, { paddingTop: 12 }]}
       refreshControl={
         <RefreshControl
-          refreshing={query.isRefetching || participations.isRefetching || feedRefreshing}
+          refreshing={query.isRefetching || participations.isRefetching || homeXpAwards.isRefetching || feedRefreshing}
           onRefresh={() => {
             triggerHaptic();
             setFeedRefreshSignal((signal) => signal + 1);
-            void Promise.all([query.refetch(), participations.refetch()]);
+            void Promise.all([query.refetch(), participations.refetch(), homeXpAwards.refetch()]);
           }}
           tintColor={colors.primary}
         />
@@ -2533,7 +2541,7 @@ function Home({
           <View style={[styles.dashboardPassportMetric, { backgroundColor: colors.muted, borderRadius: colors.radius - 4 }]}>
             <View style={styles.dashboardPassportMetricLabelRow}>
               <Feather name="zap" size={13} color={colors.primary} />
-              <Text style={[styles.dashboardPassportMetricLabel, { color: colors.mutedForeground }]}>XP BALANCE</Text>
+              <Text style={[styles.dashboardPassportMetricLabel, { color: colors.mutedForeground }]}>CREDITED XP</Text>
             </View>
             <View style={styles.dashboardPassportMetricValueRow}>
               <Text style={[styles.dashboardPassportMetricValue, { color: colors.foreground }]}>{user.xp.toLocaleString()}</Text>
@@ -2579,6 +2587,20 @@ function Home({
               </View>
             </>
           )}
+          <Text
+            testID="dashboard-xp-pending"
+            accessibilityRole={homeXpAwards.isError ? 'alert' : undefined}
+            style={[
+              styles.dashboardPassportProgressCopy,
+              { color: homeXpAwards.isError ? colors.destructive : colors.mutedForeground },
+            ]}
+          >
+            {homeXpAwards.isLoading
+              ? 'Checking pending XP…'
+              : homeXpAwards.isError
+                ? 'Pending XP could not load'
+                : `${(homeXpAwards.data?.pendingXp ?? 0).toLocaleString()} XP pending redemption`}
+          </Text>
         </View>
       </Pressable>
 
@@ -4965,16 +4987,19 @@ function ProfileMetricDetailsSheet({
                       <Text style={[styles.profileMetricRecordTitle, { color: colors.foreground }]}>
                         Your progression
                       </Text>
-                      {progression.data ? (
-                        <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
-                          {progression.data.level} · {progression.data.balanceXp.toLocaleString()} XP
-                          {progression.data.nextLevelXp === null
-                            ? ' · Highest level'
-                            : ` · ${progression.data.xpToNextLevel?.toLocaleString() ?? 0} XP to next level`}
-                        </Text>
-                      ) : null}
                     </View>
                   </View>
+                  {progression.data ? (
+                    <ExperienceXpProgressSummary
+                      testID="profile-xp-summary"
+                      level={progression.data.level}
+                      balanceXp={progression.data.balanceXp}
+                      levelProgress={progression.data.levelProgress}
+                      nextLevelXp={progression.data.nextLevelXp}
+                      xpToNextLevel={progression.data.xpToNextLevel}
+                      pendingXp={progression.data.pendingXp}
+                    />
+                  ) : null}
                   <ImageBackground
                     testID="profile-xp-astronaut-art"
                     accessibilityRole="image"
@@ -5098,24 +5123,16 @@ function ProfileMetricDetailsSheet({
                     </View>
                     <View style={styles.profileMetricRecordCopy}>
                       <Text style={[styles.profileMetricRecordTitle, { color: colors.foreground }]}>
-                        {xpAwards.data?.pendingXp ?? 0} XP ready to redeem
+                        Your XP rewards
                       </Text>
                       <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
-                        Redeeming adds these points to your Experience XP profile balance.
+                        Pending awards stay separate until redeemed into your Experience XP balance.
                       </Text>
                     </View>
                   </View>
                   <Text style={[styles.profileXpNotice, { color: colors.mutedForeground }]}>
                     Experience XP is a non-cash record of your participation.
                   </Text>
-                  {(xpAwards.data?.pendingXp ?? 0) > 0 ? (
-                    <Button
-                      testID="xp-awards-redeem"
-                      label={redeemXp.isPending ? 'Redeeming…' : `Redeem ${xpAwards.data?.pendingXp ?? 0} XP`}
-                      disabled={redeemXp.isPending}
-                      onPress={() => redeemXp.mutate()}
-                    />
-                  ) : null}
                   {redeemXp.isError ? (
                     <InlineError message={requestErrorMessage(redeemXp.error, 'Your XP could not be redeemed. Please try again.')} />
                   ) : null}

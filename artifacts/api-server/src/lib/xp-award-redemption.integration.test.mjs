@@ -122,9 +122,9 @@ function assertProfileProgress(user, expectedXp) {
     {
       xp: expectedXp,
       level: "Explorer",
-      levelProgress: 16,
-      nextLevelXp: 500,
-      xpToNextLevel: 419,
+      levelProgress: 32,
+      nextLevelXp: 250,
+      xpToNextLevel: 169,
     },
   );
 }

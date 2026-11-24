@@ -11,13 +11,17 @@ import {
 import { PoppinsText as Text } from '@/components/Typography';
 import { Feather } from '@expo/vector-icons';
 import {
+  getGetMyProgressionQueryKey,
   useGetMyXpAwards,
+  useGetMyProgression,
   useListExperienceChallenges,
   useListMyParticipations,
+  useRedeemMyXpAwards,
   type ExperienceChallenge,
   type Participation,
   type XpAward,
 } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { HorizontalScrollWithCue } from '@/components/HorizontalScrollWithCue';
@@ -26,6 +30,7 @@ import { ProfilePosts } from '@/components/ProfilePosts';
 import { PersonalMemoriesPanel, SavedExperiencesPanel } from '@/components/PersonalCollections';
 import { LearningLibraryPanel } from '@/components/LearningDashboardScreen';
 import { PersonalRouteActivityPanel } from '@/components/PersonalRouteActivityPanel';
+import { ExperienceXpProgressSummary } from '@/components/ExperienceXpProgressSummary';
 
 type ActivityFilter = 'all' | 'experiences' | 'challenges' | 'xp';
 type ActivityKind = Exclude<ActivityFilter, 'all'>;
@@ -208,11 +213,27 @@ export function PersonalActivityScreen({
   onCreateCardsFromResearch,
 }: Props) {
   const colors = useColors();
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<ActivityFilter>('all');
+  const [section, setSection] = useState<PersonalSection>(initialSection);
   const participationsQuery = useListMyParticipations();
   const challengesQuery = useListExperienceChallenges();
   const xpQuery = useGetMyXpAwards();
-  const [filter, setFilter] = useState<ActivityFilter>('all');
-  const [section, setSection] = useState<PersonalSection>(initialSection);
+  const progressionQuery = useGetMyProgression({
+    query: {
+      queryKey: [...getGetMyProgressionQueryKey(), profileId],
+      enabled: section === 'activity',
+      staleTime: 30_000,
+      refetchOnMount: 'always',
+    },
+  });
+  const redeemXp = useRedeemMyXpAwards({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries();
+      },
+    },
+  });
 
   const items = useMemo(() => {
     const participationItems = (participationsQuery.data ?? []).map(participationItem);
@@ -227,15 +248,25 @@ export function PersonalActivityScreen({
     ? items
     : items.filter((item) => item.kind === filter);
   const verifiedCount = participationsQuery.data?.filter((item) => item.status === 'verified').length;
-  const isInitialLoading = participationsQuery.isLoading && challengesQuery.isLoading && xpQuery.isLoading;
-  const isRefreshing = participationsQuery.isRefetching || challengesQuery.isRefetching || xpQuery.isRefetching;
-  const hasQueryError = participationsQuery.isError || challengesQuery.isError || xpQuery.isError;
+  const isInitialLoading = participationsQuery.isLoading
+    && challengesQuery.isLoading
+    && xpQuery.isLoading
+    && (section !== 'activity' || progressionQuery.isLoading);
+  const isRefreshing = participationsQuery.isRefetching
+    || challengesQuery.isRefetching
+    || xpQuery.isRefetching
+    || progressionQuery.isRefetching;
+  const hasQueryError = participationsQuery.isError
+    || challengesQuery.isError
+    || xpQuery.isError
+    || (section === 'activity' && progressionQuery.isError);
 
   const retryAll = () => {
     void Promise.all([
       participationsQuery.refetch(),
       challengesQuery.refetch(),
       xpQuery.refetch(),
+      ...(section === 'activity' ? [progressionQuery.refetch()] : []),
     ]);
   };
 
@@ -333,12 +364,85 @@ export function PersonalActivityScreen({
             value={queryCount(challengesQuery.isLoading, challengesQuery.isError, challengesQuery.data?.length)}
             colors={colors}
           />
-          <SummaryCard
-            icon="zap"
-            label="XP balance"
-            value={queryCount(xpQuery.isLoading, xpQuery.isError, xpQuery.data?.balanceXp)}
-            colors={colors}
-          />
+        </View>
+
+        <View
+          testID="activity-xp-progression"
+          style={[
+            styles.xpProgressCard,
+            { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+          ]}
+        >
+          {progressionQuery.isLoading ? (
+            <View style={styles.xpProgressState}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading Experience XP progress…</Text>
+            </View>
+          ) : progressionQuery.isError || !progressionQuery.data ? (
+            <View style={styles.xpProgressState}>
+              <Text accessibilityRole="alert" style={[styles.errorText, { color: colors.destructive }]}>
+                Experience XP progress could not load. Your balance and rewards are unchanged.
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                testID="activity-xp-progression-retry"
+                onPress={() => { void progressionQuery.refetch(); }}
+              >
+                <Text style={[styles.retryText, { color: colors.primary }]}>Try again</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <ExperienceXpProgressSummary
+                testID="activity-xp-summary"
+                level={progressionQuery.data.level}
+                balanceXp={progressionQuery.data.balanceXp}
+                levelProgress={progressionQuery.data.levelProgress}
+                nextLevelXp={progressionQuery.data.nextLevelXp}
+                xpToNextLevel={progressionQuery.data.xpToNextLevel}
+                pendingXp={progressionQuery.data.pendingXp}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={progressionQuery.data.nextAction.label}
+                testID="activity-xp-next-action"
+                disabled={redeemXp.isPending}
+                onPress={() => {
+                  if (progressionQuery.data?.nextAction.kind === 'redeem_xp') {
+                    redeemXp.mutate();
+                  } else {
+                    onExplore();
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.xpNextAction,
+                  {
+                    backgroundColor: colors.primary,
+                    borderRadius: colors.radius,
+                    opacity: redeemXp.isPending ? 0.55 : pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                {redeemXp.isPending ? (
+                  <ActivityIndicator size="small" color={colors.primaryForeground} />
+                ) : (
+                  <Feather
+                    name={progressionQuery.data.nextAction.kind === 'redeem_xp' ? 'zap' : 'compass'}
+                    size={15}
+                    color={colors.primaryForeground}
+                  />
+                )}
+                <Text style={[styles.xpNextActionText, { color: colors.primaryForeground }]}>
+                  {redeemXp.isPending ? 'Redeeming…' : progressionQuery.data.nextAction.label}
+                </Text>
+              </Pressable>
+              {redeemXp.isError ? (
+                <Text accessibilityRole="alert" style={[styles.errorText, { color: colors.destructive }]}>
+                  XP could not be redeemed. Try again from your profile.
+                </Text>
+              ) : null}
+            </>
+          )}
         </View>
 
         <View style={styles.sectionHeading}>
@@ -554,15 +658,17 @@ export function PersonalActivityScreen({
             <Text style={[styles.emptyCopy, styles.compactEmptyCopy, { color: colors.mutedForeground }]}>
               Join an experience or take on a challenge. Your participation will appear here.
             </Text>
-            <Pressable
-              accessibilityRole="button"
-              testID="activity-explore"
-              onPress={onExplore}
-              style={[styles.exploreButton, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
-            >
-              <Text style={[styles.exploreButtonText, { color: colors.primaryForeground }]}>Explore experiences</Text>
-              <Feather name="arrow-right" size={15} color={colors.primaryForeground} />
-            </Pressable>
+            {!progressionQuery.data ? (
+              <Pressable
+                accessibilityRole="button"
+                testID="activity-explore"
+                onPress={onExplore}
+                style={[styles.exploreButton, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
+              >
+                <Text style={[styles.exploreButtonText, { color: colors.primaryForeground }]}>Explore experiences</Text>
+                <Feather name="arrow-right" size={15} color={colors.primaryForeground} />
+              </Pressable>
+            ) : null}
           </View>
         )}
           </>
@@ -647,7 +753,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', letterSpacing: -0.7, marginTop: 4 },
   subtitle: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular', marginTop: 4, maxWidth: 350 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 26 },
-  summaryCard: { width: '48.5%', minHeight: 94, borderWidth: 1, padding: 12 },
+  summaryCard: { width: '30.5%', minHeight: 94, borderWidth: 1, padding: 12 },
   summaryIcon: { width: 29, height: 29, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 9 },
   summaryValue: { fontSize: 21, lineHeight: 25, fontFamily: 'Inter_700Bold' },
   summaryLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', marginTop: 2 },
@@ -662,6 +768,10 @@ const styles = StyleSheet.create({
   errorCard: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 13, padding: 11, marginBottom: 10 },
   errorText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium' },
   retryText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  xpProgressCard: { gap: 9, borderWidth: 1, padding: 12, marginBottom: 24 },
+  xpProgressState: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  xpNextAction: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 },
+  xpNextActionText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   loading: { minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: 10 },
   loadingText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
   timeline: { gap: 0 },

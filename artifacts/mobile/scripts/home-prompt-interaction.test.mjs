@@ -253,8 +253,8 @@ const user = {
   userType: "participant",
   organisation: null,
   xp: 320,
-  level: "Explorer",
-  levelProgress: 64,
+  level: "Pathfinder",
+  levelProgress: 28,
   nextLevelXp: 500,
   xpToNextLevel: 180,
   completedCount: 2,
@@ -411,7 +411,7 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
   let personalMemories = [];
   let nextMemoryId = 900;
   const xpAwards = {
-    balanceXp: 210,
+    balanceXp: 320,
     pendingXp: 80,
     awards: [{
       id: "activity-award-1",
@@ -422,6 +422,30 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
       status: "pending",
       awardedAt: "2026-10-02T09:00:00.000Z",
     }],
+  };
+  const xpProgression = {
+    balanceXp: 320,
+    pendingXp: 80,
+    level: "Pathfinder",
+    levelProgress: 28,
+    nextLevelXp: 500,
+    xpToNextLevel: 180,
+    streak: {
+      currentDays: 0,
+      longestDays: 1,
+      lastVerifiedUtcDate: "2026-10-02",
+      timezone: "UTC",
+    },
+    missions: [],
+    achievements: [],
+    nextAction: { kind: "redeem_xp", label: "Redeem 80 pending XP" },
+    rules: {
+      eligibleActivity: "Only host-verified contributions count.",
+      streakDate: "UTC.",
+      lateVerification: "Verification date.",
+      reset: "After a full day.",
+      excludedActivity: "Unverified submissions.",
+    },
   };
 
   client.on("Fetch.requestPaused", ({ params }) => {
@@ -477,8 +501,55 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
               : fullParticipationHistory;
         } else if (url.pathname === "/api/challenges" && method === "GET") {
           response = activityChallenges;
+        } else if (url.pathname === "/api/quests/social" && method === "GET") {
+          response = [];
+        } else if (url.pathname === "/api/quests/notifications" && method === "GET") {
+          response = [];
+        } else if (url.pathname === "/api/accountability" && method === "GET") {
+          response = {
+            activePartner: null,
+            incomingInvitations: [],
+            outgoingInvitations: [],
+            commitments: [],
+            goals: [],
+            goalsAvailable: true,
+            activity: [],
+            notifications: [],
+            unreadCount: 0,
+          };
+        } else if (url.pathname === "/api/community/me" && method === "GET") {
+          response = { communities: [] };
+        } else if (url.pathname === "/api/friends/notifications" && method === "GET") {
+          response = { notifications: [], unreadCount: 0 };
+        } else if (url.pathname === "/api/me/xp-leagues" && method === "GET") {
+          response = {
+            category: url.searchParams.get("category") ?? "environmental",
+            optedIn: false,
+            effectiveAt: null,
+            weekStart: "2026-11-23",
+            weekEnd: "2026-11-30",
+            timezone: "UTC",
+            division: null,
+            currentStanding: null,
+            members: [],
+            page: 1,
+            pageSize: Number(url.searchParams.get("pageSize") ?? 8),
+            total: 0,
+            hasMore: false,
+            history: [],
+            rules: {
+              scoring: "Verified Experience XP only.",
+              weekBoundary: "Monday to Monday UTC.",
+              privacy: "Only opted-in members appear.",
+              tieBreak: "Earlier award ranks first.",
+              movement: "Based on final weekly rank.",
+              history: "Recent completed weeks.",
+            },
+          };
         } else if (url.pathname === "/api/me/xp-awards" && method === "GET") {
           response = xpAwards;
+        } else if (url.pathname === "/api/me/progression" && method === "GET") {
+          response = xpProgression;
         } else if (url.pathname === "/api/me/personal-activities" && method === "GET") {
           response = [];
         } else if (url.pathname === "/api/learning/me/research" && method === "GET") {
@@ -538,6 +609,8 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
         } else if (url.pathname === "/api/profile-posts" && method === "GET") {
           response = { items: [], nextCursor: null };
         } else if (url.pathname === "/api/nodes" && method === "GET") {
+          response = [];
+        } else if (url.pathname === "/api/organisations/nodes" && method === "GET") {
           response = [];
         } else if (url.pathname === "/api/feed" && method === "GET") {
           response = {
@@ -607,6 +680,22 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
       (text) => text.includes(headline),
       `the ${stateName} Home prompt after authenticated data has loaded`,
     );
+    await waitForValue(
+      client,
+      `document.querySelector('[data-testid="dashboard-xp-pending"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+      (text) => text === "80 XP pending redemption",
+      "the separate pending XP amount on Home",
+    );
+    const homeXpSummary = await client.evaluate(`(() => {
+      const passport = document.querySelector('[aria-label*="level."]');
+      return {
+        text: passport?.innerText?.replace(/\\s+/g, ' ').trim() ?? '',
+        label: passport?.getAttribute('aria-label') ?? '',
+      };
+    })()`);
+    assert.match(homeXpSummary.text, /Pathfinder/);
+    assert.match(homeXpSummary.text, /320 XP|320/);
+    assert.match(homeXpSummary.label, /Pathfinder level/);
 
     const cardState = await client.evaluate(`(() => {
       const card = document.querySelector('[data-testid="dashboard-first-experience"]');
@@ -889,7 +978,8 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
   assert.match(activityText, /CHALLENGE/);
   assert.match(activityText, /XP REWARD/);
   assert.match(activityText, /\+80 XP/);
-  assert.match(activityText, /210/);
+  assert.match(activityText, /320/);
+  assert.match(activityText, /Pathfinder/);
   if (process.env.PERSONAL_ACTIVITY_SCREENSHOT_PATH) {
     const { data } = await client.send("Page.captureScreenshot", { format: "png" });
     await writeFile(
@@ -925,7 +1015,7 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
       ),
     };
   })()`);
-  assert.equal(personalNavigation.count, 6, "Personal Activity must keep all six existing sections.");
+  assert.equal(personalNavigation.count, 7, "Personal Activity must keep all seven existing sections.");
   assert.ok(
     personalNavigation.scrollWidth > personalNavigation.clientWidth,
     `The section row should overflow at 360px: ${JSON.stringify(personalNavigation)}`,
@@ -962,6 +1052,7 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
     "route-activities",
     "saved-experiences",
     "learning",
+    "journeys",
     "memories",
     "posts",
   ];
@@ -987,7 +1078,29 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
     client,
     `Boolean(document.querySelector('[data-testid="activity-entry-challenge-52"]'))`,
     Boolean,
-    "the Activity timeline after keyboard navigation through all six sections",
+    "the Activity timeline after keyboard navigation through all seven sections",
+  );
+
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=profile` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="profile-metric-xp"]'))`,
+    Boolean,
+    "the Profile XP summary card",
+  );
+  await tapTestId(client, "profile-metric-xp");
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="profile-xp-summary"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+    (text) => text.includes("Pathfinder") && text.includes("320 XP") && text.includes("80 XP pending redemption"),
+    "the same credited and pending XP summary in Profile",
+  );
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=activity` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="activity-entry-challenge-52"]'))`,
+    Boolean,
+    "Activity after returning from Profile",
   );
 
   await tapTestId(client, "activity-filter-xp");
@@ -1057,7 +1170,7 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
   try {
     await waitForValue(
       client,
-      `document.body.innerText.includes('Nothing saved to personal')`,
+      `document.body.innerText.includes('No personal saves yet')`,
       Boolean,
       "the Personal collection after the experience was moved",
       5_000,
@@ -1122,7 +1235,7 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
   try {
     await waitForValue(
       client,
-      `document.body.innerText.includes('No personal posts to show yet.')`,
+      `document.body.innerText.includes('No personal posts yet')`,
       Boolean,
       "the empty Posts state after the profile query settles",
     );
@@ -1133,7 +1246,7 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
       + `\nScreen: ${await client.evaluate('document.body.innerText')}`,
     );
   }
-  assert.match(await client.evaluate(`document.body.innerText`), /No personal posts to show yet/);
+  assert.match(await client.evaluate(`document.body.innerText`), /No personal posts yet/);
   const postsRowAtStart = await client.evaluate(`(document.querySelector('[data-testid="personal-record-tabs-scroll"]')?.scrollLeft ?? 0) <= 1`);
   if (!postsRowAtStart) await tapTestId(client, "personal-record-tabs-cue");
   await waitForValue(
@@ -1156,6 +1269,22 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
     `Boolean(document.querySelector('[data-testid="activity-entry-challenge-52"]'))`,
     Boolean,
     "the Activity timeline after switching between all four tabs",
+  );
+  await waitForValue(
+    client,
+    `document.querySelector('[data-testid="activity-xp-summary"]')?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''`,
+    (text) => text.includes("Pathfinder") && text.includes("320 XP") && text.includes("80 XP pending redemption"),
+    "the shared Experience XP summary in Activity",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelectorAll('[data-testid="activity-xp-next-action"]').length`),
+    1,
+    "Activity should expose one progression action.",
+  );
+  assert.equal(
+    await client.evaluate(`document.querySelector('[data-testid="activity-xp-next-action"]')?.getAttribute('aria-label')`),
+    "Redeem 80 pending XP",
+    "The Activity action should match the server's pending reward state.",
   );
   await tapTestId(client, "activity-entry-challenge-52");
   await waitForValue(
@@ -1247,6 +1376,10 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
   assert.ok(
     apiTraffic.some((request) => request === "GET /api/me/xp-awards"),
     "Activity should load the signed-in user's XP awards.",
+  );
+  assert.ok(
+    apiTraffic.some((request) => request === "GET /api/me/progression"),
+    "Activity should load server-calculated Experience XP progression.",
   );
   assert.ok(
     apiTraffic.some((request) => request === "GET /api/me/saved-experiences"),

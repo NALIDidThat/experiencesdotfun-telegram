@@ -29,6 +29,30 @@ export function escapeTelegramHtml(value: string | number | null | undefined): s
     .replaceAll(">", "&gt;");
 }
 
+export function formatTelegramXpProgress(
+  profile: {
+    xp: number;
+    level: string;
+    levelProgress: number;
+    nextLevelXp: number | null;
+    xpToNextLevel: number | null;
+  },
+  pendingAwards: readonly { title: string; amount: number }[],
+): string {
+  const progressPercent = Math.max(0, Math.min(100, Math.round(profile.levelProgress)));
+  const filledSegments = Math.round(progressPercent / 10);
+  const progressBar = `${"■".repeat(filledSegments)}${"□".repeat(10 - filledSegments)}`;
+  const progressLabel = profile.nextLevelXp === null
+    ? "<i>Highest level reached</i>"
+    : `<code>${progressBar}</code> ${progressPercent}% · ${profile.xpToNextLevel?.toLocaleString("en-GB") ?? 0} XP to next level`;
+  const pendingXp = pendingAwards.reduce((sum, award) => sum + award.amount, 0);
+  const pendingSummary = pendingXp > 0
+    ? `\n\n<b>Pending redemption · ${pendingXp.toLocaleString("en-GB")} XP</b> (not in your credited balance)\n${pendingAwards.slice(0, 5).map((award) => `+${award.amount.toLocaleString("en-GB")} XP · ${escapeTelegramHtml(award.title)}`).join("\n")}`
+    : "";
+
+  return `<b>${profile.xp.toLocaleString("en-GB")} XP</b> · ${escapeTelegramHtml(profile.level)}\n${progressLabel}${pendingSummary}`;
+}
+
 export function formatWelcomeMessage(): string {
   return [
     "<b>🌍 Welcome to Experiences.fun</b>",

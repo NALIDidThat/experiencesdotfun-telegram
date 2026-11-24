@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import {
+  getGetMyProgressionQueryKey,
   getGetMyXpLeagueQueryKey,
+  useGetMyProgression,
   useGetMyXpLeague,
   useUpdateMyXpLeagueOptIn,
   type ExperienceCategory,
@@ -11,6 +13,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { PoppinsText as Text } from '@/components/Typography';
 import { useColors } from '@/hooks/useColors';
+import { ExperienceXpProgressSummary } from '@/components/ExperienceXpProgressSummary';
 
 const CATEGORIES: Array<{ key: ExperienceCategory; label: string }> = [
   { key: 'environmental', label: 'Environmental' },
@@ -58,6 +61,13 @@ export function ExperienceXpLeaguePanel() {
   const [page, setPage] = useState(1);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   const params = { category, page, pageSize: PAGE_SIZE };
+  const progression = useGetMyProgression({
+    query: {
+      queryKey: getGetMyProgressionQueryKey(),
+      staleTime: 30_000,
+      refetchOnMount: 'always',
+    },
+  });
   const league = useGetMyXpLeague(params, {
     query: {
       queryKey: getGetMyXpLeagueQueryKey(params),
@@ -116,6 +126,37 @@ export function ExperienceXpLeaguePanel() {
       <Text style={[styles.description, { color: colors.mutedForeground }]}>
         Compete with verified Experience XP. Community XP and Memory Game scores stay separate.
       </Text>
+      {progression.isLoading ? (
+        <View style={styles.loading}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[styles.body, { color: colors.mutedForeground }]}>Loading your overall Experience XP…</Text>
+        </View>
+      ) : progression.isError || !progression.data ? (
+        <View style={styles.state}>
+          <Text accessibilityRole="alert" style={[styles.body, { color: colors.destructive }]}>
+            Overall Experience XP progress could not load. League results are separate.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            testID="xp-league-progression-retry"
+            onPress={() => { void progression.refetch(); }}
+            style={({ pressed }) => [styles.textButton, { opacity: pressed ? 0.65 : 1 }]}
+          >
+            <Feather name="refresh-cw" size={14} color={colors.primary} />
+            <Text style={[styles.actionText, { color: colors.primary }]}>Try again</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <ExperienceXpProgressSummary
+          testID="xp-league-progress-summary"
+          level={progression.data.level}
+          balanceXp={progression.data.balanceXp}
+          levelProgress={progression.data.levelProgress}
+          nextLevelXp={progression.data.nextLevelXp}
+          xpToNextLevel={progression.data.xpToNextLevel}
+          pendingXp={progression.data.pendingXp}
+        />
+      )}
 
       <View style={styles.categoryRow} accessibilityLabel="Experience XP league categories">
         {CATEGORIES.map((item) => {

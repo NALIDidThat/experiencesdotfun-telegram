@@ -10,6 +10,7 @@ import { Feather } from '@expo/vector-icons';
 import { PoppinsText as Text, PoppinsTextInput as TextInput } from '@/components/Typography';
 import {
   getGetHostExperienceMilestonesQueryKey,
+  getGetMyProgressionQueryKey,
   getListHostExperiencesQueryKey,
   getListJourneyProgrammesQueryKey,
   getListJourneyProgrammeParticipantsQueryKey,
@@ -20,6 +21,7 @@ import {
   useCreateJourneyProgramme,
   useEnrolInJourneyProgramme,
   useGetHostExperienceMilestones,
+  useGetMyProgression,
   useListHostExperiences,
   useListJourneyProgrammeParticipants,
   useListJourneyProgrammes,
@@ -33,6 +35,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { ExperienceCategoryArtwork } from '@/components/ExperienceCategoryArtwork';
+import { ExperienceXpProgressSummary } from '@/components/ExperienceXpProgressSummary';
 
 type Props = {
   userType: UserType;
@@ -48,6 +51,14 @@ export function DevelopmentJourneysScreen({ userType, onBack, onOpenExperience }
   const isParticipant = userType === 'participant';
   const participantProgrammes = useListJourneyProgrammes({
     query: { enabled: isParticipant, staleTime: 0, queryKey: getListJourneyProgrammesQueryKey() },
+  });
+  const progression = useGetMyProgression({
+    query: {
+      queryKey: getGetMyProgressionQueryKey(),
+      enabled: isParticipant,
+      staleTime: 30_000,
+      refetchOnMount: 'always',
+    },
   });
   const managedProgrammes = useListManagedJourneyProgrammes({
     query: { enabled: !isParticipant, staleTime: 0, queryKey: getListManagedJourneyProgrammesQueryKey() },
@@ -168,6 +179,35 @@ export function DevelopmentJourneysScreen({ userType, onBack, onOpenExperience }
           ? 'Follow an organisation’s ordered pathway. Progress changes only when hosts verify your participation or milestone work.'
           : 'Build a reusable pathway from your organisation’s experiences, reviewed milestones, and optional learning links.'}
       </Text>
+      {isParticipant ? (
+        <View testID="journey-xp-progression" style={{ gap: 8, marginBottom: 18 }}>
+          {progression.isLoading ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.helper, { color: colors.mutedForeground }]}>Loading Experience XP…</Text>
+            </View>
+          ) : progression.isError || !progression.data ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <Text accessibilityRole="alert" style={[styles.helper, { color: colors.destructive, flex: 1 }]}>
+                Experience XP progress could not load.
+              </Text>
+              <Pressable accessibilityRole="button" onPress={() => { void progression.refetch(); }}>
+                <Text style={[styles.secondaryActionText, { color: colors.primary }]}>Try again</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <ExperienceXpProgressSummary
+              testID="journey-xp-summary"
+              level={progression.data.level}
+              balanceXp={progression.data.balanceXp}
+              levelProgress={progression.data.levelProgress}
+              nextLevelXp={progression.data.nextLevelXp}
+              xpToNextLevel={progression.data.xpToNextLevel}
+              pendingXp={progression.data.pendingXp}
+            />
+          )}
+        </View>
+      ) : null}
 
       {!isParticipant ? (
         <>

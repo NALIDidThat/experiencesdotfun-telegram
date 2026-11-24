@@ -1,9 +1,14 @@
 const EXPERIENCE_XP_LEVELS = [
   { minimumXp: 0, label: "Explorer" },
-  { minimumXp: 500, label: "Contributor" },
-  { minimumXp: 1_500, label: "Champion" },
-  { minimumXp: 2_500, label: "Leader" },
-  { minimumXp: 5_000, label: "Legend" },
+  { minimumXp: 250, label: "Pathfinder" },
+  { minimumXp: 500, label: "Trailblazer" },
+  { minimumXp: 1_000, label: "Pioneer" },
+  { minimumXp: 1_500, label: "Innovator" },
+  { minimumXp: 2_500, label: "Architect" },
+  { minimumXp: 5_000, label: "Visionary" },
+  { minimumXp: 7_500, label: "Luminary" },
+  { minimumXp: 10_000, label: "Vanguard" },
+  { minimumXp: 15_000, label: "Legacy Builder" },
 ];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
