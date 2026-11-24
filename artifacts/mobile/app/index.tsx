@@ -1272,198 +1272,124 @@ function EmailAuthPanel({
 
 function TalentWelcome({
   onContinue,
-  onHostExperiences,
+  onLogIn,
 }: {
   onContinue: () => void;
-  onHostExperiences: () => void;
+  onLogIn: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  const { height: screenHeight } = useWindowDimensions();
+  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const welcome = colors.welcome;
-  const activityQuery = useListExploreActivity({ request: { cache: 'no-store' } });
-  const welcomeActivityCities = useMemo<WelcomeGlobeActivityCity[]>(() => (
-    (activityQuery.data?.cities ?? [])
-      .flatMap((activity) => {
-        const coordinates = exploreCityCoordinates[normalizeExploreCityName(activity.city)];
-        return coordinates
-          ? [{ city: activity.city, ...coordinates, verifiedCompletions: activity.verifiedCompletions }]
-          : [];
-      })
-      .sort((left, right) => right.verifiedCompletions - left.verifiedCompletions)
-      .slice(0, 10)
-  ), [activityQuery.data]);
-  const activityStatus: 'loading' | 'ready' | 'error' = activityQuery.isLoading
-    ? 'loading'
-    : activityQuery.isError
-      ? 'error'
-      : 'ready';
   const isWeb = Platform.OS === 'web';
   const topInset = isWeb ? Math.max(67, insets.top) : insets.top;
   const bottomInset = isWeb ? 34 : Math.max(insets.bottom, 16);
-  const isCompactWelcome = screenHeight < 740;
-  const heroStageHeight = isCompactWelcome
-    ? Math.max(238, screenHeight * 0.34)
-    : Math.min(screenHeight * 0.42, 352);
+  const compact = screenHeight < 830;
+  const collageHeight = Math.min(compact ? 300 : 340, screenHeight * (compact ? 0.37 : 0.39));
+  const cardWidth = Math.min((screenWidth - 66) * 0.47, 170);
+  const cardHeight = collageHeight * 0.57;
+  const experiences = [
+    { name: 'Education', icon: 'book-open' as const, image: require('../assets/images/welcome-education.jpg'), glow: '#F20789', rotate: '-10deg', x: -1, y: 11 },
+    { name: 'Environment', icon: 'feather' as const, image: require('../assets/images/welcome-environment.jpg'), glow: '#1A98E5', rotate: '9deg', x: 1, y: 4 },
+    { name: 'Community', icon: 'users' as const, image: require('../assets/images/welcome-community.jpg'), glow: '#F20789', rotate: '-8deg', x: -1, y: 0 },
+    { name: 'Employment', icon: 'briefcase' as const, image: require('../assets/images/welcome-employment.jpg'), glow: '#04ADBF', rotate: '10deg', x: 1, y: -5 },
+  ];
 
   return (
-    <View style={[styles.talentScreen, { backgroundColor: welcome.background }]}>
+    <View style={[styles.talentScreen, { backgroundColor: '#10132E' }]}>
       <StatusBar barStyle="light-content" backgroundColor={welcome.background} />
-
+      <View pointerEvents="none" style={styles.neonWelcomeBackdrop}>
+        <LinearGradient colors={['#38133E', '#171B3D', '#081C36']} start={{ x: 0, y: 0.4 }} end={{ x: 1, y: 0.55 }} style={StyleSheet.absoluteFill} />
+        <View style={[styles.neonWelcomeGlow, styles.neonWelcomeGlowLeft]} />
+        <View style={[styles.neonWelcomeGlow, styles.neonWelcomeGlowRight]} />
+        <View style={styles.welcomeOrbitOne} />
+        <View style={styles.welcomeOrbitTwo} />
+        <LinearGradient colors={['transparent', '#0C1940', '#32204E']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={styles.welcomeHorizon} />
+        <View style={styles.welcomeHorizonLine} />
+      </View>
       <ScrollView
         bounces={false}
         showsVerticalScrollIndicator={false}
         style={styles.welcomeScroll}
         contentContainerStyle={[
-          styles.welcomeScrollContent,
-          { minHeight: Math.max(0, screenHeight - topInset), paddingTop: topInset, paddingBottom: 0 },
+          styles.neonWelcomeContent,
+          { minHeight: Math.max(0, screenHeight - topInset), paddingTop: topInset + (compact ? 4 : 12), paddingBottom: bottomInset + 12 },
         ]}
       >
-        <View style={[styles.welcomeHeader, { paddingHorizontal: 26 }]}>
-          <View style={styles.welcomeBrandRow} accessibilityLabel="Experiences dot fun">
-            <Feather name="sun" size={18} color={colors.primary} />
-            <Text style={styles.welcomeBrand}>
-              <Text style={{ color: welcome.foreground }}>experiences</Text>
-              <Text style={{ color: colors.primary }}>.fun</Text>
-            </Text>
+        <View style={styles.neonWelcomeBrand} accessibilityLabel="Experiences dot fun">
+          <View style={styles.neonWelcomeMark}>
+            <Feather name="star" size={27} color="#FFFFFF" />
           </View>
-          <View style={{ width: 54 }} />
-        </View>
-
-        <View style={styles.welcomePromiseWrap}>
-          <View style={[styles.welcomePromise, { backgroundColor: welcome.surface, borderColor: welcome.border }]}>
-            <Feather name="zap" size={16} color={colors.teal} />
-            <Text style={[styles.welcomePromiseText, { color: welcome.foreground }]}>
-              Real-world experiences. Meaningful participation.
-            </Text>
-            <Feather name="chevron-right" size={16} color={welcome.muted} />
-          </View>
-        </View>
-
-        <View style={[styles.welcomeHeroStage, { height: heroStageHeight }]}>
-          <ExploreGlobe
-            welcomeMode
-            welcomeActivityCities={welcomeActivityCities}
-            welcomeActivityWindowDays={activityQuery.data?.windowDays ?? 30}
-            welcomeActivityCityCount={activityQuery.data?.cities?.length ?? 0}
-            cities={[]}
-            mode="activity"
-            selectedCity={null}
-            status={activityStatus}
-            onSelectCity={() => {}}
-            onExploreCity={() => {}}
-            onResetCity={() => {}}
-          />
-          <View style={[styles.welcomeXpCard, { backgroundColor: welcome.surface, borderColor: welcome.border }]}>
-            <View style={[styles.welcomeMedal, { backgroundColor: colors.primary }]}>
-              <Feather name="award" size={19} color={welcome.gold} />
-            </View>
-            <View style={styles.welcomeXpCopy}>
-              <Text style={[styles.welcomeXpValue, { color: welcome.foreground }]}>+50 XP</Text>
-              <Text style={[styles.welcomeXpLabel, { color: welcome.muted }]}>Community Clean-Up</Text>
-            </View>
-          </View>
-        </View>
-
-        <View
-          testID="welcome-content-sheet"
-          style={[
-            styles.welcomeContent,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              borderTopLeftRadius: colors.radius + 16,
-              borderTopRightRadius: colors.radius + 16,
-              paddingBottom: bottomInset + 8,
-            },
-          ]}
-        >
-          <Text style={[styles.welcomeTitle, { color: colors.foreground }]}>
-            Find your people.{'\n'}<Text style={{ color: colors.primary }}>Make a difference.</Text>
+          <Text style={styles.neonWelcomeWordmark}>
+            experiences<Text style={{ color: '#F20789' }}>.fun</Text>
           </Text>
-          <View style={styles.welcomeDetails}>
-            <Text style={[styles.welcomeDescription, { color: colors.mutedForeground }]}>
-              Discover local experiences, build skills, support your community and see the real-world impact you create.
-            </Text>
+        </View>
 
-            <View style={styles.welcomeBenefits}>
-              {[
-                { icon: 'book-open' as const, label: 'Learn by\ndoing', color: colors.secondary },
-                { icon: 'heart' as const, label: 'Support your\ncommunity', color: colors.teal },
-                { icon: 'bar-chart-2' as const, label: 'Track your\nimpact', color: colors.primary },
-              ].map((benefit) => (
-                <View key={benefit.label} style={styles.welcomeBenefit} accessibilityLabel={benefit.label.replace('\n', ' ')}>
-                  <View style={[styles.welcomeBenefitIcon, { backgroundColor: `${benefit.color}14` }]}>
-                    <Feather name={benefit.icon} size={17} color={benefit.color} />
-                  </View>
-                  <Text style={[styles.welcomeBenefitText, { color: colors.foreground }]}>{benefit.label}</Text>
-                </View>
-              ))}
+        <View style={[styles.neonExperienceCollage, { height: collageHeight }]}>
+          {experiences.map((experience, index) => (
+            <View
+              key={experience.name}
+              accessibilityLabel={`${experience.name} experience`}
+              style={[
+                styles.neonExperienceCard,
+                {
+                  width: cardWidth,
+                  height: cardHeight,
+                  left: index % 2 === 0 ? 2 : undefined,
+                  right: index % 2 === 1 ? 2 : undefined,
+                  top: index < 2 ? 8 : undefined,
+                  bottom: index >= 2 ? 0 : undefined,
+                  transform: [{ rotate: experience.rotate }, { translateX: experience.x }, { translateY: experience.y }],
+                  borderColor: experience.glow,
+                  shadowColor: experience.glow,
+                },
+              ]}
+            >
+              <ImageBackground source={experience.image} resizeMode="cover" style={styles.neonExperiencePhoto}>
+                <LinearGradient colors={['rgba(7,10,28,0.82)', 'rgba(7,10,28,0.55)', 'transparent']} locations={[0, 0.78, 1]} style={styles.neonExperienceLabel}>
+                  <Feather name={experience.icon} size={15} color="#FFFFFF" />
+                  <Text numberOfLines={1} style={styles.neonExperienceTitle}>{experience.name}</Text>
+                </LinearGradient>
+              </ImageBackground>
             </View>
+          ))}
+        </View>
 
-            <View style={styles.welcomeSocialProof}>
-              <View style={styles.welcomeAvatars} accessibilityLabel="Community members">
-                {[
-                  { initials: 'A', backgroundColor: colors.teal },
-                  { initials: 'J', backgroundColor: colors.secondary },
-                  { initials: 'M', backgroundColor: colors.primary },
-                ].map((avatar) => (
-                  <View key={avatar.initials} style={[styles.welcomeAvatar, { backgroundColor: avatar.backgroundColor, borderColor: colors.card }]}>
-                    <Text style={[styles.welcomeAvatarInitial, { color: colors.primaryForeground }]}>{avatar.initials}</Text>
-                  </View>
-                ))}
-              </View>
-              <Text style={[styles.welcomeSocialText, { color: colors.mutedForeground }]}>
-                Join a growing community making change, together.
-              </Text>
-            </View>
+        <View style={styles.neonWelcomeIntro}>
+          <Text style={[styles.neonWelcomeTitle, compact && styles.neonWelcomeTitleCompact]}>
+            Welcome to{'\n'}Experiences<Text style={{ color: '#F20789' }}>.fun</Text>
+          </Text>
+          <Text style={styles.neonWelcomeDescription}>Turn real-world experiences into learning, impact and opportunity.</Text>
+        </View>
 
-            <View style={[styles.welcomeAuthActions, { flexDirection: 'column' }]}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Get started"
-                accessibilityHint="Continue to choose a Participant or Organisation account"
-                testID="welcome-start"
-                onPressIn={triggerHaptic}
-                onPress={onContinue}
-                style={({ pressed }) => [
-                  styles.welcomeTelegramButton,
-                  {
-                    width: '100%',
-                    backgroundColor: colors.primary,
-                    borderRadius: colors.radius,
-                    opacity: pressed ? 0.9 : 1,
-                    transform: [{ scale: pressed ? 0.98 : 1 }],
-                  },
-                ]}
-              >
-                <Text style={[styles.welcomeTelegramLabel, { color: colors.primaryForeground }]}>Get started</Text>
-                <Feather name="arrow-right" size={20} color={colors.primaryForeground} />
-              </Pressable>
-            </View>
-
-            <View style={styles.welcomeHostRow}>
-              <Text style={[styles.welcomeHostPrompt, { color: colors.mutedForeground }]}>Are you an organisation?</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Host experiences as an organisation"
-                testID="welcome-host-experiences"
-                onPressIn={triggerHaptic}
-                onPress={onHostExperiences}
-                style={({ pressed }) => [
-                  styles.welcomeHostButton,
-                  { borderColor: colors.primary, opacity: pressed ? 0.78 : 1 },
-                ]}
-              >
-                <Text style={[styles.welcomeHostButtonText, { color: colors.primary }]}>Host experiences</Text>
-              </Pressable>
-            </View>
-
-            <Text style={[styles.welcomeTelegramNote, { color: colors.mutedForeground }]}>
-              Get started as a participant or organisation.
-            </Text>
-            {isWeb ? <View style={[styles.welcomeHomeIndicator, { backgroundColor: colors.mutedForeground }]} /> : null}
-          </View>
+        <View style={styles.neonWelcomeActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Start Your Journey"
+            accessibilityHint="Choose Participant or Organisation to begin signup"
+            testID="welcome-start"
+            onPressIn={triggerHaptic}
+            onPress={onContinue}
+            style={({ pressed }) => [styles.neonStartButton, { opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] }]}
+          >
+            <LinearGradient colors={['#F52DA0', '#E9178E', '#B80CA9']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.neonStartGradient}>
+              <Text style={styles.neonStartLabel}>Start Your Journey</Text>
+              <Feather name="arrow-right" size={21} color="#FFFFFF" />
+            </LinearGradient>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Log In"
+            accessibilityHint="Choose Participant or Organisation, then select email or Telegram"
+            testID="welcome-login"
+            onPressIn={triggerHaptic}
+            onPress={onLogIn}
+            style={({ pressed }) => [styles.neonLoginButton, { opacity: pressed ? 0.82 : 1 }]}
+          >
+            <LinearGradient colors={['rgba(100,105,190,0.58)', 'rgba(93,75,153,0.56)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.neonLoginGradient}>
+              <Text style={styles.neonLoginLabel}>Log In</Text>
+            </LinearGradient>
+          </Pressable>
         </View>
       </ScrollView>
     </View>
@@ -10461,6 +10387,7 @@ export default function App() {
   const analyticsMutationRef = useRef(analyticsMutation);
   analyticsMutationRef.current = analyticsMutation;
   const [entryStage, setEntryStage] = useState<'start' | 'account-type' | 'organisation-type' | 'organisation-introduction' | 'participant-introduction' | 'login'>('start');
+  const [entryPurpose, setEntryPurpose] = useState<'signup' | 'login'>('signup');
   const [selectedAccountType, setSelectedAccountType] = useState<UserType | null>(null);
   const [selectedOrganisationType, setSelectedOrganisationType] = useState<OrganisationType | null>(null);
   const [accountAuthType, setAccountAuthType] = useState<UserType | null>(null);
@@ -10517,6 +10444,7 @@ export default function App() {
       setSelectedOrganisationType(null);
       setAccountTypeConfirmed(false);
       setShowSignupCongratulations(false);
+      setEntryPurpose('signup');
     }
   }, [user]);
 
@@ -10879,6 +10807,7 @@ export default function App() {
           onBack={() => {
             clearAuthError();
             setAccountAuthType(null);
+            if (!user) setEntryStage('account-type');
           }}
           onEmail={() => go('email')}
           onTelegram={() => { void continueAccountLogin(accountAuthType); }}
@@ -10915,13 +10844,14 @@ export default function App() {
           <TalentWelcome
             onContinue={() => {
               clearAuthError();
+              setEntryPurpose('signup');
               setEntryStage('account-type');
             }}
-            onHostExperiences={() => {
+            onLogIn={() => {
               clearAuthError();
-              setSelectedAccountType('organisation');
+              setEntryPurpose('login');
               setAccountTypeConfirmed(false);
-              setEntryStage('organisation-type');
+              setEntryStage('account-type');
             }}
           />
         ) : entryStage === 'account-type' || !selectedAccountType ? (
@@ -10935,6 +10865,11 @@ export default function App() {
             onContinue={() => {
               if (!selectedAccountType) return;
               clearAuthError();
+              if (entryPurpose === 'login') {
+                setAccountAuthType(selectedAccountType);
+                setEntryStage('login');
+                return;
+              }
               setAccountTypeConfirmed(true);
               setEntryStage(selectedAccountType === 'organisation' ? 'organisation-type' : 'participant-introduction');
             }}
@@ -11495,6 +11430,34 @@ const styles = StyleSheet.create({
   welcomeTelegramNote: { alignSelf: 'center', textAlign: 'center', fontSize: 9, lineHeight: 13, fontFamily: 'Inter_400Regular' },
   welcomeEmailLinkText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   welcomeHomeIndicator: { width: 104, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4, opacity: 0.92 },
+  neonWelcomeBackdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, overflow: 'hidden' },
+  neonWelcomeGlow: { position: 'absolute', width: 230, height: 380, borderRadius: 200, opacity: 0.22 },
+  neonWelcomeGlowLeft: { left: -175, top: 140, backgroundColor: '#F20789' },
+  neonWelcomeGlowRight: { right: -170, top: 250, backgroundColor: '#1A98E5' },
+  welcomeOrbitOne: { position: 'absolute', width: 420, height: 520, borderRadius: 230, borderWidth: 1, borderColor: 'rgba(173,126,255,0.28)', top: -110, left: -158, transform: [{ rotate: '32deg' }] },
+  welcomeOrbitTwo: { position: 'absolute', width: 360, height: 460, borderRadius: 220, borderWidth: 1, borderColor: 'rgba(88,173,255,0.20)', top: 20, right: -240, transform: [{ rotate: '-24deg' }] },
+  welcomeHorizon: { position: 'absolute', bottom: -42, left: -80, right: -80, height: 180, borderTopLeftRadius: 230, borderTopRightRadius: 230, opacity: 0.78 },
+  welcomeHorizonLine: { position: 'absolute', height: 3, bottom: 22, left: -30, right: -30, borderRadius: 3, backgroundColor: 'rgba(89,184,255,0.6)', shadowColor: '#24BFFF', shadowOpacity: 0.95, shadowRadius: 16, elevation: 6, transform: [{ rotate: '-2deg' }] },
+  neonWelcomeContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'flex-start', paddingHorizontal: 25 },
+  neonWelcomeBrand: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 11, marginBottom: 5 },
+  neonWelcomeMark: { width: 45, height: 45, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#D819A2', borderWidth: 1, borderColor: 'rgba(255,255,255,0.38)', shadowColor: '#F20789', shadowOpacity: 0.64, shadowRadius: 15, shadowOffset: { width: 0, height: 0 }, elevation: 7 },
+  neonWelcomeWordmark: { color: '#FFFFFF', fontSize: 21, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
+  neonExperienceCollage: { width: '100%', maxWidth: 390, position: 'relative', marginTop: 20, marginBottom: 13 },
+  neonExperienceCard: { position: 'absolute', overflow: 'hidden', borderRadius: 25, borderWidth: 1.5, backgroundColor: '#181B3A', shadowOpacity: 0.83, shadowRadius: 15, shadowOffset: { width: 0, height: 0 }, elevation: 9 },
+  neonExperiencePhoto: { flex: 1, justifyContent: 'flex-start' },
+  neonExperienceLabel: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 11, paddingVertical: 8 },
+  neonExperienceTitle: { flexShrink: 1, color: '#FFFFFF', fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  neonWelcomeIntro: { width: '100%', alignItems: 'center', paddingHorizontal: 0, marginTop: 0 },
+  neonWelcomeTitle: { color: '#FFFFFF', fontSize: 38, lineHeight: 42, fontFamily: 'Inter_700Bold', letterSpacing: -1.25, textAlign: 'center' },
+  neonWelcomeTitleCompact: { fontSize: 34, lineHeight: 37 },
+  neonWelcomeDescription: { maxWidth: 360, color: 'rgba(242,239,255,0.84)', fontSize: 16, lineHeight: 23, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 14, paddingHorizontal: 5 },
+  neonWelcomeActions: { width: '100%', maxWidth: 420, gap: 12, marginTop: 'auto', paddingTop: 23 },
+  neonStartButton: { width: '100%', height: 58, borderRadius: 30, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,220,249,0.72)', shadowColor: '#F20789', shadowOpacity: 0.64, shadowRadius: 17, shadowOffset: { width: 0, height: 0 }, elevation: 8 },
+  neonStartGradient: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  neonStartLabel: { color: '#FFFFFF', fontSize: 17, fontFamily: 'Inter_700Bold' },
+  neonLoginButton: { width: '100%', height: 56, borderRadius: 30, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(189,197,255,0.62)' },
+  neonLoginGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  neonLoginLabel: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter_500Medium' },
   emailLoginLink: { alignItems: 'center', paddingVertical: 2 },
   emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   emailAuthScreen: { flex: 1 },
