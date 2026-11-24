@@ -19,6 +19,7 @@ import personalCollectionsRouter from "./personal-collections";
 import personalActivitiesRouter from "./personal-activities";
 import nodesRouter from "./nodes";
 import learningRouter from "./learning";
+import questsRouter from "./quests";
 
 const router: IRouter = Router();
 
@@ -31,6 +32,7 @@ router.use(topFriendsRouter);
 router.use("/organisation-partnerships", organisationPartnershipsRouter);
 router.use("/direct-messages", directMessagesRouter);
 router.use("/challenges", challengesRouter);
+router.use("/quests", questsRouter);
 router.use("/ai", aiAssistantRouter);
 router.use("/learning", learningRouter);
 router.use("/memory-game", memoryGameRouter);

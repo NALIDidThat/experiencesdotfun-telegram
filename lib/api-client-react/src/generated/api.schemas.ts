@@ -3806,6 +3806,196 @@ export interface FeedDeleteResponse {
   success: boolean;
 }
 
+export interface CreateSocialQuestInput {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  title: string;
+  /** @minimum 1 */
+  experienceId: number;
+  /**
+     * @minItems 1
+     * @maxItems 8
+     * @items.minimum 1
+     */
+  participantIds: number[];
+  /**
+     * @minimum 2
+     * @maximum 9
+     */
+  targetCount: number;
+}
+
+export interface CreateCommunityMissionInput {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  title: string;
+  /** @pattern ^-?[1-9][0-9]{0,19}$ */
+  chatId: string;
+  /**
+     * @minimum 1
+     * @maximum 500
+     */
+  targetCount: number;
+}
+
+export type QuestParticipantStatus = typeof QuestParticipantStatus[keyof typeof QuestParticipantStatus];
+
+
+export const QuestParticipantStatus = {
+  invited: 'invited',
+  active: 'active',
+  declined: 'declined',
+  completed: 'completed',
+} as const;
+
+export interface QuestParticipant {
+  id: number;
+  name: string;
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  avatarUrl: string | null;
+  status: QuestParticipantStatus;
+  invitedAt?: string;
+  /** @nullable */
+  acceptedAt?: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  rewardGrantedAt: string | null;
+  contributionCount?: number;
+  isViewer: boolean;
+  /** @nullable */
+  recognition: string | null;
+}
+
+export interface QuestUser {
+  id: number;
+  name: string;
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  avatarUrl: string | null;
+}
+
+export type SocialQuestKind = typeof SocialQuestKind[keyof typeof SocialQuestKind];
+
+
+export const SocialQuestKind = {
+  social: 'social',
+} as const;
+
+export type SocialQuestStatus = typeof SocialQuestStatus[keyof typeof SocialQuestStatus];
+
+
+export const SocialQuestStatus = {
+  active: 'active',
+  completed: 'completed',
+  cancelled: 'cancelled',
+} as const;
+
+export type SocialQuestExperience = {
+  id: number;
+  title: string;
+  date: string;
+  city: string;
+};
+
+export interface SocialQuest {
+  id: number;
+  kind: SocialQuestKind;
+  title: string;
+  status: SocialQuestStatus;
+  targetCount: number;
+  progress: number;
+  owner: QuestUser;
+  canManage: boolean;
+  experience: SocialQuestExperience;
+  participants: QuestParticipant[];
+  createdAt: string;
+  /** @nullable */
+  completedAt: string | null;
+}
+
+export type CommunityMissionKind = typeof CommunityMissionKind[keyof typeof CommunityMissionKind];
+
+
+export const CommunityMissionKind = {
+  community: 'community',
+} as const;
+
+export type CommunityMissionStatus = typeof CommunityMissionStatus[keyof typeof CommunityMissionStatus];
+
+
+export const CommunityMissionStatus = {
+  active: 'active',
+  completed: 'completed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface CommunityMission {
+  id: number;
+  kind: CommunityMissionKind;
+  title: string;
+  chatId: string;
+  status: CommunityMissionStatus;
+  targetCount: number;
+  progress: number;
+  owner: QuestUser;
+  joined: boolean;
+  canJoin: boolean;
+  /** @nullable */
+  recognition: string | null;
+  participants: QuestParticipant[];
+  createdAt: string;
+  /** @nullable */
+  completedAt: string | null;
+}
+
+export type QuestNotificationQuestKind = typeof QuestNotificationQuestKind[keyof typeof QuestNotificationQuestKind];
+
+
+export const QuestNotificationQuestKind = {
+  social: 'social',
+  community: 'community',
+} as const;
+
+export type QuestNotificationType = typeof QuestNotificationType[keyof typeof QuestNotificationType];
+
+
+export const QuestNotificationType = {
+  invitation: 'invitation',
+  participant_completed: 'participant_completed',
+  quest_completed: 'quest_completed',
+  reward_granted: 'reward_granted',
+} as const;
+
+export interface QuestNotification {
+  id: number;
+  questId: number;
+  questKind: QuestNotificationQuestKind;
+  questTitle: string;
+  actor: QuestUser;
+  type: QuestNotificationType;
+  /** @nullable */
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface QuestActionResult {
+  id: number;
+  status: string;
+}
+
+export interface QuestNotificationReadResult {
+  id: number;
+  read: boolean;
+}
+
 /**
  * This profile cannot access this resource
  */

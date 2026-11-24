@@ -16,6 +16,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { CommunityFeedSection } from '@/components/CommunityFeedSection';
+import { CommunityMissionsPanel } from '@/components/CommunityMissionsPanel';
 
 type IconName = keyof typeof Feather.glyphMap;
 
@@ -563,6 +564,10 @@ export function CommunityXpPanel() {
           <CommunityFeedSection chatId={activeChatId!} />
           <Leaderboard members={details.leaderboard} />
           <ContributionHistory contributions={details.recentContributions} />
+          <CommunityMissionsPanel
+            chatId={activeChatId!}
+            communityTitle={communities.find((community) => community.chatId === activeChatId)?.title ?? 'Community'}
+          />
         </View>
       ) : (
         <EmptyState title="Choose a community" body="Select a linked group above to see its record." />

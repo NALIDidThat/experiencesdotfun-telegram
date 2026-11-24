@@ -7783,3 +7783,346 @@ export const MarkAccountabilityNotificationReadResponse = zod.object({
 })
 
 
+/**
+ * @summary List social quests visible to the signed-in participant
+ */
+export const ListSocialQuestsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "kind": zod.enum(['social']),
+  "title": zod.string(),
+  "status": zod.enum(['active', 'completed', 'cancelled']),
+  "targetCount": zod.number().int(),
+  "progress": zod.number().int(),
+  "owner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable()
+}),
+  "canManage": zod.boolean(),
+  "experience": zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "date": zod.coerce.date(),
+  "city": zod.string()
+}),
+  "participants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "status": zod.enum(['invited', 'active', 'declined', 'completed']),
+  "invitedAt": zod.coerce.date().optional(),
+  "acceptedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullable(),
+  "rewardGrantedAt": zod.coerce.date().nullable(),
+  "contributionCount": zod.number().int().optional(),
+  "isViewer": zod.boolean(),
+  "recognition": zod.string().nullable()
+})),
+  "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable()
+})
+export const ListSocialQuestsResponse = zod.array(ListSocialQuestsResponseItem)
+
+
+/**
+ * @summary Invite accepted friends or active partners to a verified experience objective
+ */
+export const createSocialQuestBodyTitleMax = 100;
+
+
+
+export const createSocialQuestBodyParticipantIdsMax = 8;
+
+export const createSocialQuestBodyTargetCountMin = 2;
+export const createSocialQuestBodyTargetCountMax = 9;
+
+
+
+export const CreateSocialQuestBody = zod.object({
+  "title": zod.string().min(1).max(createSocialQuestBodyTitleMax),
+  "experienceId": zod.number().int().min(1),
+  "participantIds": zod.array(zod.number().int().min(1)).min(1).max(createSocialQuestBodyParticipantIdsMax),
+  "targetCount": zod.number().int().min(createSocialQuestBodyTargetCountMin).max(createSocialQuestBodyTargetCountMax)
+})
+
+export const CreateSocialQuestResponse = zod.object({
+  "id": zod.number().int(),
+  "kind": zod.enum(['social']),
+  "title": zod.string(),
+  "status": zod.enum(['active', 'completed', 'cancelled']),
+  "targetCount": zod.number().int(),
+  "progress": zod.number().int(),
+  "owner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable()
+}),
+  "canManage": zod.boolean(),
+  "experience": zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "date": zod.coerce.date(),
+  "city": zod.string()
+}),
+  "participants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "status": zod.enum(['invited', 'active', 'declined', 'completed']),
+  "invitedAt": zod.coerce.date().optional(),
+  "acceptedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullable(),
+  "rewardGrantedAt": zod.coerce.date().nullable(),
+  "contributionCount": zod.number().int().optional(),
+  "isViewer": zod.boolean(),
+  "recognition": zod.string().nullable()
+})),
+  "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Accept a social quest invitation
+ */
+
+
+
+export const AcceptSocialQuestParams = zod.object({
+  "questId": zod.coerce.number().int().min(1)
+})
+
+export const AcceptSocialQuestResponse = zod.object({
+  "id": zod.number().int(),
+  "kind": zod.enum(['social']),
+  "title": zod.string(),
+  "status": zod.enum(['active', 'completed', 'cancelled']),
+  "targetCount": zod.number().int(),
+  "progress": zod.number().int(),
+  "owner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable()
+}),
+  "canManage": zod.boolean(),
+  "experience": zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "date": zod.coerce.date(),
+  "city": zod.string()
+}),
+  "participants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "status": zod.enum(['invited', 'active', 'declined', 'completed']),
+  "invitedAt": zod.coerce.date().optional(),
+  "acceptedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullable(),
+  "rewardGrantedAt": zod.coerce.date().nullable(),
+  "contributionCount": zod.number().int().optional(),
+  "isViewer": zod.boolean(),
+  "recognition": zod.string().nullable()
+})),
+  "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Decline a social quest invitation
+ */
+
+
+
+export const DeclineSocialQuestParams = zod.object({
+  "questId": zod.coerce.number().int().min(1)
+})
+
+export const DeclineSocialQuestResponse = zod.object({
+  "id": zod.number().int(),
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List missions for Telegram groups where the participant has contributed
+ */
+export const ListCommunityMissionsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "kind": zod.enum(['community']),
+  "title": zod.string(),
+  "chatId": zod.string(),
+  "status": zod.enum(['active', 'completed', 'cancelled']),
+  "targetCount": zod.number().int(),
+  "progress": zod.number().int(),
+  "owner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable()
+}),
+  "joined": zod.boolean(),
+  "canJoin": zod.boolean(),
+  "recognition": zod.string().nullable(),
+  "participants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "status": zod.enum(['invited', 'active', 'declined', 'completed']),
+  "invitedAt": zod.coerce.date().optional(),
+  "acceptedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullable(),
+  "rewardGrantedAt": zod.coerce.date().nullable(),
+  "contributionCount": zod.number().int().optional(),
+  "isViewer": zod.boolean(),
+  "recognition": zod.string().nullable()
+})),
+  "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable()
+})
+export const ListCommunityMissionsResponse = zod.array(ListCommunityMissionsResponseItem)
+
+
+/**
+ * @summary Create a Telegram community mission using the verified contribution ledger
+ */
+export const createCommunityMissionBodyTitleMax = 100;
+
+export const createCommunityMissionBodyChatIdRegExp = new RegExp('^-?[1-9][0-9]{0,19}$');
+export const createCommunityMissionBodyTargetCountMax = 500;
+
+
+
+export const CreateCommunityMissionBody = zod.object({
+  "title": zod.string().min(1).max(createCommunityMissionBodyTitleMax),
+  "chatId": zod.string().regex(createCommunityMissionBodyChatIdRegExp),
+  "targetCount": zod.number().int().min(1).max(createCommunityMissionBodyTargetCountMax)
+})
+
+export const CreateCommunityMissionResponse = zod.object({
+  "id": zod.number().int(),
+  "kind": zod.enum(['community']),
+  "title": zod.string(),
+  "chatId": zod.string(),
+  "status": zod.enum(['active', 'completed', 'cancelled']),
+  "targetCount": zod.number().int(),
+  "progress": zod.number().int(),
+  "owner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable()
+}),
+  "joined": zod.boolean(),
+  "canJoin": zod.boolean(),
+  "recognition": zod.string().nullable(),
+  "participants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "status": zod.enum(['invited', 'active', 'declined', 'completed']),
+  "invitedAt": zod.coerce.date().optional(),
+  "acceptedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullable(),
+  "rewardGrantedAt": zod.coerce.date().nullable(),
+  "contributionCount": zod.number().int().optional(),
+  "isViewer": zod.boolean(),
+  "recognition": zod.string().nullable()
+})),
+  "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Join an open mission in a Telegram group where the participant has contributed
+ */
+
+
+
+export const JoinCommunityMissionParams = zod.object({
+  "questId": zod.coerce.number().int().min(1)
+})
+
+export const JoinCommunityMissionResponse = zod.object({
+  "id": zod.number().int(),
+  "kind": zod.enum(['community']),
+  "title": zod.string(),
+  "chatId": zod.string(),
+  "status": zod.enum(['active', 'completed', 'cancelled']),
+  "targetCount": zod.number().int(),
+  "progress": zod.number().int(),
+  "owner": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable()
+}),
+  "joined": zod.boolean(),
+  "canJoin": zod.boolean(),
+  "recognition": zod.string().nullable(),
+  "participants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "status": zod.enum(['invited', 'active', 'declined', 'completed']),
+  "invitedAt": zod.coerce.date().optional(),
+  "acceptedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullable(),
+  "rewardGrantedAt": zod.coerce.date().nullable(),
+  "contributionCount": zod.number().int().optional(),
+  "isViewer": zod.boolean(),
+  "recognition": zod.string().nullable()
+})),
+  "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary List social quest and community mission notifications for the current participant
+ */
+export const ListQuestNotificationsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "questId": zod.number().int(),
+  "questKind": zod.enum(['social', 'community']),
+  "questTitle": zod.string(),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable()
+}),
+  "type": zod.enum(['invitation', 'participant_completed', 'quest_completed', 'reward_granted']),
+  "readAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListQuestNotificationsResponse = zod.array(ListQuestNotificationsResponseItem)
+
+
+/**
+ * @summary Mark one of the current participant's quest notifications as read
+ */
+
+
+
+export const MarkQuestNotificationReadParams = zod.object({
+  "notificationId": zod.coerce.number().int().min(1)
+})
+
+export const MarkQuestNotificationReadResponse = zod.object({
+  "id": zod.number().int(),
+  "read": zod.boolean()
+})
+
+

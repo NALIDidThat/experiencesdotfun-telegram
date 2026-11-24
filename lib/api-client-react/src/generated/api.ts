@@ -46,13 +46,16 @@ import type {
   CharityLedgerSyncInput,
   CommunityDetails,
   CommunityFeedResponse,
+  CommunityMission,
   CommunitySummary,
   CompaniesHouseSearchInput,
   CompaniesHouseSearchResult,
   CompletionEvidenceInput,
   ConflictResponse,
   CreateAccountProfileInput,
+  CreateCommunityMissionInput,
   CreateFeedPostInput,
+  CreateSocialQuestInput,
   DirectConversation,
   DirectConversationInput,
   DirectMessage,
@@ -177,6 +180,9 @@ import type {
   PrivateEvidenceUploadResult,
   ProfilePostsResponse,
   ProfileUpdateInput,
+  QuestActionResult,
+  QuestNotification,
+  QuestNotificationReadResult,
   RedeemXpAwardsResponse,
   RegisterFeedPushTokenInput,
   ReportFeedPostInput,
@@ -188,6 +194,7 @@ import type {
   SetPrimaryNode200,
   SocialInvite,
   SocialInviteCreateInput,
+  SocialQuest,
   SyncCharityContributionLedger200,
   TelegramAuthInput,
   TelegramCommunityCaptchaSettings,
@@ -16298,5 +16305,708 @@ export const useMarkAccountabilityNotificationRead = <TError = ErrorType<Unautho
         TContext
       > => {
       return useMutation(getMarkAccountabilityNotificationReadMutationOptions(options));
+    }
+
+export const getListSocialQuestsUrl = () => {
+
+
+
+
+  return `/api/quests/social`
+}
+
+/**
+ * @summary List social quests visible to the signed-in participant
+ */
+export const listSocialQuests = async ( options?: Parameters<typeof customFetch>[1]): Promise<SocialQuest[]> => {
+
+  return customFetch<SocialQuest[]>(getListSocialQuestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSocialQuestsQueryKey = () => {
+    return [
+    `/api/quests/social`
+    ] as const;
+    }
+
+
+export const getListSocialQuestsQueryOptions = <TData = Awaited<ReturnType<typeof listSocialQuests>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSocialQuests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSocialQuestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSocialQuests>>> = ({ signal }) => listSocialQuests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSocialQuests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSocialQuestsQueryResult = NonNullable<Awaited<ReturnType<typeof listSocialQuests>>>
+export type ListSocialQuestsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List social quests visible to the signed-in participant
+ */
+
+export function useListSocialQuests<TData = Awaited<ReturnType<typeof listSocialQuests>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSocialQuests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSocialQuestsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSocialQuestUrl = () => {
+
+
+
+
+  return `/api/quests/social`
+}
+
+/**
+ * @summary Invite accepted friends or active partners to a verified experience objective
+ */
+export const createSocialQuest = async (createSocialQuestInput: CreateSocialQuestInput, options?: Parameters<typeof customFetch>[1]): Promise<SocialQuest> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SocialQuest>(getCreateSocialQuestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createSocialQuestInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSocialQuestMutationKey = () => ['createSocialQuest'] as const;
+
+export const getCreateSocialQuestMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSocialQuest>>, TError,CreateSocialQuestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSocialQuest>>, TError,CreateSocialQuestMutationVariables, TContext> => {
+
+const mutationKey = getCreateSocialQuestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSocialQuest>>, CreateSocialQuestMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSocialQuest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSocialQuestMutationResult = NonNullable<Awaited<ReturnType<typeof createSocialQuest>>>
+    export type CreateSocialQuestMutationBody = BodyType<CreateSocialQuestInput>
+    export type CreateSocialQuestMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | ServiceUnavailableResponse>
+    export type CreateSocialQuestMutationVariables = {data: BodyType<CreateSocialQuestInput>}
+
+    /**
+ * @summary Invite accepted friends or active partners to a verified experience objective
+ */
+export const useCreateSocialQuest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSocialQuest>>, TError,CreateSocialQuestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSocialQuest>>,
+        TError,
+        CreateSocialQuestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateSocialQuestMutationOptions(options));
+    }
+
+export const getAcceptSocialQuestUrl = (questId: number,) => {
+
+
+
+
+  return `/api/quests/social/${questId}/accept`
+}
+
+/**
+ * @summary Accept a social quest invitation
+ */
+export const acceptSocialQuest = async (questId: number, options?: Parameters<typeof customFetch>[1]): Promise<SocialQuest> => {
+
+  return customFetch<SocialQuest>(getAcceptSocialQuestUrl(questId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAcceptSocialQuestMutationKey = () => ['acceptSocialQuest'] as const;
+
+export const getAcceptSocialQuestMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptSocialQuest>>, TError,AcceptSocialQuestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptSocialQuest>>, TError,AcceptSocialQuestMutationVariables, TContext> => {
+
+const mutationKey = getAcceptSocialQuestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptSocialQuest>>, AcceptSocialQuestMutationVariables> = (props) => {
+          const {questId} = props ?? {};
+
+          return  acceptSocialQuest(questId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptSocialQuestMutationResult = NonNullable<Awaited<ReturnType<typeof acceptSocialQuest>>>
+
+    export type AcceptSocialQuestMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>
+    export type AcceptSocialQuestMutationVariables = {questId: number}
+
+    /**
+ * @summary Accept a social quest invitation
+ */
+export const useAcceptSocialQuest = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptSocialQuest>>, TError,AcceptSocialQuestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acceptSocialQuest>>,
+        TError,
+        AcceptSocialQuestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAcceptSocialQuestMutationOptions(options));
+    }
+
+export const getDeclineSocialQuestUrl = (questId: number,) => {
+
+
+
+
+  return `/api/quests/social/${questId}/decline`
+}
+
+/**
+ * @summary Decline a social quest invitation
+ */
+export const declineSocialQuest = async (questId: number, options?: Parameters<typeof customFetch>[1]): Promise<QuestActionResult> => {
+
+  return customFetch<QuestActionResult>(getDeclineSocialQuestUrl(questId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeclineSocialQuestMutationKey = () => ['declineSocialQuest'] as const;
+
+export const getDeclineSocialQuestMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineSocialQuest>>, TError,DeclineSocialQuestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof declineSocialQuest>>, TError,DeclineSocialQuestMutationVariables, TContext> => {
+
+const mutationKey = getDeclineSocialQuestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof declineSocialQuest>>, DeclineSocialQuestMutationVariables> = (props) => {
+          const {questId} = props ?? {};
+
+          return  declineSocialQuest(questId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeclineSocialQuestMutationResult = NonNullable<Awaited<ReturnType<typeof declineSocialQuest>>>
+
+    export type DeclineSocialQuestMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>
+    export type DeclineSocialQuestMutationVariables = {questId: number}
+
+    /**
+ * @summary Decline a social quest invitation
+ */
+export const useDeclineSocialQuest = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineSocialQuest>>, TError,DeclineSocialQuestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof declineSocialQuest>>,
+        TError,
+        DeclineSocialQuestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeclineSocialQuestMutationOptions(options));
+    }
+
+export const getListCommunityMissionsUrl = () => {
+
+
+
+
+  return `/api/quests/community`
+}
+
+/**
+ * @summary List missions for Telegram groups where the participant has contributed
+ */
+export const listCommunityMissions = async ( options?: Parameters<typeof customFetch>[1]): Promise<CommunityMission[]> => {
+
+  return customFetch<CommunityMission[]>(getListCommunityMissionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCommunityMissionsQueryKey = () => {
+    return [
+    `/api/quests/community`
+    ] as const;
+    }
+
+
+export const getListCommunityMissionsQueryOptions = <TData = Awaited<ReturnType<typeof listCommunityMissions>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCommunityMissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCommunityMissionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCommunityMissions>>> = ({ signal }) => listCommunityMissions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCommunityMissions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCommunityMissionsQueryResult = NonNullable<Awaited<ReturnType<typeof listCommunityMissions>>>
+export type ListCommunityMissionsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List missions for Telegram groups where the participant has contributed
+ */
+
+export function useListCommunityMissions<TData = Awaited<ReturnType<typeof listCommunityMissions>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCommunityMissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCommunityMissionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateCommunityMissionUrl = () => {
+
+
+
+
+  return `/api/quests/community`
+}
+
+/**
+ * @summary Create a Telegram community mission using the verified contribution ledger
+ */
+export const createCommunityMission = async (createCommunityMissionInput: CreateCommunityMissionInput, options?: Parameters<typeof customFetch>[1]): Promise<CommunityMission> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CommunityMission>(getCreateCommunityMissionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createCommunityMissionInput)
+  }
+);}
+
+
+
+
+
+export const getCreateCommunityMissionMutationKey = () => ['createCommunityMission'] as const;
+
+export const getCreateCommunityMissionMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCommunityMission>>, TError,CreateCommunityMissionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCommunityMission>>, TError,CreateCommunityMissionMutationVariables, TContext> => {
+
+const mutationKey = getCreateCommunityMissionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCommunityMission>>, CreateCommunityMissionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCommunityMission(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCommunityMissionMutationResult = NonNullable<Awaited<ReturnType<typeof createCommunityMission>>>
+    export type CreateCommunityMissionMutationBody = BodyType<CreateCommunityMissionInput>
+    export type CreateCommunityMissionMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+    export type CreateCommunityMissionMutationVariables = {data: BodyType<CreateCommunityMissionInput>}
+
+    /**
+ * @summary Create a Telegram community mission using the verified contribution ledger
+ */
+export const useCreateCommunityMission = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCommunityMission>>, TError,CreateCommunityMissionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCommunityMission>>,
+        TError,
+        CreateCommunityMissionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateCommunityMissionMutationOptions(options));
+    }
+
+export const getJoinCommunityMissionUrl = (questId: number,) => {
+
+
+
+
+  return `/api/quests/community/${questId}/join`
+}
+
+/**
+ * @summary Join an open mission in a Telegram group where the participant has contributed
+ */
+export const joinCommunityMission = async (questId: number, options?: Parameters<typeof customFetch>[1]): Promise<CommunityMission> => {
+
+  return customFetch<CommunityMission>(getJoinCommunityMissionUrl(questId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getJoinCommunityMissionMutationKey = () => ['joinCommunityMission'] as const;
+
+export const getJoinCommunityMissionMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinCommunityMission>>, TError,JoinCommunityMissionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof joinCommunityMission>>, TError,JoinCommunityMissionMutationVariables, TContext> => {
+
+const mutationKey = getJoinCommunityMissionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof joinCommunityMission>>, JoinCommunityMissionMutationVariables> = (props) => {
+          const {questId} = props ?? {};
+
+          return  joinCommunityMission(questId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type JoinCommunityMissionMutationResult = NonNullable<Awaited<ReturnType<typeof joinCommunityMission>>>
+
+    export type JoinCommunityMissionMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>
+    export type JoinCommunityMissionMutationVariables = {questId: number}
+
+    /**
+ * @summary Join an open mission in a Telegram group where the participant has contributed
+ */
+export const useJoinCommunityMission = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinCommunityMission>>, TError,JoinCommunityMissionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof joinCommunityMission>>,
+        TError,
+        JoinCommunityMissionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getJoinCommunityMissionMutationOptions(options));
+    }
+
+export const getListQuestNotificationsUrl = () => {
+
+
+
+
+  return `/api/quests/notifications`
+}
+
+/**
+ * @summary List social quest and community mission notifications for the current participant
+ */
+export const listQuestNotifications = async ( options?: Parameters<typeof customFetch>[1]): Promise<QuestNotification[]> => {
+
+  return customFetch<QuestNotification[]>(getListQuestNotificationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListQuestNotificationsQueryKey = () => {
+    return [
+    `/api/quests/notifications`
+    ] as const;
+    }
+
+
+export const getListQuestNotificationsQueryOptions = <TData = Awaited<ReturnType<typeof listQuestNotifications>>, TError = ErrorType<UnauthorizedResponse | ServiceUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQuestNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListQuestNotificationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listQuestNotifications>>> = ({ signal }) => listQuestNotifications({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listQuestNotifications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListQuestNotificationsQueryResult = NonNullable<Awaited<ReturnType<typeof listQuestNotifications>>>
+export type ListQuestNotificationsQueryError = ErrorType<UnauthorizedResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List social quest and community mission notifications for the current participant
+ */
+
+export function useListQuestNotifications<TData = Awaited<ReturnType<typeof listQuestNotifications>>, TError = ErrorType<UnauthorizedResponse | ServiceUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQuestNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListQuestNotificationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMarkQuestNotificationReadUrl = (notificationId: number,) => {
+
+
+
+
+  return `/api/quests/notifications/${notificationId}/read`
+}
+
+/**
+ * @summary Mark one of the current participant's quest notifications as read
+ */
+export const markQuestNotificationRead = async (notificationId: number, options?: Parameters<typeof customFetch>[1]): Promise<QuestNotificationReadResult> => {
+
+  return customFetch<QuestNotificationReadResult>(getMarkQuestNotificationReadUrl(notificationId),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkQuestNotificationReadMutationKey = () => ['markQuestNotificationRead'] as const;
+
+export const getMarkQuestNotificationReadMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markQuestNotificationRead>>, TError,MarkQuestNotificationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markQuestNotificationRead>>, TError,MarkQuestNotificationReadMutationVariables, TContext> => {
+
+const mutationKey = getMarkQuestNotificationReadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markQuestNotificationRead>>, MarkQuestNotificationReadMutationVariables> = (props) => {
+          const {notificationId} = props ?? {};
+
+          return  markQuestNotificationRead(notificationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkQuestNotificationReadMutationResult = NonNullable<Awaited<ReturnType<typeof markQuestNotificationRead>>>
+
+    export type MarkQuestNotificationReadMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>
+    export type MarkQuestNotificationReadMutationVariables = {notificationId: number}
+
+    /**
+ * @summary Mark one of the current participant's quest notifications as read
+ */
+export const useMarkQuestNotificationRead = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markQuestNotificationRead>>, TError,MarkQuestNotificationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markQuestNotificationRead>>,
+        TError,
+        MarkQuestNotificationReadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkQuestNotificationReadMutationOptions(options));
     }
 

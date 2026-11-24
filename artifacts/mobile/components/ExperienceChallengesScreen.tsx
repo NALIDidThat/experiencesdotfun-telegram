@@ -10,16 +10,19 @@ import {
 import { PoppinsText as Text } from '@/components/Typography';
 import { Feather } from '@expo/vector-icons';
 import {
+  getGetAccountabilityDashboardQueryKey,
   getListExperienceChallengesQueryKey,
   useAcceptExperienceChallenge,
   useCreateExperienceChallenge,
   useDeclineExperienceChallenge,
+  useGetAccountabilityDashboard,
   useListExperienceChallenges,
   useListExperiences,
   useListFriends,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useColors } from '@/hooks/useColors';
+import { SocialQuestsPanel } from '@/components/SocialQuestsPanel';
 
 type Props = { onOpenExperience: (experienceId: number) => void };
 type Selection = { id: number; label: string };
@@ -33,6 +36,9 @@ export function ExperienceChallengesScreen({ onOpenExperience }: Props) {
   const challengesQuery = useListExperienceChallenges();
   const friendsQuery = useListFriends();
   const experiencesQuery = useListExperiences();
+  const accountabilityQuery = useGetAccountabilityDashboard({
+    query: { queryKey: getGetAccountabilityDashboardQueryKey(), retry: 1 },
+  });
   const createChallenge = useCreateExperienceChallenge();
   const acceptChallenge = useAcceptExperienceChallenge();
   const declineChallenge = useDeclineExperienceChallenge();
@@ -44,6 +50,17 @@ export function ExperienceChallengesScreen({ onOpenExperience }: Props) {
 
   const challenges = challengesQuery.data ?? [];
   const friends = friendsQuery.data ?? [];
+  const socialQuestFriends = useMemo(() => {
+    const options: Array<{ id: number; name: string }> = friends.map(({ id, name }) => ({
+      id,
+      name,
+    }));
+    const partner = accountabilityQuery.data?.activePartner?.partner;
+    if (partner && !options.some((friend) => friend.id === partner.id)) {
+      options.push({ id: partner.id, name: partner.name });
+    }
+    return options;
+  }, [friends, accountabilityQuery.data?.activePartner]);
   const openExperiences = useMemo(
     () => (experiencesQuery.data ?? []).filter((experience) => experience.status === 'published' && experience.availablePlaces > 0),
     [experiencesQuery.data],
@@ -216,6 +233,12 @@ export function ExperienceChallengesScreen({ onOpenExperience }: Props) {
           {!!notice && <Text style={[styles.notice, { color: notice.includes('could not') ? colors.destructive : colors.success }]}>{notice}</Text>}
           <Text style={[styles.footnote, { color: colors.mutedForeground }]}>Only friends you have accepted can be invited.</Text>
         </View>
+
+        <SocialQuestsPanel
+          experienceId={chosenExperience?.id ?? null}
+          experienceTitle={chosenExperience?.label ?? null}
+          friends={socialQuestFriends}
+        />
 
         <View style={styles.listHeading}>
           <View>
