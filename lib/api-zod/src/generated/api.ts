@@ -2612,6 +2612,467 @@ export const DeleteLearningDeckResponse = zod.void()
 
 
 /**
+ * @summary List published programmes and private progress for the signed-in participant
+ */
+export const listJourneyProgrammesResponseOneStepsItemPositionMax = 20;
+
+export const listJourneyProgrammesResponseTwoEnrolmentOneProgressTotalStepsMin = 0;
+
+export const listJourneyProgrammesResponseTwoEnrolmentOneProgressEligibleStepsMin = 0;
+
+export const listJourneyProgrammesResponseTwoEnrolmentOneProgressCompletedStepsMin = 0;
+
+export const listJourneyProgrammesResponseTwoEnrolmentOneProgressCompletionPercentMin = 0;
+export const listJourneyProgrammesResponseTwoEnrolmentOneProgressCompletionPercentMax = 100;
+
+
+
+export const ListJourneyProgrammesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "steps": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int().min(1).max(listJourneyProgrammesResponseOneStepsItemPositionMax),
+  "kind": zod.enum(['experience', 'milestone', 'resource']),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "experienceId": zod.number().int().nullable(),
+  "experienceTitle": zod.string().nullable(),
+  "milestoneId": zod.number().int().nullable(),
+  "resourceUrl": zod.string().url().nullable()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "enrolment": zod.union([zod.object({
+  "enrolmentId": zod.number().int(),
+  "status": zod.enum(['active', 'completed', 'withdrawn']),
+  "enrolledAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "withdrawnAt": zod.coerce.date().nullable(),
+  "progress": zod.object({
+  "steps": zod.array(zod.object({
+  "stepId": zod.number().int(),
+  "status": zod.enum(['complete', 'incomplete', 'resource']),
+  "sourceRecordId": zod.number().int().nullable(),
+  "verifiedAt": zod.coerce.date().nullable()
+})),
+  "totalSteps": zod.number().int().min(listJourneyProgrammesResponseTwoEnrolmentOneProgressTotalStepsMin),
+  "eligibleSteps": zod.number().int().min(listJourneyProgrammesResponseTwoEnrolmentOneProgressEligibleStepsMin),
+  "completedSteps": zod.number().int().min(listJourneyProgrammesResponseTwoEnrolmentOneProgressCompletedStepsMin),
+  "completionPercent": zod.number().int().min(listJourneyProgrammesResponseTwoEnrolmentOneProgressCompletionPercentMin).max(listJourneyProgrammesResponseTwoEnrolmentOneProgressCompletionPercentMax).describe('Verified completion percentage of experience and milestone steps; resource links are excluded.'),
+  "isComplete": zod.boolean()
+}),
+  "auditEvents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "eventType": zod.enum(['enrolled', 'withdrawn', 'step_completed', 'completed']),
+  "stepId": zod.number().int().nullable(),
+  "sourceRecordId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})).describe('Immutable enrolment, withdrawal, verified step, and completion events.')
+}),zod.null()])
+}))
+export const ListJourneyProgrammesResponse = zod.array(ListJourneyProgrammesResponseItem)
+
+
+/**
+ * @summary Create an organisation-owned programme with ordered linked steps
+ */
+export const createJourneyProgrammeBodyTitleMax = 120;
+
+export const createJourneyProgrammeBodyDescriptionMax = 1000;
+
+export const createJourneyProgrammeBodyStepsItemTitleMax = 120;
+
+export const createJourneyProgrammeBodyStepsItemDescriptionMax = 500;
+
+
+
+export const createJourneyProgrammeBodyStepsMax = 20;
+
+
+
+export const CreateJourneyProgrammeBody = zod.object({
+  "title": zod.string().min(1).max(createJourneyProgrammeBodyTitleMax),
+  "description": zod.string().min(1).max(createJourneyProgrammeBodyDescriptionMax),
+  "status": zod.enum(['draft', 'published', 'archived']).optional(),
+  "steps": zod.array(zod.object({
+  "kind": zod.enum(['experience', 'milestone', 'resource']),
+  "title": zod.string().min(1).max(createJourneyProgrammeBodyStepsItemTitleMax),
+  "description": zod.string().max(createJourneyProgrammeBodyStepsItemDescriptionMax).optional(),
+  "experienceId": zod.number().int().min(1).optional(),
+  "milestoneId": zod.number().int().min(1).optional(),
+  "resourceUrl": zod.string().url().optional().describe('Informational learning link only; it is not completion evidence and awards no XP.')
+})).min(1).max(createJourneyProgrammeBodyStepsMax)
+})
+
+export const createJourneyProgrammeResponseStepsItemPositionMax = 20;
+
+
+
+export const CreateJourneyProgrammeResponse = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "steps": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int().min(1).max(createJourneyProgrammeResponseStepsItemPositionMax),
+  "kind": zod.enum(['experience', 'milestone', 'resource']),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "experienceId": zod.number().int().nullable(),
+  "experienceTitle": zod.string().nullable(),
+  "milestoneId": zod.number().int().nullable(),
+  "resourceUrl": zod.string().url().nullable()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List programmes owned by the signed-in organisation with defined outcome counts
+ */
+export const listManagedJourneyProgrammesResponseOneStepsItemPositionMax = 20;
+
+export const listManagedJourneyProgrammesResponseTwoMetricsCompletionRatePercentMin = 0;
+export const listManagedJourneyProgrammesResponseTwoMetricsCompletionRatePercentMax = 100;
+
+
+
+export const ListManagedJourneyProgrammesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "steps": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int().min(1).max(listManagedJourneyProgrammesResponseOneStepsItemPositionMax),
+  "kind": zod.enum(['experience', 'milestone', 'resource']),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "experienceId": zod.number().int().nullable(),
+  "experienceTitle": zod.string().nullable(),
+  "milestoneId": zod.number().int().nullable(),
+  "resourceUrl": zod.string().url().nullable()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "metrics": zod.object({
+  "activeParticipants": zod.number().int().describe('Current active enrolments.'),
+  "completedParticipants": zod.number().int().describe('Enrolments whose eligible experience and milestone steps are all verified.'),
+  "withdrawnParticipants": zod.number().int().describe('Enrolments participants have withdrawn from.'),
+  "completionRatePercent": zod.number().int().min(listManagedJourneyProgrammesResponseTwoMetricsCompletionRatePercentMin).max(listManagedJourneyProgrammesResponseTwoMetricsCompletionRatePercentMax).describe('Completed divided by active plus completed; withdrawn enrolments are excluded.')
+})
+}))
+export const ListManagedJourneyProgrammesResponse = zod.array(ListManagedJourneyProgrammesResponseItem)
+
+
+/**
+ * @summary Get one published programme and the signed-in participant's own progress
+ */
+
+
+
+export const GetJourneyProgrammeParams = zod.object({
+  "journeyId": zod.coerce.number().int().min(1)
+})
+
+export const getJourneyProgrammeResponseOneStepsItemPositionMax = 20;
+
+export const getJourneyProgrammeResponseTwoEnrolmentOneProgressTotalStepsMin = 0;
+
+export const getJourneyProgrammeResponseTwoEnrolmentOneProgressEligibleStepsMin = 0;
+
+export const getJourneyProgrammeResponseTwoEnrolmentOneProgressCompletedStepsMin = 0;
+
+export const getJourneyProgrammeResponseTwoEnrolmentOneProgressCompletionPercentMin = 0;
+export const getJourneyProgrammeResponseTwoEnrolmentOneProgressCompletionPercentMax = 100;
+
+
+
+export const GetJourneyProgrammeResponse = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "steps": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int().min(1).max(getJourneyProgrammeResponseOneStepsItemPositionMax),
+  "kind": zod.enum(['experience', 'milestone', 'resource']),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "experienceId": zod.number().int().nullable(),
+  "experienceTitle": zod.string().nullable(),
+  "milestoneId": zod.number().int().nullable(),
+  "resourceUrl": zod.string().url().nullable()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "enrolment": zod.union([zod.object({
+  "enrolmentId": zod.number().int(),
+  "status": zod.enum(['active', 'completed', 'withdrawn']),
+  "enrolledAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "withdrawnAt": zod.coerce.date().nullable(),
+  "progress": zod.object({
+  "steps": zod.array(zod.object({
+  "stepId": zod.number().int(),
+  "status": zod.enum(['complete', 'incomplete', 'resource']),
+  "sourceRecordId": zod.number().int().nullable(),
+  "verifiedAt": zod.coerce.date().nullable()
+})),
+  "totalSteps": zod.number().int().min(getJourneyProgrammeResponseTwoEnrolmentOneProgressTotalStepsMin),
+  "eligibleSteps": zod.number().int().min(getJourneyProgrammeResponseTwoEnrolmentOneProgressEligibleStepsMin),
+  "completedSteps": zod.number().int().min(getJourneyProgrammeResponseTwoEnrolmentOneProgressCompletedStepsMin),
+  "completionPercent": zod.number().int().min(getJourneyProgrammeResponseTwoEnrolmentOneProgressCompletionPercentMin).max(getJourneyProgrammeResponseTwoEnrolmentOneProgressCompletionPercentMax).describe('Verified completion percentage of experience and milestone steps; resource links are excluded.'),
+  "isComplete": zod.boolean()
+}),
+  "auditEvents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "eventType": zod.enum(['enrolled', 'withdrawn', 'step_completed', 'completed']),
+  "stepId": zod.number().int().nullable(),
+  "sourceRecordId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})).describe('Immutable enrolment, withdrawal, verified step, and completion events.')
+}),zod.null()])
+}))
+
+
+/**
+ * @summary Update an owned programme or its ordered steps before participants enrol
+ */
+
+
+
+export const UpdateJourneyProgrammeParams = zod.object({
+  "journeyId": zod.coerce.number().int().min(1)
+})
+
+export const updateJourneyProgrammeBodyTitleMax = 120;
+
+export const updateJourneyProgrammeBodyDescriptionMax = 1000;
+
+export const updateJourneyProgrammeBodyStepsItemTitleMax = 120;
+
+export const updateJourneyProgrammeBodyStepsItemDescriptionMax = 500;
+
+
+
+export const updateJourneyProgrammeBodyStepsMax = 20;
+
+
+
+export const UpdateJourneyProgrammeBody = zod.object({
+  "title": zod.string().min(1).max(updateJourneyProgrammeBodyTitleMax).optional(),
+  "description": zod.string().min(1).max(updateJourneyProgrammeBodyDescriptionMax).optional(),
+  "status": zod.enum(['draft', 'published', 'archived']).optional(),
+  "steps": zod.array(zod.object({
+  "kind": zod.enum(['experience', 'milestone', 'resource']),
+  "title": zod.string().min(1).max(updateJourneyProgrammeBodyStepsItemTitleMax),
+  "description": zod.string().max(updateJourneyProgrammeBodyStepsItemDescriptionMax).optional(),
+  "experienceId": zod.number().int().min(1).optional(),
+  "milestoneId": zod.number().int().min(1).optional(),
+  "resourceUrl": zod.string().url().optional().describe('Informational learning link only; it is not completion evidence and awards no XP.')
+})).min(1).max(updateJourneyProgrammeBodyStepsMax).optional()
+})
+
+export const updateJourneyProgrammeResponseStepsItemPositionMax = 20;
+
+
+
+export const UpdateJourneyProgrammeResponse = zod.object({
+  "id": zod.number().int(),
+  "organisationId": zod.number().int(),
+  "organisationName": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "steps": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int().min(1).max(updateJourneyProgrammeResponseStepsItemPositionMax),
+  "kind": zod.enum(['experience', 'milestone', 'resource']),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "experienceId": zod.number().int().nullable(),
+  "experienceTitle": zod.string().nullable(),
+  "milestoneId": zod.number().int().nullable(),
+  "resourceUrl": zod.string().url().nullable()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Enrol in a published programme or resume a withdrawn enrolment
+ */
+
+
+
+export const EnrolInJourneyProgrammeParams = zod.object({
+  "journeyId": zod.coerce.number().int().min(1)
+})
+
+export const enrolInJourneyProgrammeResponseProgressTotalStepsMin = 0;
+
+export const enrolInJourneyProgrammeResponseProgressEligibleStepsMin = 0;
+
+export const enrolInJourneyProgrammeResponseProgressCompletedStepsMin = 0;
+
+export const enrolInJourneyProgrammeResponseProgressCompletionPercentMin = 0;
+export const enrolInJourneyProgrammeResponseProgressCompletionPercentMax = 100;
+
+
+
+export const EnrolInJourneyProgrammeResponse = zod.object({
+  "enrolmentId": zod.number().int(),
+  "status": zod.enum(['active', 'completed', 'withdrawn']),
+  "enrolledAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "withdrawnAt": zod.coerce.date().nullable(),
+  "progress": zod.object({
+  "steps": zod.array(zod.object({
+  "stepId": zod.number().int(),
+  "status": zod.enum(['complete', 'incomplete', 'resource']),
+  "sourceRecordId": zod.number().int().nullable(),
+  "verifiedAt": zod.coerce.date().nullable()
+})),
+  "totalSteps": zod.number().int().min(enrolInJourneyProgrammeResponseProgressTotalStepsMin),
+  "eligibleSteps": zod.number().int().min(enrolInJourneyProgrammeResponseProgressEligibleStepsMin),
+  "completedSteps": zod.number().int().min(enrolInJourneyProgrammeResponseProgressCompletedStepsMin),
+  "completionPercent": zod.number().int().min(enrolInJourneyProgrammeResponseProgressCompletionPercentMin).max(enrolInJourneyProgrammeResponseProgressCompletionPercentMax).describe('Verified completion percentage of experience and milestone steps; resource links are excluded.'),
+  "isComplete": zod.boolean()
+}),
+  "auditEvents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "eventType": zod.enum(['enrolled', 'withdrawn', 'step_completed', 'completed']),
+  "stepId": zod.number().int().nullable(),
+  "sourceRecordId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})).describe('Immutable enrolment, withdrawal, verified step, and completion events.')
+})
+
+
+/**
+ * @summary Withdraw from an active programme without deleting its audit history
+ */
+
+
+
+export const WithdrawFromJourneyProgrammeParams = zod.object({
+  "journeyId": zod.coerce.number().int().min(1)
+})
+
+export const withdrawFromJourneyProgrammeResponseProgressTotalStepsMin = 0;
+
+export const withdrawFromJourneyProgrammeResponseProgressEligibleStepsMin = 0;
+
+export const withdrawFromJourneyProgrammeResponseProgressCompletedStepsMin = 0;
+
+export const withdrawFromJourneyProgrammeResponseProgressCompletionPercentMin = 0;
+export const withdrawFromJourneyProgrammeResponseProgressCompletionPercentMax = 100;
+
+
+
+export const WithdrawFromJourneyProgrammeResponse = zod.object({
+  "enrolmentId": zod.number().int(),
+  "status": zod.enum(['active', 'completed', 'withdrawn']),
+  "enrolledAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "withdrawnAt": zod.coerce.date().nullable(),
+  "progress": zod.object({
+  "steps": zod.array(zod.object({
+  "stepId": zod.number().int(),
+  "status": zod.enum(['complete', 'incomplete', 'resource']),
+  "sourceRecordId": zod.number().int().nullable(),
+  "verifiedAt": zod.coerce.date().nullable()
+})),
+  "totalSteps": zod.number().int().min(withdrawFromJourneyProgrammeResponseProgressTotalStepsMin),
+  "eligibleSteps": zod.number().int().min(withdrawFromJourneyProgrammeResponseProgressEligibleStepsMin),
+  "completedSteps": zod.number().int().min(withdrawFromJourneyProgrammeResponseProgressCompletedStepsMin),
+  "completionPercent": zod.number().int().min(withdrawFromJourneyProgrammeResponseProgressCompletionPercentMin).max(withdrawFromJourneyProgrammeResponseProgressCompletionPercentMax).describe('Verified completion percentage of experience and milestone steps; resource links are excluded.'),
+  "isComplete": zod.boolean()
+}),
+  "auditEvents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "eventType": zod.enum(['enrolled', 'withdrawn', 'step_completed', 'completed']),
+  "stepId": zod.number().int().nullable(),
+  "sourceRecordId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})).describe('Immutable enrolment, withdrawal, verified step, and completion events.')
+})
+
+
+/**
+ * @summary List participants and verified progress for an owned programme
+ */
+
+
+
+export const ListJourneyProgrammeParticipantsParams = zod.object({
+  "journeyId": zod.coerce.number().int().min(1)
+})
+
+export const listJourneyProgrammeParticipantsResponseEnrolmentProgressTotalStepsMin = 0;
+
+export const listJourneyProgrammeParticipantsResponseEnrolmentProgressEligibleStepsMin = 0;
+
+export const listJourneyProgrammeParticipantsResponseEnrolmentProgressCompletedStepsMin = 0;
+
+export const listJourneyProgrammeParticipantsResponseEnrolmentProgressCompletionPercentMin = 0;
+export const listJourneyProgrammeParticipantsResponseEnrolmentProgressCompletionPercentMax = 100;
+
+
+
+export const ListJourneyProgrammeParticipantsResponseItem = zod.object({
+  "participantId": zod.number().int(),
+  "participantName": zod.string(),
+  "enrolment": zod.object({
+  "enrolmentId": zod.number().int(),
+  "status": zod.enum(['active', 'completed', 'withdrawn']),
+  "enrolledAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "withdrawnAt": zod.coerce.date().nullable(),
+  "progress": zod.object({
+  "steps": zod.array(zod.object({
+  "stepId": zod.number().int(),
+  "status": zod.enum(['complete', 'incomplete', 'resource']),
+  "sourceRecordId": zod.number().int().nullable(),
+  "verifiedAt": zod.coerce.date().nullable()
+})),
+  "totalSteps": zod.number().int().min(listJourneyProgrammeParticipantsResponseEnrolmentProgressTotalStepsMin),
+  "eligibleSteps": zod.number().int().min(listJourneyProgrammeParticipantsResponseEnrolmentProgressEligibleStepsMin),
+  "completedSteps": zod.number().int().min(listJourneyProgrammeParticipantsResponseEnrolmentProgressCompletedStepsMin),
+  "completionPercent": zod.number().int().min(listJourneyProgrammeParticipantsResponseEnrolmentProgressCompletionPercentMin).max(listJourneyProgrammeParticipantsResponseEnrolmentProgressCompletionPercentMax).describe('Verified completion percentage of experience and milestone steps; resource links are excluded.'),
+  "isComplete": zod.boolean()
+}),
+  "auditEvents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "eventType": zod.enum(['enrolled', 'withdrawn', 'step_completed', 'completed']),
+  "stepId": zod.number().int().nullable(),
+  "sourceRecordId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})).describe('Immutable enrolment, withdrawal, verified step, and completion events.')
+})
+})
+export const ListJourneyProgrammeParticipantsResponse = zod.array(ListJourneyProgrammeParticipantsResponseItem)
+
+
+/**
  * Returns server health status
  * @summary Health check
  */

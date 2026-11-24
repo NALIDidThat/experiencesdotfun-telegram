@@ -48,24 +48,26 @@ type ActivityItem = {
 
 type Props = {
   profileId: number;
-  initialSection?: 'activity' | 'route-activities';
+  initialSection?: 'activity' | 'route-activities' | 'journeys';
   initialRouteActivityId?: number;
   onCreatePersonalRoute: () => void;
   onOpenExperience: (experienceId: number) => void;
   onOpenChallenges: () => void;
   onExplore: () => void;
   onOpenLearning: () => void;
+  onOpenJourneys: () => void;
   onOpenLearningDeck: (deckId: number) => void;
   onCreateCardsFromResearch: (researchId: number) => void;
 };
 
-type PersonalSection = 'activity' | 'route-activities' | 'saved-experiences' | 'learning' | 'memories' | 'posts';
+type PersonalSection = 'activity' | 'route-activities' | 'saved-experiences' | 'learning' | 'journeys' | 'memories' | 'posts';
 
 const personalSections: Array<{ key: PersonalSection; label: string }> = [
   { key: 'activity', label: 'Activity' },
   { key: 'route-activities', label: 'Routes' },
   { key: 'saved-experiences', label: 'Saved experiences' },
   { key: 'learning', label: 'Learning' },
+  { key: 'journeys', label: 'Journeys' },
   { key: 'memories', label: 'Memories' },
   { key: 'posts', label: 'Posts' },
 ];
@@ -201,6 +203,7 @@ export function PersonalActivityScreen({
   onOpenChallenges,
   onExplore,
   onOpenLearning,
+  onOpenJourneys,
   onOpenLearningDeck,
   onCreateCardsFromResearch,
 }: Props) {
@@ -571,6 +574,25 @@ export function PersonalActivityScreen({
             onStudyDeck={onOpenLearningDeck}
             onCreateDeckFromResearch={onCreateCardsFromResearch}
           />
+        ) : section === 'journeys' ? (
+          <View style={[styles.emptyCard, styles.journeyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.emptyIcon, { backgroundColor: colors.primary + '12' }]}>
+              <Feather name="map" size={22} color={colors.primary} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Build progress one verified step at a time</Text>
+            <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>
+              Enrol in an organisation programme and track verified experiences and milestones separately from saved learning links.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              testID="activity-open-journeys"
+              onPress={onOpenJourneys}
+              style={[styles.exploreButton, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
+            >
+              <Text style={[styles.exploreButtonText, { color: colors.primaryForeground }]}>Explore programmes</Text>
+              <Feather name="arrow-right" size={15} color={colors.primaryForeground} />
+            </Pressable>
+          </View>
         ) : section === 'memories' ? (
           <PersonalMemoriesPanel profileId={profileId} />
         ) : section === 'route-activities' ? (
@@ -673,6 +695,7 @@ const styles = StyleSheet.create({
   compactEmptyTitle: { fontSize: 14, lineHeight: 19, marginTop: 4 },
   emptyCopy: { maxWidth: 275, fontSize: 12, lineHeight: 18, textAlign: 'center', fontFamily: 'Inter_400Regular', marginTop: 6 },
   compactEmptyCopy: { fontSize: 11, lineHeight: 16, marginTop: 4 },
+  journeyCard: { minHeight: 230, marginTop: 4 },
   exploreButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, alignSelf: 'stretch', marginTop: 12, paddingHorizontal: 12 },
   exploreButtonText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
 });

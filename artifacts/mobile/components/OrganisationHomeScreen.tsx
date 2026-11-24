@@ -24,7 +24,7 @@ import { SocialFeed } from '@/components/SocialFeed';
 
 type Props = {
   user: User;
-  go: (screen: 'profile' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'notifications' | 'experience' | 'friend-profile' | 'friends' | 'explore', params?: Record<string, string>) => void;
+  go: (screen: 'profile' | 'host' | 'host-detail' | 'create' | 'funds' | 'campaigns' | 'notifications' | 'experience' | 'friend-profile' | 'friends' | 'explore' | 'journeys', params?: Record<string, string>) => void;
 };
 
 const organisationMilestones: Record<OrganisationProgressMilestoneId, string> = {
@@ -200,6 +200,7 @@ export function OrganisationHomeScreen({ user, go }: Props) {
   const workspace = [
     { title: 'Experiences', image: require('../assets/images/organisation-experiences-3d.png'), tint: colors.primary, target: 'host' as const },
     { title: 'Reviews', image: require('../assets/images/organisation-reviews-3d.png'), tint: colors.teal, target: 'host' as const },
+    { title: 'Programmes', image: require('../assets/images/organisation-experiences-3d.png'), tint: colors.primary, target: 'journeys' as const },
     { title: isCharity ? 'Fundraising' : 'Organisation profile', image: isCharity ? require('../assets/images/organisation-fundraising-3d.png') : require('../assets/images/organisation-profile-3d.png'), tint: colors.secondary, target: isCharity ? 'funds' as const : 'profile' as const },
   ];
 

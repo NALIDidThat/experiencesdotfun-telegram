@@ -155,6 +155,7 @@ import { MotionPressable } from '@/components/MotionPressable';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { DirectMessagesScreen } from '@/components/DirectMessagesScreen';
 import { LearningDashboardScreen } from '@/components/LearningDashboardScreen';
+import { DevelopmentJourneysScreen } from '@/components/DevelopmentJourneysScreen';
 import { ExperienceChallengesScreen } from '@/components/ExperienceChallengesScreen';
 import { MemoryGameScreen } from '@/components/MemoryGameScreen';
 import { MyTelegramCommunitiesScreen } from '@/components/MyTelegramCommunitiesScreen';
@@ -173,7 +174,7 @@ import {
 } from '@/components/TelegramCommunityManagementScreen';
 import { createSocialInviteShareContent } from '@/lib/social-invite-copy';
 
-type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'learning' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'node-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'personal-route-planner' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-my-communities' | 'telegram-community-dashboard' | 'email';
+type Screen = 'home' | 'explore' | 'activity' | 'experiences' | 'learning' | 'journeys' | 'challenges' | 'accountability' | 'memory-game' | 'profile' | 'accounts' | 'notifications' | 'messages' | 'direct-message' | 'friends' | 'friend-profile' | 'node-profile' | 'experience' | 'host' | 'host-detail' | 'create' | 'personal-route-planner' | 'funds' | 'campaigns' | 'payout-proposal' | 'contributions' | 'telegram-communities' | 'telegram-my-communities' | 'telegram-community-dashboard' | 'email';
 type ScreenTransitionDirection = 'forward' | 'back' | 'switch';
 type ScreenRouteParams = {
   id?: string;
@@ -211,7 +212,7 @@ const exploreModes: Array<{ key: GlobeMode; label: string; icon: IconName }> = [
   { key: 'activity', label: 'Activity', icon: 'activity' },
   { key: 'impact', label: 'Impact', icon: 'award' },
 ];
-const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'learning', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'node-profile', 'experience', 'host', 'host-detail', 'create', 'personal-route-planner', 'funds', 'campaigns', 'payout-proposal', 'contributions', 'telegram-communities', 'telegram-my-communities', 'telegram-community-dashboard', 'email'];
+const screenNames: readonly Screen[] = ['home', 'explore', 'activity', 'experiences', 'learning', 'journeys', 'challenges', 'accountability', 'memory-game', 'profile', 'accounts', 'notifications', 'messages', 'direct-message', 'friends', 'friend-profile', 'node-profile', 'experience', 'host', 'host-detail', 'create', 'personal-route-planner', 'funds', 'campaigns', 'payout-proposal', 'contributions', 'telegram-communities', 'telegram-my-communities', 'telegram-community-dashboard', 'email'];
 
 function routeParamString(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -10621,7 +10622,7 @@ export default function App() {
         ? 'host'
       : screen === 'activity' || screen === 'personal-route-planner'
         ? 'home'
-      : screen === 'learning'
+      : screen === 'learning' || screen === 'journeys'
         ? 'home'
         : screen;
     analyticsMutationRef.current.mutate({
@@ -11203,7 +11204,11 @@ export default function App() {
       return (
         <PersonalActivityScreen
           profileId={user?.id ?? 0}
-          initialSection={routeParamString(params.section) === 'route-activities' ? 'route-activities' : 'activity'}
+          initialSection={routeParamString(params.section) === 'route-activities'
+            ? 'route-activities'
+            : routeParamString(params.section) === 'journeys'
+              ? 'journeys'
+              : 'activity'}
           initialRouteActivityId={Number(routeParamString(params.activityId)) > 0 ? Number(routeParamString(params.activityId)) : undefined}
           onCreatePersonalRoute={() => {
             go('activity', { section: 'route-activities' });
@@ -11213,6 +11218,7 @@ export default function App() {
           onOpenChallenges={() => go('challenges')}
           onExplore={() => go('explore')}
           onOpenLearning={() => go('learning')}
+          onOpenJourneys={() => go('journeys')}
           onOpenLearningDeck={(deckId) => go('learning', { id: `deck-${deckId}` })}
           onCreateCardsFromResearch={(researchId) => go('learning', { id: `research-${researchId}` })}
         />
@@ -11223,6 +11229,15 @@ export default function App() {
         <LearningDashboardScreen
           itemId={params.id}
           onBack={() => goBack('home')}
+        />
+      );
+    }
+    if (screen === 'journeys') {
+      return (
+        <DevelopmentJourneysScreen
+          userType={user.userType === 'organisation' ? 'organisation' : 'participant'}
+          onBack={() => goBack(user.userType === 'organisation' ? 'home' : 'activity')}
+          onOpenExperience={(id) => go(user.userType === 'organisation' ? 'host-detail' : 'experience', { id: String(id) })}
         />
       );
     }
@@ -11327,8 +11342,10 @@ export default function App() {
     ? 'host'
     : screen === 'experiences'
       ? 'home'
-    : screen === 'contributions' || screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts' || screen === 'accountability' || screen === 'telegram-communities' || screen === 'telegram-my-communities' || screen === 'telegram-community-dashboard'
+    : screen === 'contributions' || screen === 'friends' || screen === 'friend-profile' || screen === 'notifications' || screen === 'accounts' || screen === 'accountability' || screen === 'telegram-communities' || screen === 'telegram-my-communities' || screen === 'telegram-community-dashboard' || (screen === 'journeys' && user.userType === 'organisation')
       ? 'profile'
+      : screen === 'journeys'
+        ? 'activity'
       : screen === 'messages' || screen === 'direct-message'
         ? 'home'
       : screen;

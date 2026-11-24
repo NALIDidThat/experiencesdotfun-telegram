@@ -2966,6 +2966,218 @@ export interface AiAssistantMessage {
   createdAt: string;
 }
 
+export type JourneyProgrammeStatus = typeof JourneyProgrammeStatus[keyof typeof JourneyProgrammeStatus];
+
+
+export const JourneyProgrammeStatus = {
+  draft: 'draft',
+  published: 'published',
+  archived: 'archived',
+} as const;
+
+export type JourneyStepKind = typeof JourneyStepKind[keyof typeof JourneyStepKind];
+
+
+export const JourneyStepKind = {
+  experience: 'experience',
+  milestone: 'milestone',
+  resource: 'resource',
+} as const;
+
+export type JourneyEnrolmentStatus = typeof JourneyEnrolmentStatus[keyof typeof JourneyEnrolmentStatus];
+
+
+export const JourneyEnrolmentStatus = {
+  active: 'active',
+  completed: 'completed',
+  withdrawn: 'withdrawn',
+} as const;
+
+export interface JourneyProgrammeStepInput {
+  kind: JourneyStepKind;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title: string;
+  /** @maxLength 500 */
+  description?: string;
+  /** @minimum 1 */
+  experienceId?: number;
+  /** @minimum 1 */
+  milestoneId?: number;
+  /** Informational learning link only; it is not completion evidence and awards no XP. */
+  resourceUrl?: string;
+}
+
+export interface JourneyProgrammeStep {
+  id: number;
+  /**
+     * @minimum 1
+     * @maximum 20
+     */
+  position: number;
+  kind: JourneyStepKind;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  experienceId: number | null;
+  /** @nullable */
+  experienceTitle: string | null;
+  /** @nullable */
+  milestoneId: number | null;
+  /** @nullable */
+  resourceUrl: string | null;
+}
+
+export type JourneyProgressStepStatus = typeof JourneyProgressStepStatus[keyof typeof JourneyProgressStepStatus];
+
+
+export const JourneyProgressStepStatus = {
+  complete: 'complete',
+  incomplete: 'incomplete',
+  resource: 'resource',
+} as const;
+
+export interface JourneyProgressStep {
+  stepId: number;
+  status: JourneyProgressStepStatus;
+  /** @nullable */
+  sourceRecordId: number | null;
+  /** @nullable */
+  verifiedAt: string | null;
+}
+
+export interface JourneyProgress {
+  steps: JourneyProgressStep[];
+  /** @minimum 0 */
+  totalSteps: number;
+  /** @minimum 0 */
+  eligibleSteps: number;
+  /** @minimum 0 */
+  completedSteps: number;
+  /**
+     * Verified completion percentage of experience and milestone steps; resource links are excluded.
+     * @minimum 0
+     * @maximum 100
+     */
+  completionPercent: number;
+  isComplete: boolean;
+}
+
+export type JourneyAuditEventEventType = typeof JourneyAuditEventEventType[keyof typeof JourneyAuditEventEventType];
+
+
+export const JourneyAuditEventEventType = {
+  enrolled: 'enrolled',
+  withdrawn: 'withdrawn',
+  step_completed: 'step_completed',
+  completed: 'completed',
+} as const;
+
+export interface JourneyAuditEvent {
+  id: number;
+  eventType: JourneyAuditEventEventType;
+  /** @nullable */
+  stepId: number | null;
+  /** @nullable */
+  sourceRecordId: number | null;
+  createdAt: string;
+}
+
+export interface JourneyEnrolmentProgress {
+  enrolmentId: number;
+  status: JourneyEnrolmentStatus;
+  enrolledAt: string;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  withdrawnAt: string | null;
+  progress: JourneyProgress;
+  /** Immutable enrolment, withdrawal, verified step, and completion events. */
+  auditEvents: JourneyAuditEvent[];
+}
+
+export interface JourneyProgramme {
+  id: number;
+  organisationId: number;
+  organisationName: string;
+  title: string;
+  description: string;
+  status: JourneyProgrammeStatus;
+  steps: JourneyProgrammeStep[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type JourneyProgrammeDetail = JourneyProgramme & ({
+  enrolment: JourneyEnrolmentProgress | null;
+});
+
+export interface JourneyProgrammeInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  description: string;
+  status?: JourneyProgrammeStatus;
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  steps: JourneyProgrammeStepInput[];
+}
+
+export interface JourneyProgrammeUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title?: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  description?: string;
+  status?: JourneyProgrammeStatus;
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  steps?: JourneyProgrammeStepInput[];
+}
+
+export interface JourneyProgrammeMetrics {
+  /** Current active enrolments. */
+  activeParticipants: number;
+  /** Enrolments whose eligible experience and milestone steps are all verified. */
+  completedParticipants: number;
+  /** Enrolments participants have withdrawn from. */
+  withdrawnParticipants: number;
+  /**
+     * Completed divided by active plus completed; withdrawn enrolments are excluded.
+     * @minimum 0
+     * @maximum 100
+     */
+  completionRatePercent: number;
+}
+
+export type ManagedJourneyProgramme = JourneyProgramme & {
+  metrics: JourneyProgrammeMetrics;
+};
+
+export interface JourneyProgrammeParticipant {
+  participantId: number;
+  participantName: string;
+  enrolment: JourneyEnrolmentProgress;
+}
+
 export interface AiResearchSource {
   title: string;
   url: string;

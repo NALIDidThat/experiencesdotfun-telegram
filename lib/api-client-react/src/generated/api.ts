@@ -120,6 +120,12 @@ import type {
   HostExperience,
   HostExperienceMilestonesResponse,
   HostOverview,
+  JourneyEnrolmentProgress,
+  JourneyProgramme,
+  JourneyProgrammeDetail,
+  JourneyProgrammeInput,
+  JourneyProgrammeParticipant,
+  JourneyProgrammeUpdate,
   LearningDeckCreated,
   LearningDeckInput,
   LearningFlashcardDeck,
@@ -132,6 +138,7 @@ import type {
   ListMyContributionsParams,
   ListMyParticipationsParams,
   ListProfilePostsParams,
+  ManagedJourneyProgramme,
   MemoryGameAttempt,
   MemoryGameAttemptResult,
   MemoryGameLeaderboardResponse,
@@ -6272,6 +6279,639 @@ export const useDeleteLearningDeck = <TError = ErrorType<UnauthorizedResponse | 
       > => {
       return useMutation(getDeleteLearningDeckMutationOptions(options));
     }
+
+export const getListJourneyProgrammesUrl = () => {
+
+
+
+
+  return `/api/journeys`
+}
+
+/**
+ * @summary List published programmes and private progress for the signed-in participant
+ */
+export const listJourneyProgrammes = async ( options?: Parameters<typeof customFetch>[1]): Promise<JourneyProgrammeDetail[]> => {
+
+  return customFetch<JourneyProgrammeDetail[]>(getListJourneyProgrammesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListJourneyProgrammesQueryKey = () => {
+    return [
+    `/api/journeys`
+    ] as const;
+    }
+
+
+export const getListJourneyProgrammesQueryOptions = <TData = Awaited<ReturnType<typeof listJourneyProgrammes>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJourneyProgrammes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListJourneyProgrammesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listJourneyProgrammes>>> = ({ signal }) => listJourneyProgrammes({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listJourneyProgrammes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListJourneyProgrammesQueryResult = NonNullable<Awaited<ReturnType<typeof listJourneyProgrammes>>>
+export type ListJourneyProgrammesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List published programmes and private progress for the signed-in participant
+ */
+
+export function useListJourneyProgrammes<TData = Awaited<ReturnType<typeof listJourneyProgrammes>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJourneyProgrammes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListJourneyProgrammesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateJourneyProgrammeUrl = () => {
+
+
+
+
+  return `/api/journeys`
+}
+
+/**
+ * @summary Create an organisation-owned programme with ordered linked steps
+ */
+export const createJourneyProgramme = async (journeyProgrammeInput: JourneyProgrammeInput, options?: Parameters<typeof customFetch>[1]): Promise<JourneyProgramme> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<JourneyProgramme>(getCreateJourneyProgrammeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(journeyProgrammeInput)
+  }
+);}
+
+
+
+
+
+export const getCreateJourneyProgrammeMutationKey = () => ['createJourneyProgramme'] as const;
+
+export const getCreateJourneyProgrammeMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createJourneyProgramme>>, TError,CreateJourneyProgrammeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createJourneyProgramme>>, TError,CreateJourneyProgrammeMutationVariables, TContext> => {
+
+const mutationKey = getCreateJourneyProgrammeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createJourneyProgramme>>, CreateJourneyProgrammeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createJourneyProgramme(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateJourneyProgrammeMutationResult = NonNullable<Awaited<ReturnType<typeof createJourneyProgramme>>>
+    export type CreateJourneyProgrammeMutationBody = BodyType<JourneyProgrammeInput>
+    export type CreateJourneyProgrammeMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+    export type CreateJourneyProgrammeMutationVariables = {data: BodyType<JourneyProgrammeInput>}
+
+    /**
+ * @summary Create an organisation-owned programme with ordered linked steps
+ */
+export const useCreateJourneyProgramme = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createJourneyProgramme>>, TError,CreateJourneyProgrammeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createJourneyProgramme>>,
+        TError,
+        CreateJourneyProgrammeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateJourneyProgrammeMutationOptions(options));
+    }
+
+export const getListManagedJourneyProgrammesUrl = () => {
+
+
+
+
+  return `/api/journeys/manage`
+}
+
+/**
+ * @summary List programmes owned by the signed-in organisation with defined outcome counts
+ */
+export const listManagedJourneyProgrammes = async ( options?: Parameters<typeof customFetch>[1]): Promise<ManagedJourneyProgramme[]> => {
+
+  return customFetch<ManagedJourneyProgramme[]>(getListManagedJourneyProgrammesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListManagedJourneyProgrammesQueryKey = () => {
+    return [
+    `/api/journeys/manage`
+    ] as const;
+    }
+
+
+export const getListManagedJourneyProgrammesQueryOptions = <TData = Awaited<ReturnType<typeof listManagedJourneyProgrammes>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listManagedJourneyProgrammes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListManagedJourneyProgrammesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listManagedJourneyProgrammes>>> = ({ signal }) => listManagedJourneyProgrammes({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listManagedJourneyProgrammes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListManagedJourneyProgrammesQueryResult = NonNullable<Awaited<ReturnType<typeof listManagedJourneyProgrammes>>>
+export type ListManagedJourneyProgrammesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List programmes owned by the signed-in organisation with defined outcome counts
+ */
+
+export function useListManagedJourneyProgrammes<TData = Awaited<ReturnType<typeof listManagedJourneyProgrammes>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listManagedJourneyProgrammes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListManagedJourneyProgrammesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetJourneyProgrammeUrl = (journeyId: number,) => {
+
+
+
+
+  return `/api/journeys/${journeyId}`
+}
+
+/**
+ * @summary Get one published programme and the signed-in participant's own progress
+ */
+export const getJourneyProgramme = async (journeyId: number, options?: Parameters<typeof customFetch>[1]): Promise<JourneyProgrammeDetail> => {
+
+  return customFetch<JourneyProgrammeDetail>(getGetJourneyProgrammeUrl(journeyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetJourneyProgrammeQueryKey = (journeyId: number,) => {
+    return [
+    `/api/journeys/${journeyId}`
+    ] as const;
+    }
+
+
+export const getGetJourneyProgrammeQueryOptions = <TData = Awaited<ReturnType<typeof getJourneyProgramme>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>>(journeyId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJourneyProgramme>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetJourneyProgrammeQueryKey(journeyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJourneyProgramme>>> = ({ signal }) => getJourneyProgramme(journeyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: journeyId !== null && journeyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJourneyProgramme>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetJourneyProgrammeQueryResult = NonNullable<Awaited<ReturnType<typeof getJourneyProgramme>>>
+export type GetJourneyProgrammeQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary Get one published programme and the signed-in participant's own progress
+ */
+
+export function useGetJourneyProgramme<TData = Awaited<ReturnType<typeof getJourneyProgramme>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>>(
+ journeyId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJourneyProgramme>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetJourneyProgrammeQueryOptions(journeyId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateJourneyProgrammeUrl = (journeyId: number,) => {
+
+
+
+
+  return `/api/journeys/${journeyId}`
+}
+
+/**
+ * @summary Update an owned programme or its ordered steps before participants enrol
+ */
+export const updateJourneyProgramme = async (journeyId: number,
+    journeyProgrammeUpdate: JourneyProgrammeUpdate, options?: Parameters<typeof customFetch>[1]): Promise<JourneyProgramme> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<JourneyProgramme>(getUpdateJourneyProgrammeUrl(journeyId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(journeyProgrammeUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateJourneyProgrammeMutationKey = () => ['updateJourneyProgramme'] as const;
+
+export const getUpdateJourneyProgrammeMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateJourneyProgramme>>, TError,UpdateJourneyProgrammeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateJourneyProgramme>>, TError,UpdateJourneyProgrammeMutationVariables, TContext> => {
+
+const mutationKey = getUpdateJourneyProgrammeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateJourneyProgramme>>, UpdateJourneyProgrammeMutationVariables> = (props) => {
+          const {journeyId,data} = props ?? {};
+
+          return  updateJourneyProgramme(journeyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateJourneyProgrammeMutationResult = NonNullable<Awaited<ReturnType<typeof updateJourneyProgramme>>>
+    export type UpdateJourneyProgrammeMutationBody = BodyType<JourneyProgrammeUpdate>
+    export type UpdateJourneyProgrammeMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>
+    export type UpdateJourneyProgrammeMutationVariables = {journeyId: number;data: BodyType<JourneyProgrammeUpdate>}
+
+    /**
+ * @summary Update an owned programme or its ordered steps before participants enrol
+ */
+export const useUpdateJourneyProgramme = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateJourneyProgramme>>, TError,UpdateJourneyProgrammeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateJourneyProgramme>>,
+        TError,
+        UpdateJourneyProgrammeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateJourneyProgrammeMutationOptions(options));
+    }
+
+export const getEnrolInJourneyProgrammeUrl = (journeyId: number,) => {
+
+
+
+
+  return `/api/journeys/${journeyId}/enrol`
+}
+
+/**
+ * @summary Enrol in a published programme or resume a withdrawn enrolment
+ */
+export const enrolInJourneyProgramme = async (journeyId: number, options?: Parameters<typeof customFetch>[1]): Promise<JourneyEnrolmentProgress> => {
+
+  return customFetch<JourneyEnrolmentProgress>(getEnrolInJourneyProgrammeUrl(journeyId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEnrolInJourneyProgrammeMutationKey = () => ['enrolInJourneyProgramme'] as const;
+
+export const getEnrolInJourneyProgrammeMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enrolInJourneyProgramme>>, TError,EnrolInJourneyProgrammeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof enrolInJourneyProgramme>>, TError,EnrolInJourneyProgrammeMutationVariables, TContext> => {
+
+const mutationKey = getEnrolInJourneyProgrammeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enrolInJourneyProgramme>>, EnrolInJourneyProgrammeMutationVariables> = (props) => {
+          const {journeyId} = props ?? {};
+
+          return  enrolInJourneyProgramme(journeyId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnrolInJourneyProgrammeMutationResult = NonNullable<Awaited<ReturnType<typeof enrolInJourneyProgramme>>>
+
+    export type EnrolInJourneyProgrammeMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>
+    export type EnrolInJourneyProgrammeMutationVariables = {journeyId: number}
+
+    /**
+ * @summary Enrol in a published programme or resume a withdrawn enrolment
+ */
+export const useEnrolInJourneyProgramme = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enrolInJourneyProgramme>>, TError,EnrolInJourneyProgrammeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof enrolInJourneyProgramme>>,
+        TError,
+        EnrolInJourneyProgrammeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEnrolInJourneyProgrammeMutationOptions(options));
+    }
+
+export const getWithdrawFromJourneyProgrammeUrl = (journeyId: number,) => {
+
+
+
+
+  return `/api/journeys/${journeyId}/withdraw`
+}
+
+/**
+ * @summary Withdraw from an active programme without deleting its audit history
+ */
+export const withdrawFromJourneyProgramme = async (journeyId: number, options?: Parameters<typeof customFetch>[1]): Promise<JourneyEnrolmentProgress> => {
+
+  return customFetch<JourneyEnrolmentProgress>(getWithdrawFromJourneyProgrammeUrl(journeyId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getWithdrawFromJourneyProgrammeMutationKey = () => ['withdrawFromJourneyProgramme'] as const;
+
+export const getWithdrawFromJourneyProgrammeMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawFromJourneyProgramme>>, TError,WithdrawFromJourneyProgrammeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof withdrawFromJourneyProgramme>>, TError,WithdrawFromJourneyProgrammeMutationVariables, TContext> => {
+
+const mutationKey = getWithdrawFromJourneyProgrammeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawFromJourneyProgramme>>, WithdrawFromJourneyProgrammeMutationVariables> = (props) => {
+          const {journeyId} = props ?? {};
+
+          return  withdrawFromJourneyProgramme(journeyId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WithdrawFromJourneyProgrammeMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawFromJourneyProgramme>>>
+
+    export type WithdrawFromJourneyProgrammeMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>
+    export type WithdrawFromJourneyProgrammeMutationVariables = {journeyId: number}
+
+    /**
+ * @summary Withdraw from an active programme without deleting its audit history
+ */
+export const useWithdrawFromJourneyProgramme = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawFromJourneyProgramme>>, TError,WithdrawFromJourneyProgrammeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof withdrawFromJourneyProgramme>>,
+        TError,
+        WithdrawFromJourneyProgrammeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWithdrawFromJourneyProgrammeMutationOptions(options));
+    }
+
+export const getListJourneyProgrammeParticipantsUrl = (journeyId: number,) => {
+
+
+
+
+  return `/api/journeys/manage/${journeyId}/participants`
+}
+
+/**
+ * @summary List participants and verified progress for an owned programme
+ */
+export const listJourneyProgrammeParticipants = async (journeyId: number, options?: Parameters<typeof customFetch>[1]): Promise<JourneyProgrammeParticipant[]> => {
+
+  return customFetch<JourneyProgrammeParticipant[]>(getListJourneyProgrammeParticipantsUrl(journeyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListJourneyProgrammeParticipantsQueryKey = (journeyId: number,) => {
+    return [
+    `/api/journeys/manage/${journeyId}/participants`
+    ] as const;
+    }
+
+
+export const getListJourneyProgrammeParticipantsQueryOptions = <TData = Awaited<ReturnType<typeof listJourneyProgrammeParticipants>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>>(journeyId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJourneyProgrammeParticipants>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListJourneyProgrammeParticipantsQueryKey(journeyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listJourneyProgrammeParticipants>>> = ({ signal }) => listJourneyProgrammeParticipants(journeyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: journeyId !== null && journeyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listJourneyProgrammeParticipants>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListJourneyProgrammeParticipantsQueryResult = NonNullable<Awaited<ReturnType<typeof listJourneyProgrammeParticipants>>>
+export type ListJourneyProgrammeParticipantsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List participants and verified progress for an owned programme
+ */
+
+export function useListJourneyProgrammeParticipants<TData = Awaited<ReturnType<typeof listJourneyProgrammeParticipants>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>>(
+ journeyId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJourneyProgrammeParticipants>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListJourneyProgrammeParticipantsQueryOptions(journeyId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getHealthCheckUrl = () => {
 

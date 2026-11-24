@@ -38,6 +38,8 @@ tags:
     description: Shared social objectives and Telegram community missions
   - name: ai-assistant
     description: Persistent AI experience discovery conversations
+  - name: journeys
+    description: Organisation programmes and participant development journeys
   - name: personal-collections
     description: Private saved experiences and personal memories
   - name: personal-activities
@@ -1732,6 +1734,180 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /journeys:
+    get:
+      operationId: listJourneyProgrammes
+      tags: [journeys]
+      summary: List published programmes and private progress for the signed-in participant
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Published programmes; enrolment and progress are visible only to their participant
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/JourneyProgrammeDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    post:
+      operationId: createJourneyProgramme
+      tags: [journeys]
+      summary: Create an organisation-owned programme with ordered linked steps
+      security: [{ telegramInitData: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JourneyProgrammeInput" }
+      responses:
+        "201":
+          description: The new organisation programme
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JourneyProgramme" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /journeys/manage:
+    get:
+      operationId: listManagedJourneyProgrammes
+      tags: [journeys]
+      summary: List programmes owned by the signed-in organisation with defined outcome counts
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: Organisation-owned programmes and current participant outcomes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ManagedJourneyProgramme" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /journeys/{journeyId}:
+    get:
+      operationId: getJourneyProgramme
+      tags: [journeys]
+      summary: Get one published programme and the signed-in participant's own progress
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: journeyId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Programme detail and private progress for the authenticated participant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JourneyProgrammeDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    patch:
+      operationId: updateJourneyProgramme
+      tags: [journeys]
+      summary: Update an owned programme or its ordered steps before participants enrol
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: journeyId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JourneyProgrammeUpdate" }
+      responses:
+        "200":
+          description: The updated organisation programme
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JourneyProgramme" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /journeys/{journeyId}/enrol:
+    post:
+      operationId: enrolInJourneyProgramme
+      tags: [journeys]
+      summary: Enrol in a published programme or resume a withdrawn enrolment
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: journeyId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Existing or resumed enrolment and current progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JourneyEnrolmentProgress" }
+        "201":
+          description: New enrolment and initial progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JourneyEnrolmentProgress" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /journeys/{journeyId}/withdraw:
+    post:
+      operationId: withdrawFromJourneyProgramme
+      tags: [journeys]
+      summary: Withdraw from an active programme without deleting its audit history
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: journeyId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: The withdrawn enrolment and its preserved progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JourneyEnrolmentProgress" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /journeys/manage/{journeyId}/participants:
+    get:
+      operationId: listJourneyProgrammeParticipants
+      tags: [journeys]
+      summary: List participants and verified progress for an owned programme
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: journeyId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Private participant names, enrolment states, and source-backed progress for the owner
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/JourneyProgrammeParticipant" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /healthz:
     get:
       operationId: healthCheck
@@ -7636,6 +7812,173 @@ components:
           type: string
           format: date-time
       required: [id, role, content, actions, createdAt]
+    JourneyProgrammeStatus:
+      type: string
+      enum: [draft, published, archived]
+    JourneyStepKind:
+      type: string
+      enum: [experience, milestone, resource]
+    JourneyEnrolmentStatus:
+      type: string
+      enum: [active, completed, withdrawn]
+    JourneyProgrammeStepInput:
+      type: object
+      properties:
+        kind: { $ref: "#/components/schemas/JourneyStepKind" }
+        title: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, maxLength: 500 }
+        experienceId: { type: integer, minimum: 1 }
+        milestoneId: { type: integer, minimum: 1 }
+        resourceUrl:
+          type: string
+          format: uri
+          description: Informational learning link only; it is not completion evidence and awards no XP.
+      required: [kind, title]
+      additionalProperties: false
+    JourneyProgrammeStep:
+      type: object
+      properties:
+        id: { type: integer }
+        position: { type: integer, minimum: 1, maximum: 20 }
+        kind: { $ref: "#/components/schemas/JourneyStepKind" }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        experienceId: { type: [integer, "null"] }
+        experienceTitle: { type: [string, "null"] }
+        milestoneId: { type: [integer, "null"] }
+        resourceUrl: { type: [string, "null"], format: uri }
+      required: [id, position, kind, title, description, experienceId, experienceTitle, milestoneId, resourceUrl]
+    JourneyProgressStep:
+      type: object
+      properties:
+        stepId: { type: integer }
+        status: { type: string, enum: [complete, incomplete, resource] }
+        sourceRecordId: { type: [integer, "null"] }
+        verifiedAt: { type: [string, "null"], format: date-time }
+      required: [stepId, status, sourceRecordId, verifiedAt]
+    JourneyProgress:
+      type: object
+      properties:
+        steps:
+          type: array
+          items: { $ref: "#/components/schemas/JourneyProgressStep" }
+        totalSteps: { type: integer, minimum: 0 }
+        eligibleSteps: { type: integer, minimum: 0 }
+        completedSteps: { type: integer, minimum: 0 }
+        completionPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Verified completion percentage of experience and milestone steps; resource links are excluded.
+        isComplete: { type: boolean }
+      required: [steps, totalSteps, eligibleSteps, completedSteps, completionPercent, isComplete]
+    JourneyAuditEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        eventType: { type: string, enum: [enrolled, withdrawn, step_completed, completed] }
+        stepId: { type: [integer, "null"] }
+        sourceRecordId: { type: [integer, "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, eventType, stepId, sourceRecordId, createdAt]
+    JourneyEnrolmentProgress:
+      type: object
+      properties:
+        enrolmentId: { type: integer }
+        status: { $ref: "#/components/schemas/JourneyEnrolmentStatus" }
+        enrolledAt: { type: string, format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        withdrawnAt: { type: [string, "null"], format: date-time }
+        progress: { $ref: "#/components/schemas/JourneyProgress" }
+        auditEvents:
+          type: array
+          description: Immutable enrolment, withdrawal, verified step, and completion events.
+          items: { $ref: "#/components/schemas/JourneyAuditEvent" }
+      required: [enrolmentId, status, enrolledAt, completedAt, withdrawnAt, progress, auditEvents]
+    JourneyProgramme:
+      type: object
+      properties:
+        id: { type: integer }
+        organisationId: { type: integer }
+        organisationName: { type: string }
+        title: { type: string }
+        description: { type: string }
+        status: { $ref: "#/components/schemas/JourneyProgrammeStatus" }
+        steps:
+          type: array
+          items: { $ref: "#/components/schemas/JourneyProgrammeStep" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, organisationId, organisationName, title, description, status, steps, createdAt, updatedAt]
+    JourneyProgrammeDetail:
+      allOf:
+        - $ref: "#/components/schemas/JourneyProgramme"
+        - type: object
+          properties:
+            enrolment:
+              anyOf:
+                - $ref: "#/components/schemas/JourneyEnrolmentProgress"
+                - type: "null"
+          required: [enrolment]
+    JourneyProgrammeInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, minLength: 1, maxLength: 1000 }
+        status: { $ref: "#/components/schemas/JourneyProgrammeStatus" }
+        steps:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { $ref: "#/components/schemas/JourneyProgrammeStepInput" }
+      required: [title, description, steps]
+      additionalProperties: false
+    JourneyProgrammeUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, minLength: 1, maxLength: 1000 }
+        status: { $ref: "#/components/schemas/JourneyProgrammeStatus" }
+        steps:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { $ref: "#/components/schemas/JourneyProgrammeStepInput" }
+      minProperties: 1
+      additionalProperties: false
+    JourneyProgrammeMetrics:
+      type: object
+      properties:
+        activeParticipants:
+          type: integer
+          description: Current active enrolments.
+        completedParticipants:
+          type: integer
+          description: Enrolments whose eligible experience and milestone steps are all verified.
+        withdrawnParticipants:
+          type: integer
+          description: Enrolments participants have withdrawn from.
+        completionRatePercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Completed divided by active plus completed; withdrawn enrolments are excluded.
+      required: [activeParticipants, completedParticipants, withdrawnParticipants, completionRatePercent]
+    ManagedJourneyProgramme:
+      allOf:
+        - $ref: "#/components/schemas/JourneyProgramme"
+        - type: object
+          properties:
+            metrics: { $ref: "#/components/schemas/JourneyProgrammeMetrics" }
+          required: [metrics]
+    JourneyProgrammeParticipant:
+      type: object
+      properties:
+        participantId: { type: integer }
+        participantName: { type: string }
+        enrolment:
+          $ref: "#/components/schemas/JourneyEnrolmentProgress"
+      required: [participantId, participantName, enrolment]
     AiResearchSource:
       type: object
       properties:

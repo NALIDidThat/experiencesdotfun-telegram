@@ -20,6 +20,7 @@ import personalActivitiesRouter from "./personal-activities";
 import nodesRouter from "./nodes";
 import learningRouter from "./learning";
 import questsRouter from "./quests";
+import journeysRouter from "./journeys";
 
 const router: IRouter = Router();
 
@@ -35,6 +36,7 @@ router.use("/challenges", challengesRouter);
 router.use("/quests", questsRouter);
 router.use("/ai", aiAssistantRouter);
 router.use("/learning", learningRouter);
+router.use("/journeys", journeysRouter);
 router.use("/memory-game", memoryGameRouter);
 router.use("/funds", fundsRouter);
 router.use(privateEvidenceRouter);
