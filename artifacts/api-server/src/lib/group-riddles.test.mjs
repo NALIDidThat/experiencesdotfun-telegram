@@ -23,12 +23,15 @@ test("group riddles can be selected across the full random range", () => {
   );
 });
 
-test("wrong riddle answers receive playful feedback options", () => {
-  assert.equal(chooseWrongRiddleAnswerResponse(() => 0), "Nexttttt! Who's got it?");
-  assert.equal(chooseWrongRiddleAnswerResponse(() => 0.25), "Not quite. Anyone else?");
+test("wrong riddle answers receive clear, encouraging feedback", () => {
+  assert.equal(
+    chooseWrongRiddleAnswerResponse(() => 0),
+    "Not quite — the riddle is still open. Anyone else?",
+  );
+  assert.equal(chooseWrongRiddleAnswerResponse(() => 0.25), "That isn't it. Try another guess.");
   assert.equal(
     chooseWrongRiddleAnswerResponse(() => 0.999999),
-    "Ooh, not quite! Who's got another guess?",
+    "Close, but not quite. Who has another guess?",
   );
 });
 

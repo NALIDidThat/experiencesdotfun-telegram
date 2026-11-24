@@ -4,6 +4,8 @@ import {
   buildTelegramAddCommunityUrl,
   buildWelcomeKeyboard,
   escapeTelegramHtml,
+  formatTelegramExperienceDate,
+  formatTelegramAiReply,
   formatContributionRejectedNotice,
   formatContributionVerifiedNotice,
   formatExperienceJoinedNotice,
@@ -67,11 +69,10 @@ test("group keyboards replace unsupported web app buttons with URL buttons", () 
 
 test("welcome message uses the supplied copy and welcome buttons target app screens", () => {
   const message = formatWelcomeMessage();
-  assert.match(message, /social platform for discovering, creating and completing real-world experiences/);
-  assert.match(message, /Your experiences become your story/);
-  assert.match(message, /Your contributions become your reputation/);
-  assert.match(message, /Social OS for real-world communities/);
-  assert.match(message, /👇 Start exploring our telegram mini-app below$/);
+  assert.match(message, /Find real-world experiences, join your community/);
+  assert.match(message, /Get recognised when your contribution is verified/);
+  assert.match(message, /Choose an option below to open the app\.$/);
+  assert.doesNotMatch(message, /on-chain|Social OS/);
 
   const keyboard = buildWelcomeKeyboard((path) => `https://example.test${path}`);
   assert.deepEqual(keyboard, [
@@ -97,8 +98,8 @@ test("Telegram notification copy escapes user content and does not promise XP be
   };
   const joined = formatExperienceJoinedNotice(experience);
   assert.match(joined, /Park &lt;clean-up&gt;/);
-  assert.match(joined, /When the host verifies your contribution/);
-  assert.match(joined, /\+25 XP · £5\.00/);
+  assert.match(joined, /After verification, <b>\+25 XP<\/b> will be ready to redeem/);
+  assert.match(joined, /This experience lists a <b>£5\.00<\/b> reward/);
   assert.match(joined, /London &amp; beyond/);
   assert.doesNotMatch(joined, /You(?:'|’) earned \+25 XP/);
 
@@ -109,10 +110,33 @@ test("Telegram notification copy escapes user content and does not promise XP be
   const verified = formatContributionVerifiedNotice(experience);
   assert.match(verified, /<b>\+25 Experience XP<\/b> is ready to redeem/);
   assert.match(verified, /add it to your profile balance/);
-  assert.match(verified, /Reward confirmed: <b>£5\.00<\/b>/);
+  assert.match(verified, /host confirmed a reward of <b>£5\.00<\/b>/);
   assert.match(formatContributionRejectedNotice(experience), /No XP or reward was added/);
 });
 
 test("Telegram HTML escaping handles all markup-sensitive characters", () => {
   assert.equal(escapeTelegramHtml("<a & b>"), "&lt;a &amp; b&gt;");
+});
+
+test("experience dates are readable in Telegram messages", () => {
+  assert.equal(formatTelegramExperienceDate("2026-09-25"), "Fri 25 Sept");
+  assert.equal(formatTelegramExperienceDate("not-a-date"), "not-a-date");
+});
+
+test("AI replies format common Markdown safely and stay within Telegram's message limit", () => {
+  const reply = formatTelegramAiReply(
+    "**Your next step**\n- Join <Park cleanup>\nUse `/experiences` to browse.",
+    [{ title: "Source & details", url: 'https://example.test/search?q=a&label="park"' }],
+  );
+
+  assert.match(reply, /<b>Your next step<\/b>/);
+  assert.match(reply, /• Join &lt;Park cleanup&gt;/);
+  assert.match(reply, /<code>\/experiences<\/code>/);
+  assert.match(reply, /Source &amp; details/);
+  assert.match(reply, /&quot;park&quot;/);
+  assert.ok(reply.length <= 4000);
+
+  const longReply = formatTelegramAiReply("A".repeat(10_000), []);
+  assert.ok(longReply.length <= 4000);
+  assert.ok(longReply.endsWith("…"));
 });

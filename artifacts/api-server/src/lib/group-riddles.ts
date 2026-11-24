@@ -656,10 +656,10 @@ export function chooseGroupRiddle(random = Math.random): Riddle {
 }
 
 const WRONG_RIDDLE_ANSWER_RESPONSES = [
-  "Nexttttt! Who's got it?",
-  "Not quite. Anyone else?",
-  "Nope! The riddle is still undefeated.",
-  "Ooh, not quite! Who's got another guess?",
+  "Not quite — the riddle is still open. Anyone else?",
+  "That isn't it. Try another guess.",
+  "No match yet. The first correct answer wins this round.",
+  "Close, but not quite. Who has another guess?",
 ] as const;
 
 export function chooseWrongRiddleAnswerResponse(random = Math.random): string {
