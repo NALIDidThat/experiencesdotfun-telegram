@@ -103,6 +103,7 @@ import type {
 import { runWebSearchTool } from "./ai-web-search";
 import { extractBotMentionedText, type TelegramMentionEntity } from "./telegram-mention";
 import {
+  buildTelegramAddCommunityUrl,
   buildWelcomeKeyboard,
   escapeTelegramHtml,
   formatWelcomeMessage,
@@ -765,6 +766,18 @@ async function handleCommand(
   }
   switch (command) {
     case "/start":
+      if (isGroupChat(chatType) && args[0] === "community") {
+        await runCommunityControlsSafely(chatId, "community_start", () =>
+          handleCommunityCommand(
+            chatId,
+            chatType,
+            chatTitle ?? "Telegram community",
+            identity,
+            [],
+          ),
+        );
+        break;
+      }
       await sendOnboarding(chatId);
       if (chatType === "private" && args[0]?.startsWith("community")) {
         const selectedGroup = /^community_(-?\d{1,20})$/.exec(args[0]);
@@ -2077,6 +2090,11 @@ async function sendPrivateCommunityList(
   identity: TelegramIdentity,
   page = 0,
 ) {
+  const botUsername = await getTelegramBotUsername() ?? "experiencesdotfun_bot";
+  const addCommunityUrl = buildTelegramAddCommunityUrl(botUsername);
+  const addCommunityRow: TelegramButton[] = addCommunityUrl
+    ? [{ text: "Add community", url: addCommunityUrl }]
+    : [];
   const safePage = Math.max(0, Math.min(10_000, Math.floor(page)));
   const communities = await listTelegramOwnedCommunities(
     identity.id,
@@ -2087,7 +2105,8 @@ async function sendPrivateCommunityList(
   if (!visible.length && safePage === 0) {
     await sendTelegramMessage(
       privateChatId,
-        "<b>Group management</b>\n\nYou do not have a linked Telegram group yet. Add the Experiences.fun bot to your group, make it an admin with permission to delete messages, and run <code>/community</code> there using the same Telegram account that owns your organisation profile. Then return here to manage phrase protection and filters.",
+      "<b>Group management</b>\n\nYou do not have a linked Telegram group yet. Add the bot to your community below, make it a group admin with permission to delete messages, then follow the setup steps in that group using the Telegram account that owns your organisation profile.",
+      addCommunityRow.length ? [addCommunityRow] : undefined,
     );
     return;
   }
@@ -2095,7 +2114,10 @@ async function sendPrivateCommunityList(
     await sendTelegramMessage(
       privateChatId,
       "There are no more linked groups on this page.",
-      [[callbackButton("Back to groups", "community:private:list:0")]],
+      [
+        [callbackButton("Back to groups", "community:private:list:0")],
+        ...(addCommunityRow.length ? [addCommunityRow] : []),
+      ],
     );
     return;
   }
@@ -2120,6 +2142,7 @@ async function sendPrivateCommunityList(
     navigation.push(callbackButton("Next", `community:private:list:${safePage + 1}`));
   }
   if (navigation.length) keyboard.push(navigation);
+  if (addCommunityRow.length) keyboard.push(addCommunityRow);
 
   await sendTelegramMessage(
     privateChatId,

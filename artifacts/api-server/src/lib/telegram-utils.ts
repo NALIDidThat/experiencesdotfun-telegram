@@ -7,6 +7,12 @@ export type TelegramButton = {
 
 export type TelegramKeyboard = TelegramButton[][];
 
+export function buildTelegramAddCommunityUrl(botUsername: string): string | null {
+  const username = botUsername.replace(/^@/, "").trim();
+  if (!/^[A-Za-z0-9_]{5,32}$/.test(username)) return null;
+  return `https://t.me/${encodeURIComponent(username)}?startgroup=community`;
+}
+
 export type TelegramExperienceNotice = {
   id: number;
   title: string;

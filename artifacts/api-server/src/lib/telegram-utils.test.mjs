@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildTelegramAddCommunityUrl,
   buildWelcomeKeyboard,
   escapeTelegramHtml,
   formatContributionRejectedNotice,
@@ -29,10 +30,22 @@ test("group command mentions dispatch to this bot and preserve arguments", () =>
     parseTelegramCommand("/start invite_opaque-token", "experiencesdotfun_bot"),
     { command: "/start", args: ["invite_opaque-token"] },
   );
+  assert.deepEqual(
+    parseTelegramCommand("/start@experiencesdotfun_bot community", "experiencesdotfun_bot"),
+    { command: "/start", args: ["community"] },
+  );
   assert.equal(
     parseTelegramCommand("/start@another_bot", "experiencesdotfun_bot"),
     null,
   );
+});
+
+test("add community deep link opens Telegram's add-to-group flow", () => {
+  assert.equal(
+    buildTelegramAddCommunityUrl("@experiencesdotfun_bot"),
+    "https://t.me/experiencesdotfun_bot?startgroup=community",
+  );
+  assert.equal(buildTelegramAddCommunityUrl("not a username"), null);
 });
 
 test("group keyboards replace unsupported web app buttons with URL buttons", () => {
