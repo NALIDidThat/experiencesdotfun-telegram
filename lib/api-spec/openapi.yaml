@@ -2421,6 +2421,26 @@ paths:
                 $ref: "#/components/schemas/XpAwardsResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /me/progression:
+    get:
+      operationId: getMyProgression
+      tags: [profile]
+      summary: Get server-calculated verified participation progression
+      description: Progress uses only host-verified experience completions and verified milestones. Streak dates use the UTC date of host verification.
+      security: [{ telegramInitData: [] }]
+      responses:
+        "200":
+          description: The signed-in participant's Experience XP, missions, streak, and achievements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/XpProgressionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /me/xp-awards/redeem:
     post:
       operationId: redeemMyXpAwards
@@ -6227,6 +6247,79 @@ components:
           items:
             $ref: "#/components/schemas/XpAward"
       required: [balanceXp, pendingXp, awards]
+    XpProgressionMission:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string }
+        progress: { type: integer, minimum: 0 }
+        target: { type: integer, minimum: 1 }
+        status: { type: string, enum: [active, completed] }
+      required: [id, title, description, progress, target, status]
+    XpProgressionAchievement:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string }
+        progress: { type: integer, minimum: 0 }
+        target: { type: integer, minimum: 1 }
+        unlocked: { type: boolean }
+      required: [id, title, description, progress, target, unlocked]
+    XpProgressionStreak:
+      type: object
+      properties:
+        currentDays: { type: integer, minimum: 0 }
+        longestDays: { type: integer, minimum: 0 }
+        lastVerifiedUtcDate: { type: [string, "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        timezone: { type: string, enum: [UTC] }
+      required: [currentDays, longestDays, lastVerifiedUtcDate, timezone]
+    XpProgressionNextAction:
+      type: object
+      properties:
+        kind: { type: string, enum: [redeem_xp, explore_experiences] }
+        label: { type: string }
+      required: [kind, label]
+    XpProgressionRules:
+      type: object
+      properties:
+        eligibleActivity: { type: string }
+        streakDate: { type: string }
+        lateVerification: { type: string }
+        reset: { type: string }
+        excludedActivity: { type: string }
+      required: [eligibleActivity, streakDate, lateVerification, reset, excludedActivity]
+    XpProgressionResponse:
+      type: object
+      properties:
+        balanceXp: { type: integer, minimum: 0 }
+        pendingXp: { type: integer, minimum: 0 }
+        level: { type: string }
+        levelProgress: { type: integer, minimum: 0, maximum: 100 }
+        nextLevelXp: { type: [integer, "null"], minimum: 0 }
+        xpToNextLevel: { type: [integer, "null"], minimum: 0 }
+        streak: { $ref: "#/components/schemas/XpProgressionStreak" }
+        missions:
+          type: array
+          items: { $ref: "#/components/schemas/XpProgressionMission" }
+        achievements:
+          type: array
+          items: { $ref: "#/components/schemas/XpProgressionAchievement" }
+        nextAction: { $ref: "#/components/schemas/XpProgressionNextAction" }
+        rules: { $ref: "#/components/schemas/XpProgressionRules" }
+      required:
+        - balanceXp
+        - pendingXp
+        - level
+        - levelProgress
+        - nextLevelXp
+        - xpToNextLevel
+        - streak
+        - missions
+        - achievements
+        - nextAction
+        - rules
     RedeemXpAwardsResponse:
       type: object
       properties:

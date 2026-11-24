@@ -1871,6 +1871,105 @@ export interface XpAwardsResponse {
   awards: XpAward[];
 }
 
+export type XpProgressionMissionStatus = typeof XpProgressionMissionStatus[keyof typeof XpProgressionMissionStatus];
+
+
+export const XpProgressionMissionStatus = {
+  active: 'active',
+  completed: 'completed',
+} as const;
+
+export interface XpProgressionMission {
+  id: string;
+  title: string;
+  description: string;
+  /** @minimum 0 */
+  progress: number;
+  /** @minimum 1 */
+  target: number;
+  status: XpProgressionMissionStatus;
+}
+
+export interface XpProgressionAchievement {
+  id: string;
+  title: string;
+  description: string;
+  /** @minimum 0 */
+  progress: number;
+  /** @minimum 1 */
+  target: number;
+  unlocked: boolean;
+}
+
+export type XpProgressionStreakTimezone = typeof XpProgressionStreakTimezone[keyof typeof XpProgressionStreakTimezone];
+
+
+export const XpProgressionStreakTimezone = {
+  UTC: 'UTC',
+} as const;
+
+export interface XpProgressionStreak {
+  /** @minimum 0 */
+  currentDays: number;
+  /** @minimum 0 */
+  longestDays: number;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  lastVerifiedUtcDate: string | null;
+  timezone: XpProgressionStreakTimezone;
+}
+
+export type XpProgressionNextActionKind = typeof XpProgressionNextActionKind[keyof typeof XpProgressionNextActionKind];
+
+
+export const XpProgressionNextActionKind = {
+  redeem_xp: 'redeem_xp',
+  explore_experiences: 'explore_experiences',
+} as const;
+
+export interface XpProgressionNextAction {
+  kind: XpProgressionNextActionKind;
+  label: string;
+}
+
+export interface XpProgressionRules {
+  eligibleActivity: string;
+  streakDate: string;
+  lateVerification: string;
+  reset: string;
+  excludedActivity: string;
+}
+
+export interface XpProgressionResponse {
+  /** @minimum 0 */
+  balanceXp: number;
+  /** @minimum 0 */
+  pendingXp: number;
+  level: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  levelProgress: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  nextLevelXp: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  xpToNextLevel: number | null;
+  streak: XpProgressionStreak;
+  missions: XpProgressionMission[];
+  achievements: XpProgressionAchievement[];
+  nextAction: XpProgressionNextAction;
+  rules: XpProgressionRules;
+}
+
 export interface RedeemXpAwardsResponse {
   redeemedXp: number;
   user: User;

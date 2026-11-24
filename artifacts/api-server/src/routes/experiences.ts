@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, ne, notExists, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, ne, notExists, or, sql } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   AcceptFriendRequestParams,
@@ -27,6 +27,7 @@ import {
   UpdateHostExperienceParams,
   VerifyParticipationParams,
   CreateSocialInviteBody,
+  GetMyProgressionResponse,
 } from "@workspace/api-zod";
 import { db, pool } from "@workspace/db";
 import {
@@ -89,6 +90,7 @@ import { hasSameTelegramIdentity } from "../lib/telegram-identity";
 import {
   buildXpAwardsResponse,
 } from "../lib/xp-award-rules";
+import { buildVerifiedProgression } from "../lib/xp-progression.mjs";
 import {
   currentOrganisation,
   experienceResponse,
@@ -1150,6 +1152,57 @@ router.get("/me/xp-awards", async (req, res) => {
       signupXpReward: EMAIL_SIGNUP_XP_REWARD,
     }),
   );
+});
+
+router.get("/me/progression", async (req, res) => {
+  if (!enforceAccountType(req, res, "participant")) return;
+  const user = currentUser(req);
+  const [pending, verifiedExperiences, verifiedMilestones] = await Promise.all([
+    db
+      .select({
+        amount: sql<number>`coalesce(sum(${xpAwardsTable.amount}), 0)`,
+      })
+      .from(xpAwardsTable)
+      .where(and(
+        eq(xpAwardsTable.userId, user.id),
+        eq(xpAwardsTable.status, "pending"),
+      )),
+    db
+      .select({
+        sourceId: participationsTable.id,
+        status: participationsTable.status,
+        verifiedAt: participationsTable.verifiedAt,
+      })
+      .from(participationsTable)
+      .where(and(
+        eq(participationsTable.userId, user.id),
+        eq(participationsTable.status, "verified"),
+        isNotNull(participationsTable.verifiedAt),
+      )),
+    db
+      .select({
+        sourceId: experienceMilestoneSubmissionsTable.id,
+        status: experienceMilestoneSubmissionsTable.status,
+        verifiedAt: experienceMilestoneSubmissionsTable.verifiedAt,
+      })
+      .from(experienceMilestoneSubmissionsTable)
+      .innerJoin(
+        participationsTable,
+        eq(participationsTable.id, experienceMilestoneSubmissionsTable.participationId),
+      )
+      .where(and(
+        eq(participationsTable.userId, user.id),
+        eq(experienceMilestoneSubmissionsTable.status, "verified"),
+        isNotNull(experienceMilestoneSubmissionsTable.verifiedAt),
+      )),
+  ]);
+  const result = buildVerifiedProgression({
+    balanceXp: user.xp,
+    pendingXp: Number(pending[0]?.amount ?? 0),
+    verifiedExperiences,
+    verifiedMilestones,
+  });
+  res.json(GetMyProgressionResponse.parse(result));
 });
 
 router.post("/me/xp-awards/redeem", async (req, res) => {

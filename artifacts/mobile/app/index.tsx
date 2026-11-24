@@ -61,6 +61,7 @@ import {
   useGetHostOverview,
   useGetNodes,
   useGetMe,
+  useGetMyProgression,
   useGetMyXpAwards,
   useJoinExperience,
   useCancelParticipation,
@@ -95,6 +96,7 @@ import {
   getGetExperienceQueryKey,
   getGetFriendProfileQueryKey,
   getGetMyXpAwardsQueryKey,
+  getGetMyProgressionQueryKey,
   getListMySavedExperiencesQueryKey,
   getListMyParticipationsQueryKey,
   getListHostExperiencesQueryKey,
@@ -4686,6 +4688,7 @@ function ProfileMetricDetailsSheet({
   onClose,
   onOpenExperience,
   onOpenFriendProfile,
+  onOpenExplore,
 }: {
   metric: ProfileMetricKey | null;
   user: User;
@@ -4701,6 +4704,7 @@ function ProfileMetricDetailsSheet({
   onClose: () => void;
   onOpenExperience: (id: number) => void;
   onOpenFriendProfile: (id: number) => void;
+  onOpenExplore: () => void;
 }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -4711,6 +4715,14 @@ function ProfileMetricDetailsSheet({
       enabled: metric === 'xp' && authenticated,
     },
   });
+  const progression = useGetMyProgression({
+    query: {
+      queryKey: [...getGetMyProgressionQueryKey(), user.id],
+      enabled: metric === 'xp' && authenticated,
+      staleTime: 30_000,
+      refetchOnMount: 'always',
+    },
+  });
   const redeemXp = useRedeemMyXpAwards({
     mutation: {
       onSuccess: () => {
@@ -4719,6 +4731,14 @@ function ProfileMetricDetailsSheet({
       },
     },
   });
+  const runProgressionAction = () => {
+    if (progression.data?.nextAction.kind === 'redeem_xp') {
+      redeemXp.mutate();
+      return;
+    }
+    onClose();
+    onOpenExplore();
+  };
 
   if (!metric) return null;
 
@@ -4928,6 +4948,142 @@ function ProfileMetricDetailsSheet({
               ))
             ) : metric === 'xp' ? (
               <View style={styles.profileXpAwardsList}>
+                <View
+                  testID="profile-xp-progression"
+                  style={[
+                    styles.profileXpRedeemCard,
+                    { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: colors.radius },
+                  ]}
+                >
+                  <View style={styles.profileXpRedeemHeading}>
+                    <View style={[styles.profileMetricStateIcon, { backgroundColor: colors.primary + '12' }]}>
+                      <Feather name="trending-up" size={20} color={colors.primary} />
+                    </View>
+                    <View style={styles.profileMetricRecordCopy}>
+                      <Text style={[styles.profileMetricRecordTitle, { color: colors.foreground }]}>
+                        Your progression
+                      </Text>
+                      {progression.data ? (
+                        <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
+                          {progression.data.level} · {progression.data.balanceXp.toLocaleString()} XP
+                          {progression.data.nextLevelXp === null
+                            ? ' · Highest level'
+                            : ` · ${progression.data.xpToNextLevel?.toLocaleString() ?? 0} XP to next level`}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                  <ImageBackground
+                    testID="profile-xp-astronaut-art"
+                    accessibilityRole="image"
+                    accessibilityLabel="Astronaut holding a star in space"
+                    source={require('../assets/images/memory-game-space-background.png')}
+                    resizeMode="cover"
+                    imageStyle={{ borderRadius: colors.radius }}
+                    style={{ height: 88, overflow: 'hidden', borderRadius: colors.radius }}
+                  >
+                    <LinearGradient
+                      colors={['#07132B20', '#07132BCC']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end', padding: 10 }]}
+                    >
+                      <Text style={[styles.profileXpProgressCopy, { color: '#FFFFFF' }]}>
+                        VERIFIED MISSIONS · STREAKS · ACHIEVEMENTS
+                      </Text>
+                    </LinearGradient>
+                  </ImageBackground>
+                  {progression.isLoading ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 8 }}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>Loading verified progress…</Text>
+                    </View>
+                  ) : progression.isError ? (
+                    <View style={{ gap: 8 }}>
+                      <Text accessibilityRole="alert" style={[styles.profileMetricRecordMeta, { color: colors.destructive }]}>
+                        Verified progress could not load. Your XP balance and history are unchanged.
+                      </Text>
+                      <Button
+                        testID="profile-xp-progression-retry"
+                        label="Try again"
+                        variant="secondary"
+                        onPress={() => { void progression.refetch(); }}
+                      />
+                    </View>
+                  ) : progression.data ? (
+                    <>
+                      <View
+                        testID="profile-xp-streak"
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border }}
+                      >
+                        <Feather name="zap" size={18} color={colors.primary} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.profileMetricRecordTitle, { color: colors.foreground }]}>
+                            {progression.data.streak.currentDays}-day streak
+                          </Text>
+                          <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
+                            Longest {progression.data.streak.longestDays} days · {progression.data.streak.timezone}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={{ gap: 9 }}>
+                        <Text style={[styles.profileXpProgressCopy, { color: colors.foreground }]}>MISSIONS</Text>
+                        {progression.data.missions.map((mission) => (
+                          <View key={mission.id} testID={`progression-mission-${mission.id}`} style={{ gap: 4 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <Feather
+                                name={mission.status === 'completed' ? 'check-circle' : 'circle'}
+                                size={15}
+                                color={mission.status === 'completed' ? colors.success : colors.primary}
+                              />
+                              <Text style={[styles.profileMetricRecordMeta, { flex: 1, color: colors.foreground }]}>
+                                {mission.title}
+                              </Text>
+                              <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
+                                {mission.progress}/{mission.target}
+                              </Text>
+                            </View>
+                            <Text style={[styles.profileMetricRecordMeta, { marginLeft: 23, color: colors.mutedForeground }]}>
+                              {mission.description}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                      <View style={{ gap: 9 }}>
+                        <Text style={[styles.profileXpProgressCopy, { color: colors.foreground }]}>ACHIEVEMENTS</Text>
+                        {progression.data.achievements.map((achievement) => (
+                          <View key={achievement.id} testID={`progression-achievement-${achievement.id}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Feather
+                              name={achievement.unlocked ? 'award' : 'lock'}
+                              size={15}
+                              color={achievement.unlocked ? colors.success : colors.mutedForeground}
+                            />
+                            <View style={{ flex: 1, gap: 2 }}>
+                              <Text style={[styles.profileMetricRecordMeta, { color: colors.foreground }]}>
+                                {achievement.title}
+                              </Text>
+                              <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
+                                {achievement.description}
+                              </Text>
+                            </View>
+                            <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
+                              {achievement.progress}/{achievement.target}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                      <Text style={[styles.profileMetricRecordMeta, { color: colors.mutedForeground }]}>
+                        {progression.data.rules.eligibleActivity} {progression.data.rules.streakDate} {progression.data.rules.lateVerification} {progression.data.rules.reset} {progression.data.rules.excludedActivity}
+                      </Text>
+                      <Button
+                        testID="profile-xp-next-action"
+                        label={progression.data.nextAction.label}
+                        disabled={redeemXp.isPending}
+                        onPress={runProgressionAction}
+                      />
+                    </>
+                  ) : null}
+                </View>
                 <View
                   style={[
                     styles.profileXpRedeemCard,
@@ -6206,6 +6362,10 @@ function Profile({ user, go }: { user: User; go: (screen: Screen, params?: Recor
         onOpenFriendProfile={(id) => {
           setSelectedProfileMetric(null);
           go('friend-profile', { friendId: String(id) });
+        }}
+        onOpenExplore={() => {
+          triggerHaptic();
+          go('explore');
         }}
       />
 

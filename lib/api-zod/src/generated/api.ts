@@ -3982,6 +3982,77 @@ export const GetMyXpAwardsResponse = zod.object({
 
 
 /**
+ * Progress uses only host-verified experience completions and verified milestones. Streak dates use the UTC date of host verification.
+ * @summary Get server-calculated verified participation progression
+ */
+export const getMyProgressionResponseBalanceXpMin = 0;
+
+export const getMyProgressionResponsePendingXpMin = 0;
+
+export const getMyProgressionResponseLevelProgressMin = 0;
+export const getMyProgressionResponseLevelProgressMax = 100;
+
+export const getMyProgressionResponseNextLevelXpMin = 0;
+
+export const getMyProgressionResponseXpToNextLevelMin = 0;
+
+export const getMyProgressionResponseStreakCurrentDaysMin = 0;
+
+export const getMyProgressionResponseStreakLongestDaysMin = 0;
+
+export const getMyProgressionResponseStreakLastVerifiedUtcDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getMyProgressionResponseMissionsItemProgressMin = 0;
+
+
+export const getMyProgressionResponseAchievementsItemProgressMin = 0;
+
+
+
+
+export const GetMyProgressionResponse = zod.object({
+  "balanceXp": zod.number().int().min(getMyProgressionResponseBalanceXpMin),
+  "pendingXp": zod.number().int().min(getMyProgressionResponsePendingXpMin),
+  "level": zod.string(),
+  "levelProgress": zod.number().int().min(getMyProgressionResponseLevelProgressMin).max(getMyProgressionResponseLevelProgressMax),
+  "nextLevelXp": zod.number().int().min(getMyProgressionResponseNextLevelXpMin).nullable(),
+  "xpToNextLevel": zod.number().int().min(getMyProgressionResponseXpToNextLevelMin).nullable(),
+  "streak": zod.object({
+  "currentDays": zod.number().int().min(getMyProgressionResponseStreakCurrentDaysMin),
+  "longestDays": zod.number().int().min(getMyProgressionResponseStreakLongestDaysMin),
+  "lastVerifiedUtcDate": zod.string().regex(getMyProgressionResponseStreakLastVerifiedUtcDateRegExp).nullable(),
+  "timezone": zod.enum(['UTC'])
+}),
+  "missions": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "progress": zod.number().int().min(getMyProgressionResponseMissionsItemProgressMin),
+  "target": zod.number().int().min(1),
+  "status": zod.enum(['active', 'completed'])
+})),
+  "achievements": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "progress": zod.number().int().min(getMyProgressionResponseAchievementsItemProgressMin),
+  "target": zod.number().int().min(1),
+  "unlocked": zod.boolean()
+})),
+  "nextAction": zod.object({
+  "kind": zod.enum(['redeem_xp', 'explore_experiences']),
+  "label": zod.string()
+}),
+  "rules": zod.object({
+  "eligibleActivity": zod.string(),
+  "streakDate": zod.string(),
+  "lateVerification": zod.string(),
+  "reset": zod.string(),
+  "excludedActivity": zod.string()
+})
+})
+
+
+/**
  * @summary Redeem all pending Experience XP into the profile balance
  */
 

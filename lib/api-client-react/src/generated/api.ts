@@ -218,7 +218,8 @@ import type {
   UnauthorizedResponse,
   UpdateFeedPreferencesInput,
   User,
-  XpAwardsResponse
+  XpAwardsResponse,
+  XpProgressionResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -8861,6 +8862,84 @@ export function useGetMyXpAwards<TData = Awaited<ReturnType<typeof getMyXpAwards
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMyXpAwardsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyProgressionUrl = () => {
+
+
+
+
+  return `/api/me/progression`
+}
+
+/**
+ * Progress uses only host-verified experience completions and verified milestones. Streak dates use the UTC date of host verification.
+ * @summary Get server-calculated verified participation progression
+ */
+export const getMyProgression = async ( options?: Parameters<typeof customFetch>[1]): Promise<XpProgressionResponse> => {
+
+  return customFetch<XpProgressionResponse>(getGetMyProgressionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyProgressionQueryKey = () => {
+    return [
+    `/api/me/progression`
+    ] as const;
+    }
+
+
+export const getGetMyProgressionQueryOptions = <TData = Awaited<ReturnType<typeof getMyProgression>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ConflictResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProgression>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyProgressionQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyProgression>>> = ({ signal }) => getMyProgression({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyProgression>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyProgressionQueryResult = NonNullable<Awaited<ReturnType<typeof getMyProgression>>>
+export type GetMyProgressionQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ConflictResponse>
+
+
+/**
+ * @summary Get server-calculated verified participation progression
+ */
+
+export function useGetMyProgression<TData = Awaited<ReturnType<typeof getMyProgression>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ConflictResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProgression>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyProgressionQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
