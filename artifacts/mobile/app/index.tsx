@@ -1301,25 +1301,18 @@ function TalentWelcome({
         ]}
       >
         <View style={styles.simpleWelcomeHero}>
-          <View
-            accessibilityLabel="Experiences.fun"
-            accessibilityRole="image"
-            style={[styles.simpleWelcomeMark, { backgroundColor: colors.muted, borderColor: colors.border }]}
-          >
-            <Feather name="star" size={40} color={colors.primary} />
-          </View>
           <Text style={[styles.simpleWelcomeTitle, { color: colors.foreground }]}>
-            Welcome to{'\n'}Experiences.fun
+            Experiences.fun
           </Text>
           <Text style={[styles.simpleWelcomeDescription, { color: colors.mutedForeground }]}>
-            Turn real-world experiences into learning, impact and opportunity.
+            Discover experiences in your community.
           </Text>
         </View>
 
         <View style={styles.simpleWelcomeActions}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Start Your Journey"
+            accessibilityLabel="Get started"
             accessibilityHint="Choose Participant or Organisation to begin signup"
             testID="welcome-start"
             onPressIn={triggerHaptic}
@@ -1328,14 +1321,11 @@ function TalentWelcome({
               styles.simpleWelcomeStartButton,
               {
                 backgroundColor: colors.primary,
-                borderBottomColor: colors.secondary,
-                shadowColor: colors.primary,
                 opacity: pressed ? 0.9 : 1,
-                transform: [{ scale: pressed ? 0.99 : 1 }],
               },
             ]}
           >
-            <Text style={styles.simpleWelcomeStartLabel}>Start Your Journey</Text>
+            <Text style={styles.simpleWelcomeStartLabel}>Get started</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -1346,7 +1336,7 @@ function TalentWelcome({
             onPress={onLogIn}
             style={({ pressed }) => [styles.simpleWelcomeLoginButton, { opacity: pressed ? 0.65 : 1 }]}
           >
-            <Text style={[styles.simpleWelcomeLoginLabel, { color: colors.mutedForeground }]}>Log In</Text>
+            <Text style={[styles.simpleWelcomeLoginLabel, { color: colors.mutedForeground }]}>Log in</Text>
           </Pressable>
           <Text style={[styles.simpleWelcomeLegal, { color: colors.mutedForeground }]}>
             By continuing, you agree to our Terms of Service and Privacy Policy.
@@ -11393,11 +11383,10 @@ const styles = StyleSheet.create({
   welcomeHomeIndicator: { width: 104, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4, opacity: 0.92 },
   simpleWelcomeContent: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 28 },
   simpleWelcomeHero: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' },
-  simpleWelcomeMark: { width: 92, height: 92, alignItems: 'center', justifyContent: 'center', borderRadius: 46, borderWidth: 1, marginBottom: 12 },
-  simpleWelcomeTitle: { ...typography.screenTitle, fontSize: 29, lineHeight: 34, textAlign: 'center' },
-  simpleWelcomeDescription: { ...typography.bodySmall, maxWidth: 310, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 6 },
-  simpleWelcomeActions: { width: '100%', maxWidth: 420, alignItems: 'center', paddingTop: 14, paddingBottom: 18 },
-  simpleWelcomeStartButton: { width: '100%', height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 11, borderBottomWidth: 4, shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
+  simpleWelcomeTitle: { ...typography.screenTitle, fontSize: 30, lineHeight: 38, letterSpacing: -0.6, textAlign: 'center' },
+  simpleWelcomeDescription: { ...typography.body, maxWidth: 300, textAlign: 'center', marginTop: 8 },
+  simpleWelcomeActions: { width: '100%', maxWidth: 420, alignItems: 'center', paddingTop: 12, paddingBottom: 18 },
+  simpleWelcomeStartButton: { width: '100%', height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
   simpleWelcomeStartLabel: { ...typography.button, color: '#FFFFFF' },
   simpleWelcomeLoginButton: { minWidth: 100, minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   simpleWelcomeLoginLabel: { ...typography.label, fontSize: 14 },
