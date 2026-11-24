@@ -3,8 +3,8 @@ name: Expo preview bundle behavior
 description: Why the mobile preview can keep rendering an older bundle after UI edits.
 ---
 
-The mobile preview workflow sets `CI=1`, which starts Metro with reloads disabled. After source edits, the running preview can continue rendering an older bundle until the Expo workflow is restarted. Typechecking can pass against the new source while screenshots still show the previous UI.
+The mobile preview workflow sets `CI=1`, which starts Metro with reloads disabled. After source edits, the running preview can continue rendering an older bundle until the Expo workflow is restarted. Replacing an image at the same `require` path can also keep serving the old asset; a new asset path forces a fresh Metro URI.
 
-**Why:** A profile redesign typechecked, but the preview stayed unchanged; workflow logs showed Metro running in CI mode.
+**Why:** A screen redesign typechecked, but screenshots continued showing old UI and old photos after edits. Restarting updated the code bundle; changing image import paths updated the cached photos.
 
-**How to apply:** If Expo screenshots or browser tests contradict the edited source, check the mobile workflow logs for CI mode and restart the configured workflow. After a restart, allow the first cold bundle compile to finish before treating a single test timeout as a product failure; rerun once the bundle is warm.
+**How to apply:** If Expo screenshots or browser tests contradict the edited source, check the mobile workflow logs for CI mode and restart the configured workflow. If an image stays stale, check the asset URI and use a new filename or clear the Metro cache. Let the first cold bundle compile finish before trusting a screenshot.

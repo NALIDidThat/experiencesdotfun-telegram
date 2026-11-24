@@ -1285,14 +1285,15 @@ function TalentWelcome({
   const topInset = isWeb ? Math.max(67, insets.top) : insets.top;
   const bottomInset = isWeb ? 34 : Math.max(insets.bottom, 16);
   const compact = screenHeight < 830;
-  const collageHeight = Math.min(compact ? 300 : 340, screenHeight * (compact ? 0.37 : 0.39));
-  const cardWidth = Math.min((screenWidth - 66) * 0.47, 170);
-  const cardHeight = collageHeight * 0.57;
+  const collageHeight = Math.min(360, screenHeight * 0.41);
+  const collageWidth = Math.min(290, screenWidth - 116);
+  const cardWidth = collageWidth * 0.5;
+  const cardHeight = collageHeight * 0.5;
   const experiences = [
-    { name: 'Education', icon: 'book-open' as const, image: require('../assets/images/welcome-education.jpg'), glow: '#F20789', rotate: '-10deg', x: -1, y: 11 },
-    { name: 'Environment', icon: 'feather' as const, image: require('../assets/images/welcome-environment.jpg'), glow: '#1A98E5', rotate: '9deg', x: 1, y: 4 },
-    { name: 'Community', icon: 'users' as const, image: require('../assets/images/welcome-community.jpg'), glow: '#F20789', rotate: '-8deg', x: -1, y: 0 },
-    { name: 'Employment', icon: 'briefcase' as const, image: require('../assets/images/welcome-employment.jpg'), glow: '#04ADBF', rotate: '10deg', x: 1, y: -5 },
+    { name: 'Education', icon: 'book-open' as const, image: require('../assets/images/welcome-education-v2.jpg'), glow: '#F20789', rotate: '-10deg', x: -1, y: 11 },
+    { name: 'Environment', icon: 'feather' as const, image: require('../assets/images/welcome-environment-v2.jpg'), glow: '#1A98E5', rotate: '9deg', x: 1, y: 4, photoTop: 14 },
+    { name: 'Community', icon: 'users' as const, image: require('../assets/images/welcome-community-v2.jpg'), glow: '#F20789', rotate: '-8deg', x: -1, y: 0 },
+    { name: 'Employment', icon: 'briefcase' as const, image: require('../assets/images/welcome-employment-v2.jpg'), glow: '#04ADBF', rotate: '10deg', x: 1, y: -5 },
   ];
 
   return (
@@ -1300,12 +1301,16 @@ function TalentWelcome({
       <StatusBar barStyle="light-content" backgroundColor={welcome.background} />
       <View pointerEvents="none" style={styles.neonWelcomeBackdrop}>
         <LinearGradient colors={['#38133E', '#171B3D', '#081C36']} start={{ x: 0, y: 0.4 }} end={{ x: 1, y: 0.55 }} style={StyleSheet.absoluteFill} />
-        <View style={[styles.neonWelcomeGlow, styles.neonWelcomeGlowLeft]} />
-        <View style={[styles.neonWelcomeGlow, styles.neonWelcomeGlowRight]} />
+        <LinearGradient colors={['rgba(242,7,137,0.38)', 'rgba(242,7,137,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={[styles.neonWelcomeGlow, styles.neonWelcomeGlowLeft]} />
+        <LinearGradient colors={['rgba(26,152,229,0.34)', 'rgba(26,152,229,0)']} start={{ x: 1, y: 0.5 }} end={{ x: 0, y: 0.5 }} style={[styles.neonWelcomeGlow, styles.neonWelcomeGlowRight]} />
         <View style={styles.welcomeOrbitOne} />
         <View style={styles.welcomeOrbitTwo} />
-        <LinearGradient colors={['transparent', '#0C1940', '#32204E']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={styles.welcomeHorizon} />
-        <View style={styles.welcomeHorizonLine} />
+        <LinearGradient
+          colors={['rgba(8,23,51,0.28)', 'rgba(12,25,64,0.86)', 'rgba(50,32,78,0.92)']}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={[styles.welcomeHorizon, { width: screenWidth * 3, height: screenWidth * 2.86, left: -screenWidth, bottom: -screenWidth * 2.68 }]}
+        />
       </View>
       <ScrollView
         bounces={false}
@@ -1313,19 +1318,19 @@ function TalentWelcome({
         style={styles.welcomeScroll}
         contentContainerStyle={[
           styles.neonWelcomeContent,
-          { minHeight: Math.max(0, screenHeight - topInset), paddingTop: topInset + (compact ? 4 : 12), paddingBottom: bottomInset + 12 },
+          { minHeight: Math.max(0, screenHeight - topInset), paddingTop: topInset + (compact ? 0 : 7), paddingBottom: bottomInset + 58 },
         ]}
       >
         <View style={styles.neonWelcomeBrand} accessibilityLabel="Experiences dot fun">
           <View style={styles.neonWelcomeMark}>
-            <Feather name="star" size={27} color="#FFFFFF" />
+            <Feather name="star" size={24} color="#FFFFFF" />
           </View>
           <Text style={styles.neonWelcomeWordmark}>
             experiences<Text style={{ color: '#F20789' }}>.fun</Text>
           </Text>
         </View>
 
-        <View style={[styles.neonExperienceCollage, { height: collageHeight }]}>
+        <View style={[styles.neonExperienceCollage, { width: collageWidth, height: collageHeight }]}>
           {experiences.map((experience, index) => (
             <View
               key={experience.name}
@@ -1345,12 +1350,17 @@ function TalentWelcome({
                 },
               ]}
             >
-              <ImageBackground source={experience.image} resizeMode="cover" style={styles.neonExperiencePhoto}>
-                <LinearGradient colors={['rgba(7,10,28,0.82)', 'rgba(7,10,28,0.55)', 'transparent']} locations={[0, 0.78, 1]} style={styles.neonExperienceLabel}>
+              <View style={styles.neonExperiencePhoto}>
+                <Image
+                  source={experience.image}
+                  resizeMode="cover"
+                  style={[styles.neonExperienceImage, { width: cardWidth, height: cardHeight + 20, top: experience.photoTop ?? -10 }]}
+                />
+                <LinearGradient colors={['rgba(156,139,255,0.66)', 'rgba(77,63,135,0.72)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.neonExperienceLabel}>
                   <Feather name={experience.icon} size={15} color="#FFFFFF" />
                   <Text numberOfLines={1} style={styles.neonExperienceTitle}>{experience.name}</Text>
                 </LinearGradient>
-              </ImageBackground>
+              </View>
             </View>
           ))}
         </View>
@@ -1392,6 +1402,7 @@ function TalentWelcome({
           </Pressable>
         </View>
       </ScrollView>
+      {isWeb && <View pointerEvents="none" style={styles.neonWelcomeHomeIndicator} />}
     </View>
   );
 }
@@ -11431,33 +11442,34 @@ const styles = StyleSheet.create({
   welcomeEmailLinkText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   welcomeHomeIndicator: { width: 104, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4, opacity: 0.92 },
   neonWelcomeBackdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, overflow: 'hidden' },
-  neonWelcomeGlow: { position: 'absolute', width: 230, height: 380, borderRadius: 200, opacity: 0.22 },
-  neonWelcomeGlowLeft: { left: -175, top: 140, backgroundColor: '#F20789' },
-  neonWelcomeGlowRight: { right: -170, top: 250, backgroundColor: '#1A98E5' },
+  neonWelcomeGlow: { position: 'absolute', width: 300, height: 420, borderRadius: 210 },
+  neonWelcomeGlowLeft: { left: -208, top: 170 },
+  neonWelcomeGlowRight: { width: 340, right: -235, top: 240 },
   welcomeOrbitOne: { position: 'absolute', width: 420, height: 520, borderRadius: 230, borderWidth: 1, borderColor: 'rgba(173,126,255,0.28)', top: -110, left: -158, transform: [{ rotate: '32deg' }] },
   welcomeOrbitTwo: { position: 'absolute', width: 360, height: 460, borderRadius: 220, borderWidth: 1, borderColor: 'rgba(88,173,255,0.20)', top: 20, right: -240, transform: [{ rotate: '-24deg' }] },
-  welcomeHorizon: { position: 'absolute', bottom: -42, left: -80, right: -80, height: 180, borderTopLeftRadius: 230, borderTopRightRadius: 230, opacity: 0.78 },
-  welcomeHorizonLine: { position: 'absolute', height: 3, bottom: 22, left: -30, right: -30, borderRadius: 3, backgroundColor: 'rgba(89,184,255,0.6)', shadowColor: '#24BFFF', shadowOpacity: 0.95, shadowRadius: 16, elevation: 6, transform: [{ rotate: '-2deg' }] },
+  welcomeHorizon: { position: 'absolute', borderRadius: 999, borderWidth: 2, borderColor: 'rgba(76,190,255,0.62)', shadowColor: '#24BFFF', shadowOpacity: 0.9, shadowRadius: 22, elevation: 8, opacity: 0.9 },
   neonWelcomeContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'flex-start', paddingHorizontal: 25 },
   neonWelcomeBrand: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 11, marginBottom: 5 },
-  neonWelcomeMark: { width: 45, height: 45, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#D819A2', borderWidth: 1, borderColor: 'rgba(255,255,255,0.38)', shadowColor: '#F20789', shadowOpacity: 0.64, shadowRadius: 15, shadowOffset: { width: 0, height: 0 }, elevation: 7 },
-  neonWelcomeWordmark: { color: '#FFFFFF', fontSize: 21, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
-  neonExperienceCollage: { width: '100%', maxWidth: 390, position: 'relative', marginTop: 20, marginBottom: 13 },
-  neonExperienceCard: { position: 'absolute', overflow: 'hidden', borderRadius: 25, borderWidth: 1.5, backgroundColor: '#181B3A', shadowOpacity: 0.83, shadowRadius: 15, shadowOffset: { width: 0, height: 0 }, elevation: 9 },
-  neonExperiencePhoto: { flex: 1, justifyContent: 'flex-start' },
-  neonExperienceLabel: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 11, paddingVertical: 8 },
+  neonWelcomeMark: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#D819A2', borderWidth: 1, borderColor: 'rgba(255,255,255,0.38)', shadowColor: '#F20789', shadowOpacity: 0.64, shadowRadius: 15, shadowOffset: { width: 0, height: 0 }, elevation: 7 },
+  neonWelcomeWordmark: { color: '#FFFFFF', fontSize: 22, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
+  neonExperienceCollage: { position: 'relative', alignSelf: 'center', marginTop: 15, marginBottom: 5 },
+  neonExperienceCard: { position: 'absolute', overflow: 'hidden', borderRadius: 25, borderWidth: 1.5, backgroundColor: '#181B3A', shadowOpacity: 0.92, shadowRadius: 18, shadowOffset: { width: 0, height: 0 }, elevation: 9 },
+  neonExperiencePhoto: { flex: 1, position: 'relative' },
+  neonExperienceImage: { position: 'absolute', left: 0 },
+  neonExperienceLabel: { position: 'absolute', top: 9, minHeight: 32, flexDirection: 'row', alignSelf: 'center', alignItems: 'center', gap: 7, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
   neonExperienceTitle: { flexShrink: 1, color: '#FFFFFF', fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   neonWelcomeIntro: { width: '100%', alignItems: 'center', paddingHorizontal: 0, marginTop: 0 },
-  neonWelcomeTitle: { color: '#FFFFFF', fontSize: 38, lineHeight: 42, fontFamily: 'Inter_700Bold', letterSpacing: -1.25, textAlign: 'center' },
-  neonWelcomeTitleCompact: { fontSize: 34, lineHeight: 37 },
-  neonWelcomeDescription: { maxWidth: 360, color: 'rgba(242,239,255,0.84)', fontSize: 16, lineHeight: 23, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 14, paddingHorizontal: 5 },
-  neonWelcomeActions: { width: '100%', maxWidth: 420, gap: 12, marginTop: 'auto', paddingTop: 23 },
-  neonStartButton: { width: '100%', height: 58, borderRadius: 30, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,220,249,0.72)', shadowColor: '#F20789', shadowOpacity: 0.64, shadowRadius: 17, shadowOffset: { width: 0, height: 0 }, elevation: 8 },
+  neonWelcomeTitle: { color: '#FFFFFF', fontSize: 38, lineHeight: 40, fontFamily: 'Inter_700Bold', letterSpacing: -1.25, textAlign: 'center' },
+  neonWelcomeTitleCompact: { fontSize: 36, lineHeight: 38 },
+  neonWelcomeDescription: { maxWidth: 300, color: 'rgba(242,239,255,0.84)', fontSize: 16, lineHeight: 23, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 6 },
+  neonWelcomeActions: { width: '100%', maxWidth: 420, gap: 9, marginTop: 'auto', paddingTop: 23 },
+  neonStartButton: { width: '100%', height: 54, borderRadius: 30, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,220,249,0.72)', shadowColor: '#F20789', shadowOpacity: 0.64, shadowRadius: 17, shadowOffset: { width: 0, height: 0 }, elevation: 8 },
   neonStartGradient: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   neonStartLabel: { color: '#FFFFFF', fontSize: 17, fontFamily: 'Inter_700Bold' },
-  neonLoginButton: { width: '100%', height: 56, borderRadius: 30, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(189,197,255,0.62)' },
+  neonLoginButton: { width: '100%', height: 54, borderRadius: 30, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(189,197,255,0.62)' },
   neonLoginGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   neonLoginLabel: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter_500Medium' },
+  neonWelcomeHomeIndicator: { position: 'absolute', width: 120, height: 4, bottom: 12, alignSelf: 'center', borderRadius: 4, backgroundColor: '#FFFFFF' },
   emailLoginLink: { alignItems: 'center', paddingVertical: 2 },
   emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   emailAuthScreen: { flex: 1 },
