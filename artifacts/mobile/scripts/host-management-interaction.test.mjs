@@ -1829,6 +1829,8 @@ test("organisations can start setup for another Telegram community", async (t) =
   const phraseRules = [];
   const linkRules = [];
   const submittedRuleRequests = [];
+  const submittedCaptchaRequests = [];
+  const captchaSettings = { enabled: false, buttonText: "Verify I'm human" };
   let nextRuleId = 7001;
 
   client.on("Fetch.requestPaused", ({ params }) => {
@@ -1895,6 +1897,15 @@ test("organisations can start setup for another Telegram community", async (t) =
           response = { phraseRules, linkRules };
         } else if (url.pathname === `/api/community/manage/${community.chatId}/welcome` && method === "GET") {
           response = { message: "", buttons: [] };
+        } else if (url.pathname === `/api/community/manage/${community.chatId}/commands` && method === "GET") {
+          response = { commands: [] };
+        } else if (url.pathname === `/api/community/manage/${community.chatId}/captcha` && method === "GET") {
+          response = { ...captchaSettings };
+        } else if (url.pathname === `/api/community/manage/${community.chatId}/captcha` && method === "PATCH") {
+          const body = JSON.parse(params.request.postData ?? "{}");
+          submittedCaptchaRequests.push(body);
+          Object.assign(captchaSettings, body);
+          response = { ...captchaSettings };
         } else if (url.pathname === `/api/community/manage/${community.chatId}/rules/phrases` && method === "POST") {
           const body = JSON.parse(params.request.postData ?? "{}");
           submittedRuleRequests.push({ method, path: url.pathname, body });
@@ -1981,9 +1992,31 @@ test("organisations can start setup for another Telegram community", async (t) =
   );
   await waitForValue(
     client,
+    `Boolean(document.querySelector('[data-testid="telegram-community-captcha-toggle"]')) && Boolean(document.querySelector('[data-testid="telegram-community-captcha-button-text"]'))`,
+    Boolean,
+    "the community join-verification controls",
+  );
+  await waitForValue(
+    client,
     `document.body.innerText.includes('Unlisted links won’t be removed until you add one.')`,
     Boolean,
     "the safe empty-whitelist state",
+  );
+
+  await tapTestId(client, "telegram-community-captcha-toggle");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('Join verification settings saved.')`,
+    Boolean,
+    "the enabled join-verification setting",
+  );
+  await replaceInput(client, "telegram-community-captcha-button-text", "Click Here Mr NPC");
+  await tapTestId(client, "telegram-community-captcha-save");
+  await waitForValue(
+    client,
+    `document.body.innerText.includes('Join verification settings saved.') && document.querySelector('[data-testid="telegram-community-captcha-button-text"]')?.value === 'Click Here Mr NPC'`,
+    Boolean,
+    "the saved custom verification-button label",
   );
 
   await replaceInput(client, "telegram-community-phrase-input", "unlisted phrase");
@@ -2031,6 +2064,14 @@ test("organisations can start setup for another Telegram community", async (t) =
   assert.ok(
     submittedRuleRequests.some((request) => request.method === "DELETE" && request.path.endsWith("/links/7002")),
     "The dashboard should send a link-delete request.",
+  );
+  assert.deepEqual(
+    submittedCaptchaRequests,
+    [
+      { enabled: true, buttonText: "Verify I'm human" },
+      { enabled: true, buttonText: "Click Here Mr NPC" },
+    ],
+    "The dashboard should persist the join-verification toggle and custom button label.",
   );
   await tapTestId(client, "telegram-community-dashboard-back");
   await waitForValue(

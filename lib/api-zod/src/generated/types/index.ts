@@ -327,6 +327,8 @@ export * from './socialInviteKind';
 export * from './socialLinks';
 export * from './syncCharityContributionLedger200';
 export * from './telegramAuthInput';
+export * from './telegramCommunityCaptchaSettings';
+export * from './telegramCommunityCaptchaSettingsInput';
 export * from './telegramCommunityCustomCommand';
 export * from './telegramCommunityCustomCommandInput';
 export * from './telegramCommunityCustomCommandsResponse';

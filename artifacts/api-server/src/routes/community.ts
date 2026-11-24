@@ -35,6 +35,11 @@ import {
   UpdateTelegramCommunityRiddleSettingsBody,
   UpdateTelegramCommunityRiddleSettingsParams,
   UpdateTelegramCommunityRiddleSettingsResponse,
+  GetTelegramCommunityCaptchaSettingsParams,
+  GetTelegramCommunityCaptchaSettingsResponse,
+  UpdateTelegramCommunityCaptchaSettingsBody,
+  UpdateTelegramCommunityCaptchaSettingsParams,
+  UpdateTelegramCommunityCaptchaSettingsResponse,
   UpdateTelegramCommunityWelcomeSettingsBody,
   UpdateTelegramCommunityWelcomeSettingsParams,
   UpdateTelegramCommunityWelcomeSettingsResponse,
@@ -70,6 +75,7 @@ import {
   addTelegramCommunityCustomCommand,
   addTelegramCommunityLinkRule,
   getTelegramCommunityManagementContext,
+  getTelegramCommunityCaptchaSettings,
   listTelegramCommunityCustomCommands,
   listTelegramCommunityManagementAudit,
   getTelegramCommunityWelcomeSettings,
@@ -84,6 +90,8 @@ import {
   removeTelegramCommunityCustomCommand,
   removeTelegramCommunityLinkRuleById,
   setTelegramCommunityRiddleSettings,
+  setTelegramCommunityCaptchaSettings,
+  TelegramCommunityCaptchaMigrationRequiredError,
   updateTelegramCommunityCustomCommand,
 } from "../lib/community-moderation";
 import {
@@ -249,6 +257,75 @@ router.patch("/community/manage/:chatId/riddles", async (req, res) => {
     enabled: updated.riddlesEnabled,
     intervalMinutes: updated.riddleIntervalMinutes,
   }));
+});
+
+router.get("/community/manage/:chatId/captcha", async (req, res) => {
+  const params = GetTelegramCommunityCaptchaSettingsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: "That Telegram group identifier is invalid." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+
+  try {
+    const settings = await getTelegramCommunityCaptchaSettings(params.data.chatId, telegramUserId);
+    if (!settings) {
+      res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+      return;
+    }
+    res.json(GetTelegramCommunityCaptchaSettingsResponse.parse(settings));
+  } catch (error) {
+    if (error instanceof TelegramCommunityCaptchaMigrationRequiredError) {
+      res.status(503).json({
+        message: "Join verification is unavailable until its Telegram community database migration is applied.",
+      });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.patch("/community/manage/:chatId/captcha", async (req, res) => {
+  const params = UpdateTelegramCommunityCaptchaSettingsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: "That Telegram group identifier is invalid." });
+    return;
+  }
+  const body = UpdateTelegramCommunityCaptchaSettingsBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ message: "Enter a button label between 1 and 64 characters." });
+    return;
+  }
+  const buttonText = body.data.buttonText.trim();
+  if (!buttonText || [...buttonText].length > 64) {
+    res.status(400).json({ message: "Enter a button label between 1 and 64 characters." });
+    return;
+  }
+  const telegramUserId = getOrganisationTelegramUserId(req, res);
+  if (telegramUserId === null) return;
+
+  try {
+    const updated = await setTelegramCommunityCaptchaSettings({
+      chatId: params.data.chatId,
+      telegramUserId,
+      enabled: body.data.enabled,
+      buttonText,
+    });
+    if (!updated) {
+      res.status(404).json({ message: "This Telegram group is not linked to your organisation." });
+      return;
+    }
+    res.json(UpdateTelegramCommunityCaptchaSettingsResponse.parse(updated));
+  } catch (error) {
+    if (error instanceof TelegramCommunityCaptchaMigrationRequiredError) {
+      res.status(503).json({
+        message: "Join verification is unavailable until its Telegram community database migration is applied.",
+      });
+      return;
+    }
+    throw error;
+  }
 });
 
 router.get("/community/manage/:chatId/welcome", async (req, res) => {

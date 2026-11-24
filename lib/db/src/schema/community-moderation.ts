@@ -31,6 +31,10 @@ export const telegramCommunitiesTable = pgTable(
       .notNull()
       .references(() => usersTable.id, { onDelete: "restrict" }),
     spamProtectionEnabled: boolean("spam_protection_enabled").notNull().default(false),
+    joinCaptchaEnabled: boolean("join_captcha_enabled").notNull().default(false),
+    joinCaptchaButtonText: text("join_captcha_button_text")
+      .notNull()
+      .default("Verify I'm human"),
     welcomeMessage: text("welcome_message").notNull().default(""),
     welcomeButtons: jsonb("welcome_buttons")
       .$type<TelegramCommunityWelcomeButton[]>()
@@ -76,6 +80,10 @@ export const telegramCommunitiesTable = pgTable(
     riddleIntervalCheck: check(
       "telegram_communities_riddle_interval_check",
       sql`${table.riddleIntervalMinutes} IN (30, 60, 180, 360, 720, 1440)`,
+    ),
+    joinCaptchaButtonTextCheck: check(
+      "telegram_communities_join_captcha_button_text_check",
+      sql`char_length(btrim(${table.joinCaptchaButtonText})) BETWEEN 1 AND 64`,
     ),
     activeRiddleCheck: check(
       "telegram_communities_active_riddle_check",

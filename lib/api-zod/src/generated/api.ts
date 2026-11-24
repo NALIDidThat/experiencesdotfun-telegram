@@ -4166,6 +4166,55 @@ export const UpdateTelegramCommunityRiddleSettingsResponse = zod.object({
 
 
 /**
+ * @summary Get join verification settings for an organisation-owned Telegram group
+ */
+export const getTelegramCommunityCaptchaSettingsPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const GetTelegramCommunityCaptchaSettingsParams = zod.object({
+  "chatId": zod.coerce.string().regex(getTelegramCommunityCaptchaSettingsPathChatIdRegExp)
+})
+
+export const getTelegramCommunityCaptchaSettingsResponseButtonTextMax = 64;
+
+
+
+export const GetTelegramCommunityCaptchaSettingsResponse = zod.object({
+  "enabled": zod.boolean(),
+  "buttonText": zod.string().min(1).max(getTelegramCommunityCaptchaSettingsResponseButtonTextMax)
+})
+
+
+/**
+ * @summary Update join verification settings for an organisation-owned Telegram group
+ */
+export const updateTelegramCommunityCaptchaSettingsPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');
+
+
+export const UpdateTelegramCommunityCaptchaSettingsParams = zod.object({
+  "chatId": zod.coerce.string().regex(updateTelegramCommunityCaptchaSettingsPathChatIdRegExp)
+})
+
+export const updateTelegramCommunityCaptchaSettingsBodyButtonTextMax = 64;
+
+
+
+export const UpdateTelegramCommunityCaptchaSettingsBody = zod.object({
+  "enabled": zod.boolean(),
+  "buttonText": zod.string().min(1).max(updateTelegramCommunityCaptchaSettingsBodyButtonTextMax)
+})
+
+export const updateTelegramCommunityCaptchaSettingsResponseButtonTextMax = 64;
+
+
+
+export const UpdateTelegramCommunityCaptchaSettingsResponse = zod.object({
+  "enabled": zod.boolean(),
+  "buttonText": zod.string().min(1).max(updateTelegramCommunityCaptchaSettingsResponseButtonTextMax)
+})
+
+
+/**
  * @summary Get the join welcome message and ordered buttons for a linked Telegram group
  */
 export const getTelegramCommunityWelcomeSettingsPathChatIdRegExp = new RegExp('^-?[0-9]{1,20}$');

@@ -2567,6 +2567,60 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /community/manage/{chatId}/captcha:
+    get:
+      operationId: getTelegramCommunityCaptchaSettings
+      tags: [community]
+      summary: Get join verification settings for an organisation-owned Telegram group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      responses:
+        "200":
+          description: Join verification toggle and button label
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityCaptchaSettings"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    patch:
+      operationId: updateTelegramCommunityCaptchaSettings
+      tags: [community]
+      summary: Update join verification settings for an organisation-owned Telegram group
+      security: [{ telegramInitData: [] }]
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^-?[0-9]{1,20}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramCommunityCaptchaSettingsInput"
+      responses:
+        "200":
+          description: Updated join verification settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramCommunityCaptchaSettings"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /community/manage/{chatId}/welcome:
     get:
       operationId: getTelegramCommunityWelcomeSettings
@@ -6305,6 +6359,19 @@ components:
         enabled: { type: boolean }
         intervalMinutes: { type: integer, enum: [30, 60, 180, 360, 720, 1440] }
       required: [enabled, intervalMinutes]
+    TelegramCommunityCaptchaSettingsInput:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        buttonText: { type: string, minLength: 1, maxLength: 64 }
+      required: [enabled, buttonText]
+      additionalProperties: false
+    TelegramCommunityCaptchaSettings:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        buttonText: { type: string, minLength: 1, maxLength: 64 }
+      required: [enabled, buttonText]
     TelegramCommunityWelcomeSettingsInput:
       type: object
       properties:

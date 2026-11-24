@@ -44,6 +44,7 @@ import {
   connectTelegramCommunity,
   disconnectTelegramCommunity,
   getTelegramCommunity,
+  getTelegramCommunityCaptchaSettingsForGroup,
   getTelegramCommunityManagementContext,
   getTelegramCommunityCustomCommandResponse,
   getTelegramCommunityWelcomeSettingsForGroup,
@@ -63,6 +64,7 @@ import {
   setTelegramCommunitySpamProtection,
   setTelegramCommunityRiddleSettings,
   TelegramCommunityWelcomeMigrationRequiredError,
+  TelegramCommunityCaptchaMigrationRequiredError,
 } from "./community-moderation";
 import {
   tryAcquireTelegramPollingLease,
@@ -119,6 +121,7 @@ import {
   type TelegramButton,
   type TelegramExperienceNotice,
 } from "./telegram-utils";
+import { isMatchingTelegramCommunityCaptchaCallback } from "./telegram-community-captcha";
 export { escapeTelegramHtml } from "./telegram-utils";
 
 type TelegramUpdate = {
@@ -221,6 +224,7 @@ let telegramBotRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let consecutivePollingFailures = 0;
 let pollingConflictDetected = false;
 let telegramWelcomeMigrationWarningLogged = false;
+let telegramCaptchaMigrationWarningLogged = false;
 let telegramCustomCommandMigrationWarningLogged = false;
 let lastPollingConflictLogAt = 0;
 let lastPollingLeaseBusyLogAt = 0;
@@ -595,8 +599,12 @@ export async function getTelegramBotUsername(): Promise<string | null> {
   return botUsername;
 }
 
-async function answerCallback(id: string) {
-  await telegramCall("answerCallbackQuery", { callback_query_id: id });
+async function answerCallback(id: string, text?: string) {
+  await telegramCall("answerCallbackQuery", {
+    callback_query_id: id,
+    text,
+    show_alert: Boolean(text),
+  });
 }
 
 async function registerTelegramCommands() {
@@ -2877,15 +2885,53 @@ async function trackLinkedGroupMemberActivity(
 
     if (humanJoinedMembers.length > 0) {
       try {
-        const welcome = await getTelegramCommunityWelcomeSettingsForGroup(chatId);
-        if (welcome?.message.trim()) {
-          const keyboard = buildTelegramWelcomeKeyboard(welcome.buttons);
-          await telegramCall("sendMessage", {
-            chat_id: message.chat.id,
-            text: welcome.message,
-            disable_web_page_preview: true,
-            reply_markup: keyboard ? { inline_keyboard: keyboard } : undefined,
-          });
+        let captchaSettings: Awaited<ReturnType<typeof getTelegramCommunityCaptchaSettingsForGroup>> = null;
+        try {
+          captchaSettings = await getTelegramCommunityCaptchaSettingsForGroup(chatId);
+        } catch (error) {
+          if (error instanceof TelegramCommunityCaptchaMigrationRequiredError) {
+            if (!telegramCaptchaMigrationWarningLogged) {
+              telegramCaptchaMigrationWarningLogged = true;
+              logger.warn(
+                { chatId },
+                "Telegram join verification is disabled until its database migration is applied",
+              );
+            }
+          } else {
+            throw error;
+          }
+        }
+        if (captchaSettings?.enabled) {
+          for (const joinedMember of humanJoinedMembers) {
+            const callbackData = `community:captcha:${message.chat.id}:${joinedMember.id}`;
+            const sent = await telegramCall("sendMessage", {
+              chat_id: message.chat.id,
+              text: "Please confirm you’re here by tapping the button below.",
+              reply_markup: {
+                inline_keyboard: [[{
+                  text: captchaSettings.buttonText,
+                  callback_data: callbackData,
+                }]],
+              },
+            });
+            if (!sent) {
+              logger.warn(
+                { chatId, telegramUserId: joinedMember.id },
+                "Telegram join-verification prompt could not be sent",
+              );
+            }
+          }
+        } else {
+          const welcome = await getTelegramCommunityWelcomeSettingsForGroup(chatId);
+          if (welcome?.message.trim()) {
+            const keyboard = buildTelegramWelcomeKeyboard(welcome.buttons);
+            await telegramCall("sendMessage", {
+              chat_id: message.chat.id,
+              text: welcome.message,
+              disable_web_page_preview: true,
+              reply_markup: keyboard ? { inline_keyboard: keyboard } : undefined,
+            });
+          }
         }
       } catch (error) {
         if (error instanceof TelegramCommunityWelcomeMigrationRequiredError) {
@@ -3119,11 +3165,55 @@ async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
 }
 
 async function handleCallback(update: NonNullable<TelegramUpdate["callback_query"]>) {
-  await answerCallback(update.id);
   const chatType = update.message?.chat.type;
-  if (chatType && chatType !== "private" && !isGroupChat(chatType)) return;
   const chatId = update.message?.chat.id ?? update.from.id;
   const callback = update.data ?? "";
+  const captchaPrefix = "community:captcha:";
+  if (callback.startsWith(captchaPrefix)) {
+    if (
+      !update.message ||
+      !isGroupChat(chatType) ||
+      !isMatchingTelegramCommunityCaptchaCallback({
+        callbackData: callback,
+        chatId: update.message.chat.id,
+        userId: update.from.id,
+      })
+    ) {
+      await answerCallback(update.id, "This verification button is for another group member.");
+      return;
+    }
+
+    const callbackChatId = update.message.chat.id;
+    await answerCallback(update.id, "Thanks — you’re verified.");
+    await telegramCall("editMessageText", {
+      chat_id: callbackChatId,
+      message_id: update.message.message_id,
+      text: "Verification complete. Welcome to the group.",
+      reply_markup: { inline_keyboard: [] },
+    });
+    try {
+      const welcome = await getTelegramCommunityWelcomeSettingsForGroup(String(callbackChatId));
+      if (welcome?.message.trim()) {
+        const keyboard = buildTelegramWelcomeKeyboard(welcome.buttons);
+        await telegramCall("sendMessage", {
+          chat_id: callbackChatId,
+          text: welcome.message,
+          disable_web_page_preview: true,
+          reply_markup: keyboard ? { inline_keyboard: keyboard } : undefined,
+        });
+      }
+    } catch (error) {
+      if (!(error instanceof TelegramCommunityWelcomeMigrationRequiredError)) {
+        logger.warn(
+          { err: error, chatId: callbackChatId },
+          "Telegram join welcome message could not be sent after verification",
+        );
+      }
+    }
+    return;
+  }
+  await answerCallback(update.id);
+  if (chatType && chatType !== "private" && !isGroupChat(chatType)) return;
   const privateCommunityPrefix = "community:private:";
   if (callback.startsWith(privateCommunityPrefix)) {
     if (

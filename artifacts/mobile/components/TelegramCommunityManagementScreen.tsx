@@ -3,6 +3,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -18,6 +19,7 @@ import {
   getGetTelegramCommunityManagementQueryKey,
   getGetTelegramCommunityModerationEventsQueryKey,
   getGetTelegramCommunityRulesQueryKey,
+  getGetTelegramCommunityCaptchaSettingsQueryKey,
   getGetTelegramCommunityWelcomeSettingsQueryKey,
   getGetTelegramCommunityCustomCommandsQueryKey,
   useAddTelegramCommunityLink,
@@ -32,10 +34,12 @@ import {
   useGetTelegramCommunityManagementAudit,
   useGetTelegramCommunityModerationEvents,
   useGetTelegramCommunityRules,
+  useGetTelegramCommunityCaptchaSettings,
   useGetTelegramCommunityWelcomeSettings,
   useGetTelegramCommunityCustomCommands,
   usePreviewTelegramCommunityRules,
   useUpdateTelegramCommunityRiddleSettings,
+  useUpdateTelegramCommunityCaptchaSettings,
   useUpdateTelegramCommunityWelcomeSettings,
   useAddTelegramCommunityCustomCommand,
   useUpdateTelegramCommunityCustomCommand,
@@ -257,6 +261,164 @@ function CommunityBudget({ community }: { community: TelegramManagedCommunity })
           ]}
         />
       </View>
+    </View>
+  );
+}
+
+function TelegramCommunityCaptchaSettings({ chatId }: { chatId: string }) {
+  const colors = useColors();
+  const queryClient = useQueryClient();
+  const settings = useGetTelegramCommunityCaptchaSettings(chatId, {
+    query: {
+      queryKey: getGetTelegramCommunityCaptchaSettingsQueryKey(chatId),
+      enabled: Boolean(chatId),
+    },
+  });
+  const updateSettings = useUpdateTelegramCommunityCaptchaSettings();
+  const [buttonTextDraft, setButtonTextDraft] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<RuleFeedback | null>(null);
+  const buttonText = buttonTextDraft ?? settings.data?.buttonText ?? '';
+
+  async function saveSettings(enabled: boolean, value = buttonText) {
+    const cleanButtonText = value.trim();
+    if (!chatId || !settings.data || updateSettings.isPending) return;
+    if (!cleanButtonText || [...cleanButtonText].length > 64) {
+      setFeedback({ message: 'Use a button label between 1 and 64 characters.', tone: 'error' });
+      return;
+    }
+    setFeedback(null);
+    try {
+      const updated = await updateSettings.mutateAsync({
+        chatId,
+        data: { enabled, buttonText: cleanButtonText },
+      });
+      setButtonTextDraft(updated.buttonText);
+      setFeedback({ message: 'Join verification settings saved.', tone: 'success' });
+      await queryClient.invalidateQueries({
+        queryKey: getGetTelegramCommunityCaptchaSettingsQueryKey(chatId),
+      });
+    } catch (error) {
+      setFeedback({
+        message: errorMessage(error, 'Could not save join verification settings. Try again.'),
+        tone: 'error',
+      });
+    }
+  }
+
+  return (
+    <View
+      testID="telegram-community-captcha-settings"
+      style={[
+        styles.dashboardCard,
+        { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+      ]}
+    >
+      <View style={styles.dashboardSectionHeader}>
+        <View style={[styles.setupIcon, { backgroundColor: colors.primary + '14' }]}>
+          <Feather name="shield" size={18} color={colors.primary} />
+        </View>
+        <View style={styles.sectionTitleCopy}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Join verification</Text>
+          <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>
+            New members tap a button to confirm they’re here.
+          </Text>
+        </View>
+      </View>
+
+      {settings.isLoading ? (
+        <View style={styles.rulesLoading}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[styles.sectionDescription, { color: colors.mutedForeground }]}>Loading settings…</Text>
+        </View>
+      ) : settings.isError || !settings.data ? (
+        <View style={styles.rulesError}>
+          <Text accessibilityRole="alert" style={[styles.sectionDescription, { color: colors.destructive }]}>
+            {errorMessage(settings.error, 'Join verification settings could not be loaded.')}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            testID="telegram-community-captcha-retry"
+            onPress={() => { void settings.refetch(); }}
+            style={[styles.ruleRetryButton, { borderColor: colors.border, borderRadius: colors.radius - 5 }]}
+          >
+            <Feather name="refresh-cw" size={14} color={colors.primary} />
+            <Text style={[styles.removeRuleText, { color: colors.primary }]}>Try again</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <>
+          <View style={[styles.captchaToggleRow, { borderColor: colors.border }]}>
+            <Text style={[styles.captchaToggleLabel, { color: colors.foreground }]}>Require verification</Text>
+            <Switch
+              accessibilityLabel="Require new members to verify"
+              testID="telegram-community-captcha-toggle"
+              disabled={updateSettings.isPending}
+              value={settings.data.enabled}
+              onValueChange={(enabled) => { void saveSettings(enabled); }}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={colors.card}
+            />
+          </View>
+          <Text style={[styles.customCommandFieldLabel, { color: colors.foreground }]}>Verification button text</Text>
+          <TextInput
+            accessibilityLabel="Verification button text"
+            testID="telegram-community-captcha-button-text"
+            value={buttonText}
+            onChangeText={(value) => {
+              setButtonTextDraft(value);
+              setFeedback(null);
+            }}
+            onSubmitEditing={() => { void saveSettings(settings.data.enabled); }}
+            placeholder="e.g. Click Here Mr NPC"
+            placeholderTextColor={colors.mutedForeground}
+            maxLength={64}
+            returnKeyType="done"
+            style={[
+              styles.captchaButtonInput,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+                borderRadius: colors.radius - 5,
+                color: colors.foreground,
+              },
+            ]}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Save join verification settings"
+            testID="telegram-community-captcha-save"
+            disabled={updateSettings.isPending}
+            onPress={() => { void saveSettings(settings.data.enabled); }}
+            style={({ pressed }) => [
+              styles.captchaSaveButton,
+              {
+                backgroundColor: colors.primary,
+                borderRadius: colors.radius - 5,
+                opacity: pressed || updateSettings.isPending ? 0.7 : 1,
+              },
+            ]}
+          >
+            {updateSettings.isPending
+              ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+              : <Feather name="save" size={15} color={colors.primaryForeground} />}
+            <Text style={[styles.riddleToggleText, { color: colors.primaryForeground }]}>
+              {updateSettings.isPending ? 'Saving…' : 'Save'}
+            </Text>
+          </Pressable>
+          {feedback ? (
+            <Text
+              accessibilityRole={feedback.tone === 'error' ? 'alert' : 'text'}
+              testID="telegram-community-captcha-feedback"
+              style={[
+                styles.ruleFeedback,
+                { color: feedback.tone === 'error' ? colors.destructive : colors.success },
+              ]}
+            >
+              {feedback.message}
+            </Text>
+          ) : null}
+        </>
+      )}
     </View>
   );
 }
@@ -1702,6 +1864,7 @@ export function TelegramCommunityDashboardScreen({
             ) : null}
           </View>
 
+          <TelegramCommunityCaptchaSettings chatId={community.chatId} />
           <TelegramCommunityWelcomeEditor chatId={community.chatId} />
           <TelegramCommunityCustomCommandsEditor chatId={community.chatId} />
 
@@ -2687,6 +2850,10 @@ const styles = StyleSheet.create({
   riddleIntervalText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   riddleToggleButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
   riddleToggleText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  captchaToggleRow: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: 10, paddingBottom: 8 },
+  captchaToggleLabel: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+  captchaButtonInput: { minHeight: 44, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 9, fontFamily: 'Inter_400Regular', fontSize: 13 },
+  captchaSaveButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 10, paddingHorizontal: 12 },
   sectionTitleCopy: { flex: 1, minWidth: 0, gap: 4 },
   rulesLoading: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 8 },
   rulesError: { gap: 9, paddingVertical: 3 },

@@ -226,6 +226,98 @@ export class TelegramCommunityWelcomeMigrationRequiredError extends Error {
   }
 }
 
+export class TelegramCommunityCaptchaMigrationRequiredError extends Error {
+  constructor() {
+    super("Telegram community join-verification migration is required.");
+    this.name = "TelegramCommunityCaptchaMigrationRequiredError";
+  }
+}
+
+function isMissingJoinCaptchaColumn(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "42703",
+  );
+}
+
+async function readTelegramCommunityCaptchaSettings(communityId: number) {
+  try {
+    const [settings] = await db
+      .select({
+        enabled: telegramCommunitiesTable.joinCaptchaEnabled,
+        buttonText: telegramCommunitiesTable.joinCaptchaButtonText,
+      })
+      .from(telegramCommunitiesTable)
+      .where(eq(telegramCommunitiesTable.id, communityId))
+      .limit(1);
+    return settings ?? null;
+  } catch (error) {
+    if (isMissingJoinCaptchaColumn(error)) {
+      throw new TelegramCommunityCaptchaMigrationRequiredError();
+    }
+    throw error;
+  }
+}
+
+export async function getTelegramCommunityCaptchaSettings(
+  chatId: string,
+  telegramUserId: number,
+) {
+  const context = await getTelegramCommunityManagementContext(chatId, telegramUserId);
+  if (!context) return null;
+  return readTelegramCommunityCaptchaSettings(context.communityId);
+}
+
+export async function getTelegramCommunityCaptchaSettingsForGroup(chatId: string) {
+  const [community] = await db
+    .select({ communityId: telegramCommunitiesTable.id })
+    .from(telegramCommunitiesTable)
+    .where(eq(telegramCommunitiesTable.chatId, chatId))
+    .limit(1);
+  if (!community) return null;
+  return readTelegramCommunityCaptchaSettings(community.communityId);
+}
+
+export async function setTelegramCommunityCaptchaSettings(input: {
+  chatId: string;
+  telegramUserId: number;
+  enabled: boolean;
+  buttonText: string;
+}) {
+  const context = await getTelegramCommunityManagementContext(input.chatId, input.telegramUserId);
+  if (!context) return null;
+
+  try {
+    const [updated] = await db
+      .update(telegramCommunitiesTable)
+      .set({
+        joinCaptchaEnabled: input.enabled,
+        joinCaptchaButtonText: input.buttonText,
+        updatedAt: new Date(),
+      })
+      .where(eq(telegramCommunitiesTable.id, context.communityId))
+      .returning({
+        enabled: telegramCommunitiesTable.joinCaptchaEnabled,
+        buttonText: telegramCommunitiesTable.joinCaptchaButtonText,
+      });
+    if (!updated) return null;
+
+    await recordTelegramCommunityManagementAudit({
+      chatId: input.chatId,
+      actorUserId: context.ownerUserId,
+      action: input.enabled ? "join_captcha_enabled" : "join_captcha_settings_updated",
+    });
+    return updated;
+  } catch (error) {
+    if (isMissingJoinCaptchaColumn(error)) {
+      throw new TelegramCommunityCaptchaMigrationRequiredError();
+    }
+    throw error;
+  }
+}
+
 function isMissingWelcomeMessageColumn(error: unknown): boolean {
   return Boolean(
     error &&

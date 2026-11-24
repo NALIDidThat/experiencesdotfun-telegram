@@ -2043,6 +2043,24 @@ export interface TelegramCommunityRiddleSettings {
   intervalMinutes: TelegramCommunityRiddleSettingsIntervalMinutes;
 }
 
+export interface TelegramCommunityCaptchaSettingsInput {
+  enabled: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  buttonText: string;
+}
+
+export interface TelegramCommunityCaptchaSettings {
+  enabled: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  buttonText: string;
+}
+
 export interface TelegramCommunityWelcomeButton {
   /**
      * @minLength 1

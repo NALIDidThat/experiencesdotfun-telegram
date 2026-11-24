@@ -190,6 +190,8 @@ import type {
   SocialInviteCreateInput,
   SyncCharityContributionLedger200,
   TelegramAuthInput,
+  TelegramCommunityCaptchaSettings,
+  TelegramCommunityCaptchaSettingsInput,
   TelegramCommunityCustomCommand,
   TelegramCommunityCustomCommandInput,
   TelegramCommunityCustomCommandsResponse,
@@ -9351,6 +9353,172 @@ export const useUpdateTelegramCommunityRiddleSettings = <TError = ErrorType<BadR
         TContext
       > => {
       return useMutation(getUpdateTelegramCommunityRiddleSettingsMutationOptions(options));
+    }
+
+export const getGetTelegramCommunityCaptchaSettingsUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/captcha`
+}
+
+/**
+ * @summary Get join verification settings for an organisation-owned Telegram group
+ */
+export const getTelegramCommunityCaptchaSettings = async (chatId: string, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityCaptchaSettings> => {
+
+  return customFetch<TelegramCommunityCaptchaSettings>(getGetTelegramCommunityCaptchaSettingsUrl(chatId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTelegramCommunityCaptchaSettingsQueryKey = (chatId: string,) => {
+    return [
+    `/api/community/manage/${chatId}/captcha`
+    ] as const;
+    }
+
+
+export const getGetTelegramCommunityCaptchaSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramCommunityCaptchaSettings>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>>(chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityCaptchaSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTelegramCommunityCaptchaSettingsQueryKey(chatId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramCommunityCaptchaSettings>>> = ({ signal }) => getTelegramCommunityCaptchaSettings(chatId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: chatId !== null && chatId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityCaptchaSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTelegramCommunityCaptchaSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getTelegramCommunityCaptchaSettings>>>
+export type GetTelegramCommunityCaptchaSettingsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary Get join verification settings for an organisation-owned Telegram group
+ */
+
+export function useGetTelegramCommunityCaptchaSettings<TData = Awaited<ReturnType<typeof getTelegramCommunityCaptchaSettings>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>>(
+ chatId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramCommunityCaptchaSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTelegramCommunityCaptchaSettingsQueryOptions(chatId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateTelegramCommunityCaptchaSettingsUrl = (chatId: string,) => {
+
+
+
+
+  return `/api/community/manage/${chatId}/captcha`
+}
+
+/**
+ * @summary Update join verification settings for an organisation-owned Telegram group
+ */
+export const updateTelegramCommunityCaptchaSettings = async (chatId: string,
+    telegramCommunityCaptchaSettingsInput: TelegramCommunityCaptchaSettingsInput, options?: Parameters<typeof customFetch>[1]): Promise<TelegramCommunityCaptchaSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TelegramCommunityCaptchaSettings>(getUpdateTelegramCommunityCaptchaSettingsUrl(chatId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(telegramCommunityCaptchaSettingsInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateTelegramCommunityCaptchaSettingsMutationKey = () => ['updateTelegramCommunityCaptchaSettings'] as const;
+
+export const getUpdateTelegramCommunityCaptchaSettingsMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTelegramCommunityCaptchaSettings>>, TError,UpdateTelegramCommunityCaptchaSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTelegramCommunityCaptchaSettings>>, TError,UpdateTelegramCommunityCaptchaSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateTelegramCommunityCaptchaSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTelegramCommunityCaptchaSettings>>, UpdateTelegramCommunityCaptchaSettingsMutationVariables> = (props) => {
+          const {chatId,data} = props ?? {};
+
+          return  updateTelegramCommunityCaptchaSettings(chatId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTelegramCommunityCaptchaSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateTelegramCommunityCaptchaSettings>>>
+    export type UpdateTelegramCommunityCaptchaSettingsMutationBody = BodyType<TelegramCommunityCaptchaSettingsInput>
+    export type UpdateTelegramCommunityCaptchaSettingsMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>
+    export type UpdateTelegramCommunityCaptchaSettingsMutationVariables = {chatId: string;data: BodyType<TelegramCommunityCaptchaSettingsInput>}
+
+    /**
+ * @summary Update join verification settings for an organisation-owned Telegram group
+ */
+export const useUpdateTelegramCommunityCaptchaSettings = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTelegramCommunityCaptchaSettings>>, TError,UpdateTelegramCommunityCaptchaSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTelegramCommunityCaptchaSettings>>,
+        TError,
+        UpdateTelegramCommunityCaptchaSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateTelegramCommunityCaptchaSettingsMutationOptions(options));
     }
 
 export const getGetTelegramCommunityWelcomeSettingsUrl = (chatId: string,) => {
