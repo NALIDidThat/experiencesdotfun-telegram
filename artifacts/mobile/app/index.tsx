@@ -1279,100 +1279,43 @@ function TalentWelcome({
 }) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
-  const welcome = colors.welcome;
+  const { height: screenHeight } = useWindowDimensions();
   const isWeb = Platform.OS === 'web';
   const topInset = isWeb ? Math.max(67, insets.top) : insets.top;
   const bottomInset = isWeb ? 34 : Math.max(insets.bottom, 16);
-  const compact = screenHeight < 830;
-  const collageHeight = Math.min(360, screenHeight * 0.41);
-  const collageWidth = Math.min(290, screenWidth - 116);
-  const cardWidth = collageWidth * 0.5;
-  const cardHeight = collageHeight * 0.5;
-  const experiences = [
-    { name: 'Education', icon: 'book-open' as const, image: require('../assets/images/welcome-education-v2.jpg'), glow: '#F20789', rotate: '-10deg', x: -1, y: 11 },
-    { name: 'Environment', icon: 'feather' as const, image: require('../assets/images/welcome-environment-v2.jpg'), glow: '#1A98E5', rotate: '9deg', x: 1, y: 4, photoTop: 14 },
-    { name: 'Community', icon: 'users' as const, image: require('../assets/images/welcome-community-v2.jpg'), glow: '#F20789', rotate: '-8deg', x: -1, y: 0 },
-    { name: 'Employment', icon: 'briefcase' as const, image: require('../assets/images/welcome-employment-v2.jpg'), glow: '#04ADBF', rotate: '10deg', x: 1, y: -5 },
-  ];
 
   return (
-    <View style={[styles.talentScreen, { backgroundColor: '#10132E' }]}>
-      <StatusBar barStyle="light-content" backgroundColor={welcome.background} />
-      <View pointerEvents="none" style={styles.neonWelcomeBackdrop}>
-        <LinearGradient colors={['#38133E', '#171B3D', '#081C36']} start={{ x: 0, y: 0.4 }} end={{ x: 1, y: 0.55 }} style={StyleSheet.absoluteFill} />
-        <LinearGradient colors={['rgba(242,7,137,0.38)', 'rgba(242,7,137,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={[styles.neonWelcomeGlow, styles.neonWelcomeGlowLeft]} />
-        <LinearGradient colors={['rgba(26,152,229,0.34)', 'rgba(26,152,229,0)']} start={{ x: 1, y: 0.5 }} end={{ x: 0, y: 0.5 }} style={[styles.neonWelcomeGlow, styles.neonWelcomeGlowRight]} />
-        <View style={styles.welcomeOrbitOne} />
-        <View style={styles.welcomeOrbitTwo} />
-        <LinearGradient
-          colors={['rgba(8,23,51,0.28)', 'rgba(12,25,64,0.86)', 'rgba(50,32,78,0.92)']}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={[styles.welcomeHorizon, { width: screenWidth * 3, height: screenWidth * 2.86, left: -screenWidth, bottom: -screenWidth * 2.68 }]}
-        />
-      </View>
+    <View style={[styles.talentScreen, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       <ScrollView
         bounces={false}
         showsVerticalScrollIndicator={false}
         style={styles.welcomeScroll}
         contentContainerStyle={[
-          styles.neonWelcomeContent,
-          { minHeight: Math.max(0, screenHeight - topInset), paddingTop: topInset + (compact ? 0 : 7), paddingBottom: bottomInset + 58 },
+          styles.simpleWelcomeContent,
+          {
+            minHeight: Math.max(0, screenHeight - topInset - bottomInset),
+            paddingTop: topInset,
+            paddingBottom: bottomInset,
+          },
         ]}
       >
-        <View style={styles.neonWelcomeBrand} accessibilityLabel="Experiences dot fun">
-          <View style={styles.neonWelcomeMark}>
-            <Feather name="star" size={24} color="#FFFFFF" />
-          </View>
-          <Text style={styles.neonWelcomeWordmark}>
-            experiences<Text style={{ color: '#F20789' }}>.fun</Text>
+        <View style={styles.simpleWelcomeHero}>
+          <Image
+            source={require('../assets/images/icon.png')}
+            resizeMode="contain"
+            accessibilityLabel="Experiences.fun"
+            style={styles.simpleWelcomeLogo}
+          />
+          <Text style={[styles.simpleWelcomeTitle, { color: colors.foreground }]}>
+            Welcome to{'\n'}Experiences.fun
+          </Text>
+          <Text style={[styles.simpleWelcomeDescription, { color: colors.mutedForeground }]}>
+            Turn real-world experiences into learning, impact and opportunity.
           </Text>
         </View>
 
-        <View style={[styles.neonExperienceCollage, { width: collageWidth, height: collageHeight }]}>
-          {experiences.map((experience, index) => (
-            <View
-              key={experience.name}
-              accessibilityLabel={`${experience.name} experience`}
-              style={[
-                styles.neonExperienceCard,
-                {
-                  width: cardWidth,
-                  height: cardHeight,
-                  left: index % 2 === 0 ? 2 : undefined,
-                  right: index % 2 === 1 ? 2 : undefined,
-                  top: index < 2 ? 8 : undefined,
-                  bottom: index >= 2 ? 0 : undefined,
-                  transform: [{ rotate: experience.rotate }, { translateX: experience.x }, { translateY: experience.y }],
-                  borderColor: experience.glow,
-                  shadowColor: experience.glow,
-                },
-              ]}
-            >
-              <View style={styles.neonExperiencePhoto}>
-                <Image
-                  source={experience.image}
-                  resizeMode="cover"
-                  style={[styles.neonExperienceImage, { width: cardWidth, height: cardHeight + 20, top: experience.photoTop ?? -10 }]}
-                />
-                <LinearGradient colors={['rgba(156,139,255,0.66)', 'rgba(77,63,135,0.72)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.neonExperienceLabel}>
-                  <Feather name={experience.icon} size={15} color="#FFFFFF" />
-                  <Text numberOfLines={1} style={styles.neonExperienceTitle}>{experience.name}</Text>
-                </LinearGradient>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.neonWelcomeIntro}>
-          <Text style={[styles.neonWelcomeTitle, compact && styles.neonWelcomeTitleCompact]}>
-            Welcome to{'\n'}Experiences<Text style={{ color: '#F20789' }}>.fun</Text>
-          </Text>
-          <Text style={styles.neonWelcomeDescription}>Turn real-world experiences into learning, impact and opportunity.</Text>
-        </View>
-
-        <View style={styles.neonWelcomeActions}>
+        <View style={styles.simpleWelcomeActions}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Start Your Journey"
@@ -1380,12 +1323,18 @@ function TalentWelcome({
             testID="welcome-start"
             onPressIn={triggerHaptic}
             onPress={onContinue}
-            style={({ pressed }) => [styles.neonStartButton, { opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] }]}
+            style={({ pressed }) => [
+              styles.simpleWelcomeStartButton,
+              {
+                backgroundColor: colors.primary,
+                borderBottomColor: colors.secondary,
+                shadowColor: colors.primary,
+                opacity: pressed ? 0.9 : 1,
+                transform: [{ scale: pressed ? 0.99 : 1 }],
+              },
+            ]}
           >
-            <LinearGradient colors={['#F52DA0', '#E9178E', '#B80CA9']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.neonStartGradient}>
-              <Text style={styles.neonStartLabel}>Start Your Journey</Text>
-              <Feather name="arrow-right" size={21} color="#FFFFFF" />
-            </LinearGradient>
+            <Text style={styles.simpleWelcomeStartLabel}>Start Your Journey</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -1394,15 +1343,12 @@ function TalentWelcome({
             testID="welcome-login"
             onPressIn={triggerHaptic}
             onPress={onLogIn}
-            style={({ pressed }) => [styles.neonLoginButton, { opacity: pressed ? 0.82 : 1 }]}
+            style={({ pressed }) => [styles.simpleWelcomeLoginButton, { opacity: pressed ? 0.65 : 1 }]}
           >
-            <LinearGradient colors={['rgba(100,105,190,0.58)', 'rgba(93,75,153,0.56)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.neonLoginGradient}>
-              <Text style={styles.neonLoginLabel}>Log In</Text>
-            </LinearGradient>
+            <Text style={[styles.simpleWelcomeLoginLabel, { color: colors.mutedForeground }]}>Log In</Text>
           </Pressable>
         </View>
       </ScrollView>
-      {isWeb && <View pointerEvents="none" style={styles.neonWelcomeHomeIndicator} />}
     </View>
   );
 }
@@ -11441,35 +11387,16 @@ const styles = StyleSheet.create({
   welcomeTelegramNote: { alignSelf: 'center', textAlign: 'center', fontSize: 9, lineHeight: 13, fontFamily: 'Inter_400Regular' },
   welcomeEmailLinkText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   welcomeHomeIndicator: { width: 104, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4, opacity: 0.92 },
-  neonWelcomeBackdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, overflow: 'hidden' },
-  neonWelcomeGlow: { position: 'absolute', width: 300, height: 420, borderRadius: 210 },
-  neonWelcomeGlowLeft: { left: -208, top: 170 },
-  neonWelcomeGlowRight: { width: 340, right: -235, top: 240 },
-  welcomeOrbitOne: { position: 'absolute', width: 420, height: 520, borderRadius: 230, borderWidth: 1, borderColor: 'rgba(173,126,255,0.28)', top: -110, left: -158, transform: [{ rotate: '32deg' }] },
-  welcomeOrbitTwo: { position: 'absolute', width: 360, height: 460, borderRadius: 220, borderWidth: 1, borderColor: 'rgba(88,173,255,0.20)', top: 20, right: -240, transform: [{ rotate: '-24deg' }] },
-  welcomeHorizon: { position: 'absolute', borderRadius: 999, borderWidth: 2, borderColor: 'rgba(76,190,255,0.62)', shadowColor: '#24BFFF', shadowOpacity: 0.9, shadowRadius: 22, elevation: 8, opacity: 0.9 },
-  neonWelcomeContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'flex-start', paddingHorizontal: 25 },
-  neonWelcomeBrand: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 11, marginBottom: 5 },
-  neonWelcomeMark: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#D819A2', borderWidth: 1, borderColor: 'rgba(255,255,255,0.38)', shadowColor: '#F20789', shadowOpacity: 0.64, shadowRadius: 15, shadowOffset: { width: 0, height: 0 }, elevation: 7 },
-  neonWelcomeWordmark: { color: '#FFFFFF', fontSize: 22, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
-  neonExperienceCollage: { position: 'relative', alignSelf: 'center', marginTop: 15, marginBottom: 5 },
-  neonExperienceCard: { position: 'absolute', overflow: 'hidden', borderRadius: 25, borderWidth: 1.5, backgroundColor: '#181B3A', shadowOpacity: 0.92, shadowRadius: 18, shadowOffset: { width: 0, height: 0 }, elevation: 9 },
-  neonExperiencePhoto: { flex: 1, position: 'relative' },
-  neonExperienceImage: { position: 'absolute', left: 0 },
-  neonExperienceLabel: { position: 'absolute', top: 9, minHeight: 32, flexDirection: 'row', alignSelf: 'center', alignItems: 'center', gap: 7, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
-  neonExperienceTitle: { flexShrink: 1, color: '#FFFFFF', fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  neonWelcomeIntro: { width: '100%', alignItems: 'center', paddingHorizontal: 0, marginTop: 0 },
-  neonWelcomeTitle: { color: '#FFFFFF', fontSize: 38, lineHeight: 40, fontFamily: 'Inter_700Bold', letterSpacing: -1.25, textAlign: 'center' },
-  neonWelcomeTitleCompact: { fontSize: 36, lineHeight: 38 },
-  neonWelcomeDescription: { maxWidth: 300, color: 'rgba(242,239,255,0.84)', fontSize: 16, lineHeight: 23, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 6 },
-  neonWelcomeActions: { width: '100%', maxWidth: 420, gap: 9, marginTop: 'auto', paddingTop: 23 },
-  neonStartButton: { width: '100%', height: 54, borderRadius: 30, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,220,249,0.72)', shadowColor: '#F20789', shadowOpacity: 0.64, shadowRadius: 17, shadowOffset: { width: 0, height: 0 }, elevation: 8 },
-  neonStartGradient: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  neonStartLabel: { color: '#FFFFFF', fontSize: 17, fontFamily: 'Inter_700Bold' },
-  neonLoginButton: { width: '100%', height: 54, borderRadius: 30, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(189,197,255,0.62)' },
-  neonLoginGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  neonLoginLabel: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter_500Medium' },
-  neonWelcomeHomeIndicator: { position: 'absolute', width: 120, height: 4, bottom: 12, alignSelf: 'center', borderRadius: 4, backgroundColor: '#FFFFFF' },
+  simpleWelcomeContent: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 28 },
+  simpleWelcomeHero: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', paddingBottom: 32 },
+  simpleWelcomeLogo: { width: 96, height: 96, marginBottom: 12 },
+  simpleWelcomeTitle: { fontSize: 29, lineHeight: 34, fontFamily: 'Inter_700Bold', letterSpacing: -0.7, textAlign: 'center' },
+  simpleWelcomeDescription: { maxWidth: 310, fontSize: 14, lineHeight: 20, fontFamily: 'Inter_500Medium', textAlign: 'center', marginTop: 6 },
+  simpleWelcomeActions: { width: '100%', maxWidth: 420, alignItems: 'center', paddingTop: 14, paddingBottom: 18 },
+  simpleWelcomeStartButton: { width: '100%', height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 11, borderBottomWidth: 4, shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
+  simpleWelcomeStartLabel: { color: '#FFFFFF', fontSize: 15, fontFamily: 'Inter_700Bold' },
+  simpleWelcomeLoginButton: { minWidth: 100, minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  simpleWelcomeLoginLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   emailLoginLink: { alignItems: 'center', paddingVertical: 2 },
   emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   emailAuthScreen: { flex: 1 },
