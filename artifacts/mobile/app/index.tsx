@@ -1304,7 +1304,7 @@ function TalentWelcome({
   const isCompactWelcome = screenHeight < 740;
   const heroStageHeight = isCompactWelcome
     ? Math.max(238, screenHeight * 0.34)
-    : Math.min(screenHeight * 0.42, 356);
+    : Math.min(screenHeight * 0.42, 352);
 
   return (
     <View style={[styles.talentScreen, { backgroundColor: welcome.background }]}>
