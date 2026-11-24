@@ -1263,7 +1263,13 @@ function EmailAuthPanel({
   );
 }
 
-function TalentWelcome({ onContinue }: { onContinue: () => void }) {
+function TalentWelcome({
+  onContinue,
+  onHostExperiences,
+}: {
+  onContinue: () => void;
+  onHostExperiences: () => void;
+}) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { height: screenHeight } = useWindowDimensions();
@@ -1286,12 +1292,12 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
       ? 'error'
       : 'ready';
   const isWeb = Platform.OS === 'web';
-  const topInset = isWeb ? 8 : insets.top;
-  const bottomInset = isWeb ? 24 : Math.max(insets.bottom, 16);
+  const topInset = isWeb ? Math.max(67, insets.top) : insets.top;
+  const bottomInset = isWeb ? 34 : Math.max(insets.bottom, 16);
   const isCompactWelcome = screenHeight < 740;
   const heroStageHeight = isCompactWelcome
-    ? Math.max(248, screenHeight * 0.37)
-    : Math.min(screenHeight * 0.46, 390);
+    ? Math.max(238, screenHeight * 0.34)
+    : Math.min(screenHeight * 0.42, 356);
 
   return (
     <View style={[styles.talentScreen, { backgroundColor: welcome.background }]}>
@@ -1307,11 +1313,24 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
         ]}
       >
         <View style={[styles.welcomeHeader, { paddingHorizontal: 26 }]}>
-          <Text style={styles.welcomeBrand} accessibilityLabel="Experiences dot fun">
-            <Text style={{ color: welcome.foreground }}>experiences</Text>
-            <Text style={{ color: colors.primary }}>.fun</Text>
-          </Text>
+          <View style={styles.welcomeBrandRow} accessibilityLabel="Experiences dot fun">
+            <Feather name="sun" size={18} color={colors.primary} />
+            <Text style={styles.welcomeBrand}>
+              <Text style={{ color: welcome.foreground }}>experiences</Text>
+              <Text style={{ color: colors.primary }}>.fun</Text>
+            </Text>
+          </View>
           <View style={{ width: 54 }} />
+        </View>
+
+        <View style={styles.welcomePromiseWrap}>
+          <View style={[styles.welcomePromise, { backgroundColor: welcome.surface, borderColor: welcome.border }]}>
+            <Feather name="zap" size={16} color={colors.teal} />
+            <Text style={[styles.welcomePromiseText, { color: welcome.foreground }]}>
+              Real-world experiences. Meaningful participation.
+            </Text>
+            <Feather name="chevron-right" size={16} color={welcome.muted} />
+          </View>
         </View>
 
         <View style={[styles.welcomeHeroStage, { height: heroStageHeight }]}>
@@ -1357,8 +1376,23 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
           </Text>
           <View style={styles.welcomeDetails}>
             <Text style={[styles.welcomeDescription, { color: colors.mutedForeground }]}>
-              Discover local experiences, get involved in your community, and see the impact you make.
+              Discover local experiences, build skills, support your community and see the real-world impact you create.
             </Text>
+
+            <View style={styles.welcomeBenefits}>
+              {[
+                { icon: 'book-open' as const, label: 'Learn by\ndoing', color: colors.secondary },
+                { icon: 'heart' as const, label: 'Support your\ncommunity', color: colors.teal },
+                { icon: 'bar-chart-2' as const, label: 'Track your\nimpact', color: colors.primary },
+              ].map((benefit) => (
+                <View key={benefit.label} style={styles.welcomeBenefit} accessibilityLabel={benefit.label.replace('\n', ' ')}>
+                  <View style={[styles.welcomeBenefitIcon, { backgroundColor: `${benefit.color}14` }]}>
+                    <Feather name={benefit.icon} size={17} color={benefit.color} />
+                  </View>
+                  <Text style={[styles.welcomeBenefitText, { color: colors.foreground }]}>{benefit.label}</Text>
+                </View>
+              ))}
+            </View>
 
             <View style={styles.welcomeSocialProof}>
               <View style={styles.welcomeAvatars} accessibilityLabel="Community members">
@@ -1401,8 +1435,25 @@ function TalentWelcome({ onContinue }: { onContinue: () => void }) {
               </Pressable>
             </View>
 
+            <View style={styles.welcomeHostRow}>
+              <Text style={[styles.welcomeHostPrompt, { color: colors.mutedForeground }]}>Are you an organisation?</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Host experiences as an organisation"
+                testID="welcome-host-experiences"
+                onPressIn={triggerHaptic}
+                onPress={onHostExperiences}
+                style={({ pressed }) => [
+                  styles.welcomeHostButton,
+                  { borderColor: colors.primary, opacity: pressed ? 0.78 : 1 },
+                ]}
+              >
+                <Text style={[styles.welcomeHostButtonText, { color: colors.primary }]}>Host experiences</Text>
+              </Pressable>
+            </View>
+
             <Text style={[styles.welcomeTelegramNote, { color: colors.mutedForeground }]}>
-              Choose Participant or Organisation to get started.
+              Get started as a participant or organisation.
             </Text>
             {isWeb ? <View style={[styles.welcomeHomeIndicator, { backgroundColor: colors.mutedForeground }]} /> : null}
           </View>
@@ -10836,10 +10887,18 @@ export default function App() {
             }}
           />
         ) : entryStage === 'start' ? (
-          <TalentWelcome onContinue={() => {
-            clearAuthError();
-            setEntryStage('account-type');
-          }} />
+          <TalentWelcome
+            onContinue={() => {
+              clearAuthError();
+              setEntryStage('account-type');
+            }}
+            onHostExperiences={() => {
+              clearAuthError();
+              setSelectedAccountType('organisation');
+              setAccountTypeConfirmed(false);
+              setEntryStage('organisation-type');
+            }}
+          />
         ) : entryStage === 'account-type' || !selectedAccountType ? (
           <AccountTypeSelection
             selectedType={selectedAccountType}
@@ -11369,19 +11428,27 @@ const styles = StyleSheet.create({
   welcomeScroll: { flex: 1, zIndex: 1 },
   welcomeScrollContent: { flexGrow: 1, alignItems: 'center' },
   welcomeHeader: { width: '100%', height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  welcomeBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   welcomeBrand: { fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: -0.7 },
   welcomeSkipButton: { minWidth: 54, minHeight: 32, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderRadius: 16, zIndex: 1 },
   welcomeSkipText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  welcomePromiseWrap: { width: '100%', paddingHorizontal: 26, marginTop: 2, marginBottom: 4 },
+  welcomePromise: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, borderWidth: 1, borderRadius: 16 },
+  welcomePromiseText: { flex: 1, fontSize: 10, lineHeight: 14, fontFamily: 'Inter_500Medium' },
   welcomeHeroStage: { width: '100%', position: 'relative' },
   welcomeXpCard: { position: 'absolute', right: 0, bottom: 20, zIndex: 6, minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderRadius: 15 },
   welcomeMedal: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   welcomeXpCopy: { gap: 2 },
   welcomeXpValue: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   welcomeXpLabel: { fontSize: 8, fontFamily: 'Inter_500Medium' },
-  welcomeContent: { width: '100%', alignSelf: 'stretch', flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: 26, paddingTop: 26, paddingBottom: 8, borderTopWidth: StyleSheet.hairlineWidth },
-  welcomeTitle: { fontSize: 30, lineHeight: 36, fontFamily: 'Inter_700Bold', letterSpacing: -0.85 },
-  welcomeDetails: { paddingTop: 14, gap: 12 },
-  welcomeDescription: { fontSize: 14, lineHeight: 21, fontFamily: 'Inter_400Regular' },
+  welcomeContent: { width: '100%', alignSelf: 'stretch', flexGrow: 1, justifyContent: 'flex-start', paddingHorizontal: 26, paddingTop: 22, paddingBottom: 8, borderTopWidth: StyleSheet.hairlineWidth },
+  welcomeTitle: { fontSize: 30, lineHeight: 35, fontFamily: 'Inter_700Bold', letterSpacing: -0.85 },
+  welcomeDetails: { paddingTop: 10, gap: 9 },
+  welcomeDescription: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular' },
+  welcomeBenefits: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  welcomeBenefit: { flex: 1, minWidth: 0, alignItems: 'center', gap: 5 },
+  welcomeBenefitIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  welcomeBenefitText: { fontSize: 9, lineHeight: 12, fontFamily: 'Inter_500Medium', textAlign: 'center' },
   welcomeSocialProof: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 13 },
   welcomeAvatars: { flexDirection: 'row', alignItems: 'center', paddingLeft: 1 },
   welcomeAvatar: { width: 30, height: 30, borderWidth: 2, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginLeft: -5 },
@@ -11389,10 +11456,14 @@ const styles = StyleSheet.create({
   welcomeSocialText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
   welcomeError: { textAlign: 'center', fontSize: 12, lineHeight: 18, fontFamily: 'Inter_600SemiBold', marginTop: 10 },
   welcomeAuthActions: { flexDirection: 'row', gap: 10 },
-  welcomeTelegramButton: { flex: 0, alignSelf: 'stretch', height: 62, minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 18 },
+  welcomeTelegramButton: { flex: 0, alignSelf: 'stretch', height: 56, minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 18 },
   welcomeTelegramLabel: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+  welcomeHostRow: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  welcomeHostPrompt: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
+  welcomeHostButton: { minHeight: 30, justifyContent: 'center', paddingHorizontal: 11, borderWidth: 1, borderRadius: 16 },
+  welcomeHostButtonText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
   welcomeEmailButton: { flex: 1, height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 10, borderWidth: 1 },
-  welcomeTelegramNote: { alignSelf: 'center', textAlign: 'center', fontSize: 10, lineHeight: 15, fontFamily: 'Inter_400Regular' },
+  welcomeTelegramNote: { alignSelf: 'center', textAlign: 'center', fontSize: 9, lineHeight: 13, fontFamily: 'Inter_400Regular' },
   welcomeEmailLinkText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   welcomeHomeIndicator: { width: 104, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4, opacity: 0.92 },
   emailLoginLink: { alignItems: 'center', paddingVertical: 2 },
