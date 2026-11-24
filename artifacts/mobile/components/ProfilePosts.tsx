@@ -207,10 +207,15 @@ export function ProfilePosts({
           ) : null}
         </View>
       ) : (
-        <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-          <Feather name="edit-3" size={19} color={colors.mutedForeground} />
+        <View style={[styles.stateCard, styles.emptyStateCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <View style={[styles.emptyIcon, { backgroundColor: colors.primary + "12" }]}>
+            <Feather name="edit-3" size={16} color={colors.primary} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+            No {feedCategoryLabels[category].toLowerCase()} posts yet
+          </Text>
           <Text style={[styles.stateText, { color: colors.mutedForeground }]}>
-            No {feedCategoryLabels[category].toLowerCase()} posts to show yet.
+            Posts from this profile will appear here.
           </Text>
         </View>
       )}
@@ -232,6 +237,9 @@ const styles = StyleSheet.create({
   metaText: { flexShrink: 1, fontSize: 10, fontFamily: "Inter_500Medium", textAlign: "right" },
   body: { fontSize: 14, lineHeight: 21, fontFamily: "Inter_400Regular" },
   stateCard: { minHeight: 74, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, borderWidth: 1, padding: 15 },
+  emptyStateCard: { minHeight: 112, flexDirection: "column", gap: 5, padding: 14 },
+  emptyIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  emptyTitle: { fontSize: 13, lineHeight: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
   stateText: { fontSize: 13, lineHeight: 18, fontFamily: "Inter_500Medium", textAlign: "center" },
   retryButton: { paddingHorizontal: 7, paddingVertical: 5 },
   retryText: { fontSize: 12, fontFamily: "Inter_700Bold" },

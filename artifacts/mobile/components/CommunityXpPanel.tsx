@@ -105,16 +105,22 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function EmptyState() {
+function EmptyState({
+  title = "No linked communities yet",
+  body = "Add a Telegram group below to see its community record.",
+}: {
+  title?: string;
+  body?: string;
+} = {}) {
   const colors = useColors();
   return (
     <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
       <View style={[styles.stateIcon, { backgroundColor: colors.secondary + '12' }]}>
         <Feather name="message-circle" size={21} color={colors.secondary} />
       </View>
-      <Text style={[styles.stateTitle, { color: colors.foreground }]}>No community XP yet</Text>
+      <Text style={[styles.stateTitle, { color: colors.foreground }]}>{title}</Text>
       <Text style={[styles.stateBody, { color: colors.mutedForeground }]}>
-        Join a Telegram group where the Experiences.fun bot is active. A normal message of at least seven words can earn Community XP, separate from Experience XP.
+        {body}
       </Text>
     </View>
   );
@@ -360,7 +366,7 @@ function Leaderboard({ members }: { members: CommunityLeaderboardMember[] }) {
           <LeaderboardRow member={member} />
         </View>
       )) : (
-        <Text style={[styles.inlineEmpty, { color: colors.mutedForeground }]}>The leaderboard is still gathering its first entries.</Text>
+        <Text style={[styles.inlineEmpty, { color: colors.mutedForeground }]}>No community members ranked yet.</Text>
       )}
     </View>
   );
@@ -392,7 +398,7 @@ function ContributionHistory({ contributions }: { contributions: CommunityContri
           </View>
         );
       }) : (
-        <Text style={[styles.inlineEmpty, { color: colors.mutedForeground }]}>Awards from this community will appear here.</Text>
+        <Text style={[styles.inlineEmpty, { color: colors.mutedForeground }]}>No contribution awards yet.</Text>
       )}
     </View>
   );
@@ -558,7 +564,7 @@ export function CommunityXpPanel() {
           <ContributionHistory contributions={details.recentContributions} />
         </View>
       ) : (
-        <EmptyState />
+        <EmptyState title="Choose a community" body="Select a linked group above to see its record." />
       )}
     </View>
   );

@@ -284,9 +284,12 @@ export function CommunityFeedSection({ chatId }: { chatId: string }) {
           </Text>
         </Pressable>
       ) : updates.length === 0 ? (
-        <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
-          No updates yet. Be the first to share one.
-        </Text>
+        <View style={{ alignItems: "flex-start", backgroundColor: colors.muted, borderRadius: colors.radius - 5, flexDirection: "row", gap: 8, padding: 10 }}>
+          <Feather name="message-square" size={14} color={colors.primary} />
+          <Text style={{ color: colors.mutedForeground, flex: 1, fontSize: 11, lineHeight: 16 }}>
+            No updates yet. Share the first one above.
+          </Text>
+        </View>
       ) : (
         <View style={{ gap: 10 }}>
           {updates.map((item) => (

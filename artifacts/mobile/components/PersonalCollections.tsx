@@ -157,15 +157,15 @@ export function SavedExperiencesPanel({ profileId, onOpenExperience, onExplore }
           ))}
         </View>
       ) : (
-        <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.stateCard, styles.emptyStateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.stateIcon, { backgroundColor: colors.primary + "12" }]}>
             <Feather name="bookmark" size={20} color={colors.primary} />
           </View>
           <Text style={[styles.stateTitle, { color: colors.foreground }]}>
-            Nothing saved to {category}
+            {savedQuery.data?.length ? `No ${category} saves yet` : 'No saved experiences yet'}
           </Text>
           <Text style={[styles.stateText, { color: colors.mutedForeground }]}>
-            Save an experience from its details and it will appear here.
+            Save an experience to keep it close.
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -538,13 +538,13 @@ export function PersonalMemoriesPanel({ profileId }: { profileId: number }) {
           ))}
         </View>
       ) : !isEditing ? (
-        <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.stateCard, styles.emptyStateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.stateIcon, { backgroundColor: colors.primary + "12" }]}>
             <Feather name="book-open" size={20} color={colors.primary} />
           </View>
-          <Text style={[styles.stateTitle, { color: colors.foreground }]}>Save something meaningful</Text>
+          <Text style={[styles.stateTitle, { color: colors.foreground }]}>No memories yet</Text>
           <Text style={[styles.stateText, { color: colors.mutedForeground }]}>
-            Add a note, photo, or link and it will stay private to your profile.
+            Add a private note, photo, or link above.
           </Text>
         </View>
       ) : null}
@@ -734,7 +734,8 @@ const styles = StyleSheet.create({
   removeButton: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#00000012" },
   removeButtonText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   stateCard: { minHeight: 170, alignItems: "center", justifyContent: "center", gap: 8, borderWidth: 1, borderRadius: 18, padding: 18 },
-  stateIcon: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 15, marginBottom: 3 },
+  emptyStateCard: { minHeight: 122, gap: 6, borderRadius: 16, padding: 15 },
+  stateIcon: { width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 12, marginBottom: 2 },
   stateTitle: { fontSize: 14, textAlign: "center", fontFamily: "Inter_700Bold" },
   stateText: { maxWidth: 280, fontSize: 11, lineHeight: 16, textAlign: "center", fontFamily: "Inter_400Regular" },
   retryText: { fontSize: 11, fontFamily: "Inter_700Bold" },

@@ -641,12 +641,11 @@ export function PersonalRouteActivityPanel({
       ) : (
         <View style={[styles.emptyCard, mutedCard, { borderRadius: colors.radius + 6 }]}>
           <View style={[styles.emptyArt, { backgroundColor: colors.primary + '12' }]}>
-            <Feather name="navigation" size={24} color={colors.primary} />
-            <View style={[styles.emptyArtDot, { backgroundColor: colors.teal }]} />
+            <Feather name="navigation" size={18} color={colors.primary} />
           </View>
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>A small goal can take you somewhere.</Text>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No route records yet</Text>
           <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>
-            Describe what you want from a walk, run, or ride. We’ll shape it into a route and keep your effort record personal.
+            Plan a walk, run, or ride and keep a private record of it.
           </Text>
           <PrimaryButton label="Plan a personal route" icon="arrow-right" onPress={() => { setActionError(''); onCreateRoute(); }} colors={colors} testID="personal-route-create" />
         </View>
@@ -835,11 +834,10 @@ const styles = StyleSheet.create({
   busyLine: { textAlign: 'center', fontSize: 10, fontFamily: 'Inter_500Medium', marginTop: 8 },
   retryBatch: { minHeight: 38, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 9 },
   retryBatchText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
-  emptyCard: { borderWidth: 1, padding: 20, alignItems: 'center', marginBottom: 22 },
-  emptyArt: { width: 58, height: 58, borderRadius: 21, alignItems: 'center', justifyContent: 'center', marginBottom: 13 },
-  emptyArtDot: { width: 8, height: 8, borderRadius: 4, position: 'absolute', right: 7, top: 8 },
-  emptyTitle: { fontSize: 16, lineHeight: 22, textAlign: 'center', fontFamily: 'Inter_700Bold' },
-  emptyCopy: { fontSize: 12, lineHeight: 18, textAlign: 'center', fontFamily: 'Inter_400Regular', marginTop: 7, marginBottom: 16, maxWidth: 300 },
+  emptyCard: { borderWidth: 1, padding: 15, alignItems: 'center', marginBottom: 16 },
+  emptyArt: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  emptyTitle: { fontSize: 14, lineHeight: 19, textAlign: 'center', fontFamily: 'Inter_700Bold' },
+  emptyCopy: { fontSize: 11, lineHeight: 16, textAlign: 'center', fontFamily: 'Inter_400Regular', marginTop: 4, marginBottom: 12, maxWidth: 300 },
   savedSection: { marginTop: 2 },
   savedHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   savedTitle: { fontSize: 17, fontFamily: 'Inter_700Bold' },

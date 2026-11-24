@@ -343,13 +343,13 @@ export function LearningLibraryPanel({
           </Pressable>
         </View>
       ) : researches.length === 0 && decks.length === 0 ? (
-        <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.emptyIcon, { backgroundColor: colors.muted }]}>
+        <View style={[styles.emptyCard, styles.compactEmptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.emptyIcon, styles.compactEmptyIcon, { backgroundColor: colors.muted }]}>
             <Feather name="book-open" size={21} color={colors.primary} />
           </View>
-          <Text style={[styles.cardTitle, { color: colors.foreground }]}>Your saved learning starts here</Text>
+          <Text style={[styles.cardTitle, { color: colors.foreground }]}>Your learning starts here</Text>
           <Text style={[styles.bodyCopy, { color: colors.mutedForeground }]}>
-            Research a question or create your first flashcard deck.
+            Research a topic or make a flashcard deck.
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -659,7 +659,9 @@ const styles = StyleSheet.create({
   libraryHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
   loadingRow: { minHeight: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   emptyCard: { minHeight: 150, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 18, padding: 18 },
+  compactEmptyCard: { minHeight: 126, borderRadius: 16, padding: 15 },
   emptyIcon: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 5 },
+  compactEmptyIcon: { width: 36, height: 36, borderRadius: 12, marginBottom: 4 },
   linkText: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_700Bold' },
   libraryCard: { borderWidth: 1, borderRadius: 16, overflow: 'hidden', marginBottom: 2 },
   libraryCardMain: { minHeight: 93, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },

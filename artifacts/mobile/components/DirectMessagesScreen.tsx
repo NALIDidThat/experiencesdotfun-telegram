@@ -225,9 +225,9 @@ function DirectMessagesInbox({
               <View style={[styles.emptyIcon, { backgroundColor: colors.primary + '14' }]}>
                 <Feather name="message-circle" size={24} color={colors.primary} />
               </View>
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Start a conversation</Text>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No conversations yet</Text>
               <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>
-                Search for any profile above. You do not need to be friends first.
+                Search above to message someone. Friends aren’t required.
               </Text>
             </View>
           ) : (
@@ -520,9 +520,11 @@ function DirectMessageThread({
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={(
               <View style={styles.emptyThread}>
-                <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>
-                  Say hello to {peer.name}.
-                </Text>
+                <View style={[styles.emptyIcon, { backgroundColor: colors.primary + '14' }]}>
+                  <Feather name="message-circle" size={17} color={colors.primary} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Start the conversation</Text>
+                <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>Say hello to {peer.name}.</Text>
               </View>
             )}
             ListFooterComponent={
@@ -821,10 +823,10 @@ const styles = StyleSheet.create({
   unreadBadgeText: { color: '#FFFFFF', fontFamily: 'Inter_700Bold', fontSize: 10 },
   pressed: { opacity: 0.72 },
   disabled: { opacity: 0.55 },
-  emptyState: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingHorizontal: 36 },
-  emptyIcon: { alignItems: 'center', borderRadius: 28, height: 56, justifyContent: 'center', width: 56 },
-  emptyTitle: { fontFamily: 'Inter_700Bold', fontSize: 17, marginTop: 16 },
-  emptyCopy: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, marginTop: 7, textAlign: 'center' },
+  emptyState: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingHorizontal: 28 },
+  emptyIcon: { alignItems: 'center', borderRadius: 12, height: 36, justifyContent: 'center', width: 36 },
+  emptyTitle: { fontFamily: 'Inter_700Bold', fontSize: 14, lineHeight: 19, marginTop: 8 },
+  emptyCopy: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17, marginTop: 4, textAlign: 'center' },
   notice: { alignItems: 'center', gap: 8, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 24 },
   noticeText: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, textAlign: 'center' },
   noticeAction: { padding: 6 },
@@ -850,7 +852,7 @@ const styles = StyleSheet.create({
   messageBody: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 19 },
   messageMeta: { alignItems: 'center', flexDirection: 'row', gap: 4, justifyContent: 'flex-end', marginTop: 4 },
   messageTime: { fontFamily: 'Inter_400Regular', fontSize: 9 },
-  emptyThread: { alignItems: 'center', justifyContent: 'center', minHeight: 150 },
+  emptyThread: { alignItems: 'center', justifyContent: 'center', minHeight: 140, transform: [{ scaleY: -1 }] },
   loadEarlier: { alignItems: 'center', justifyContent: 'center', minHeight: 42, padding: 8 },
   loadEarlierText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   sendError: { fontFamily: 'Inter_500Medium', fontSize: 12, paddingHorizontal: 14, paddingTop: 8 },

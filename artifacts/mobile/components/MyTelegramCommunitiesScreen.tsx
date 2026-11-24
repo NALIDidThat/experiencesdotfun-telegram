@@ -237,15 +237,15 @@ export function MyTelegramCommunitiesScreen({ onBack }: Props) {
           </Pressable>
         </View>
       ) : communities.length === 0 ? (
-        <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-          <View style={[styles.stateIcon, { backgroundColor: colors.secondary + '12' }]}>
+        <View style={[styles.stateCard, styles.emptyStateCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <View style={[styles.stateIcon, styles.emptyStateIcon, { backgroundColor: colors.secondary + '12' }]}>
             <Feather name="message-circle" size={21} color={colors.secondary} />
           </View>
-          <Text accessibilityRole="header" style={[styles.stateTitle, { color: colors.foreground }]}>
-            Your record starts here
+          <Text accessibilityRole="header" style={[styles.stateTitle, styles.emptyStateTitle, { color: colors.foreground }]}>
+            No community record yet
           </Text>
-          <Text style={[styles.stateBody, { color: colors.mutedForeground }]}>
-            When you take part in a Telegram group tracked by Experiences.fun, your observed and qualifying messages will appear here.
+          <Text style={[styles.stateBody, styles.emptyStateBody, { color: colors.mutedForeground }]}>
+            Join a tracked Telegram group to build your participation record.
           </Text>
         </View>
       ) : (
@@ -304,9 +304,13 @@ const styles = StyleSheet.create({
   skeletonCopy: { flex: 1, gap: 8 },
   skeletonStats: { flexDirection: 'row', justifyContent: 'space-between', gap: 9 },
   stateCard: { alignItems: 'flex-start', borderWidth: 1, padding: 18, gap: 10 },
+  emptyStateCard: { padding: 15, gap: 7 },
   stateIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  emptyStateIcon: { width: 36, height: 36, borderRadius: 12, marginBottom: 1 },
   stateTitle: { fontSize: 18, lineHeight: 23, fontFamily: 'Inter_700Bold' },
+  emptyStateTitle: { fontSize: 15, lineHeight: 20 },
   stateBody: { fontSize: 13, lineHeight: 19, fontFamily: 'Inter_400Regular' },
+  emptyStateBody: { fontSize: 12, lineHeight: 17 },
   retryButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, paddingHorizontal: 15, marginTop: 5 },
   retryText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
 });

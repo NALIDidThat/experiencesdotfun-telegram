@@ -241,13 +241,13 @@ export function ExperienceChallengesScreen({ onOpenExperience }: Props) {
             <Pressable onPress={retry} style={styles.retryButton}><Text style={{ color: colors.primary, fontWeight: '700' }}>Try again</Text></Pressable>
           </View>
         ) : challenges.length === 0 ? (
-          <View style={[styles.stateCard, { borderColor: colors.border }]}>
+          <View style={[styles.stateCard, styles.emptyStateCard, { borderColor: colors.border }]}>
             <View style={[styles.emptyIcon, { backgroundColor: colors.muted }]}>
               <Feather name="users" size={18} color={colors.primary} />
             </View>
-            <Text style={[styles.stateTitle, { color: colors.foreground }]}>A plan is better shared</Text>
-            <Text style={[styles.stateCopy, { color: colors.mutedForeground }]}>
-              Invitations you send or receive will live here. Start by inviting an accepted friend above.
+            <Text style={[styles.stateTitle, styles.emptyStateTitle, { color: colors.foreground }]}>No shared plans yet</Text>
+            <Text style={[styles.stateCopy, styles.emptyStateCopy, { color: colors.mutedForeground }]}>
+              Choose a friend and experience above to send an invite.
             </Text>
           </View>
         ) : (
@@ -371,10 +371,13 @@ const styles = StyleSheet.create({
   loadingBlock: { gap: 10 },
   skeletonCard: { height: 148, borderRadius: 19, opacity: 0.8 },
   stateCard: { minHeight: 205, borderWidth: 1, borderRadius: 20, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  stateTitle: { fontSize: 16, fontWeight: '700', textAlign: 'center', marginTop: 11 },
+  emptyStateCard: { minHeight: 132, borderRadius: 16, padding: 16 },
+  stateTitle: { fontSize: 16, lineHeight: 22, fontWeight: '700', textAlign: 'center', marginTop: 11 },
+  emptyStateTitle: { fontSize: 14, lineHeight: 19, marginTop: 8 },
   stateCopy: { fontSize: 12, lineHeight: 18, textAlign: 'center', maxWidth: 250, marginTop: 5 },
+  emptyStateCopy: { fontSize: 11, lineHeight: 16, marginTop: 4 },
   retryButton: { padding: 10, marginTop: 3 },
-  emptyIcon: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  emptyIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   challengeCard: { borderWidth: 1, borderRadius: 19, padding: 14, marginBottom: 10 },
   challengeTopline: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   directionDot: { width: 6, height: 6, borderRadius: 3 },

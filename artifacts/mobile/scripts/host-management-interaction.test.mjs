@@ -2305,6 +2305,18 @@ test("charity treasury dashboard shows live values and supports private balance 
     Boolean,
     "the organisation homepage and 3D active-campaign artwork",
   );
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="organisation-home-create-experience"]'))`,
+    Boolean,
+    "the empty active-experiences action",
+  );
+  const emptyExperiencesState = await client.evaluate(`(() => ({
+    title: [...document.querySelectorAll('*')].find((element) => element.children.length === 0 && element.textContent.trim() === 'No active experiences')?.textContent ?? '',
+    actionLabel: document.querySelector('[data-testid="organisation-home-create-experience"]')?.getAttribute('aria-label') ?? '',
+  }))()`);
+  assert.equal(emptyExperiencesState.title, "No active experiences");
+  assert.equal(emptyExperiencesState.actionLabel, "Create an experience");
   const homeState = await client.evaluate(`(() => ({
     priority: document.querySelector('[data-testid="organisation-home-priority"]')?.getAttribute('aria-label') ?? '',
     treasuryCard: Boolean(document.querySelector('[data-testid="organisation-home-treasury"]')),

@@ -662,7 +662,7 @@ function Header({
   );
 }
 
-function EmptyState({ title, body, icon = 'compass', onAction, actionLabel }: { title: string; body: string; icon?: IconName; onAction?: () => void; actionLabel?: string }) {
+function EmptyState({ title, body, icon = 'compass', onAction, actionLabel, compact = false }: { title: string; body: string; icon?: IconName; onAction?: () => void; actionLabel?: string; compact?: boolean }) {
   const colors = useColors();
   const categoryArtwork: Partial<Record<IconName, ExperienceCategory>> = {
     feather: 'environmental',
@@ -671,15 +671,22 @@ function EmptyState({ title, body, icon = 'compass', onAction, actionLabel }: { 
   };
   const artworkCategory = categoryArtwork[icon];
   return (
-    <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-      <View style={[styles.emptyIcon, artworkCategory ? styles.emptyIconArtwork : null, { backgroundColor: artworkCategory ? 'transparent' : colors.muted }]}>
-        {artworkCategory ? <ExperienceCategoryArtwork category={artworkCategory} size={76} /> : <Feather name={icon} size={28} color={colors.primary} />}
+    <View style={[styles.emptyState, compact ? styles.emptyStateCompact : null, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+      <View style={[
+        styles.emptyIcon,
+        compact ? styles.emptyIconCompact : null,
+        artworkCategory && !compact ? styles.emptyIconArtwork : null,
+        { backgroundColor: artworkCategory && !compact ? 'transparent' : colors.primary + '12' },
+      ]}>
+        {artworkCategory && !compact
+          ? <ExperienceCategoryArtwork category={artworkCategory} size={76} />
+          : <Feather name={icon} size={compact ? 19 : 28} color={colors.primary} />}
       </View>
-      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</Text>
-      <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>{body}</Text>
+      <Text style={[styles.emptyTitle, compact ? styles.emptyTitleCompact : null, { color: colors.foreground }]}>{title}</Text>
+      <Text style={[styles.emptyBody, compact ? styles.emptyBodyCompact : null, { color: colors.mutedForeground }]}>{body}</Text>
       {onAction && actionLabel && (
-        <View style={{ marginTop: 24, width: '100%' }}>
-          <Button label={actionLabel} onPress={onAction} />
+        <View style={{ marginTop: compact ? 14 : 24, width: '100%' }}>
+          <Button compact={compact} label={actionLabel} icon="arrow-right" onPress={onAction} />
         </View>
       )}
     </View>
@@ -3344,7 +3351,22 @@ function Explore({ go }: { go: (screen: Screen, params?: Record<string, string>)
         >
           {query.isLoading ? <LoadingState /> : query.isError ? (
             <EmptyState title="Experiences didn’t load" body="Check your connection and try again." actionLabel="Try again" onAction={() => { void query.refetch(); }} />
-          ) : visibleExperiences.length ? visibleExperiences.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : <EmptyState title={selectedCity ? `No experiences in ${selectedCity}` : 'No experiences match'} body="Try another category or come back when local hosts publish something new." actionLabel={selectedCity ? 'Clear city filter' : undefined} onAction={selectedCity ? clearSelectedCity : undefined} />}
+          ) : visibleExperiences.length ? visibleExperiences.map((item) => <ExperienceCard key={item.id} item={item} onPress={() => go('experience', { id: String(item.id) })} />) : (
+            <EmptyState
+              title={selectedCity
+                ? `Nothing open in ${selectedCity}`
+                : category !== 'all'
+                  ? `No ${categoryLabel[category].toLowerCase()} experiences`
+                  : 'No nearby experiences yet'}
+              body={selectedCity || category !== 'all'
+                ? 'Adjust your filters or check back when hosts publish.'
+                : 'Check back when local hosts add something to join.'}
+              icon="search"
+              compact
+              actionLabel={selectedCity ? 'Clear city filter' : undefined}
+              onAction={selectedCity ? clearSelectedCity : undefined}
+            />
+          )}
           <View style={{ height: 24 }} />
         </ScrollView>
       </Animated.View>
@@ -4272,6 +4294,7 @@ function Experiences({ go }: { go: (screen: Screen, params?: Record<string, stri
               ? 'Once a host verifies your contribution, it will show up here.'
               : 'Confirmed places you release stay here so you can keep track.'}
           icon={tab === 'upcoming' ? 'calendar' : tab === 'completed' ? 'award' : 'x-circle'}
+          compact
           actionLabel={tab === 'upcoming' ? 'Explore experiences' : undefined}
           onAction={tab === 'upcoming' ? () => { triggerHaptic(); go('explore'); } : undefined}
         />
@@ -6868,9 +6891,9 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
           <View style={[styles.hostEmptyIcon, { backgroundColor: colors.primary + '10' }]}>
             <Feather name="edit-3" size={21} color={colors.primary} />
           </View>
-          <Text style={[styles.hostEmptyTitle, { color: colors.foreground }]}>Your first experience starts here</Text>
+          <Text style={[styles.hostEmptyTitle, { color: colors.foreground }]}>No experiences yet</Text>
           <Text style={[styles.hostEmptyBody, { color: colors.mutedForeground }]}>
-            Publish a volunteering opportunity and it will appear here for your community to discover.
+            Create an experience for your community to join.
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -6912,6 +6935,7 @@ function Host({ go }: { go: (screen: Screen, params?: Record<string, string>) =>
           title="No matching experiences"
           body="Try another search or status filter."
           icon="search"
+          compact
           actionLabel="Clear filters"
           onAction={() => { setExperienceSearch(''); setExperienceFilter('all'); }}
         />
@@ -8021,7 +8045,7 @@ function HostExperienceDetail({
               onAction={() => { void participants.refetch(); }}
             />
           ) : allParticipants.length === 0 ? (
-            <EmptyState title="No participants yet" body="When people join, you’ll manage attendance and completion here." icon="users" />
+            <EmptyState title="No participants yet" body="When people join, you’ll manage attendance and completion here." icon="users" compact />
           ) : filteredParticipants.length ? filteredParticipants.map((item) => {
             const participantStatusColor = item.status === 'verified' || item.status === 'attended'
               ? colors.success
@@ -8119,6 +8143,7 @@ function HostExperienceDetail({
               title="No matching people"
               body="Try another name or management filter."
               icon="search"
+              compact
               actionLabel="Clear filters"
               onAction={() => { setParticipantSearch(''); setParticipantFilter('all'); }}
             />
@@ -11352,10 +11377,14 @@ const styles = StyleSheet.create({
   buttonCompactText: { fontSize: 12 },
 
   emptyState: { padding: 32, alignItems: 'center', justifyContent: 'center', borderWidth: 1, marginVertical: 24 },
+  emptyStateCompact: { paddingHorizontal: 18, paddingVertical: 18, marginVertical: 12 },
   emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   emptyIconArtwork: { width: 82, height: 82, marginBottom: 12 },
+  emptyIconCompact: { width: 36, height: 36, borderRadius: 12, marginBottom: 8 },
   emptyTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 8, textAlign: 'center' },
+  emptyTitleCompact: { fontSize: 15, lineHeight: 20, marginBottom: 4 },
   emptyBody: { fontSize: 15, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 22 },
+  emptyBodyCompact: { maxWidth: 310, fontSize: 12, lineHeight: 17 },
   inlineError: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, marginVertical: 8 },
   inlineErrorText: { flex: 1, fontSize: 13, lineHeight: 19, fontFamily: 'Inter_500Medium' },
 
@@ -12186,11 +12215,11 @@ const styles = StyleSheet.create({
   hostFilterList: { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingBottom: 14 },
   hostFilterChip: { minHeight: 38, justifyContent: 'center', borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
   hostFilterText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  hostEmptyState: { alignItems: 'center', borderWidth: 1, padding: 18, gap: 8 },
-  hostEmptyIcon: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 16, marginBottom: 2 },
-  hostEmptyTitle: { fontSize: 15, lineHeight: 20, fontFamily: 'Inter_700Bold', textAlign: 'center' },
-  hostEmptyBody: { maxWidth: 300, fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular', textAlign: 'center' },
-  hostEmptyAction: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, paddingHorizontal: 14, marginTop: 3 },
+  hostEmptyState: { alignItems: 'center', borderWidth: 1, padding: 15, gap: 6 },
+  hostEmptyIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 12, marginBottom: 1 },
+  hostEmptyTitle: { fontSize: 14, lineHeight: 19, fontFamily: 'Inter_700Bold', textAlign: 'center' },
+  hostEmptyBody: { maxWidth: 300, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  hostEmptyAction: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, paddingHorizontal: 12, marginTop: 2 },
   hostEmptyActionText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   hostStatusPill: { flexShrink: 0, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   hostStatusText: { fontSize: 10, fontFamily: 'Inter_700Bold' },

@@ -584,10 +584,24 @@ export function OrganisationHomeScreen({ user, go }: Props) {
           );
         })
       ) : (
-        <View style={[styles.noticeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Feather name="calendar" size={18} color={colors.mutedForeground} />
-          <Text style={[styles.noticeText, { color: colors.mutedForeground }]}>No active experiences yet.</Text>
-          <Pressable accessibilityRole="button" onPress={() => go('create')}><Text style={[styles.actionText, { color: colors.primary }]}>Create one</Text></Pressable>
+        <View style={[styles.emptyExperiencesCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <View style={[styles.emptyExperienceIcon, { backgroundColor: colors.primary + '12' }]}>
+            <Feather name="calendar" size={17} color={colors.primary} />
+          </View>
+          <Text style={[styles.emptyExperienceTitle, { color: colors.foreground }]}>No active experiences</Text>
+          <Text style={[styles.emptyExperienceBody, { color: colors.mutedForeground }]}>
+            Create one to bring your community together.
+          </Text>
+          <Pressable
+            testID="organisation-home-create-experience"
+            accessibilityRole="button"
+            accessibilityLabel="Create an experience"
+            onPress={() => go('create')}
+            style={[styles.emptyExperienceAction, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
+          >
+            <Feather name="plus" size={15} color={colors.primaryForeground} />
+            <Text style={[styles.emptyExperienceActionText, { color: colors.primaryForeground }]}>Create experience</Text>
+          </Pressable>
         </View>
       )}
     </ScrollView>
@@ -623,6 +637,12 @@ const styles = StyleSheet.create({
   workspaceDetail: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular' },
   noticeCard: { minHeight: 58, borderWidth: 1, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   noticeText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium' },
+  emptyExperiencesCard: { alignItems: 'center', borderWidth: 1, padding: 15, gap: 5 },
+  emptyExperienceIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 12, marginBottom: 2 },
+  emptyExperienceTitle: { fontSize: 14, lineHeight: 19, textAlign: 'center', fontFamily: 'Inter_700Bold' },
+  emptyExperienceBody: { fontSize: 12, lineHeight: 17, textAlign: 'center', fontFamily: 'Inter_400Regular' },
+  emptyExperienceAction: { minHeight: 40, alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 14, marginTop: 5 },
+  emptyExperienceActionText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   progressNotice: { minHeight: 58, borderWidth: 1, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   progressCard: { borderWidth: 1, padding: 15, gap: 12 },
   progressHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },

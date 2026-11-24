@@ -535,21 +535,21 @@ export function PersonalActivityScreen({
             </Text>
           </View>
         ) : items.length ? (
-          <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.emptyCard, styles.compactEmptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="filter" size={24} color={colors.mutedForeground} />
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Nothing in this section yet</Text>
-            <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>
-              Choose another filter to see more of your activity.
+            <Text style={[styles.emptyTitle, styles.compactEmptyTitle, { color: colors.foreground }]}>No {filter === 'xp' ? 'XP' : filter} activity yet</Text>
+            <Text style={[styles.emptyCopy, styles.compactEmptyCopy, { color: colors.mutedForeground }]}>
+              Try another filter to see more of your record.
             </Text>
           </View>
         ) : (
-          <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.emptyCard, styles.compactEmptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={[styles.emptyIcon, { backgroundColor: colors.muted }]}>
               <Feather name="compass" size={22} color={colors.primary} />
             </View>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Your story starts with a first step</Text>
-            <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>
-              Join an experience or invite a friend. Your activity and progress will be collected here.
+            <Text style={[styles.emptyTitle, styles.compactEmptyTitle, { color: colors.foreground }]}>Your record starts with a first step</Text>
+            <Text style={[styles.emptyCopy, styles.compactEmptyCopy, { color: colors.mutedForeground }]}>
+              Join an experience or take on a challenge. Your participation will appear here.
             </Text>
             <Pressable
               accessibilityRole="button"
@@ -667,9 +667,12 @@ const styles = StyleSheet.create({
   experienceLink: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 5, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 59 },
   experienceLinkText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   emptyCard: { minHeight: 210, borderWidth: 1, borderRadius: 20, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  emptyIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  compactEmptyCard: { minHeight: 132, borderRadius: 16, padding: 16 },
+  emptyIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 7 },
   emptyTitle: { fontSize: 16, textAlign: 'center', fontFamily: 'Inter_700Bold', marginTop: 8 },
+  compactEmptyTitle: { fontSize: 14, lineHeight: 19, marginTop: 4 },
   emptyCopy: { maxWidth: 275, fontSize: 12, lineHeight: 18, textAlign: 'center', fontFamily: 'Inter_400Regular', marginTop: 6 },
-  exploreButton: { minHeight: 43, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, alignSelf: 'stretch', marginTop: 17, paddingHorizontal: 12 },
+  compactEmptyCopy: { fontSize: 11, lineHeight: 16, marginTop: 4 },
+  exploreButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, alignSelf: 'stretch', marginTop: 12, paddingHorizontal: 12 },
   exploreButtonText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
 });

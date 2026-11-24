@@ -616,9 +616,9 @@ export function SocialFeed({
           </Pressable>
         </View>
       ) : feedItems.length === 0 ? (
-        <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.stateCard, styles.emptyStateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.emptyIcon, { backgroundColor: colors.primary + "14" }]}>
-            <Feather name="users" size={23} color={colors.primary} />
+            <Feather name={mode === "following" ? "users" : mode === "local" ? "map-pin" : "activity"} size={17} color={colors.primary} />
           </View>
           <Text style={[styles.stateTitle, { color: colors.foreground }]}>
             {activeEmptyMessage.title}
@@ -1458,11 +1458,12 @@ const styles = StyleSheet.create({
   actionText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   actionCount: { fontSize: 11, fontFamily: "Inter_400Regular" },
   stateCard: { minHeight: 160, borderWidth: 1, borderRadius: 16, alignItems: "center", justifyContent: "center", padding: 20, gap: 9 },
+  emptyStateCard: { minHeight: 128, padding: 15, gap: 6 },
   stateTitle: { fontSize: 15, textAlign: "center", fontFamily: "Inter_700Bold" },
   stateText: { fontSize: 12, lineHeight: 18, textAlign: "center", fontFamily: "Inter_400Regular" },
   stateAction: { minHeight: 38, paddingHorizontal: 15, borderRadius: 13, alignItems: "center", justifyContent: "center", marginTop: 3 },
   stateActionText: { fontSize: 12, fontFamily: "Inter_700Bold" },
-  emptyIcon: { width: 43, height: 43, borderRadius: 15, justifyContent: "center", alignItems: "center" },
+  emptyIcon: { width: 36, height: 36, borderRadius: 12, justifyContent: "center", alignItems: "center" },
   loadMoreButton: { minHeight: 42, borderWidth: 1, borderRadius: 15, justifyContent: "center", alignItems: "center", paddingHorizontal: 14 },
   loadMoreText: { fontSize: 13, fontFamily: "Inter_700Bold" },
   modalScrim: { flex: 1, justifyContent: "flex-end" },

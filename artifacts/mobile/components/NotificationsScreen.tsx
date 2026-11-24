@@ -383,15 +383,15 @@ export function NotificationsScreen({ onBack, onOpenFriends, onOpenCommunityFeed
           </Text>
         </Pressable>
       ) : notifications.length === 0 ? (
-        <View style={[cardStyle, { alignItems: "center", gap: 9, padding: 22 }]}>
-          <View style={{ alignItems: "center", backgroundColor: colors.primary + "12", borderRadius: 25, height: 50, justifyContent: "center", width: 50 }}>
-            <Feather name="bell" size={21} color={colors.primary} />
+        <View style={[cardStyle, { alignItems: "center", gap: 6, padding: 16 }]}>
+          <View style={{ alignItems: "center", backgroundColor: colors.primary + "12", borderRadius: 12, height: 36, justifyContent: "center", width: 36 }}>
+            <Feather name="bell" size={17} color={colors.primary} />
           </View>
-          <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "700", textAlign: "center" }}>
+          <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "700", textAlign: "center" }}>
             You’re all caught up
           </Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19, textAlign: "center" }}>
-            Friend requests, community updates, partner invitations, and check-ins will appear here.
+          <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 17, textAlign: "center" }}>
+            New requests, community updates, and check-ins will appear here.
           </Text>
           <Pressable
             accessibilityRole="button"

@@ -456,11 +456,16 @@ export function OrganisationPartnershipsSection() {
       incoming.length === 0 &&
       outgoing.length === 0 &&
       active.length === 0 ? (
-        <View style={[cardStyle, { alignItems: "center", flexDirection: "row", gap: 10, padding: 14 }]}>
+        <View style={[cardStyle, { alignItems: "center", flexDirection: "row", gap: 10, padding: 13 }]}>
           <Feather name="briefcase" size={17} color={colors.primary} />
-          <Text style={{ color: colors.mutedForeground, flex: 1, fontSize: 13, lineHeight: 19 }}>
-            No partnership requests or active partnerships yet.
-          </Text>
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "600" }}>
+              No partnerships yet
+            </Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 17 }}>
+              New requests and active partnerships will appear here.
+            </Text>
+          </View>
         </View>
       ) : null}
     </View>
