@@ -1301,12 +1301,13 @@ function TalentWelcome({
         ]}
       >
         <View style={styles.simpleWelcomeHero}>
-          <Image
-            source={require('../assets/images/icon.png')}
-            resizeMode="contain"
+          <View
             accessibilityLabel="Experiences.fun"
-            style={styles.simpleWelcomeLogo}
-          />
+            accessibilityRole="image"
+            style={[styles.simpleWelcomeMark, { backgroundColor: colors.muted, borderColor: colors.border }]}
+          >
+            <Feather name="star" size={40} color={colors.primary} />
+          </View>
           <Text style={[styles.simpleWelcomeTitle, { color: colors.foreground }]}>
             Welcome to{'\n'}Experiences.fun
           </Text>
@@ -1347,6 +1348,9 @@ function TalentWelcome({
           >
             <Text style={[styles.simpleWelcomeLoginLabel, { color: colors.mutedForeground }]}>Log In</Text>
           </Pressable>
+          <Text style={[styles.simpleWelcomeLegal, { color: colors.mutedForeground }]}>
+            By continuing, you agree to our Terms of Service and Privacy Policy.
+          </Text>
         </View>
       </ScrollView>
     </View>
@@ -11388,8 +11392,8 @@ const styles = StyleSheet.create({
   welcomeEmailLinkText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   welcomeHomeIndicator: { width: 104, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4, opacity: 0.92 },
   simpleWelcomeContent: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 28 },
-  simpleWelcomeHero: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', paddingBottom: 32 },
-  simpleWelcomeLogo: { width: 96, height: 96, marginBottom: 12 },
+  simpleWelcomeHero: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' },
+  simpleWelcomeMark: { width: 92, height: 92, alignItems: 'center', justifyContent: 'center', borderRadius: 46, borderWidth: 1, marginBottom: 12 },
   simpleWelcomeTitle: { fontSize: 29, lineHeight: 34, fontFamily: 'Inter_700Bold', letterSpacing: -0.7, textAlign: 'center' },
   simpleWelcomeDescription: { maxWidth: 310, fontSize: 14, lineHeight: 20, fontFamily: 'Inter_500Medium', textAlign: 'center', marginTop: 6 },
   simpleWelcomeActions: { width: '100%', maxWidth: 420, alignItems: 'center', paddingTop: 14, paddingBottom: 18 },
@@ -11397,6 +11401,7 @@ const styles = StyleSheet.create({
   simpleWelcomeStartLabel: { color: '#FFFFFF', fontSize: 15, fontFamily: 'Inter_700Bold' },
   simpleWelcomeLoginButton: { minWidth: 100, minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   simpleWelcomeLoginLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  simpleWelcomeLegal: { maxWidth: 330, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 4 },
   emailLoginLink: { alignItems: 'center', paddingVertical: 2 },
   emailLoginLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   emailAuthScreen: { flex: 1 },
