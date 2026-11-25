@@ -820,7 +820,6 @@ export function SocialFeed({
                     setPostTopic("general");
                   }}
                   testIDPrefix="feed-composer"
-                  variant="minimal"
                 />
               </View>
 

@@ -800,7 +800,15 @@ test("organisation hosts can manage experience participants from a phone-sized d
   const initialProfileFilterColors = await client.evaluate(`(() => ({
     personal: getComputedStyle(document.querySelector('[data-testid="profile-category-personal"]')).backgroundColor,
     professional: getComputedStyle(document.querySelector('[data-testid="profile-category-professional"]')).backgroundColor,
+    bounds: (() => {
+      const rect = document.querySelector('[data-testid="profile-category-tabs"]').getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    })(),
   }))()`);
+  assert.ok(initialProfileFilterColors.bounds.width <= 276,
+    "The profile category switch should stay compact instead of stretching across the page.");
+  assert.ok(initialProfileFilterColors.bounds.height <= 44,
+    "The profile category switch should keep its compact touch-friendly height.");
   assert.notEqual(initialProfileFilterColors.personal, initialProfileFilterColors.professional,
     "The current profile post category should remain visibly selected.");
   await tapTestId(client, "profile-category-professional");
@@ -2340,6 +2348,7 @@ test("charity treasury dashboard shows live values and supports private balance 
       height: window.visualViewport?.height ?? window.innerHeight,
       priority: bounds(document.querySelector('[data-testid="organisation-home-priority"]')),
       filters: bounds(document.querySelector('[data-testid="feed-home-category-tabs"]')),
+      filterWidth: document.querySelector('[data-testid="feed-home-category-tabs"]')?.getBoundingClientRect().width ?? null,
       feed: bounds(feedHeading),
       personalFilter: Boolean(document.querySelector('[data-testid="feed-home-category-personal"]')),
       professionalFilter: Boolean(document.querySelector('[data-testid="feed-home-category-professional"]')),
@@ -2350,6 +2359,8 @@ test("charity treasury dashboard shows live values and supports private balance 
     assert.equal(layout.height, height, "The organisation Home should use the expected phone height.");
     assert.ok(layout.priority, "The active campaign action should remain visible.");
     assert.ok(layout.filters, "The Personal and Professional feed filters should remain available.");
+    assert.ok(layout.filterWidth <= 276,
+      `The Home category switch should remain compact: ${JSON.stringify(layout)}`);
     assert.ok(layout.feed, "The community feed should remain available.");
     assert.ok(layout.personalFilter && layout.professionalFilter, "Both feed categories should remain present.");
     assert.ok(layout.priority.top >= 0 && layout.priority.bottom <= height,

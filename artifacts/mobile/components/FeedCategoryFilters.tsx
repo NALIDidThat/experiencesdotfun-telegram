@@ -1,7 +1,5 @@
-import { Pressable, Platform, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { PoppinsText as Text } from "@/components/Typography";
-import { BlurView } from "expo-blur";
-import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from "expo-glass-effect";
 import type { FeedPostCategory } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 
@@ -14,53 +12,21 @@ export function FeedCategoryFilters({
   category,
   onCategoryChange,
   testIDPrefix = "feed",
-  variant = "glass",
 }: {
   category: FeedPostCategory;
   onCategoryChange: (category: FeedPostCategory) => void;
   testIDPrefix?: string;
-  variant?: "glass" | "minimal";
 }) {
   const colors = useColors();
-  const minimal = variant === "minimal";
-  const liquidGlassAvailable =
-    Platform.OS === "ios" &&
-    isLiquidGlassAvailable() &&
-    isGlassEffectAPIAvailable();
 
   return (
     <View
       testID={`${testIDPrefix}-category-tabs`}
-      style={[
-        styles.glassControl,
-        {
-          backgroundColor: minimal ? colors.muted : `${colors.primary}08`,
-          borderColor: minimal ? colors.border : `${colors.primary}48`,
-        },
-      ]}
+      style={[styles.filterTrack, { backgroundColor: colors.muted }]}
     >
-      {!minimal ? (
-        <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.glassBackdrop]}>
-          {liquidGlassAvailable ? (
-            <GlassView
-              glassEffectStyle="regular"
-              tintColor={`${colors.primary}24`}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : (
-            <BlurView intensity={42} tint="light" style={StyleSheet.absoluteFill} />
-          )}
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: `${colors.primary}12` },
-            ]}
-          />
-        </View>
-      ) : null}
       <View
         accessibilityRole="tablist"
-        style={[styles.categoryControl, minimal && styles.minimalCategoryControl]}
+        style={styles.categoryControl}
       >
         {(Object.keys(feedCategoryLabels) as FeedPostCategory[]).map((item) => {
           const selected = category === item;
@@ -73,15 +39,21 @@ export function FeedCategoryFilters({
               onPress={() => onCategoryChange(item)}
               style={({ pressed }) => [
                 styles.categoryButton,
-                minimal && styles.minimalCategoryButton,
-                selected && { backgroundColor: colors.primary },
+                selected && {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  borderWidth: StyleSheet.hairlineWidth,
+                },
                 pressed && styles.categoryButtonPressed,
               ]}
             >
               <Text
                 style={[
                   styles.categoryText,
-                  { color: selected ? colors.primaryForeground : colors.mutedForeground },
+                  {
+                    color: selected ? colors.foreground : colors.mutedForeground,
+                    fontFamily: selected ? "Inter_700Bold" : "Inter_600SemiBold",
+                  },
                 ]}
               >
                 {feedCategoryLabels[item]}
@@ -95,18 +67,22 @@ export function FeedCategoryFilters({
 }
 
 const styles = StyleSheet.create({
-  glassControl: {
-    borderWidth: 1,
-    borderRadius: 999,
+  filterTrack: {
+    width: "100%",
+    maxWidth: 276,
+    minHeight: 44,
+    alignSelf: "center",
+    borderRadius: 12,
     overflow: "hidden",
-    padding: 4,
-    position: "relative",
   },
-  glassBackdrop: { borderRadius: 999 },
-  categoryControl: { flexDirection: "row", gap: 4 },
-  minimalCategoryControl: { gap: 3 },
-  categoryButton: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 999 },
-  minimalCategoryButton: { minHeight: 42, borderRadius: 11 },
+  categoryControl: { flexDirection: "row" },
+  categoryButton: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 11,
+  },
   categoryButtonPressed: { opacity: 0.78 },
-  categoryText: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  categoryText: { fontSize: 12.5 },
 });
