@@ -1753,7 +1753,7 @@ test("Google Maps and nearby Places work with the configured browser key", {
   );
   await waitForValue(
     client,
-    `Boolean(document.querySelector('[data-testid="explore-map-nearby-ready"]'))`,
+    `Boolean(document.querySelector('[data-testid="explore-nearby-place-list"]'))`,
     Boolean,
     "successful nearby Places results",
     45_000,
@@ -1769,44 +1769,20 @@ test("Google Maps and nearby Places work with the configured browser key", {
   assert.ok(placeListState.rowCount > 0, "Every returned nearby place should have a selectable list row.");
   assert.ok(placeListState.firstPlace.trim(), "The first Google place row should include visible business information.");
   const requestsBeforePlaceDetails = placesApiRequestCount;
+  await tapTestId(client, "explore-nearby-place-0");
   await waitForValue(
     client,
-    `Boolean(document.querySelector('[data-testid="explore-business-pin-0"]'))`,
+    `Boolean(document.querySelector('[data-testid="explore-nearby-place-details-loaded"]'))`,
     Boolean,
-    "a selectable business pin on the map",
+    "the business card after selecting a result from the list",
   );
-  await tapTestId(client, "explore-map-tools-close");
-  await tapTestId(client, "explore-business-pin-0");
-  await waitForValue(
-    client,
-    `Boolean(document.querySelector('[data-testid="explore-nearby-place-details"]'))`,
-    Boolean,
-    "the selected business detail card",
-    10_000,
-  );
-  await waitForValue(
-    client,
-    `Boolean(document.querySelector('[data-testid="explore-nearby-place-details-loaded"]') || document.querySelector('[data-testid="explore-nearby-place-details-error"]'))`,
-    Boolean,
-    "the Place Details response or its visible fallback",
-    15_000,
-  );
-  const selectedPlaceState = await client.evaluate(`(() => ({
+  const listSelectedPlaceState = await client.evaluate(`(() => ({
     card: document.querySelector('[data-testid="explore-nearby-place-details"]')?.innerText ?? '',
-    loaded: Boolean(document.querySelector('[data-testid="explore-nearby-place-details-loaded"]')),
-    error: Boolean(document.querySelector('[data-testid="explore-nearby-place-details-error"]')),
     directions: Boolean(document.querySelector('[data-testid="explore-nearby-place-directions"]')),
   }))()`);
-  assert.equal(
-    selectedPlaceState.loaded,
-    true,
-    `The selected Google business should show its details. State: ${JSON.stringify(selectedPlaceState)}; Places responses: ${JSON.stringify(placesResponses)}; Browser errors: ${JSON.stringify(browserErrors)}`,
-  );
-  assert.ok(
-    placesApiRequestCount > requestsBeforePlaceDetails,
-    "Selecting a business should request its details only after the user opens it.",
-  );
-  assert.equal(selectedPlaceState.directions, true, "The selected business card should expose a directions action.");
+  assert.ok(listSelectedPlaceState.card.trim(), "The selected list result should open its business card.");
+  assert.equal(listSelectedPlaceState.directions, true, "The list-selected business card should expose directions.");
+  assert.ok(placesApiRequestCount > requestsBeforePlaceDetails, "Selecting a result should request its business details.");
 
   await tapTestId(client, "explore-nearby-place-browse");
   await waitForValue(
@@ -1815,13 +1791,34 @@ test("Google Maps and nearby Places work with the configured browser key", {
     Boolean,
     "the nearby places list after returning from a business card",
   );
-  await tapTestId(client, "explore-nearby-place-0");
+  await tapTestId(client, "explore-map-tools-close");
+  const visibleBusinessPin = await client.evaluate(`(() => {
+    const pins = [...document.querySelectorAll('[data-testid^="explore-business-pin-"]')];
+    return pins.find((pin) => {
+      const rect = pin.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return rect.width > 0 && rect.height > 0
+        && hit?.closest('[data-testid]')?.getAttribute('data-testid') === pin.getAttribute('data-testid');
+    })?.getAttribute('data-testid') ?? null;
+  })()`);
+  assert.ok(visibleBusinessPin, "At least one business pin should be visible and tappable on the map.");
+  const requestsBeforePinDetails = placesApiRequestCount;
+  await tapTestId(client, visibleBusinessPin);
   await waitForValue(
     client,
     `Boolean(document.querySelector('[data-testid="explore-nearby-place-details-loaded"]'))`,
     Boolean,
-    "the business card after selecting a result from the list",
+    "the business card opened from a map pin",
+    15_000,
   );
+  const selectedPlaceState = await client.evaluate(`(() => ({
+    card: document.querySelector('[data-testid="explore-nearby-place-details"]')?.innerText ?? '',
+    directions: Boolean(document.querySelector('[data-testid="explore-nearby-place-directions"]')),
+  }))()`);
+  assert.ok(selectedPlaceState.card.trim(), "The map pin should open a business card with place details.");
+  assert.ok(placesApiRequestCount > requestsBeforePinDetails, "Tapping a map pin should load its business details.");
+  assert.equal(selectedPlaceState.directions, true, "The selected business card should expose a directions action.");
+
   const requestsBeforeCameraMove = placesApiRequestCount;
   await tapTestId(client, "explore-nearby-place-details-close");
   const mapPoint = await client.evaluate(`(() => {

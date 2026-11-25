@@ -320,7 +320,7 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
   const nearbyStatusMessage = nearbyStatus === 'loading'
     ? 'Searching nearby…'
     : nearbyStatus === 'ready'
-      ? `${nearby.length} nearby places`
+      ? ''
       : nearbyStatus === 'empty'
         ? 'No nearby places found'
         : nearbyStatus === 'error'
@@ -536,6 +536,7 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
                 styles.toolsPanel,
                 {
                   bottom: Math.max(16, (props.sheetOverlayHeight ?? 0) + 16),
+                  maxHeight: props.fullScreen ? 230 : 400,
                   backgroundColor: colors.card,
                   borderColor: colors.border,
                 },
@@ -820,65 +821,60 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
                     </View>
                   )}
 
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Get directions to ${selectedPlace.name}`}
-                    testID="explore-nearby-place-directions"
-                    onPress={() => {
-                      const destination = selectedPlace.id.startsWith('nearby-')
-                        ? `${selectedPlace.name} ${selectedPlace.position.lat},${selectedPlace.position.lng}`
-                        : selectedPlace.name;
-                      const params = new URLSearchParams({ api: '1', destination });
-                      if (!selectedPlace.id.startsWith('nearby-')) {
-                        params.set('destination_place_id', selectedPlace.id);
-                      }
-                      void Linking.openURL(`https://www.google.com/maps/dir/?${params.toString()}`).catch(() => {
-                        setPlaceActionMessage('Could not open directions for this place.');
-                      });
-                    }}
-                    style={[styles.placeDirectionsButton, { backgroundColor: colors.primary }]}
-                  >
-                    <Feather name="navigation" size={16} color={colors.primaryForeground} />
-                    <Text style={[styles.placeDirectionsText, { color: colors.primaryForeground }]}>Directions</Text>
-                    <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />
-                  </Pressable>
-
-                  {selectedPlaceDetails?.websiteURI || selectedPlaceDetails?.internationalPhoneNumber ? (
-                    <View style={styles.placeSecondaryActions}>
-                      {selectedPlaceDetails.websiteURI ? (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={`Open ${selectedPlace.name} website`}
-                          testID="explore-nearby-place-website"
-                          onPress={() => {
-                            void Linking.openURL(selectedPlaceDetails.websiteURI!).catch(() => {
-                              setPlaceActionMessage('Could not open this business website.');
-                            });
-                          }}
-                          style={[styles.placeSecondaryButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
-                        >
-                          <Feather name="external-link" size={14} color={colors.foreground} />
-                          <Text style={[styles.placeSecondaryText, { color: colors.foreground }]}>Website</Text>
-                        </Pressable>
-                      ) : null}
-                      {selectedPlaceDetails.internationalPhoneNumber ? (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={`Call ${selectedPlace.name}`}
-                          testID="explore-nearby-place-call"
-                          onPress={() => {
-                            void Linking.openURL(`tel:${selectedPlaceDetails.internationalPhoneNumber}`).catch(() => {
-                              setPlaceActionMessage('Could not start a call to this business.');
-                            });
-                          }}
-                          style={[styles.placeSecondaryButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
-                        >
-                          <Feather name="phone" size={14} color={colors.foreground} />
-                          <Text style={[styles.placeSecondaryText, { color: colors.foreground }]}>Call</Text>
-                        </Pressable>
-                      ) : null}
-                    </View>
-                  ) : null}
+                  <View style={styles.placeActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Get directions to ${selectedPlace.name}`}
+                      testID="explore-nearby-place-directions"
+                      onPress={() => {
+                        const destination = selectedPlace.id.startsWith('nearby-')
+                          ? `${selectedPlace.name} ${selectedPlace.position.lat},${selectedPlace.position.lng}`
+                          : selectedPlace.name;
+                        const params = new URLSearchParams({ api: '1', destination });
+                        if (!selectedPlace.id.startsWith('nearby-')) {
+                          params.set('destination_place_id', selectedPlace.id);
+                        }
+                        void Linking.openURL(`https://www.google.com/maps/dir/?${params.toString()}`).catch(() => {
+                          setPlaceActionMessage('Could not open directions for this place.');
+                        });
+                      }}
+                      style={[styles.placeDirectionsButton, { backgroundColor: colors.primary }]}
+                    >
+                      <Feather name="navigation" size={15} color={colors.primaryForeground} />
+                      <Text style={[styles.placeDirectionsText, { color: colors.primaryForeground }]}>Directions</Text>
+                      <Feather name="arrow-up-right" size={14} color={colors.primaryForeground} />
+                    </Pressable>
+                    {selectedPlaceDetails?.websiteURI ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Open ${selectedPlace.name} website`}
+                        testID="explore-nearby-place-website"
+                        onPress={() => {
+                          void Linking.openURL(selectedPlaceDetails.websiteURI!).catch(() => {
+                            setPlaceActionMessage('Could not open this business website.');
+                          });
+                        }}
+                        style={[styles.placeSecondaryButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                      >
+                        <Feather name="external-link" size={15} color={colors.foreground} />
+                      </Pressable>
+                    ) : null}
+                    {selectedPlaceDetails?.internationalPhoneNumber ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Call ${selectedPlace.name}`}
+                        testID="explore-nearby-place-call"
+                        onPress={() => {
+                          void Linking.openURL(`tel:${selectedPlaceDetails.internationalPhoneNumber}`).catch(() => {
+                            setPlaceActionMessage('Could not start a call to this business.');
+                          });
+                        }}
+                        style={[styles.placeSecondaryButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                      >
+                        <Feather name="phone" size={15} color={colors.foreground} />
+                      </Pressable>
+                    ) : null}
+                  </View>
 
                   {placeActionMessage ? (
                     <Text testID="explore-nearby-place-action-message" style={[styles.placeCardFeedback, { color: colors.destructive }]}>
@@ -924,7 +920,7 @@ const styles = StyleSheet.create({
   map: { width: '100%', height: '100%' },
   toolsToggle: { position: 'absolute', right: 14, minHeight: 44, borderWidth: 1, borderRadius: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 14 },
   toolsToggleText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  toolsPanel: { position: 'absolute', left: 12, right: 12, borderWidth: 1, borderRadius: 18, padding: 12, gap: 9, maxHeight: 400, overflow: 'hidden' },
+  toolsPanel: { position: 'absolute', left: 12, right: 12, borderWidth: 1, borderRadius: 18, padding: 10, gap: 6, maxHeight: 400, overflow: 'hidden' },
   toolsHeading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   toolsHeadingCopy: { flex: 1, minWidth: 0 },
   toolsTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
@@ -951,28 +947,27 @@ const styles = StyleSheet.create({
   placeCardPosition: { position: 'absolute', left: 12, right: 12, zIndex: 8, elevation: 8 },
   placeCard: { borderWidth: 1, borderRadius: 20, overflow: 'hidden' },
   placeCardAccent: { height: 4 },
-  placeCardContent: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8, gap: 10 },
-  placeCardHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  placeCardIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  placeCardContent: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6, gap: 6 },
+  placeCardHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  placeCardIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   placeCardCopy: { flex: 1, minWidth: 0, gap: 3 },
-  placeCardEyebrow: { fontSize: 9, letterSpacing: 0.8, fontFamily: 'Inter_700Bold' },
-  placeCardName: { fontSize: 16, lineHeight: 20, fontFamily: 'Inter_700Bold' },
-  placeCardAddress: { fontSize: 12, lineHeight: 16 },
-  placeCardClose: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  placeCardFeedback: { fontSize: 12, lineHeight: 17 },
-  placeCardMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingVertical: 2 },
-  placeCardMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  placeCardMetaStrong: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  placeCardMetaText: { fontSize: 11, lineHeight: 15 },
+  placeCardEyebrow: { fontSize: 8, letterSpacing: 0.8, fontFamily: 'Inter_700Bold' },
+  placeCardName: { fontSize: 15, lineHeight: 18, fontFamily: 'Inter_700Bold' },
+  placeCardAddress: { fontSize: 11, lineHeight: 14 },
+  placeCardClose: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  placeCardFeedback: { fontSize: 11, lineHeight: 15 },
+  placeCardMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
+  placeCardMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  placeCardMetaStrong: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  placeCardMetaText: { fontSize: 10, lineHeight: 13 },
   placeStatusDot: { width: 7, height: 7, borderRadius: 4 },
-  placeDirectionsButton: { minHeight: 44, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  placeDirectionsText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
-  placeSecondaryActions: { flexDirection: 'row', gap: 8 },
-  placeSecondaryButton: { minHeight: 40, flex: 1, borderWidth: 1, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 8 },
-  placeSecondaryText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  placeCardFooter: { minHeight: 38, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 5 },
+  placeActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  placeDirectionsButton: { minWidth: 0, minHeight: 40, flex: 1, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 6 },
+  placeDirectionsText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  placeSecondaryButton: { width: 40, height: 40, borderWidth: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  placeCardFooter: { minHeight: 30, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 3 },
   googlePlaceAttribution: { fontSize: 10, fontFamily: 'Inter_500Medium' },
-  placeBrowseButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 2, paddingLeft: 8 },
+  placeBrowseButton: { minHeight: 30, flexDirection: 'row', alignItems: 'center', gap: 2, paddingLeft: 8 },
   placeBrowseText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
   cityMarker: { minWidth: 34, height: 34, borderRadius: 18, borderWidth: 2, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
   businessMarker: { width: 44, height: 46, alignItems: 'center', justifyContent: 'flex-start' },
