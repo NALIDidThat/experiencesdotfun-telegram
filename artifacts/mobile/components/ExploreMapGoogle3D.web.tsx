@@ -117,6 +117,7 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
   const [selectedPlace, setSelectedPlace] = useState<NearbyPlace | null>(null);
   const [selectedPlaceDetails, setSelectedPlaceDetails] = useState<NearbyPlaceDetails | null>(null);
   const [placeDetailsStatus, setPlaceDetailsStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [placeActionMessage, setPlaceActionMessage] = useState('');
   const [nearbyStatus, setNearbyStatus] = useState<'idle' | 'loading' | 'ready' | 'empty' | 'error'>('idle');
   const [searchToken, setSearchToken] = useState(0);
   const [locationMessage, setLocationMessage] = useState('');
@@ -215,6 +216,7 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
     setSelectedPlace(null);
     setSelectedPlaceDetails(null);
     setPlaceDetailsStatus('idle');
+    setPlaceActionMessage('');
     placeDetailsRequestId.current = null;
     setNearbyStatus('idle');
     setLocationMessage('');
@@ -237,6 +239,7 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
     setSelectedPlace(null);
     setSelectedPlaceDetails(null);
     setPlaceDetailsStatus('idle');
+    setPlaceActionMessage('');
     placeDetailsRequestId.current = null;
     setNearbyStatus('loading');
     setLocationMessage('');
@@ -249,13 +252,16 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
     setSelectedPlace(null);
     setSelectedPlaceDetails(null);
     setPlaceDetailsStatus('idle');
+    setPlaceActionMessage('');
     placeDetailsRequestId.current = null;
   }, []);
 
   const selectNearbyPlace = useCallback(async (place: NearbyPlace) => {
+    setMapToolsOpen(false);
     setSelectedPlace(place);
     setSelectedPlaceDetails(null);
     setPlaceDetailsStatus('loading');
+    setPlaceActionMessage('');
     placeDetailsRequestId.current = place.id;
     mapRef.current?.panTo(place.position);
     mapRef.current?.setZoom(Math.max(mapRef.current?.getZoom() ?? 0, 14));
@@ -299,6 +305,7 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
         setSelectedPlace(null);
         setSelectedPlaceDetails(null);
         setPlaceDetailsStatus('idle');
+        setPlaceActionMessage('');
         placeDetailsRequestId.current = null;
         setNearbyStatus('idle');
         mapRef.current?.panTo(next);
@@ -464,27 +471,52 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
               </View>
             </AdvancedMarker>
           )) : null}
-          {nearby.map((place, index) => (
+          {nearby.map((place, index) => {
+            const selected = selectedPlace?.id === place.id;
+            return (
             <AdvancedMarker
               key={place.id}
               position={place.position}
               title={place.name}
+              zIndex={selected ? 2 : 1}
               onClick={() => { void selectNearbyPlace(place); }}
             >
-              <View style={[
+              <View
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${place.name}${place.address ? `, ${place.address}` : ''}`}
+                accessibilityHint="Shows business details and directions."
+                accessibilityState={{ selected }}
+                testID={`explore-business-pin-${index}`}
+                style={[
                 styles.businessMarker,
-                {
-                  backgroundColor: selectedPlace?.id === place.id ? colors.primary : colors.card,
-                  borderColor: colors.primary,
-                },
               ]}>
-                <Text style={[
-                  styles.markerLabel,
-                  { color: selectedPlace?.id === place.id ? colors.primaryForeground : colors.primary },
-                ]}>{index + 1}</Text>
+                <View
+                  style={[
+                    styles.businessMarkerTail,
+                    {
+                      backgroundColor: selected ? colors.primary : colors.card,
+                      borderColor: selected ? colors.card : colors.primary,
+                    },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.businessMarkerHead,
+                    {
+                      backgroundColor: selected ? colors.primary : colors.card,
+                      borderColor: selected ? colors.card : colors.primary,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.markerLabel, { color: selected ? colors.primaryForeground : colors.primary }]}>
+                    {index + 1}
+                  </Text>
+                </View>
               </View>
             </AdvancedMarker>
-          ))}
+            );
+          })}
         </GoogleMap>
         {searchToken > 0 ? (
           <NearbySearch
@@ -587,117 +619,6 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
                   <Text style={{ color: colors.foreground }}>{mapStatusMessage}</Text>
                 </View>
               ) : null}
-              {selectedPlace ? (
-                <View
-                  testID="explore-nearby-place-details"
-                  style={[styles.placeDetails, { backgroundColor: colors.muted, borderColor: colors.border }]}
-                >
-                  <View style={styles.placeDetailsHeading}>
-                    <View style={styles.placeDetailsCopy}>
-                      <Text numberOfLines={1} style={[styles.placeDetailsName, { color: colors.foreground }]}>
-                        {selectedPlace.name}
-                      </Text>
-                      {selectedPlace.address ? (
-                        <Text numberOfLines={2} style={[styles.placeDetailsAddress, { color: colors.mutedForeground }]}>
-                          {selectedPlace.address}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Close business details"
-                      testID="explore-nearby-place-details-close"
-                      onPress={() => {
-                        placeDetailsRequestId.current = null;
-                        setSelectedPlace(null);
-                        setSelectedPlaceDetails(null);
-                        setPlaceDetailsStatus('idle');
-                      }}
-                      style={styles.closeToolsButton}
-                    >
-                      <Feather name="x" size={16} color={colors.mutedForeground} />
-                    </Pressable>
-                  </View>
-                  {placeDetailsStatus === 'loading' ? (
-                    <Text style={[styles.placeDetailsMeta, { color: colors.mutedForeground }]}>Loading business details…</Text>
-                  ) : placeDetailsStatus === 'error' ? (
-                    <Text testID="explore-nearby-place-details-error" style={[styles.placeDetailsMeta, { color: colors.mutedForeground }]}>
-                      More business details couldn’t be loaded. The name and address are still available.
-                    </Text>
-                  ) : placeDetailsStatus === 'ready' ? (
-                    <>
-                      <View testID="explore-nearby-place-details-loaded" style={styles.placeDetailsInfo}>
-                        {selectedPlaceDetails?.rating != null ? (
-                          <Text style={[styles.placeDetailsMeta, { color: colors.foreground }]}>
-                            ★ {selectedPlaceDetails.rating.toFixed(1)}
-                            {selectedPlaceDetails.userRatingCount != null
-                              ? ` · ${selectedPlaceDetails.userRatingCount.toLocaleString()} ratings`
-                              : ''}
-                          </Text>
-                        ) : null}
-                        {selectedPlaceDetails?.businessStatus ? (
-                          <Text style={[styles.placeDetailsMeta, { color: colors.mutedForeground }]}>
-                            {selectedPlaceDetails.businessStatus === 'OPERATIONAL'
-                              ? 'Operating'
-                              : selectedPlaceDetails.businessStatus === 'CLOSED_TEMPORARILY'
-                                ? 'Temporarily closed'
-                                : selectedPlaceDetails.businessStatus === 'CLOSED_PERMANENTLY'
-                                  ? 'Permanently closed'
-                                  : 'Business status unavailable'}
-                          </Text>
-                        ) : null}
-                      </View>
-                      {selectedPlaceDetails?.websiteURI || selectedPlaceDetails?.internationalPhoneNumber ? (
-                        <View style={styles.detailsActions}>
-                          {selectedPlaceDetails.websiteURI ? (
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={`Open ${selectedPlace.name} website`}
-                              testID="explore-nearby-place-website"
-                              onPress={() => {
-                                void Linking.openURL(selectedPlaceDetails.websiteURI!).catch(() => setLocationMessage('Could not open this business website.'));
-                              }}
-                              style={[styles.detailsAction, { backgroundColor: colors.card, borderColor: colors.border }]}
-                            >
-                              <Feather name="external-link" size={13} color={colors.primary} />
-                              <Text style={[styles.detailsActionText, { color: colors.primary }]}>Website</Text>
-                            </Pressable>
-                          ) : null}
-                          {selectedPlaceDetails.internationalPhoneNumber ? (
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={`Call ${selectedPlace.name}`}
-                              testID="explore-nearby-place-call"
-                              onPress={() => {
-                                void Linking.openURL(`tel:${selectedPlaceDetails.internationalPhoneNumber}`).catch(() => setLocationMessage('Could not start a call to this business.'));
-                              }}
-                              style={[styles.detailsAction, { backgroundColor: colors.card, borderColor: colors.border }]}
-                            >
-                              <Feather name="phone" size={13} color={colors.primary} />
-                              <Text style={[styles.detailsActionText, { color: colors.primary }]}>Call</Text>
-                            </Pressable>
-                          ) : null}
-                        </View>
-                      ) : null}
-                    </>
-                  ) : null}
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`View ${selectedPlace.name} in Google Maps`}
-                    testID="explore-nearby-place-open-google-maps"
-                    onPress={() => {
-                      const url = selectedPlace.id.startsWith('nearby-')
-                        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${selectedPlace.name} ${selectedPlace.position.lat},${selectedPlace.position.lng}`)}`
-                        : `https://www.google.com/maps/search/?api=1&query_place_id=${encodeURIComponent(selectedPlace.id)}`;
-                      void Linking.openURL(url).catch(() => setLocationMessage('Could not open this place in Google Maps.'));
-                    }}
-                    style={[styles.openPlaceButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-                  >
-                    <Feather name="map" size={14} color={colors.primary} />
-                    <Text style={[styles.openPlaceButtonText, { color: colors.primary }]}>View in Google Maps</Text>
-                  </Pressable>
-                </View>
-              ) : null}
               <View style={styles.resultsHeading}>
                 <Text style={[styles.resultsTitle, { color: colors.foreground }]}>Places in this area</Text>
                 <Text testID="explore-nearby-place-count" style={[styles.resultsCount, { color: colors.mutedForeground }]}>
@@ -787,6 +708,211 @@ const ExploreMapGoogle3D = React.forwardRef<ExploreMapHandle, ExploreMapProps>(f
               {nearby.length ? `Places · ${nearby.length}` : 'Nearby places'}
             </Text>
           </Pressable> : null}
+          {selectedPlace ? (
+            <View
+              pointerEvents="box-none"
+              style={[
+                styles.placeCardPosition,
+                { bottom: Math.max(12, (props.sheetOverlayHeight ?? 0) + 12) },
+              ]}
+            >
+              <View
+                testID="explore-nearby-place-details"
+                accessibilityLiveRegion="polite"
+                style={[
+                  styles.placeCard,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    boxShadow: `0px 10px 30px ${colors.foreground}20`,
+                  },
+                ]}
+              >
+                <View style={[styles.placeCardAccent, { backgroundColor: colors.primary }]} />
+                <View style={styles.placeCardContent}>
+                  <View style={styles.placeCardHeading}>
+                    <View style={[styles.placeCardIcon, { backgroundColor: colors.primary + '12' }]}>
+                      <Feather name="map-pin" size={19} color={colors.primary} />
+                    </View>
+                    <View style={styles.placeCardCopy}>
+                      <Text style={[styles.placeCardEyebrow, { color: colors.primary }]}>NEARBY PLACE</Text>
+                      <Text
+                        accessibilityRole="header"
+                        numberOfLines={2}
+                        style={[styles.placeCardName, { color: colors.foreground }]}
+                      >
+                        {selectedPlace.name}
+                      </Text>
+                      {selectedPlace.address ? (
+                        <Text numberOfLines={2} style={[styles.placeCardAddress, { color: colors.mutedForeground }]}>
+                          {selectedPlace.address}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Close ${selectedPlace.name} details`}
+                      testID="explore-nearby-place-details-close"
+                      onPress={() => {
+                        placeDetailsRequestId.current = null;
+                        setSelectedPlace(null);
+                        setSelectedPlaceDetails(null);
+                        setPlaceDetailsStatus('idle');
+                        setPlaceActionMessage('');
+                      }}
+                      style={styles.placeCardClose}
+                    >
+                      <Feather name="x" size={18} color={colors.mutedForeground} />
+                    </Pressable>
+                  </View>
+
+                  {placeDetailsStatus === 'loading' ? (
+                    <Text testID="explore-nearby-place-details-loading" style={[styles.placeCardFeedback, { color: colors.mutedForeground }]}>
+                      Loading business details…
+                    </Text>
+                  ) : placeDetailsStatus === 'error' ? (
+                    <Text testID="explore-nearby-place-details-error" style={[styles.placeCardFeedback, { color: colors.mutedForeground }]}>
+                      More details couldn’t load. The business name and address are still available.
+                    </Text>
+                  ) : (
+                    <View testID="explore-nearby-place-details-loaded" style={styles.placeCardMeta}>
+                      {selectedPlaceDetails?.rating != null ? (
+                        <View style={styles.placeCardMetaItem}>
+                          <Feather name="star" size={14} color={colors.primary} />
+                          <Text style={[styles.placeCardMetaStrong, { color: colors.foreground }]}>
+                            {selectedPlaceDetails.rating.toFixed(1)}
+                          </Text>
+                          {selectedPlaceDetails.userRatingCount != null ? (
+                            <Text style={[styles.placeCardMetaText, { color: colors.mutedForeground }]}>
+                              ({selectedPlaceDetails.userRatingCount.toLocaleString()})
+                            </Text>
+                          ) : null}
+                        </View>
+                      ) : null}
+                      {selectedPlaceDetails?.businessStatus ? (
+                        <View style={styles.placeCardMetaItem}>
+                          <View
+                            style={[
+                              styles.placeStatusDot,
+                              {
+                                backgroundColor: selectedPlaceDetails.businessStatus === 'OPERATIONAL'
+                                  ? colors.teal
+                                  : colors.mutedForeground,
+                              },
+                            ]}
+                          />
+                          <Text style={[styles.placeCardMetaText, { color: colors.mutedForeground }]}>
+                            {selectedPlaceDetails.businessStatus === 'OPERATIONAL'
+                              ? 'Operating'
+                              : selectedPlaceDetails.businessStatus === 'CLOSED_TEMPORARILY'
+                                ? 'Temporarily closed'
+                                : selectedPlaceDetails.businessStatus === 'CLOSED_PERMANENTLY'
+                                  ? 'Permanently closed'
+                                  : 'Status unavailable'}
+                          </Text>
+                        </View>
+                      ) : null}
+                      {!selectedPlaceDetails?.rating && !selectedPlaceDetails?.businessStatus ? (
+                        <Text style={[styles.placeCardMetaText, { color: colors.mutedForeground }]}>
+                          Business details from Google Maps
+                        </Text>
+                      ) : null}
+                    </View>
+                  )}
+
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Get directions to ${selectedPlace.name}`}
+                    testID="explore-nearby-place-directions"
+                    onPress={() => {
+                      const destination = selectedPlace.id.startsWith('nearby-')
+                        ? `${selectedPlace.name} ${selectedPlace.position.lat},${selectedPlace.position.lng}`
+                        : selectedPlace.name;
+                      const params = new URLSearchParams({ api: '1', destination });
+                      if (!selectedPlace.id.startsWith('nearby-')) {
+                        params.set('destination_place_id', selectedPlace.id);
+                      }
+                      void Linking.openURL(`https://www.google.com/maps/dir/?${params.toString()}`).catch(() => {
+                        setPlaceActionMessage('Could not open directions for this place.');
+                      });
+                    }}
+                    style={[styles.placeDirectionsButton, { backgroundColor: colors.primary }]}
+                  >
+                    <Feather name="navigation" size={16} color={colors.primaryForeground} />
+                    <Text style={[styles.placeDirectionsText, { color: colors.primaryForeground }]}>Directions</Text>
+                    <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />
+                  </Pressable>
+
+                  {selectedPlaceDetails?.websiteURI || selectedPlaceDetails?.internationalPhoneNumber ? (
+                    <View style={styles.placeSecondaryActions}>
+                      {selectedPlaceDetails.websiteURI ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Open ${selectedPlace.name} website`}
+                          testID="explore-nearby-place-website"
+                          onPress={() => {
+                            void Linking.openURL(selectedPlaceDetails.websiteURI!).catch(() => {
+                              setPlaceActionMessage('Could not open this business website.');
+                            });
+                          }}
+                          style={[styles.placeSecondaryButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                        >
+                          <Feather name="external-link" size={14} color={colors.foreground} />
+                          <Text style={[styles.placeSecondaryText, { color: colors.foreground }]}>Website</Text>
+                        </Pressable>
+                      ) : null}
+                      {selectedPlaceDetails.internationalPhoneNumber ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Call ${selectedPlace.name}`}
+                          testID="explore-nearby-place-call"
+                          onPress={() => {
+                            void Linking.openURL(`tel:${selectedPlaceDetails.internationalPhoneNumber}`).catch(() => {
+                              setPlaceActionMessage('Could not start a call to this business.');
+                            });
+                          }}
+                          style={[styles.placeSecondaryButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                        >
+                          <Feather name="phone" size={14} color={colors.foreground} />
+                          <Text style={[styles.placeSecondaryText, { color: colors.foreground }]}>Call</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ) : null}
+
+                  {placeActionMessage ? (
+                    <Text testID="explore-nearby-place-action-message" style={[styles.placeCardFeedback, { color: colors.destructive }]}>
+                      {placeActionMessage}
+                    </Text>
+                  ) : null}
+                  <View style={[styles.placeCardFooter, { borderTopColor: colors.border }]}>
+                    <Text style={[styles.googlePlaceAttribution, { color: colors.mutedForeground }]}>Google Maps</Text>
+                    {nearby.length && !props.sheetExpanded ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Browse all ${nearby.length} nearby places`}
+                        testID="explore-nearby-place-browse"
+                        onPress={() => {
+                          placeDetailsRequestId.current = null;
+                          setSelectedPlace(null);
+                          setSelectedPlaceDetails(null);
+                          setPlaceDetailsStatus('idle');
+                          setPlaceActionMessage('');
+                          setMapToolsOpen(true);
+                        }}
+                        style={styles.placeBrowseButton}
+                      >
+                        <Text style={[styles.placeBrowseText, { color: colors.foreground }]}>
+                          Nearby places · {nearby.length}
+                        </Text>
+                        <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </View>
+              </View>
+            </View>
+          ) : null}
         </View>
       </View>
     </APIProvider>
@@ -822,20 +948,36 @@ const styles = StyleSheet.create({
   nearbyPlaceName: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   nearbyPlaceAddress: { fontSize: 10, lineHeight: 14 },
   googleAttribution: { fontSize: 9, textAlign: 'right' },
-  placeDetails: { borderWidth: 1, borderRadius: 12, padding: 9, gap: 6 },
-  placeDetailsHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  placeDetailsCopy: { flex: 1, minWidth: 0, gap: 3 },
-  placeDetailsName: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  placeDetailsAddress: { fontSize: 10, lineHeight: 14 },
-  placeDetailsInfo: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
-  placeDetailsMeta: { fontSize: 10, lineHeight: 14 },
-  detailsActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  detailsAction: { minHeight: 32, borderWidth: 1, borderRadius: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 9 },
-  detailsActionText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
-  openPlaceButton: { minHeight: 34, borderWidth: 1, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 10 },
-  openPlaceButtonText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  placeCardPosition: { position: 'absolute', left: 12, right: 12, zIndex: 8, elevation: 8 },
+  placeCard: { borderWidth: 1, borderRadius: 20, overflow: 'hidden' },
+  placeCardAccent: { height: 4 },
+  placeCardContent: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8, gap: 10 },
+  placeCardHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  placeCardIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  placeCardCopy: { flex: 1, minWidth: 0, gap: 3 },
+  placeCardEyebrow: { fontSize: 9, letterSpacing: 0.8, fontFamily: 'Inter_700Bold' },
+  placeCardName: { fontSize: 16, lineHeight: 20, fontFamily: 'Inter_700Bold' },
+  placeCardAddress: { fontSize: 12, lineHeight: 16 },
+  placeCardClose: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  placeCardFeedback: { fontSize: 12, lineHeight: 17 },
+  placeCardMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingVertical: 2 },
+  placeCardMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  placeCardMetaStrong: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  placeCardMetaText: { fontSize: 11, lineHeight: 15 },
+  placeStatusDot: { width: 7, height: 7, borderRadius: 4 },
+  placeDirectionsButton: { minHeight: 44, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  placeDirectionsText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  placeSecondaryActions: { flexDirection: 'row', gap: 8 },
+  placeSecondaryButton: { minHeight: 40, flex: 1, borderWidth: 1, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 8 },
+  placeSecondaryText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  placeCardFooter: { minHeight: 38, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 5 },
+  googlePlaceAttribution: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  placeBrowseButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 2, paddingLeft: 8 },
+  placeBrowseText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
   cityMarker: { minWidth: 34, height: 34, borderRadius: 18, borderWidth: 2, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
-  businessMarker: { minWidth: 28, height: 28, borderRadius: 15, borderWidth: 2, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  businessMarker: { width: 44, height: 46, alignItems: 'center', justifyContent: 'flex-start' },
+  businessMarkerHead: { zIndex: 1, width: 36, height: 36, borderWidth: 2.5, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  businessMarkerTail: { position: 'absolute', top: 27, width: 12, height: 12, borderWidth: 1.5, transform: [{ rotate: '45deg' }] },
   experienceMarker: { width: 27, height: 27, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   nodeMarker: { width: 48, height: 48, borderRadius: 24, borderWidth: 2.5, alignItems: 'center', justifyContent: 'center' },
   friendMarker: { width: 29, height: 29, borderRadius: 15, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },

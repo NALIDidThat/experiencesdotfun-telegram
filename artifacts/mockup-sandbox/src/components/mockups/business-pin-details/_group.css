@@ -1,0 +1,21 @@
+:root {
+  --background: #ffffff;
+  --foreground: #111111;
+  --card: #ffffff;
+  --muted: #f7f7f8;
+  --muted-foreground: #666666;
+  --border: #eaeaea;
+  --primary: #f20789;
+  --primary-foreground: #ffffff;
+  --secondary: #6805f2;
+  --teal: #04adbf;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
