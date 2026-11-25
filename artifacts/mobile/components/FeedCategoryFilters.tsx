@@ -44,6 +44,10 @@ export function FeedCategoryFilters({
                   borderColor: colors.border,
                   borderWidth: StyleSheet.hairlineWidth,
                 },
+                !selected && {
+                  borderColor: colors.border,
+                  borderWidth: StyleSheet.hairlineWidth,
+                },
                 pressed && styles.categoryButtonPressed,
               ]}
             >
