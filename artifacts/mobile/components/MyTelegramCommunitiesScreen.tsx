@@ -1,8 +1,16 @@
+import { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
-import { useGetMyTelegramCommunities } from '@workspace/api-client-react';
+import {
+  getGetCommunityDetailsQueryKey,
+  useGetCommunityDetails,
+  useGetMyTelegramCommunities,
+  type CommunityContribution,
+  type CommunitySummary,
+  type MyTelegramCommunity,
+} from '@workspace/api-client-react';
 import { openTelegramLink } from '@/lib/telegram';
 import { useColors } from '@/hooks/useColors';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { PoppinsText as Text } from '@/components/Typography';
 
 type Props = {
@@ -64,19 +72,245 @@ function InfoNote() {
   );
 }
 
+function ContributionHistory({ contributions }: { contributions: CommunityContribution[] }) {
+  const colors = useColors();
+
+  return (
+    <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+      <View style={styles.historyHeading}>
+        <View style={styles.historyHeadingCopy}>
+          <Text style={[styles.sectionEyebrow, { color: colors.primary }]}>RECENT AWARDS</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your contributions</Text>
+        </View>
+        <Feather name="clock" size={18} color={colors.primary} />
+      </View>
+      {contributions.length ? contributions.slice(0, 6).map((contribution) => {
+        const isMessage = contribution.contributionType === 'telegram_message';
+        return (
+          <View key={contribution.id} style={[styles.historyRow, { borderBottomColor: colors.border }]}>
+            <View style={[styles.historyIcon, { backgroundColor: isMessage ? colors.teal + '15' : colors.secondary + '15' }]}>
+              <Feather name={isMessage ? 'message-circle' : 'award'} size={16} color={isMessage ? colors.teal : colors.secondary} />
+            </View>
+            <View style={styles.historyCopy}>
+              <Text style={[styles.historyTitle, { color: colors.foreground }]}>
+                {isMessage ? 'Qualifying Telegram message' : 'Community recognition'}
+              </Text>
+              <Text style={[styles.historyDate, { color: colors.mutedForeground }]}>
+                {dateLabel(contribution.createdAt) ?? 'Date unavailable'}
+              </Text>
+            </View>
+            <Text style={[styles.historyXp, { color: colors.primary }]}>+{contribution.xpAwarded} XP</Text>
+          </View>
+        );
+      }) : (
+        <Text style={[styles.detailEmptyCopy, { color: colors.mutedForeground }]}>
+          No Community XP awards have been recorded for you in this group yet.
+        </Text>
+      )}
+    </View>
+  );
+}
+
+function GroupXpSummary({ community }: { community: CommunitySummary }) {
+  const colors = useColors();
+  const progress = Math.max(0, Math.min(100, community.levelProgress));
+
+  return (
+    <>
+      <View style={[styles.xpCard, { backgroundColor: colors.primary, borderRadius: colors.radius }]}>
+        <View style={styles.xpCardTop}>
+          <View style={styles.xpCardTitleCopy}>
+            <Text style={[styles.xpEyebrow, { color: colors.primaryForeground + 'B8' }]}>COMMUNITY XP</Text>
+            <Text style={[styles.xpLevel, { color: colors.primaryForeground }]}>{community.level}</Text>
+          </View>
+          <View style={[styles.rankBadge, { backgroundColor: colors.primaryForeground }]}>
+            <Feather name="trending-up" size={14} color={colors.primary} />
+            <Text style={[styles.rankBadgeText, { color: colors.primary }]}>Rank #{community.rank}</Text>
+          </View>
+        </View>
+        <View style={styles.xpValueRow}>
+          <Text style={[styles.xpValue, { color: colors.primaryForeground }]}>{community.communityXp.toLocaleString()}</Text>
+          <Text style={[styles.xpUnit, { color: colors.primaryForeground + 'CC' }]}>XP</Text>
+        </View>
+        <View style={styles.progressLabels}>
+          <Text style={[styles.progressLabel, { color: colors.primaryForeground + 'D1' }]}>Level progress</Text>
+          <Text style={[styles.progressLabel, { color: colors.primaryForeground + 'D1' }]}>
+            {community.nextLevelXp === null ? 'Maximum level reached' : `${Math.round(progress)}% to next level`}
+          </Text>
+        </View>
+        <View style={[styles.progressTrack, { backgroundColor: colors.primaryForeground + '35' }]}>
+          <View style={[styles.progressFill, { width: `${Math.max(3, progress)}%`, backgroundColor: colors.primaryForeground }]} />
+        </View>
+        {community.nextLevelXp !== null ? (
+          <Text style={[styles.nextLevel, { color: colors.primaryForeground + 'C2' }]}>
+            Next level at {community.nextLevelXp.toLocaleString()} XP
+          </Text>
+        ) : null}
+      </View>
+
+      <View style={styles.metricsRow}>
+        <View style={[styles.metric, { backgroundColor: colors.muted }]}>
+          <Text style={[styles.metricValue, { color: colors.foreground }]}>{community.contributionCount.toLocaleString()}</Text>
+          <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>Recorded contributions</Text>
+        </View>
+        <View style={[styles.metric, styles.qualifyingMetric, { backgroundColor: colors.primary + '0C', borderColor: colors.primary + '30' }]}>
+          <Text style={[styles.metricValue, { color: colors.primary }]}>{community.qualifyingMessages.toLocaleString()}</Text>
+          <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>Messages with XP awards</Text>
+        </View>
+      </View>
+    </>
+  );
+}
+
+function CommunityMemberView({
+  community,
+  onBack,
+}: {
+  community: MyTelegramCommunity;
+  onBack: () => void;
+}) {
+  const colors = useColors();
+  const detailsQuery = useGetCommunityDetails(community.chatId, {
+    query: {
+      enabled: community.rank !== null,
+      queryKey: getGetCommunityDetailsQueryKey(community.chatId),
+      retry: 1,
+    },
+  });
+  const joinedLabel = dateLabel(community.joinedAt);
+  const trackingLabel = dateLabel(community.trackingStartedAt);
+
+  return (
+    <ScrollView
+      testID={`my-telegram-community-detail-${community.chatId}`}
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={styles.detailContent}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.topBar}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back to your communities"
+          testID="my-telegram-community-detail-back"
+          onPress={onBack}
+          hitSlop={8}
+          style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.62 : 1 }]}
+        >
+          <Feather name="arrow-left" size={20} color={colors.foreground} />
+        </Pressable>
+        <View style={styles.headingCopy}>
+          <Text style={[styles.eyebrow, { color: colors.primary }]}>YOUR GROUP ACTIVITY</Text>
+          <Text accessibilityRole="header" style={[styles.title, { color: colors.foreground }]}>{community.title}</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+            Your contributions and participation record in this group.
+          </Text>
+        </View>
+      </View>
+
+      <InfoNote />
+
+      <View style={styles.detailSection}>
+        <View style={styles.sectionHeading}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Telegram activity</Text>
+          <Feather name="message-circle" size={18} color={colors.primary} />
+        </View>
+        <View style={styles.metricsRow}>
+          <View style={[styles.metric, { backgroundColor: colors.muted }]}>
+            <Text style={[styles.metricValue, { color: colors.foreground }]}>{community.messageCount.toLocaleString()}</Text>
+            <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>Observed human messages</Text>
+          </View>
+          <View style={[styles.metric, styles.qualifyingMetric, { backgroundColor: colors.primary + '0C', borderColor: colors.primary + '30' }]}>
+            <Text style={[styles.metricValue, { color: colors.primary }]}>{community.qualifyingMessageCount.toLocaleString()}</Text>
+            <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>XP-qualifying messages</Text>
+          </View>
+        </View>
+        <View style={[styles.detailList, { borderTopColor: colors.border }]}>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Telegram join date</Text>
+            <Text style={[styles.detailValue, { color: colors.foreground }]}>{joinedLabel ?? 'Join date not recorded'}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Tracking began</Text>
+            <Text style={[styles.detailValue, { color: colors.foreground }]}>{trackingLabel ?? 'Date unavailable'}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.detailSection}>
+        <View style={styles.sectionHeading}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Community XP</Text>
+          <Feather name="award" size={18} color={colors.secondary} />
+        </View>
+        <Text style={[styles.detailEmptyCopy, { color: colors.mutedForeground }]}>
+          These are recorded XP awards; bot-tracked message totals are shown separately above.
+        </Text>
+        {community.rank === null ? (
+          <View style={[styles.xpEmptyCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <Text style={[styles.detailEmptyCopy, { color: colors.mutedForeground }]}>
+              No Community XP has been recorded for you in this group yet. Your tracked message activity is shown above.
+            </Text>
+          </View>
+        ) : detailsQuery.isLoading ? (
+          <View style={[styles.loadingCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.detailEmptyCopy, { color: colors.mutedForeground }]}>Loading your group contribution record…</Text>
+          </View>
+        ) : detailsQuery.isError ? (
+          <View style={[styles.xpEmptyCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+            <Text accessibilityRole="alert" style={[styles.detailEmptyCopy, { color: colors.mutedForeground }]}>
+              Your Community XP details couldn’t load. Your Telegram activity above is still available.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading your Community XP details"
+              testID="my-telegram-community-detail-retry"
+              onPress={() => { void detailsQuery.refetch(); }}
+              style={({ pressed }) => [styles.retryButton, { borderColor: colors.border, borderRadius: colors.radius - 5, opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Feather name="refresh-cw" size={15} color={colors.primary} />
+              <Text style={[styles.retryText, { color: colors.primary }]}>Try again</Text>
+            </Pressable>
+          </View>
+        ) : detailsQuery.data ? (
+          <>
+            <GroupXpSummary community={detailsQuery.data.community} />
+            <ContributionHistory contributions={detailsQuery.data.recentContributions} />
+          </>
+        ) : null}
+      </View>
+
+      {community.openUrl ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open community ${community.title} in Telegram`}
+          accessibilityHint="Opens this public Telegram group"
+          testID={`my-telegram-community-detail-open-${community.chatId}`}
+          onPress={() => openTelegramLink(community.openUrl!)}
+          style={({ pressed }) => [
+            styles.openButton,
+            { backgroundColor: colors.primary, borderRadius: colors.radius - 5, opacity: pressed ? 0.78 : 1 },
+          ]}
+        >
+          <Feather name="send" size={15} color={colors.primaryForeground} />
+          <Text style={[styles.openButtonText, { color: colors.primaryForeground }]}>Open community</Text>
+          <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />
+        </Pressable>
+      ) : (
+        <Text style={[styles.noPublicLink, { color: colors.mutedForeground }]}>
+          No public Telegram link is available for this group.
+        </Text>
+      )}
+      <View style={{ height: 18 }} />
+    </ScrollView>
+  );
+}
+
 function CommunityCard({
   community,
+  onSelect,
 }: {
-  community: {
-    chatId: string;
-    title: string;
-    messageCount: number;
-    qualifyingMessageCount: number;
-    rank: number | null;
-    joinedAt: string | null;
-    trackingStartedAt: string;
-    openUrl: string | null;
-  };
+  community: MyTelegramCommunity;
+  onSelect: () => void;
 }) {
   const colors = useColors();
   const joinedLabel = dateLabel(community.joinedAt);
@@ -87,52 +321,66 @@ function CommunityCard({
       testID={`my-telegram-community-${community.chatId}`}
       style={[styles.communityCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}
     >
-      <View style={styles.communityHeading}>
-        <View style={[styles.groupMark, { backgroundColor: colors.primary + '12' }]}>
-          <Feather name="users" size={18} color={colors.primary} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${community.title}. ${community.messageCount.toLocaleString()} observed messages and ${community.qualifyingMessageCount.toLocaleString()} XP-qualifying messages. View your group activity.`}
+        accessibilityHint="Shows your contributions and Community XP in this group."
+        testID={`my-telegram-community-view-${community.chatId}`}
+        onPress={onSelect}
+        style={({ pressed }) => [styles.communityBody, { opacity: pressed ? 0.78 : 1 }]}
+      >
+        <View style={styles.communityHeading}>
+          <View style={[styles.groupMark, { backgroundColor: colors.primary + '12' }]}>
+            <Feather name="users" size={18} color={colors.primary} />
+          </View>
+          <View style={styles.titleCopy}>
+            <Text accessibilityRole="header" style={[styles.communityTitle, { color: colors.foreground }]}>
+              {community.title}
+            </Text>
+            <Text style={[styles.rankText, { color: colors.mutedForeground }]}>
+              {community.rank === null ? 'Not ranked yet' : `Community XP rank · #${community.rank}`}
+            </Text>
+          </View>
+          <View style={[styles.rankMark, { backgroundColor: colors.muted }]}>
+            <Feather name="activity" size={15} color={colors.secondary} />
+          </View>
         </View>
-        <View style={styles.titleCopy}>
-          <Text accessibilityRole="header" style={[styles.communityTitle, { color: colors.foreground }]}>
-            {community.title}
-          </Text>
-          <Text style={[styles.rankText, { color: colors.mutedForeground }]}>
-            {community.rank === null ? 'Not ranked yet' : `Community XP rank · #${community.rank}`}
-          </Text>
-        </View>
-        <View style={[styles.rankMark, { backgroundColor: colors.muted }]}>
-          <Feather name="activity" size={15} color={colors.secondary} />
-        </View>
-      </View>
 
-      <View style={styles.metricsRow}>
-        <View style={[styles.metric, { backgroundColor: colors.muted }]}>
-          <Text style={[styles.metricValue, { color: colors.foreground }]}>
-            {community.messageCount.toLocaleString()}
-          </Text>
-          <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>Observed human messages</Text>
+        <View style={styles.metricsRow}>
+          <View style={[styles.metric, { backgroundColor: colors.muted }]}>
+            <Text style={[styles.metricValue, { color: colors.foreground }]}>
+              {community.messageCount.toLocaleString()}
+            </Text>
+            <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>Observed human messages</Text>
+          </View>
+          <View style={[styles.metric, styles.qualifyingMetric, { backgroundColor: colors.primary + '0C', borderColor: colors.primary + '30' }]}>
+            <Text style={[styles.metricValue, { color: colors.primary }]}>
+              {community.qualifyingMessageCount.toLocaleString()}
+            </Text>
+            <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>XP-qualifying messages</Text>
+          </View>
         </View>
-        <View style={[styles.metric, styles.qualifyingMetric, { backgroundColor: colors.primary + '0C', borderColor: colors.primary + '30' }]}>
-          <Text style={[styles.metricValue, { color: colors.primary }]}>
-            {community.qualifyingMessageCount.toLocaleString()}
-          </Text>
-          <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>XP-qualifying messages</Text>
-        </View>
-      </View>
 
-      <View style={[styles.detailList, { borderTopColor: colors.border }]}>
-        <View style={styles.detailRow}>
-          <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Telegram join date</Text>
-          <Text style={[styles.detailValue, { color: colors.foreground }]}>
-            {joinedLabel ?? 'Join date not recorded'}
-          </Text>
+        <View style={[styles.detailList, { borderTopColor: colors.border }]}>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Telegram join date</Text>
+            <Text style={[styles.detailValue, { color: colors.foreground }]}>
+              {joinedLabel ?? 'Join date not recorded'}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Tracking began</Text>
+            <Text style={[styles.detailValue, { color: colors.foreground }]}>
+              {trackingLabel ?? 'Date unavailable'}
+            </Text>
+          </View>
         </View>
-        <View style={styles.detailRow}>
-          <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Tracking began</Text>
-          <Text style={[styles.detailValue, { color: colors.foreground }]}>
-            {trackingLabel ?? 'Date unavailable'}
-          </Text>
+
+        <View style={styles.viewActivityRow}>
+          <Text style={[styles.viewActivityText, { color: colors.primary }]}>View your group activity</Text>
+          <Feather name="chevron-right" size={17} color={colors.primary} />
         </View>
-      </View>
+      </Pressable>
 
       {community.openUrl ? (
         <Pressable
@@ -180,6 +428,16 @@ export function MyTelegramCommunitiesScreen({ onBack }: Props) {
   const colors = useColors();
   const communitiesQuery = useGetMyTelegramCommunities();
   const communities = communitiesQuery.data?.communities ?? [];
+  const [selectedCommunity, setSelectedCommunity] = useState<MyTelegramCommunity | null>(null);
+
+  if (selectedCommunity) {
+    return (
+      <CommunityMemberView
+        community={selectedCommunity}
+        onBack={() => setSelectedCommunity(null)}
+      />
+    );
+  }
 
   return (
     <ScrollView
@@ -256,7 +514,11 @@ export function MyTelegramCommunitiesScreen({ onBack }: Props) {
             <Text style={[styles.groupCount, { color: colors.primary }]}>{communities.length}</Text>
           </View>
           {communities.map((community) => (
-            <CommunityCard key={community.chatId} community={community} />
+            <CommunityCard
+              key={community.chatId}
+              community={community}
+              onSelect={() => setSelectedCommunity(community)}
+            />
           ))}
         </View>
       )}
@@ -279,7 +541,8 @@ const styles = StyleSheet.create({
   listHeading: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 2 },
   listTitle: { flex: 1, fontSize: 17, fontFamily: 'Inter_700Bold' },
   groupCount: { fontSize: 13, fontFamily: 'Inter_700Bold' },
-  communityCard: { borderWidth: 1, padding: 15, gap: 14 },
+  communityCard: { borderWidth: 1, padding: 0, overflow: 'hidden' },
+  communityBody: { padding: 15, gap: 14 },
   communityHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   groupMark: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   titleCopy: { flex: 1, minWidth: 0 },
@@ -295,10 +558,12 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
   detailLabel: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
   detailValue: { flex: 1, textAlign: 'right', fontSize: 11, lineHeight: 16, fontFamily: 'Inter_600SemiBold' },
-  openButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 14 },
+  viewActivityRow: { minHeight: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  viewActivityText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  openButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 14, marginHorizontal: 15, marginBottom: 15 },
   disabledOpenButton: { opacity: 0.86 },
   openButtonText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
-  noPublicLink: { fontSize: 11, lineHeight: 15, textAlign: 'center', fontFamily: 'Inter_400Regular', marginTop: 7 },
+  noPublicLink: { fontSize: 11, lineHeight: 15, textAlign: 'center', fontFamily: 'Inter_400Regular', marginTop: 7, marginHorizontal: 15, marginBottom: 15 },
   stateStack: { gap: 12 },
   skeleton: { borderRadius: 8 },
   skeletonHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -314,4 +579,36 @@ const styles = StyleSheet.create({
   emptyStateBody: { fontSize: 12, lineHeight: 17 },
   retryButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, paddingHorizontal: 15, marginTop: 5 },
   retryText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  detailContent: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 34, gap: 18 },
+  detailSection: { gap: 11 },
+  sectionHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionEyebrow: { fontSize: 10, letterSpacing: 1.1, fontFamily: 'Inter_700Bold' },
+  sectionTitle: { fontSize: 17, lineHeight: 22, fontFamily: 'Inter_700Bold' },
+  xpCard: { padding: 16, gap: 12 },
+  xpCardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+  xpCardTitleCopy: { flex: 1, gap: 4 },
+  xpEyebrow: { fontSize: 10, letterSpacing: 1.1, fontFamily: 'Inter_700Bold' },
+  xpLevel: { fontSize: 18, lineHeight: 24, fontFamily: 'Inter_700Bold' },
+  rankBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 14, paddingHorizontal: 9, paddingVertical: 7 },
+  rankBadgeText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  xpValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 7 },
+  xpValue: { fontSize: 38, lineHeight: 44, fontFamily: 'Inter_700Bold' },
+  xpUnit: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  progressLabels: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  progressLabel: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  progressTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 4 },
+  nextLevel: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  xpEmptyCard: { borderWidth: 1, padding: 14, gap: 9 },
+  loadingCard: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, padding: 14 },
+  detailEmptyCopy: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_400Regular' },
+  historyCard: { borderWidth: 1, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4, gap: 8, overflow: 'hidden' },
+  historyHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 3 },
+  historyHeadingCopy: { gap: 3 },
+  historyRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 7 },
+  historyIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  historyCopy: { flex: 1, minWidth: 0 },
+  historyTitle: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  historyDate: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  historyXp: { fontSize: 12, fontFamily: 'Inter_700Bold' },
 });

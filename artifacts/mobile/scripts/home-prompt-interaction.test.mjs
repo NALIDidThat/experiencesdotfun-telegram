@@ -1399,3 +1399,167 @@ test("signed-in Home prompts, organisation progress, and the personal Activity t
   );
   assert.deepEqual(unexpectedApiRequests, [], "The Home flow should only request the fixture-backed APIs.");
 });
+
+test("participant community cards open their group contribution record on mobile", async (t) => {
+  const appUrl = getAppPreviewUrl("The My communities interaction test");
+  const appOrigin = new URL(appUrl).origin;
+  const client = await launchBrowser(t);
+  const sessionToken = "email_my-communities-test";
+  const apiTraffic = [];
+  const unexpectedApiRequests = [];
+  const chatId = "-1002100000001";
+  const community = {
+    chatId,
+    title: "Community Garden Volunteers",
+    messageCount: 44,
+    qualifyingMessageCount: 40,
+    rank: 1,
+    joinedAt: "2026-10-18T09:00:00.000Z",
+    trackingStartedAt: "2026-10-23T09:00:00.000Z",
+    openUrl: "https://t.me/community_garden_volunteers",
+  };
+
+  client.on("Fetch.requestPaused", ({ params }) => {
+    void (async () => {
+      try {
+        const url = new URL(params.request.url);
+        if (!url.pathname.startsWith("/api/")) {
+          await client.send("Fetch.continueRequest", { requestId: params.requestId });
+          return;
+        }
+        const method = params.request.method;
+        apiTraffic.push(`${method} ${url.pathname}${url.search}`);
+        if (method === "OPTIONS") {
+          await client.send("Fetch.fulfillRequest", {
+            requestId: params.requestId,
+            responseCode: 204,
+            responseHeaders: [
+              ...apiResponseHeaders(params.request, appOrigin),
+              { name: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
+              {
+                name: "Access-Control-Allow-Headers",
+                value: params.request.headers["Access-Control-Request-Headers"]
+                  ?? params.request.headers["access-control-request-headers"]
+                  ?? "authorization,content-type",
+              },
+            ],
+            body: "",
+          });
+          return;
+        }
+
+        let status = 200;
+        let response;
+        if (url.pathname === "/api/me" && method === "GET") {
+          const authorization = params.request.headers.Authorization
+            ?? params.request.headers.authorization;
+          if (authorization !== `Bearer ${sessionToken}`) {
+            status = 401;
+            response = { message: "The test session was not restored." };
+          } else {
+            response = user;
+          }
+        } else if (url.pathname === "/api/community/me/telegram" && method === "GET") {
+          response = { communities: [community] };
+        } else if (url.pathname === `/api/community/${chatId}` && method === "GET") {
+          response = {
+            community: {
+              chatId,
+              title: community.title,
+              communityXp: 120,
+              contributionCount: 5,
+              qualifyingMessages: 4,
+              rank: 1,
+              level: "Community Builder",
+              levelProgress: 30,
+              nextLevelXp: 200,
+            },
+            leaderboard: [],
+            recentContributions: [{
+              id: 1,
+              contributionType: "telegram_message",
+              xpAwarded: 20,
+              createdAt: "2026-11-02T12:00:00.000Z",
+            }],
+          };
+        } else if (url.pathname === "/api/me/xp-awards" && method === "GET") {
+          response = { balanceXp: 0, pendingXp: 0, awards: [] };
+        } else if (url.pathname === "/api/analytics/events" && method === "POST") {
+          status = 202;
+          response = { accepted: true };
+        } else {
+          unexpectedApiRequests.push(`${method} ${url.pathname}${url.search}`);
+          status = 404;
+          response = { message: "Unexpected API request in My communities test." };
+        }
+
+        await client.send("Fetch.fulfillRequest", {
+          requestId: params.requestId,
+          responseCode: status,
+          responseHeaders: apiResponseHeaders(params.request, appOrigin),
+          body: Buffer.from(JSON.stringify(response)).toString("base64"),
+        });
+      } catch (error) {
+        await client.send("Fetch.failRequest", {
+          requestId: params.requestId,
+          errorReason: "Failed",
+        }).catch(() => {});
+        throw error;
+      }
+    })();
+  });
+
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
+  await client.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `localStorage.setItem('@experiences/auth-token', '${sessionToken}');`,
+  });
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    ...viewport,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await client.send("Page.navigate", { url: `${appUrl}/?screen=telegram-my-communities` });
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="my-telegram-community-view-${chatId}"]'))`,
+    Boolean,
+    "the participant's tracked Telegram group card",
+  );
+
+  await tapTestId(client, `my-telegram-community-view-${chatId}`);
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="my-telegram-community-detail-${chatId}"]'))`,
+    Boolean,
+    "the group-specific member activity view",
+  );
+  await waitForValue(
+    client,
+    `document.body.innerText.replace(/\\s+/g, ' ')`,
+    (text) => text.includes("Community Builder"),
+    "the server-provided Community XP details",
+  );
+  const detailText = await client.evaluate(`document.body.innerText.replace(/\\s+/g, ' ')`);
+  assert.match(detailText, /Telegram activity/);
+  assert.match(detailText, /44/);
+  assert.match(detailText, /120 XP/);
+  assert.match(detailText, /Community Builder/);
+  assert.match(detailText, /Rank #1/);
+  assert.match(detailText, /Messages with XP awards/);
+  assert.match(detailText, /Your contributions/);
+  assert.match(detailText, /Qualifying Telegram message/);
+  assert.ok(apiTraffic.includes(`GET /api/community/${chatId}`));
+
+  await tapTestId(client, "my-telegram-community-detail-back");
+  await waitForValue(
+    client,
+    `Boolean(document.querySelector('[data-testid="my-telegram-community-view-${chatId}"]'))`,
+    Boolean,
+    "the group list after returning from member activity",
+  );
+  assert.ok(
+    apiTraffic.includes("GET /api/community/me/telegram"),
+    "The My communities list should load the signed-in participant's tracked groups.",
+  );
+  assert.deepEqual(unexpectedApiRequests, [], "The My communities flow should only request fixture-backed APIs.");
+});
